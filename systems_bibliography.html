@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sovereign's Reach — Systems Bibliography</title>
+<style>
+  :root {
+    --bg: #1a1a2e; --surface: #16213e; --card: #0f3460;
+    --accent: #e94560; --gold: #ffd700; --green: #4caf50;
+    --text: #e0e0e0; --muted: #888; --code-bg: #0d1117;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; line-height: 1.6; }
+  header { background: linear-gradient(135deg, var(--card), var(--accent)); padding: 2rem; text-align: center; }
+  header h1 { font-size: 2.5rem; color: var(--gold); text-shadow: 2px 2px 8px #000; }
+  header p { color: #ccc; margin-top: 0.5rem; }
+  .phase-badge { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 0.75rem; font-weight: bold; margin-left: 8px; }
+  .complete { background: var(--green); color: #000; }
+  .pending { background: var(--muted); color: #000; }
+  nav { background: var(--surface); padding: 1rem 2rem; border-bottom: 1px solid #333; position: sticky; top: 0; z-index: 100; }
+  nav a { color: var(--gold); text-decoration: none; margin-right: 1.5rem; font-size: 0.9rem; }
+  nav a:hover { text-decoration: underline; }
+  main { max-width: 1400px; margin: 0 auto; padding: 2rem; }
+  .system-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(600px, 1fr)); gap: 1.5rem; margin-top: 1.5rem; }
+  .card { background: var(--surface); border: 1px solid #2a2a4a; border-radius: 8px; padding: 1.5rem; }
+  .card h2 { color: var(--gold); font-size: 1.1rem; border-bottom: 1px solid #333; padding-bottom: 0.5rem; margin-bottom: 1rem; }
+  .card h3 { color: var(--accent); font-size: 0.95rem; margin: 1rem 0 0.5rem; }
+  .file-path { font-family: monospace; font-size: 0.8rem; background: var(--code-bg); color: #79c0ff; padding: 2px 6px; border-radius: 4px; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.85rem; margin-top: 0.5rem; }
+  th { background: var(--card); color: var(--gold); padding: 6px 10px; text-align: left; }
+  td { padding: 5px 10px; border-bottom: 1px solid #2a2a4a; }
+  td:first-child { font-family: monospace; color: #79c0ff; white-space: nowrap; }
+  .flow { background: var(--code-bg); border-left: 3px solid var(--accent); padding: 0.75rem 1rem; font-family: monospace; font-size: 0.82rem; margin-top: 0.5rem; white-space: pre; overflow-x: auto; }
+  .note { background: #1a2a1a; border-left: 3px solid var(--green); padding: 0.5rem 1rem; font-size: 0.85rem; margin-top: 0.5rem; border-radius: 0 4px 4px 0; }
+  .warn { background: #2a1a0a; border-left: 3px solid #ff9800; padding: 0.5rem 1rem; font-size: 0.85rem; margin-top: 0.5rem; border-radius: 0 4px 4px 0; }
+  section { margin-top: 2.5rem; }
+  section > h2 { font-size: 1.4rem; color: var(--gold); border-bottom: 2px solid var(--accent); padding-bottom: 0.5rem; }
+  .arch-diagram { background: var(--code-bg); border: 1px solid #333; border-radius: 8px; padding: 1.5rem; font-family: monospace; font-size: 0.85rem; line-height: 2; overflow-x: auto; white-space: pre; }
+  .signal-list { columns: 2; gap: 1rem; }
+  .signal-list li { font-family: monospace; font-size: 0.8rem; color: #79c0ff; list-style: none; padding: 2px 0; }
+  .cmd-enum { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.5rem; }
+  .cmd-tag { background: var(--card); color: var(--text); font-family: monospace; font-size: 0.75rem; padding: 2px 8px; border-radius: 12px; }
+  footer { text-align: center; padding: 2rem; color: var(--muted); font-size: 0.85rem; border-top: 1px solid #333; margin-top: 3rem; }
+  .toc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 0.75rem; margin-top: 1rem; }
+  .toc-item { background: var(--surface); border: 1px solid #2a2a4a; border-radius: 6px; padding: 0.75rem; }
+  .toc-item a { color: var(--gold); text-decoration: none; font-weight: bold; font-size: 0.9rem; }
+  .toc-item p { font-size: 0.78rem; color: var(--muted); margin-top: 0.25rem; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>⚔ Sovereign's Reach</h1>
+  <p>Systems Bibliography — Living Codebase Encyclopedia</p>
+  <p style="color:#aaa; font-size:0.85rem">Engine: Godot 4.6.3 · Architecture: Multiplayer-First (MFA) · Last updated: 2026-06-12</p>
+</header>
+
+<nav>
+  <a href="#architecture">Architecture</a>
+  <a href="#phase1">Phase 1 Systems</a>
+  <a href="#eventbus">EventBus</a>
+  <a href="#commandqueue">CommandQueue</a>
+  <a href="#simclock">SimulationClock</a>
+  <a href="#gamestate">GameState</a>
+  <a href="#inputmapper">InputMapper</a>
+  <a href="#roadmap">Roadmap</a>
+</nav>
+
+<main>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<section id="architecture">
+  <h2>Core Architecture — Multiplayer-First (MFA)</h2>
+  <p style="margin-top:1rem; color:#ccc">The entire game is coded as if it were a networked game with a server predicting local state. This means:</p>
+  <ul style="margin: 1rem 0 1rem 1.5rem; color:#ccc; font-size:0.9rem; line-height:2">
+    <li><strong>Simulation layer</strong> (pure GDScript Nodes — no rendering, no scene tree dependencies)</li>
+    <li><strong>View layer</strong> (Godot scenes, TileMaps, UI) reads state but never writes it</li>
+    <li><strong>Input → Command → Simulation → View</strong> — all state changes go through this pipeline</li>
+    <li>All state is JSON-serializable (no Vector2, no Node references in state dictionaries)</li>
+    <li>Fixed 20 Hz timestep — game logic is independent of render framerate</li>
+  </ul>
+
+  <div class="arch-diagram">
+INPUT (Keyboard/Mouse)
+        │
+        ▼
+┌─────────────────┐     enqueue(cmd)
+│  InputMapper    │ ──────────────────►  CommandQueue
+│  (View layer)   │                          │
+└─────────────────┘                          │ dequeue_all() each tick
+                                             ▼
+                                    SimulationClock._advance_tick()
+                                             │
+                              ┌──────────────┼──────────────┐
+                              ▼              ▼              ▼
+                        apply_command()  simulate_tick()  emit(tick)
+                              │              │              │
+                              └──────────────┴──────►  GameState
+                                                           │
+                                              ┌────────────┴────────────┐
+                                              ▼                         ▼
+                                         View reads               EventBus
+                                         GameState              (signals out)
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<section id="phase1">
+  <h2>Phase 1 Systems <span class="phase-badge complete">COMPLETE</span></h2>
+  <p style="margin-top:0.5rem; color:#ccc; font-size:0.9rem">69/69 tests passing. Headless run: <code style="background:var(--code-bg);padding:2px 6px;border-radius:4px">godot --headless --script tests/TestPhase1.gd</code></p>
+
+  <div class="system-grid" style="margin-top:1.5rem">
+
+    <!-- EventBus -->
+    <div class="card" id="eventbus">
+      <h2>EventBus <span class="file-path">simulation/core/EventBus.gd</span></h2>
+      <p style="color:#ccc;font-size:0.85rem">Pure signal hub. Defines ALL game-wide signals across 9 categories. Contains zero logic. All emitters call EventBus signals; all consumers connect to them.</p>
+      <h3>Signal Categories</h3>
+      <ul class="signal-list">
+        <li>command_issued(command)</li>
+        <li>command_processed(command, ok)</li>
+        <li>simulation_tick(tick)</li>
+        <li>game_speed_changed(mult)</li>
+        <li>view_mode_changed(mode)</li>
+        <li>view_rotated(index)</li>
+        <li>popularity_changed(pid, old, new)</li>
+        <li>resource_changed(pid, type, old, new)</li>
+        <li>gold_changed(pid, old, new)</li>
+        <li>prestige_changed(pid, old, new)</li>
+        <li>building_placed(pid, type, x, y, id)</li>
+        <li>building_demolished(pid, id)</li>
+        <li>building_destroyed(pid, id, cause)</li>
+        <li>unit_spawned(unit_data)</li>
+        <li>unit_killed(id, killer, cause)</li>
+        <li>unit_moved(id, fx, fy, tx, ty)</li>
+        <li>ai_siege_assembling(fid, pid, eta)</li>
+        <li>ai_envoy_sent(fid, demand)</li>
+        <li>ai_faction_defeated(fid)</li>
+        <li>weather_changed(type, ticks)</li>
+        <li>shire_ownership_changed(sid, old, new)</li>
+        <li>edict_activated(pid, id, ticks)</li>
+        <li>edict_expired(pid, id)</li>
+        <li>save_requested()</li>
+        <li>save_completed(path)</li>
+        <li>load_requested(path)</li>
+        <li>load_completed(ok)</li>
+      </ul>
+      <div class="note">Why: Decouples simulation from view. AI from economy. Nothing imports anything directly — all communication is via signals.</div>
+    </div>
+
+    <!-- CommandQueue -->
+    <div class="card" id="commandqueue">
+      <h2>CommandQueue <span class="file-path">simulation/core/CommandQueue.gd</span></h2>
+      <p style="color:#ccc;font-size:0.85rem">Autoload intent queue. Player input is NEVER applied directly. InputMapper enqueues a typed Command dict; SimulationClock drains it each tick and applies commands to GameState.</p>
+      <h3>Command Structure</h3>
+      <div class="flow">{
+  "type":          CommandType (int enum),
+  "payload":       Dictionary,   # type-specific data
+  "player_id":     int,          # which player issued it
+  "issued_at_tick": int          # tick when issued
+}</div>
+      <h3>CommandType Enum (25 types)</h3>
+      <div class="cmd-enum">
+        <span class="cmd-tag">SET_TAX_RATE</span>
+        <span class="cmd-tag">SET_RATION_FOOD</span>
+        <span class="cmd-tag">SET_RATION_ALE</span>
+        <span class="cmd-tag">DONATE_TO_CAPITAL</span>
+        <span class="cmd-tag">SET_TRADE_ROUTE</span>
+        <span class="cmd-tag">BUY_RESOURCE</span>
+        <span class="cmd-tag">SELL_RESOURCE</span>
+        <span class="cmd-tag">PLACE_BUILDING</span>
+        <span class="cmd-tag">DEMOLISH_BUILDING</span>
+        <span class="cmd-tag">SET_BUILDING_WORKERS</span>
+        <span class="cmd-tag">UPGRADE_BUILDING</span>
+        <span class="cmd-tag">RECRUIT_UNIT</span>
+        <span class="cmd-tag">ISSUE_MOVE_ORDER</span>
+        <span class="cmd-tag">ISSUE_ATTACK_ORDER</span>
+        <span class="cmd-tag">ISSUE_PATROL_ORDER</span>
+        <span class="cmd-tag">DISBAND_UNIT</span>
+        <span class="cmd-tag">ACTIVATE_EDICT</span>
+        <span class="cmd-tag">SELECT_ENTITY</span>
+        <span class="cmd-tag">DESELECT</span>
+        <span class="cmd-tag">SET_BUILD_PREVIEW</span>
+        <span class="cmd-tag">SET_GAME_SPEED</span>
+        <span class="cmd-tag">TOGGLE_VIEW_MODE</span>
+        <span class="cmd-tag">ROTATE_VIEW</span>
+        <span class="cmd-tag">SAVE_GAME</span>
+        <span class="cmd-tag">LOAD_GAME</span>
+      </div>
+      <h3>Key Methods</h3>
+      <table>
+        <tr><th>Method</th><th>Returns</th><th>Description</th></tr>
+        <tr><td>enqueue(type, payload, pid)</td><td>void</td><td>Adds command, emits EventBus.command_issued</td></tr>
+        <tr><td>dequeue_all()</td><td>Array[Dictionary]</td><td>Drains and returns all queued commands</td></tr>
+        <tr><td>peek()</td><td>Array[Dictionary]</td><td>Non-destructive view of queue</td></tr>
+        <tr><td>clear()</td><td>void</td><td>Empties queue</td></tr>
+        <tr><td>serialize()</td><td>Dictionary</td><td>JSON-safe snapshot</td></tr>
+        <tr><td>deserialize(data)</td><td>void</td><td>Restores from snapshot</td></tr>
+      </table>
+    </div>
+
+    <!-- SimulationClock -->
+    <div class="card" id="simclock">
+      <h2>SimulationClock <span class="file-path">simulation/core/SimulationClock.gd</span></h2>
+      <p style="color:#ccc;font-size:0.85rem">The heartbeat. Runs 20 Hz fixed timestep via <code>_process(delta)</code> with an accumulator. Speed multipliers scale wall-clock time consumed per tick.</p>
+      <h3>Constants</h3>
+      <table>
+        <tr><th>Constant</th><th>Value</th><th>Notes</th></tr>
+        <tr><td>TICK_RATE</td><td>20.0</td><td>Ticks per real second at 1× speed</td></tr>
+        <tr><td>TICK_INTERVAL</td><td>0.05</td><td>Real seconds per tick (1/20)</td></tr>
+        <tr><td>TICKS_PER_GAME_DAY</td><td>240</td><td>= 12 real seconds per day at 1×</td></tr>
+      </table>
+      <h3>Speed Modes</h3>
+      <table>
+        <tr><th>Constant</th><th>Multiplier</th><th>Real secs/game-day</th></tr>
+        <tr><td>SPEED_PAUSED (0)</td><td>0×</td><td>—</td></tr>
+        <tr><td>SPEED_NORMAL (1)</td><td>1×</td><td>12s</td></tr>
+        <tr><td>SPEED_FAST (2)</td><td>2×</td><td>6s</td></tr>
+        <tr><td>SPEED_FASTEST (3)</td><td>5×</td><td>2.4s</td></tr>
+      </table>
+      <h3>_advance_tick() flow</h3>
+      <div class="flow">current_tick++
+→ CommandQueue.dequeue_all()
+→ for cmd: GameState.apply_command(cmd)
+→ GameState.simulate_tick(current_tick)
+→ EventBus.simulation_tick.emit(current_tick)</div>
+      <div class="note">Why: All game logic runs here, not in _process. delta is accumulated; no logic reads delta directly. Deterministic at any speed.</div>
+    </div>
+
+    <!-- GameState -->
+    <div class="card" id="gamestate">
+      <h2>GameState <span class="file-path">simulation/core/GameState.gd</span></h2>
+      <p style="color:#ccc;font-size:0.85rem">Single source of truth. ALL mutable game data lives here. No Godot types (Vector2, Node) — only int/float/bool/String/Dictionary/Array. Fully JSON-serializable.</p>
+      <h3>Top-Level State Fields</h3>
+      <table>
+        <tr><th>Field</th><th>Type</th><th>Description</th></tr>
+        <tr><td>world</td><td>Dictionary</td><td>Map data (Phase 2)</td></tr>
+        <tr><td>players</td><td>Array</td><td>Per-player state dicts</td></tr>
+        <tr><td>ai_factions</td><td>Array</td><td>AI faction state dicts (Phase 6)</td></tr>
+        <tr><td>weather</td><td>Dictionary</td><td>Current weather + effects</td></tr>
+        <tr><td>active_edicts</td><td>Array</td><td>Server-wide active edicts</td></tr>
+        <tr><td>server_config</td><td>Dictionary</td><td>Tick rate, map size, difficulty</td></tr>
+        <tr><td>milestones</td><td>Dictionary</td><td>Cooperative milestone tracking</td></tr>
+      </table>
+      <h3>Per-Player State</h3>
+      <table>
+        <tr><th>Field</th><th>Notes</th></tr>
+        <tr><td>gold, popularity, prestige</td><td>Core economy scalars</td></tr>
+        <tr><td>tax_rate</td><td>-3 (bribe) to +3 (heavy). Input to P formula.</td></tr>
+        <tr><td>food_ration, ale_ration</td><td>0–4 sliders. Inputs to P formula.</td></tr>
+        <tr><td>keep_x, keep_y</td><td>Int coords (no Vector2i for JSON safety)</td></tr>
+        <tr><td>resources{}</td><td>8 raw materials (wood, stone, iron, pitch, hops, wheat, flour, leather)</td></tr>
+        <tr><td>food{}</td><td>5 food types (apples, cheese, meat, bread, ale)</td></tr>
+        <tr><td>armory{}</td><td>6 weapon/armor types</td></tr>
+        <tr><td>buildings[], units[]</td><td>Arrays of int IDs (detail in Phase 3/6)</td></tr>
+        <tr><td>tech_unlocks[], active_edicts[]</td><td>Progress tracking (Phase 5)</td></tr>
+        <tr><td>fog_of_war{}</td><td>"x,y"->true for revealed tiles (Phase 2)</td></tr>
+      </table>
+      <h3>apply_command() dispatch</h3>
+      <p style="font-size:0.85rem;color:#ccc;margin-top:0.5rem">Routes each CommandType to a private handler. Phase 1 handlers: SET_TAX_RATE, SET_RATION_FOOD, SET_RATION_ALE, SET_GAME_SPEED, TOGGLE_VIEW_MODE, ROTATE_VIEW, SAVE_GAME. Future phases add more.</p>
+      <h3>simulate_tick(tick)</h3>
+      <p style="font-size:0.85rem;color:#ccc;margin-top:0.5rem">Currently a stub (pass). Phase 2 adds economy tick, weather tick. Phase 4 adds the full Popularity Engine formula P = ΔF + ΔA + ΔR − T ± E.</p>
+    </div>
+
+    <!-- InputMapper -->
+    <div class="card" id="inputmapper">
+      <h2>InputMapper + InputSetup <span class="file-path">simulation/core/InputMapper.gd</span></h2>
+      <p style="color:#ccc;font-size:0.85rem"><strong>InputMapper</strong> is the ONLY file in the codebase that calls Godot's Input API. It translates physical events into Command dicts and enqueues them. It is NOT an autoload — it attaches to a View scene node.</p>
+      <p style="color:#ccc;font-size:0.85rem;margin-top:0.5rem"><strong>InputSetup</strong> is an autoload that registers all input actions programmatically (avoiding Godot's verbose project.godot event serialization).</p>
+      <h3>Input Actions Registered</h3>
+      <table>
+        <tr><th>Action</th><th>Key</th><th>Command Issued</th></tr>
+        <tr><td>cmd_pause</td><td>Space</td><td>SET_GAME_SPEED (toggle)</td></tr>
+        <tr><td>cmd_toggle_map_view</td><td>M</td><td>TOGGLE_VIEW_MODE</td></tr>
+        <tr><td>cmd_rotate_view</td><td>R</td><td>ROTATE_VIEW</td></tr>
+        <tr><td>cmd_cancel</td><td>Escape</td><td>DESELECT</td></tr>
+        <tr><td>ui_speed_1</td><td>1</td><td>SET_GAME_SPEED (NORMAL)</td></tr>
+        <tr><td>ui_speed_2</td><td>2</td><td>SET_GAME_SPEED (FAST)</td></tr>
+        <tr><td>ui_speed_3</td><td>3</td><td>SET_GAME_SPEED (FASTEST)</td></tr>
+        <tr><td>ui_save</td><td>F5</td><td>SAVE_GAME</td></tr>
+        <tr><td>cam_pan_*</td><td>WASD / Arrows</td><td>(View layer only)</td></tr>
+      </table>
+      <h3>Public API (called by View layer)</h3>
+      <table>
+        <tr><th>Method</th><th>Description</th></tr>
+        <tr><td>issue_place_building(type, x, y)</td><td>PLACE_BUILDING command</td></tr>
+        <tr><td>issue_select(id, type)</td><td>SELECT_ENTITY command</td></tr>
+        <tr><td>issue_set_tax_rate(rate)</td><td>SET_TAX_RATE command</td></tr>
+        <tr><td>issue_set_food_ration(level)</td><td>SET_RATION_FOOD command</td></tr>
+        <tr><td>issue_set_ale_ration(level)</td><td>SET_RATION_ALE command</td></tr>
+        <tr><td>set_active_build_type(type)</td><td>Tracks current build selection (view state)</td></tr>
+      </table>
+    </div>
+
+    <!-- Test Suite -->
+    <div class="card">
+      <h2>TestPhase1 <span class="file-path">tests/TestPhase1.gd</span></h2>
+      <p style="color:#ccc;font-size:0.85rem">Headless test runner (extends SceneTree). Accesses autoloads via <code>root.get_node_or_null()</code> to avoid compile-time autoload resolution in <code>--script</code> mode.</p>
+      <h3>Test Coverage (69 tests)</h3>
+      <table>
+        <tr><th>Suite</th><th>Tests</th><th>Status</th></tr>
+        <tr><td>CommandQueue</td><td>10</td><td style="color:var(--green)">✓ PASS</td></tr>
+        <tr><td>GameState initialization</td><td>22</td><td style="color:var(--green)">✓ PASS</td></tr>
+        <tr><td>Serialization round-trip</td><td>8</td><td style="color:var(--green)">✓ PASS</td></tr>
+        <tr><td>Command application</td><td>8</td><td style="color:var(--green)">✓ PASS</td></tr>
+        <tr><td>SimulationClock</td><td>21</td><td style="color:var(--green)">✓ PASS</td></tr>
+      </table>
+      <div class="flow">godot --headless --script tests/TestPhase1.gd</div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<section id="roadmap">
+  <h2>Phase Roadmap</h2>
+  <div class="toc-grid" style="margin-top:1rem">
+    <div class="toc-item">
+      <a href="#phase1">Phase 1 ✅</a>
+      <p>Core Architecture & Input</p>
+    </div>
+    <div class="toc-item">
+      <a href="#">Phase 2 ⬜</a>
+      <p>Simulation Loop — Grid, Weather, Popularity Engine</p>
+    </div>
+    <div class="toc-item">
+      <a href="#">Phase 3 ⬜</a>
+      <p>Player Controller — Buildings, Workers, Camera</p>
+    </div>
+    <div class="toc-item">
+      <a href="#">Phase 4 ⬜</a>
+      <p>Core Gameplay — Food/Ale/Tax/Disease/Market</p>
+    </div>
+    <div class="toc-item">
+      <a href="#">Phase 5 ⬜</a>
+      <p>Progression — Save/Load, Tech Tree, Edicts</p>
+    </div>
+    <div class="toc-item">
+      <a href="#">Phase 6 ⬜</a>
+      <p>AI & Entities — 4 Archetypes, Pathfinding, Combat</p>
+    </div>
+    <div class="toc-item">
+      <a href="#">Phase 7 ⬜</a>
+      <p>UI & View — Isometric, Macro Map, HUD</p>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <p>Sovereign's Reach — Auto-generated systems encyclopedia. Updated at the end of every phase.</p>
+  <p style="margin-top:0.5rem">GDD: 8 sections · 40 subsections · 200 mechanics defined</p>
+</footer>
+
+</body>
+</html>
