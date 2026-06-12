@@ -1,5 +1,9 @@
 extends Node
 # Autoload singleton. The single source of truth for ALL game state.
+
+const WeatherSystem  = preload("res://simulation/world/WeatherSystem.gd")
+const PopularityEngine = preload("res://simulation/economy/PopularityEngine.gd")
+const ResourceTick   = preload("res://simulation/economy/ResourceTick.gd")
 # All fields are plain Dictionary/Array/int/float/bool — JSON-serializable.
 # Never stores Godot objects (Vector2, Node, etc.) to ensure network/save readiness.
 # The View layer reads from here; it never writes here directly.
@@ -12,6 +16,9 @@ var active_edicts: Array = []  # Array[Dictionary]
 var server_config: Dictionary = {}
 var milestones: Dictionary = {}
 
+# Phase 2 simulation subsystems (instantiated in _init_default_state)
+var _weather_rng: RandomNumberGenerator = null
+
 func _ready() -> void:
 	_init_default_state()
 
@@ -23,12 +30,11 @@ func _init_default_state() -> void:
 		"map_height": 200,
 		"max_players": 8,
 		"difficulty": 1,
+		"map_seed": 12345,
 	}
-	weather = {
-		"current": "clear",   # clear|rain|drought|snow|fog
-		"duration_ticks": 0,
-		"effects": {},
-	}
+	_weather_rng = RandomNumberGenerator.new()
+	_weather_rng.seed = server_config["map_seed"]
+	weather = WeatherSystem.make_state()
 	milestones = {}
 
 # --- Player initialization ---
@@ -115,6 +121,57 @@ func _make_armory() -> Dictionary:
 		"plate_armor": 0,
 	}
 
+func _tick_player_economy(player: Dictionary, tick: int) -> void:
+	# Collect current weather effects as events for popularity calculation
+	var events: Array = []
+	var weather_pop_delta: float = WeatherSystem.get_popularity_delta(weather)
+	if weather_pop_delta != 0:
+		# Map weather effect to event string for popularity engine
+		match weather["current"]:
+			WeatherSystem.WeatherType.SNOW:     events.append("blizzard")
+			WeatherSystem.WeatherType.DROUGHT:  events.append("drought")
+			WeatherSystem.WeatherType.STORM:    events.append("blizzard")
+			WeatherSystem.WeatherType.RAIN:     pass  # handled via multiplier
+
+	# Tick all buildings for resource production
+	for building in player.get("buildings", []):
+		if not building is Dictionary:
+			continue
+		var changes: Dictionary = ResourceTick.tick_building(building, player, tick)
+		if not changes.is_empty():
+			ResourceTick.apply_changes(player, changes)
+
+	# Food consumption on game-day boundaries
+	var food_changes: Dictionary = ResourceTick.tick_food_consumption(player, tick)
+	if not food_changes.is_empty():
+		ResourceTick.apply_changes(player, food_changes)
+
+	# Popularity update on game-day boundaries
+	if tick % SimulationClock.TICKS_PER_GAME_DAY == 0:
+		var old_pop: float = player.get("popularity", 50)
+		var new_pop: float = PopularityEngine.apply_tick(player, events)
+		if old_pop != new_pop:
+			EventBus.popularity_changed.emit(player["id"], old_pop, new_pop)
+
+		# Daily tax collection
+		_collect_taxes(player)
+
+func _collect_taxes(player: Dictionary) -> void:
+	var tax_rate: int = player.get("tax_rate", 0)
+	if tax_rate == 0:
+		return
+	var population: int = player.get("population", 0)
+	# Gold per peasant per day based on tax rate
+	var gold_per_peasant: float = abs(tax_rate) * 0.5
+	var delta: int = int(population * gold_per_peasant)
+	var old_gold: int = player.get("gold", 0)
+	if tax_rate > 0:
+		player["gold"] = old_gold + delta
+	else:
+		player["gold"] = maxi(0, old_gold - delta)  # Bribe costs gold
+	if player["gold"] != old_gold:
+		EventBus.gold_changed.emit(player["id"], old_gold, player["gold"])
+
 # --- Command dispatch ---
 # apply_command is called by SimulationClock._advance_tick() for every
 # command dequeued from CommandQueue. Each handler returns bool success.
@@ -141,9 +198,21 @@ func apply_command(command: Dictionary) -> void:
 			success = true  # Future phases add more handlers
 	EventBus.command_processed.emit(command, success)
 
-# Phase 2+ fills this with economy/AI/weather ticks.
-func simulate_tick(_tick: int) -> void:
-	pass
+# Phase 2: economy + weather tick
+func simulate_tick(tick: int) -> void:
+	# Tick weather (only processes when ticks_remaining reaches 0)
+	var weather_event: Dictionary = WeatherSystem.tick(weather, _weather_rng)
+	if not weather_event.is_empty():
+		EventBus.weather_changed.emit(
+			WeatherSystem.weather_name(weather_event["new_weather"]),
+			weather_event["duration_ticks"]
+		)
+
+	# Tick each player's economy
+	for player in players:
+		if not player.get("is_alive", false):
+			continue
+		_tick_player_economy(player, tick)
 
 # --- Command handlers ---
 

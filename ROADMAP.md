@@ -21,19 +21,21 @@
 
 ---
 
-## PHASE 2: The Simulation Loop ⬜ NEXT
+## PHASE 2: The Simulation Loop ✅ COMPLETE
 **Goal:** Grid math, terrain types, building footprints, resource production tick, weather system, and the full Popularity Engine formula.
 
-- [ ] `simulation/world/WorldGrid.gd` — 200×200 tile grid, terrain enum, passability masks
-- [ ] `simulation/world/ShireMap.gd` — Shire borders, ownership tracking, tax zones
-- [ ] `simulation/economy/PopularityEngine.gd` — P = ΔF + ΔA + ΔR − T ± E, evaluated each game day
-- [ ] `simulation/economy/ResourceTick.gd` — Per-tick production/consumption for all 18 resource types
-- [ ] `simulation/world/WeatherSystem.gd` — Weather states (clear/rain/drought/snow/fog) + effects
-- [ ] `tests/TestPhase2.gd`
+- [x] `simulation/world/WorldGrid.gd` — 200×200 tile grid, terrain enum, passability masks, seeded procedural gen
+- [x] `simulation/world/ShireMap.gd` — Shire borders, ownership, capital upgrades (5 levels), donation tracking
+- [x] `simulation/economy/PopularityEngine.gd` — P = ΔF + ΔA + ΔR − T ± E, full formula with all modifiers
+- [x] `simulation/economy/ResourceTick.gd` — 15 building types, production intervals, input/output chains
+- [x] `simulation/world/WeatherSystem.gd` — 6 weather states, probability transitions, all GDD §1.1.3 effects
+- [x] `tests/TestPhase2.gd` — 90 tests, all passing
+
+**Key fix:** `preload()` is the correct pattern for non-autoload simulation classes in `--script` mode. `class_name` is NOT reliably available at parse time.
 
 ---
 
-## PHASE 3: The Player Controller ⬜
+## PHASE 3: The Player Controller ⬜ NEXT
 **Goal:** Building placement validation, worker assignment, camera control commands, selection system.
 
 - [ ] `simulation/buildings/BuildingRegistry.gd` — All building types, costs, footprints, worker slots
