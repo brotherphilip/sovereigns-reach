@@ -48,6 +48,42 @@
 - `WeatherSystem.get_name()` conflicted with GDScript built-in — renamed to `weather_name()`
 - ResourceTick produced at tick 0 (0 % interval = 0); added `current_tick == 0` guard
 
+---
+
+## 2026-06-12 — Phase 3: The Player Controller
+
+### Files Created
+
+| File | Purpose |
+|------|---------|
+| `simulation/buildings/BuildingRegistry.gd` | Static registry of 30+ building types (GDD §5). Definitions include category, dimensions (1×1 to 4×4), costs, terrain bitmask requirements, tech requirements, HP, fire risk, production/consumption, coverage radii. |
+| `simulation/buildings/BuildingState.gd` | Per-building runtime instance factory. `create()` returns a serializable Dictionary. `take_damage()`, `repair()`, `ignite()`, `tick_fire()`, `worker_efficiency()` for combat and fire spread. |
+| `simulation/buildings/PlacementValidator.gd` | Validates PLACE_BUILDING commands before state mutation: bounds check, occupancy (all tiles of multi-tile buildings), terrain bitmask match, tech requirements, resource costs, shire influence radius. |
+| `simulation/player/WorkerSystem.gd` | Peasant ↔ job assignment. `assign_workers()`, `auto_assign()` (food → harvesting → civic priority), `levy_peasants()` (GDD §7.3.2 edict), `calculate_inn_coverage()`, `calculate_religion_coverage()`. |
+| `tests/TestPhase3.gd` | 89 headless unit tests — all passing. Covers BuildingRegistry, BuildingState, PlacementValidator, WorkerSystem, and GameState Phase 3 commands. |
+
+### Files Modified
+
+| File | Change |
+|------|--------|
+| `simulation/core/GameState.gd` | Added preloads for BuildingRegistry, BuildingState, PlacementValidator, WorkerSystem, WorldGrid, ShireMap. Added `_grid`, `_shire_map`, `_next_building_id` runtime vars. Added `setup_world()`. Added `_cmd_place_building()`, `_cmd_demolish_building()`, `_cmd_set_building_workers()` handlers. Added `find_building()`. Updated `serialize()`/`deserialize()` with grid round-trip and building_id repopulation. Added `population` and `military_strength` to `_make_player()`. |
+| `simulation/core/EventBus.gd` | Added `building_placement_failed` signal. |
+
+### Bugs Fixed
+
+- `BuildingRegistry.get()` conflicted with `Object.get()` built-in (same class as Phase 2's `WeatherSystem.get_name()` bug). Renamed to `lookup()` throughout.
+- `await process_frame` omitted in TestPhase3 `_init()`: autoloads returned null because they weren't yet in the scene tree. Added consistent with Phase 2 pattern.
+- `PlacementValidator` tests used single tile for 2×2 quarry terrain check — all footprint tiles must match terrain_req bitmask.
+- Out-of-bounds test used (9,9) on 10×10 grid which is valid for a 1×1 building — corrected to (10,9).
+
+### Architecture Decisions
+
+- **`lookup()` not `get()`:** GDScript's `Object.get(prop)` built-in shadows any user-defined static `get()` function when called on a preloaded GDScript object. Named all registry accessors differently from Object methods.
+- **Buildings stored as Dicts in player.buildings:** `ResourceTick` and `GameState` iterate `player["buildings"]` expecting Dictionaries, not IDs. All building state lives directly in the array, no separate lookup map needed for Phase 3.
+- **Grid occupancy repopulated on deserialize:** WorldGrid's `_building_id` and `_unit_id` PackedArrays are not serialized (they're reconstructed from player building state), keeping save files lean.
+
+---
+
 ### Architecture Decisions
 
 - **Autoload order:** EventBus → CommandQueue → SimulationClock → GameState → InputSetup.

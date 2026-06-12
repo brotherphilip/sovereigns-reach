@@ -35,18 +35,22 @@
 
 ---
 
-## PHASE 3: The Player Controller ⬜ NEXT
+## PHASE 3: The Player Controller ✅ COMPLETE
 **Goal:** Building placement validation, worker assignment, camera control commands, selection system.
 
-- [ ] `simulation/buildings/BuildingRegistry.gd` — All building types, costs, footprints, worker slots
-- [ ] `simulation/buildings/BuildingState.gd` — Per-building runtime data (hp, workers, production)
-- [ ] `simulation/buildings/PlacementValidator.gd` — Grid checks, terrain rules, spacing rules
-- [ ] `simulation/player/WorkerSystem.gd` — Peasant → job assignment logic
-- [ ] `view/micro/CameraController.gd` — View-layer camera (reads view commands, not direct input)
+- [x] `simulation/buildings/BuildingRegistry.gd` — 30+ building types with full metadata (GDD §5)
+- [x] `simulation/buildings/BuildingState.gd` — Per-building runtime data (hp, workers, fire, production)
+- [x] `simulation/buildings/PlacementValidator.gd` — Grid checks, terrain rules, tech requirements, border enforcement
+- [x] `simulation/player/WorkerSystem.gd` — Peasant → job assignment, auto-assign priority, levy, inn/church coverage
+- [x] `GameState.apply_command()` — PLACE_BUILDING, DEMOLISH_BUILDING, SET_BUILDING_WORKERS handlers wired
+- [x] `tests/TestPhase3.gd` — 89 tests, all passing
+
+**Key fix:** `BuildingRegistry.get()` conflicts with `Object.get()` built-in — renamed to `BuildingRegistry.lookup()`.
+**Key fix:** `await process_frame` required in `_init()` before autoload resolution (same as Phase 2 pattern).
 
 ---
 
-## PHASE 4: Core Gameplay Loop ⬜
+## PHASE 4: Core Gameplay Loop ⬜ NEXT
 **Goal:** Full Popularity Engine running per game-day tick, all economic chains, disease, weather penalties.
 
 - [ ] `simulation/economy/FoodSystem.gd` — Rations, granary distribution, food variety bonuses

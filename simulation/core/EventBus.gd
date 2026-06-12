@@ -23,6 +23,7 @@ signal prestige_changed(player_id: int, old_value: float, new_value: float)
 
 # --- Buildings ---
 signal building_placed(player_id: int, building_type: String, grid_x: int, grid_y: int, building_id: int)
+signal building_placement_failed(player_id: int, building_type: String, grid_x: int, grid_y: int, reason: String)
 signal building_demolished(player_id: int, building_id: int)
 signal building_destroyed(player_id: int, building_id: int, cause: String)
 signal building_production_tick(building_id: int, output_type: String, amount: int)

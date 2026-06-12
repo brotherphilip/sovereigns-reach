@@ -58,12 +58,13 @@
 
 <nav>
   <a href="#architecture">Architecture</a>
-  <a href="#phase1">Phase 1 Systems</a>
+  <a href="#phase1">Phase 1</a>
+  <a href="#phase2">Phase 2</a>
+  <a href="#phase3">Phase 3</a>
   <a href="#eventbus">EventBus</a>
   <a href="#commandqueue">CommandQueue</a>
   <a href="#simclock">SimulationClock</a>
   <a href="#gamestate">GameState</a>
-  <a href="#inputmapper">InputMapper</a>
   <a href="#roadmap">Roadmap</a>
 </nav>
 
@@ -347,11 +348,208 @@ INPUT (Keyboard/Mouse)
   </div>
 </section>
 
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<section id="phase2">
+  <h2>Phase 2 Systems <span class="phase-badge complete">COMPLETE</span></h2>
+  <p style="margin-top:0.5rem; color:#ccc; font-size:0.9rem">90/90 tests passing. Headless run: <code style="background:var(--code-bg);padding:2px 6px;border-radius:4px">godot --headless --script tests/TestPhase2.gd</code></p>
+
+  <div class="system-grid" style="margin-top:1.5rem">
+
+    <div class="card">
+      <h2>WorldGrid <span class="file-path">simulation/world/WorldGrid.gd</span></h2>
+      <p style="color:#ccc;font-size:0.85rem">200×200 flat-array tile grid. All spatial data lives here. Pure data class (extends RefCounted). Seeded procedural generation.</p>
+      <h3>Terrain Types (11)</h3>
+      <div class="flow">GRASS=0  FOREST=1  MOUNTAIN=2  RIVER=3  MARSH=4
+ROCK=5   ORE_VEIN=6  VALLEY=7  COASTAL=8  ROAD=9  RUIN=10</div>
+      <h3>Passability Masks</h3>
+      <table><tr><th>Constant</th><th>Bit</th><th>Blocked by</th></tr>
+        <tr><td>PASSABLE_FOOT</td><td>0b0001</td><td>—</td></tr>
+        <tr><td>PASSABLE_CAVALRY</td><td>0b0010</td><td>Mountain, Marsh</td></tr>
+        <tr><td>PASSABLE_CART</td><td>0b0100</td><td>Forest, Mountain, Marsh, Rock, Ore</td></tr>
+        <tr><td>PASSABLE_SIEGE</td><td>0b1000</td><td>All non-flat terrain</td></tr>
+      </table>
+      <h3>Key Methods</h3>
+      <table><tr><th>Method</th><th>Returns</th><th>Purpose</th></tr>
+        <tr><td>generate(seed, shires)</td><td>void</td><td>Procedural: rivers, mountains, forests, ore, valleys, coastal</td></tr>
+        <tr><td>get_terrain(x,y)</td><td>int</td><td>Terrain enum value (returns RIVER if OOB)</td></tr>
+        <tr><td>get_farm_yield(x,y)</td><td>float</td><td>0.0–1.5 multiplier (VALLEY=1.5, GRASS=1.0)</td></tr>
+        <tr><td>is_passable(x,y,mask)</td><td>bool</td><td>Unit type can cross this tile</td></tr>
+        <tr><td>get_building_at(x,y)</td><td>int</td><td>0=empty, >0=building ID</td></tr>
+        <tr><td>set_building_at(x,y,id)</td><td>void</td><td>Marks tile occupied (0 to clear)</td></tr>
+        <tr><td>in_bounds(x,y)</td><td>bool</td><td>Within 0..width-1, 0..height-1</td></tr>
+        <tr><td>serialize()</td><td>Dict</td><td>Base64 PackedArrays (terrain/shire_id/elevation/resource_density). Building IDs NOT serialized — reconstructed from player state on load.</td></tr>
+      </table>
+    </div>
+
+    <div class="card">
+      <h2>ShireMap <span class="file-path">simulation/world/ShireMap.gd</span></h2>
+      <p style="color:#ccc;font-size:0.85rem">Manages shire ownership, tax zones, and regional capitals. Up to 16 shires. Per-shire influence radius controls where players can build.</p>
+      <h3>Biome Traits</h3>
+      <table><tr><th>Biome</th><th>Farm Bonus</th><th>Mine Bonus</th><th>Trade Bonus</th></tr>
+        <tr><td>PLAINS</td><td>+25%</td><td>—</td><td>—</td></tr>
+        <tr><td>HIGHLAND</td><td>—</td><td>+30%</td><td>—</td></tr>
+        <tr><td>COAST</td><td>—</td><td>—</td><td>+20%</td></tr>
+        <tr><td>FOREST</td><td>—</td><td>+10%</td><td>—</td></tr>
+        <tr><td>TUNDRA</td><td>−30%</td><td>—</td><td>—</td></tr>
+      </table>
+      <h3>Capital Upgrades</h3>
+      <p style="color:#ccc;font-size:0.85rem;margin-top:0.5rem">Levels 0–5. Each level adds a <code>prestige_multiplier_N</code> buff to the shire's <code>active_buffs</code> array. Capped at level 5. Donation tracking per player per resource.</p>
+    </div>
+
+    <div class="card">
+      <h2>PopularityEngine <span class="file-path">simulation/economy/PopularityEngine.gd</span></h2>
+      <p style="color:#ccc;font-size:0.85rem">Static functions only. Implements GDD §3 Popularity formula: <strong>P = ΔF + ΔA + ΔR − T ± E</strong></p>
+      <h3>Formula Components</h3>
+      <table><tr><th>Component</th><th>Source</th><th>Range</th></tr>
+        <tr><td>ΔF (Food)</td><td>food_ration slider + variety bonus</td><td>−15 to +25</td></tr>
+        <tr><td>ΔA (Ale)</td><td>ale_ration + inn coverage</td><td>−8 to +16</td></tr>
+        <tr><td>ΔR (Religion)</td><td>church/cathedral coverage ratio</td><td>0 to +10</td></tr>
+        <tr><td>T (Tax)</td><td>TAX_POPULARITY_DELTA[tax_rate]</td><td>−12 to +10</td></tr>
+        <tr><td>E (Events)</td><td>external events array</td><td>−12 per active siege</td></tr>
+      </table>
+      <div class="note">TAX_POPULARITY_DELTA already encodes sign — use <code>+tax_delta</code> not <code>−tax_delta</code>. The double-negation bug was found and fixed in Phase 2.</div>
+      <h3>Key Methods</h3>
+      <table><tr><th>Method</th><th>Purpose</th></tr>
+        <tr><td>calculate_delta(player, events)</td><td>Returns raw delta without mutating state</td></tr>
+        <tr><td>apply_tick(player, events)</td><td>Mutates player.popularity, returns new value. Only called at tick % 240 == 0.</td></tr>
+        <tr><td>is_desertion_risk(player)</td><td>Returns true if popularity &lt; 20</td></tr>
+        <tr><td>get_prestige_multiplier(player)</td><td>Prestige tier multiplier for income</td></tr>
+      </table>
+    </div>
+
+    <div class="card">
+      <h2>ResourceTick <span class="file-path">simulation/economy/ResourceTick.gd</span></h2>
+      <p style="color:#ccc;font-size:0.85rem">Static functions. 15 production buildings, each with a tick interval and optional input/output chains.</p>
+      <h3>Production Intervals (ticks)</h3>
+      <div class="flow">woodcutter_camp:30  stone_quarry:120  iron_mine:180  pitch_rig:60
+apple_orchard:300  pig_farm:600  dairy_farm:480  hops_farm:360
+wheat_farm:480  mill:120  bakery:180  brewery:240
+fletcher:90  poleturner:60  blacksmith:300</div>
+      <h3>Key Methods</h3>
+      <table><tr><th>Method</th><th>Purpose</th></tr>
+        <tr><td>tick_building(building, player, tick)</td><td>Returns change dict or empty. Guard: tick==0 OR tick%interval!=0 → no production.</td></tr>
+        <tr><td>tick_food_consumption(player, tick)</td><td>Only fires at tick%240==0 (day boundary). Deducts food by ration level.</td></tr>
+        <tr><td>apply_changes(player, changes)</td><td>Mutates player resources. Returns true if shortage detected.</td></tr>
+      </table>
+    </div>
+
+    <div class="card">
+      <h2>WeatherSystem <span class="file-path">simulation/world/WeatherSystem.gd</span></h2>
+      <p style="color:#ccc;font-size:0.85rem">Static functions. 6 weather states with probability-weighted transitions.</p>
+      <h3>Weather States & Effects</h3>
+      <table><tr><th>State</th><th>Move Pen.</th><th>Farm Mult</th><th>Food Drain</th><th>Pop Δ</th></tr>
+        <tr><td>CLEAR</td><td>0</td><td>1.0</td><td>0</td><td>0</td></tr>
+        <tr><td>RAIN</td><td>0.2</td><td>0.8</td><td>0</td><td>0</td></tr>
+        <tr><td>DROUGHT</td><td>0</td><td>0.0</td><td>0</td><td>0</td></tr>
+        <tr><td>SNOW</td><td>0.5</td><td>0.0</td><td>2.0</td><td>−5</td></tr>
+        <tr><td>FOG</td><td>0.3</td><td>0.9</td><td>0</td><td>0</td></tr>
+        <tr><td>STORM</td><td>0.8</td><td>0.0</td><td>0</td><td>−8</td></tr>
+      </table>
+      <div class="warn">Named <code>weather_name()</code> not <code>get_name()</code> — <code>Object.get_name()</code> is a built-in that shadows user-defined methods when called on a preloaded GDScript.</div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<section id="phase3">
+  <h2>Phase 3 Systems <span class="phase-badge complete">COMPLETE</span></h2>
+  <p style="margin-top:0.5rem; color:#ccc; font-size:0.9rem">89/89 tests passing. Headless run: <code style="background:var(--code-bg);padding:2px 6px;border-radius:4px">godot --headless --script tests/TestPhase3.gd</code></p>
+
+  <div class="system-grid" style="margin-top:1.5rem">
+
+    <div class="card">
+      <h2>BuildingRegistry <span class="file-path">simulation/buildings/BuildingRegistry.gd</span></h2>
+      <p style="color:#ccc;font-size:0.85rem">Immutable static definitions for all 30+ building types (GDD §5). Never instantiated. All runtime state is in BuildingState.</p>
+      <h3>Categories</h3>
+      <div class="flow">CIVIC=0  HARVESTING=1  FOOD=2  MILITARY=3  DEFENSE=4</div>
+      <h3>Terrain Bitmasks</h3>
+      <div class="flow">TERRAIN_GRASS=1&lt;&lt;0  TERRAIN_FOREST=1&lt;&lt;1  TERRAIN_MARSH=1&lt;&lt;4
+TERRAIN_ROCK=1&lt;&lt;5   TERRAIN_ORE=1&lt;&lt;6    TERRAIN_VALLEY=1&lt;&lt;7
+TERRAIN_FLAT = GRASS|VALLEY|COASTAL|ROAD
+TERRAIN_ANY = 0 (no terrain restriction)</div>
+      <h3>Key Methods</h3>
+      <table><tr><th>Method</th><th>Purpose</th></tr>
+        <tr><td>lookup(building_type)</td><td>Returns definition dict or empty dict. Named <code>lookup</code> not <code>get</code> to avoid conflict with <code>Object.get()</code> built-in.</td></tr>
+        <tr><td>is_valid_type(building_type)</td><td>Returns bool</td></tr>
+        <tr><td>get_by_category(category)</td><td>Returns Array of type names</td></tr>
+        <tr><td>coverage_radius(building_type)</td><td>Returns int (0 if not applicable)</td></tr>
+        <tr><td>requiring_tech(tech_id)</td><td>Returns Array of building types that need this tech</td></tr>
+        <tr><td>get_recruitment_cost(unit_type)</td><td>Placeholder costs until Phase 6 UnitRegistry</td></tr>
+      </table>
+      <h3>Notable Buildings</h3>
+      <table><tr><th>Type</th><th>Size</th><th>Special</th></tr>
+        <tr><td>village_hall</td><td>3×3</td><td>unique:true — only one per player</td></tr>
+        <tr><td>pitch_rig</td><td>1×1</td><td>fire_risk:0.08, requires MARSH</td></tr>
+        <tr><td>armory</td><td>2×2</td><td>explosive:true</td></tr>
+        <tr><td>cathedral</td><td>4×4</td><td>immune_to_fire:true, coverage_radius:30</td></tr>
+        <tr><td>wheat_farm</td><td>3×3</td><td>requires crop_tiers tech</td></tr>
+        <tr><td>great_tower</td><td>2×2</td><td>worker_slots:8, requires advanced_masonry</td></tr>
+      </table>
+    </div>
+
+    <div class="card">
+      <h2>BuildingState <span class="file-path">simulation/buildings/BuildingState.gd</span></h2>
+      <p style="color:#ccc;font-size:0.85rem">Factory and mutation functions for per-building instance state. All output is serializable Dictionaries. Static functions only.</p>
+      <h3>Instance Keys</h3>
+      <div class="flow">id, type, player_id, grid_x, grid_y
+workers, max_workers, is_active, is_on_fire
+hp, max_hp, production_ticks, terrain_yield
+storage_used, storage_max, coverage_radius, coverage_active
+is_open (gates), upgrade_level, applied_bonuses</div>
+      <h3>Key Methods</h3>
+      <table><tr><th>Method</th><th>Returns</th><th>Purpose</th></tr>
+        <tr><td>create(type, pid, gx, gy, bid)</td><td>Dict</td><td>Factory. Uses BuildingRegistry.lookup() for defaults.</td></tr>
+        <tr><td>worker_efficiency(b, keep_x, keep_y)</td><td>float</td><td>1.0 at ≤10 tiles, −1%/tile beyond. Min 0.1.</td></tr>
+        <tr><td>take_damage(b, amount)</td><td>bool</td><td>Returns true if destroyed (hp→0, is_active→false)</td></tr>
+        <tr><td>repair(b, amount)</td><td>void</td><td>Raises hp, caps at max_hp, sets is_active=true</td></tr>
+        <tr><td>ignite(b)</td><td>bool</td><td>Sets is_on_fire=true only if fire_risk&gt;0 and not immune. Returns success.</td></tr>
+        <tr><td>tick_fire(b)</td><td>bool</td><td>Deals 8 HP/tick (40 for pitch_rig/armory). Returns true if destroyed.</td></tr>
+      </table>
+    </div>
+
+    <div class="card">
+      <h2>PlacementValidator <span class="file-path">simulation/buildings/PlacementValidator.gd</span></h2>
+      <p style="color:#ccc;font-size:0.85rem">Validates PLACE_BUILDING commands before any state mutation. Pure functions — never mutates state except <code>deduct_cost()</code>.</p>
+      <h3>Validation Pipeline (in order)</h3>
+      <div class="flow">1. is_valid_type → INVALID_TYPE
+2. bounds check (all footprint tiles) → OUT_OF_BOUNDS
+3. occupancy check (all footprint tiles) → OCCUPIED
+4. terrain bitmask check (all footprint tiles) → WRONG_TERRAIN
+5. tech requirements → MISSING_TECH
+6. resource / gold cost → MISSING_RESOURCES
+7. shire influence radius (if shire_id &gt;= 0) → OUTSIDE_BORDERS</div>
+      <h3>ValidationResult Enum</h3>
+      <div class="flow">OK=0  OUT_OF_BOUNDS=1  OCCUPIED=2  WRONG_TERRAIN=3
+MISSING_TECH=4  MISSING_RESOURCES=5  OUTSIDE_BORDERS=6  INVALID_TYPE=7</div>
+      <div class="warn">Multi-tile buildings (e.g. 2×2 stone_quarry) check ALL tiles against terrain_req. Setting only the origin tile to ROCK is not enough — all 4 tiles must be ROCK.</div>
+    </div>
+
+    <div class="card">
+      <h2>WorkerSystem <span class="file-path">simulation/player/WorkerSystem.gd</span></h2>
+      <p style="color:#ccc;font-size:0.85rem">Manages peasant ↔ building assignment. Available workers = population − military_strength − total_assigned. Static functions only.</p>
+      <h3>Priority Order (auto_assign)</h3>
+      <div class="flow">FOOD → HARVESTING → CIVIC → MILITARY → DEFENSE</div>
+      <h3>Key Methods</h3>
+      <table><tr><th>Method</th><th>Returns</th><th>Purpose</th></tr>
+        <tr><td>assign_workers(b, count, player)</td><td>int</td><td>Returns net change. Capped by max_workers AND available workers.</td></tr>
+        <tr><td>unassign_workers(b, player)</td><td>int</td><td>Frees all workers from building. Returns count freed.</td></tr>
+        <tr><td>auto_assign(player)</td><td>void</td><td>Fills all buildings by priority category.</td></tr>
+        <tr><td>total_assigned(player)</td><td>int</td><td>Sum of workers across all buildings.</td></tr>
+        <tr><td>levy_peasants(count, player)</td><td>int</td><td>Pulls workers from buildings (GDD §7.3.2 Levy edict). Returns actual count pulled.</td></tr>
+        <tr><td>calculate_inn_coverage(player, buildings)</td><td>float</td><td>0.0–1.0 ratio of hovels covered by active inns (each inn≈4 hovels).</td></tr>
+        <tr><td>calculate_religion_coverage(buildings)</td><td>float</td><td>0.0–1.0 based on church/cathedral coverage_radius vs. hovel count.</td></tr>
+      </table>
+    </div>
+
+  </div>
+</section>
+
 </main>
 
 <footer>
   <p>Sovereign's Reach — Auto-generated systems encyclopedia. Updated at the end of every phase.</p>
-  <p style="margin-top:0.5rem">GDD: 8 sections · 40 subsections · 200 mechanics defined</p>
+  <p style="margin-top:0.5rem">GDD: 8 sections · 40 subsections · 200 mechanics defined · Phase 1–3 complete (248 tests passing)</p>
 </footer>
 
 </body>

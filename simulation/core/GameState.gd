@@ -1,9 +1,15 @@
 extends Node
 # Autoload singleton. The single source of truth for ALL game state.
 
-const WeatherSystem  = preload("res://simulation/world/WeatherSystem.gd")
+const WeatherSystem    = preload("res://simulation/world/WeatherSystem.gd")
 const PopularityEngine = preload("res://simulation/economy/PopularityEngine.gd")
-const ResourceTick   = preload("res://simulation/economy/ResourceTick.gd")
+const ResourceTick     = preload("res://simulation/economy/ResourceTick.gd")
+const BuildingRegistry = preload("res://simulation/buildings/BuildingRegistry.gd")
+const BuildingState    = preload("res://simulation/buildings/BuildingState.gd")
+const PlacementValidator = preload("res://simulation/buildings/PlacementValidator.gd")
+const WorkerSystem     = preload("res://simulation/player/WorkerSystem.gd")
+const WorldGrid        = preload("res://simulation/world/WorldGrid.gd")
+const ShireMap         = preload("res://simulation/world/ShireMap.gd")
 # All fields are plain Dictionary/Array/int/float/bool — JSON-serializable.
 # Never stores Godot objects (Vector2, Node, etc.) to ensure network/save readiness.
 # The View layer reads from here; it never writes here directly.
@@ -16,8 +22,11 @@ var active_edicts: Array = []  # Array[Dictionary]
 var server_config: Dictionary = {}
 var milestones: Dictionary = {}
 
-# Phase 2 simulation subsystems (instantiated in _init_default_state)
+# Non-serialized runtime instances (reconstructed from world dict on deserialize)
 var _weather_rng: RandomNumberGenerator = null
+var _grid: Object = null       # WorldGrid instance
+var _shire_map: Object = null  # ShireMap instance
+var _next_building_id: int = 1
 
 func _ready() -> void:
 	_init_default_state()
@@ -36,6 +45,21 @@ func _init_default_state() -> void:
 	_weather_rng.seed = server_config["map_seed"]
 	weather = WeatherSystem.make_state()
 	milestones = {}
+	_next_building_id = 1
+
+# Creates a procedural world grid and shire map, stores serialized data in world{}
+func setup_world(seed_value: int = 12345, shire_count: int = 8) -> void:
+	server_config["map_seed"] = seed_value
+	_weather_rng.seed = seed_value
+
+	_grid = WorldGrid.new(server_config["map_width"], server_config["map_height"])
+	_grid.generate(seed_value, shire_count)
+
+	_shire_map = ShireMap.new()
+	_shire_map.generate_default(server_config["map_width"], server_config["map_height"], shire_count)
+
+	world["grid"] = _grid.serialize()
+	world["shires"] = _shire_map.serialize().get("shires", [])
 
 # --- Player initialization ---
 
@@ -73,8 +97,10 @@ func _make_player(player_id: int, player_name: String, start_x: int, start_y: in
 		"food": _make_food_stores(),
 
 		# Military
-		"buildings": [],         # Array of building IDs (ints)
-		"units": [],             # Array of unit IDs (ints)
+		"population": 50,        # Current peasant count
+		"military_strength": 0,  # Peasants currently in military units
+		"buildings": [],         # Array of building Dictionaries
+		"units": [],             # Array of unit Dictionaries (Phase 6)
 		"armory": _make_armory(),
 
 		# Progression
@@ -126,7 +152,6 @@ func _tick_player_economy(player: Dictionary, tick: int) -> void:
 	var events: Array = []
 	var weather_pop_delta: float = WeatherSystem.get_popularity_delta(weather)
 	if weather_pop_delta != 0:
-		# Map weather effect to event string for popularity engine
 		match weather["current"]:
 			WeatherSystem.WeatherType.SNOW:     events.append("blizzard")
 			WeatherSystem.WeatherType.DROUGHT:  events.append("drought")
@@ -161,7 +186,6 @@ func _collect_taxes(player: Dictionary) -> void:
 	if tax_rate == 0:
 		return
 	var population: int = player.get("population", 0)
-	# Gold per peasant per day based on tax rate
 	var gold_per_peasant: float = abs(tax_rate) * 0.5
 	var delta: int = int(population * gold_per_peasant)
 	var old_gold: int = player.get("gold", 0)
@@ -185,6 +209,12 @@ func apply_command(command: Dictionary) -> void:
 			success = _cmd_set_food_ration(command)
 		CommandQueue.CommandType.SET_RATION_ALE:
 			success = _cmd_set_ale_ration(command)
+		CommandQueue.CommandType.PLACE_BUILDING:
+			success = _cmd_place_building(command)
+		CommandQueue.CommandType.DEMOLISH_BUILDING:
+			success = _cmd_demolish_building(command)
+		CommandQueue.CommandType.SET_BUILDING_WORKERS:
+			success = _cmd_set_building_workers(command)
 		CommandQueue.CommandType.SET_GAME_SPEED:
 			success = _cmd_set_game_speed(command)
 		CommandQueue.CommandType.TOGGLE_VIEW_MODE:
@@ -200,7 +230,6 @@ func apply_command(command: Dictionary) -> void:
 
 # Phase 2: economy + weather tick
 func simulate_tick(tick: int) -> void:
-	# Tick weather (only processes when ticks_remaining reaches 0)
 	var weather_event: Dictionary = WeatherSystem.tick(weather, _weather_rng)
 	if not weather_event.is_empty():
 		EventBus.weather_changed.emit(
@@ -208,7 +237,6 @@ func simulate_tick(tick: int) -> void:
 			weather_event["duration_ticks"]
 		)
 
-	# Tick each player's economy
 	for player in players:
 		if not player.get("is_alive", false):
 			continue
@@ -239,6 +267,106 @@ func _cmd_set_ale_ration(cmd: Dictionary) -> bool:
 	var level: int = clampi(cmd["payload"].get("level", 1), 0, 4)
 	players[pid]["ale_ration"] = level
 	return true
+
+func _cmd_place_building(cmd: Dictionary) -> bool:
+	var pid: int = cmd["player_id"]
+	if not _valid_player(pid):
+		return false
+	var payload: Dictionary = cmd["payload"]
+	var btype: String = payload.get("building_type", "")
+	var gx: int = payload.get("grid_x", 0)
+	var gy: int = payload.get("grid_y", 0)
+	var player: Dictionary = players[pid]
+
+	# Validate placement (requires grid if available)
+	if _grid != null:
+		var result: Dictionary = PlacementValidator.validate(btype, gx, gy, _grid, player, world)
+		if not result["ok"]:
+			EventBus.building_placement_failed.emit(pid, btype, gx, gy, result.get("message", ""))
+			return false
+
+	# Create building instance
+	var bid: int = _next_building_id
+	_next_building_id += 1
+	var building: Dictionary = BuildingState.create(btype, pid, gx, gy, bid)
+	if building.is_empty():
+		return false
+
+	# Set terrain yield
+	if _grid != null:
+		building["terrain_yield"] = PlacementValidator.get_terrain_yield(btype, gx, gy, _grid)
+
+	# Deduct cost
+	PlacementValidator.deduct_cost(btype, player)
+
+	# Register in grid
+	if _grid != null:
+		var defn: Dictionary = BuildingRegistry.lookup(btype)
+		var w: int = defn.get("width", 1)
+		var h: int = defn.get("height", 1)
+		for dy in range(h):
+			for dx in range(w):
+				_grid.set_building_at(gx + dx, gy + dy, bid)
+
+	player["buildings"].append(building)
+	EventBus.building_placed.emit(pid, btype, gx, gy, bid)
+	return true
+
+func _cmd_demolish_building(cmd: Dictionary) -> bool:
+	var pid: int = cmd["player_id"]
+	if not _valid_player(pid):
+		return false
+	var bid: int = cmd["payload"].get("building_id", -1)
+	var player: Dictionary = players[pid]
+	var buildings: Array = player.get("buildings", [])
+
+	for i in range(buildings.size()):
+		var building: Dictionary = buildings[i]
+		if not building is Dictionary:
+			continue
+		if building.get("id", -1) != bid:
+			continue
+
+		# Clear grid cells
+		if _grid != null:
+			var btype: String = building.get("type", "")
+			var defn: Dictionary = BuildingRegistry.lookup(btype)
+			var w: int = defn.get("width", 1)
+			var h: int = defn.get("height", 1)
+			var gx: int = building.get("grid_x", 0)
+			var gy: int = building.get("grid_y", 0)
+			for dy in range(h):
+				for dx in range(w):
+					_grid.set_building_at(gx + dx, gy + dy, 0)
+
+		# Unassign workers back to pool
+		WorkerSystem.unassign_workers(building, player)
+
+		buildings.remove_at(i)
+		EventBus.building_demolished.emit(pid, bid)
+		return true
+
+	return false  # Building not found
+
+func _cmd_set_building_workers(cmd: Dictionary) -> bool:
+	var pid: int = cmd["player_id"]
+	if not _valid_player(pid):
+		return false
+	var payload: Dictionary = cmd["payload"]
+	var bid: int = payload.get("building_id", -1)
+	var count: int = payload.get("workers", 0)
+	var player: Dictionary = players[pid]
+
+	for building in player.get("buildings", []):
+		if not building is Dictionary:
+			continue
+		if building.get("id", -1) != bid:
+			continue
+		WorkerSystem.assign_workers(building, count, player)
+		EventBus.building_worker_assigned.emit(bid, building.get("workers", 0))
+		return true
+
+	return false  # Building not found
 
 func _cmd_set_game_speed(cmd: Dictionary) -> bool:
 	var speed: int = cmd["payload"].get("speed", SimulationClock.SPEED_NORMAL)
@@ -272,6 +400,14 @@ func get_food(player_id: int, food_type: String) -> int:
 		return 0
 	return players[player_id]["food"].get(food_type, 0)
 
+func find_building(player_id: int, building_id: int) -> Dictionary:
+	if not _valid_player(player_id):
+		return {}
+	for building in players[player_id].get("buildings", []):
+		if building is Dictionary and building.get("id", -1) == building_id:
+			return building
+	return {}
+
 func _valid_player(pid: int) -> bool:
 	return pid >= 0 and pid < players.size() and not players[pid].is_empty()
 
@@ -288,6 +424,7 @@ func serialize() -> Dictionary:
 		"server_config": server_config.duplicate(true),
 		"milestones": milestones.duplicate(true),
 		"clock": SimulationClock.serialize(),
+		"next_building_id": _next_building_id,
 	}
 
 func deserialize(data: Dictionary) -> void:
@@ -298,5 +435,30 @@ func deserialize(data: Dictionary) -> void:
 	active_edicts = data.get("active_edicts", [])
 	server_config = data.get("server_config", {})
 	milestones = data.get("milestones", {})
+	_next_building_id = data.get("next_building_id", 1)
 	if data.has("clock"):
 		SimulationClock.deserialize(data["clock"])
+
+	# Reconstruct runtime grid from serialized world data
+	if world.has("grid"):
+		_grid = WorldGrid.new()
+		_grid.deserialize(world["grid"])
+		# Repopulate building_id tiles from player building state
+		for player in players:
+			for building in player.get("buildings", []):
+				if not building is Dictionary:
+					continue
+				var btype: String = building.get("type", "")
+				var defn: Dictionary = BuildingRegistry.lookup(btype)
+				var w: int = defn.get("width", 1)
+				var h: int = defn.get("height", 1)
+				var gx: int = building.get("grid_x", 0)
+				var gy: int = building.get("grid_y", 0)
+				var bid: int = building.get("id", 0)
+				for dy in range(h):
+					for dx in range(w):
+						_grid.set_building_at(gx + dx, gy + dy, bid)
+
+	if world.has("shires"):
+		_shire_map = ShireMap.new()
+		_shire_map.shires = world["shires"]
