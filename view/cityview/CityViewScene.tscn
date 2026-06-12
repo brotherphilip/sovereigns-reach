@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://sr_cityview01"]
+
+[ext_resource type="Script" path="res://view/cityview/CityViewScene.gd" id="1_cv"]
+
+[node name="CityViewScene" type="Node"]
+script = ExtResource("1_cv")

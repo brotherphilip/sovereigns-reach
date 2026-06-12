@@ -624,6 +624,16 @@ func add_ai_faction(archetype: String, capital_x: int, capital_y: int) -> int:
 
 # --- Accessors ---
 
+func get_city(city_id: int) -> Dictionary:
+	var wm: Dictionary = world.get("world_map", {})
+	for c in wm.get("cities", []):
+		if c.get("id", -1) == city_id:
+			return c
+	return {}
+
+func get_player_start_city_id() -> int:
+	return world.get("selected_city_id", -1)
+
 func get_player(player_id: int) -> Dictionary:
 	if _valid_player(player_id):
 		return players[player_id]

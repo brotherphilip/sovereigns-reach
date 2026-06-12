@@ -132,4 +132,31 @@
 - [x] `view/main/GameBootstrap.gd` — Scene assembler, simulation init, signal wiring, starting buildings, win/loss overlay
 - [x] `view/main/Main.tscn` — Minimal root with GameBootstrap script
 
+---
+
+## PHASE 9: Main Menu, World Map & Visual Overhaul ✅ COMPLETE
+**Goal:** Add a main menu entry point, a procedurally generated strategic world map with 55+ cities, and visually richer city view with 3D buildings and terrain decorations.
+
+### Simulation
+- [x] `simulation/world/WorldMapData.gd` — Poisson-disc city placement (55 cities), k-means++ faction capitals (5), Prim's MST + 25 extra roads, 80–120 resource deposits, serialize/deserialize
+- [x] `simulation/world/ShireMap.gd` — `MAX_SHIRES` 16→60; name list expanded to 62 entries; TUNDRA biome added
+- [x] `simulation/core/GameState.gd` — Added `get_city(city_id)` and `get_player_start_city_id()` accessors
+
+### View — Menus & Navigation
+- [x] `view/menu/MainMenuScene.gd/.tscn` — Dark forest procedural background, title panel, New Game/Load/Quit; entry point
+- [x] `view/worldmap/WorldMapController.gd` — Static render-list extractors (headless-testable)
+- [x] `view/worldmap/WorldMapView.gd` — `_draw()` world map: parchment background, faction territory circles, curved roads, resource icons, castle-tier icons with battlements, player gold ring
+- [x] `view/worldmap/WorldMapScene.gd/.tscn` — Generates/caches WorldMapData, top bar, info panel, city-click → CityViewScene
+
+### View — City
+- [x] `view/cityview/CityViewScene.gd/.tscn` — Refactored GameBootstrap; reads `selected_city_id` for seed/position; "World Map" return button; game-over → Main Menu not desktop quit
+- [x] `view/micro/TerrainDecorationLayer.gd` — Forest tree cones, mountain peaks + snow cap, rock clusters, river ripples, coastal waves; inserted between IsometricGrid and BuildingLayer
+- [x] `view/micro/BuildingLayer.gd` — 3D multi-polygon buildings: shadow + left wall + right wall + roof diamond + ridge triangle; depth-sorted by `grid_x + grid_y`; battlements for DEFENSE/MILITARY, window for CIVIC, flat ridge for FOOD
+
+### Project
+- [x] `project.godot` — `run/main_scene` changed to `res://view/menu/MainMenuScene.tscn`
+
+### Tests
+- [x] `tests/TestPhase9.gd` — 40 tests: WorldMapData (20), WorldMapController (15), ShireMap-60 (5) — all passing
+
 Last updated: 2026-06-13

@@ -2,6 +2,45 @@
 
 ---
 
+## 2026-06-13 — Phase 9: Main Menu, World Map & Visual Overhaul
+
+### Files Created
+
+| File | Description |
+|------|-------------|
+| `simulation/world/WorldMapData.gd` | Procedural world map generator: Poisson-disc cities, k-means++ faction capitals, Prim's MST roads, resource deposits. Pure simulation, headless-safe. |
+| `view/worldmap/WorldMapController.gd` | Static render-list extractors for WorldMapView (city, road, territory, deposit lists). |
+| `view/worldmap/WorldMapView.gd` | Full `_draw()` strategic map: parchment background, faction territory circles, curved roads, 4 resource icons, 4-tier castle icons with battlements + flags, gold player ring. |
+| `view/worldmap/WorldMapScene.gd` | Scene that generates/caches WorldMapData, hosts WorldMapView, wires city-click → CityViewScene. |
+| `view/worldmap/WorldMapScene.tscn` | Minimal Node scene for WorldMapScene.gd. |
+| `view/menu/MainMenuScene.gd` | Title screen with procedural dark-forest `_MenuBG` and three buttons (New Game / Load / Quit). Load picker uses `save_exists()`. |
+| `view/menu/MainMenuScene.tscn` | Minimal Node scene; new `run/main_scene` entry point. |
+| `view/cityview/CityViewScene.gd` | Refactored GameBootstrap: reads `selected_city_id` to set seed and grid position; "World Map" return button; game-over returns to Main Menu. |
+| `view/cityview/CityViewScene.tscn` | Minimal Node scene for CityViewScene.gd. |
+| `view/micro/TerrainDecorationLayer.gd` | Node2D inserted between IsometricGrid and BuildingLayer. Draws forest tree cones, mountain rocky peaks + snow cap, rock clusters, river ripples, coastal waves via `_draw()` with viewport culling. |
+| `tests/TestPhase9.gd` | 40 headless tests covering WorldMapData (20), WorldMapController (15), ShireMap-60 (5). All passing. |
+
+### Files Modified
+
+| File | Change |
+|------|--------|
+| `simulation/world/ShireMap.gd` | `MAX_SHIRES` 16→60; name list expanded from 8 to 62 entries; TUNDRA added to biomes array |
+| `simulation/core/GameState.gd` | Added `get_city(city_id) -> Dictionary` and `get_player_start_city_id() -> int` |
+| `view/micro/BuildingLayer.gd` | 3D polygon upgrade: shadow + left wall + right wall + roof diamond + ridge triangle; depth-sorted by `grid_x+grid_y`; battlements (DEFENSE/MILITARY), circular window (CIVIC), flat ridge (FOOD) |
+| `project.godot` | `run/main_scene` changed from `res://view/main/Main.tscn` to `res://view/menu/MainMenuScene.tscn` |
+| `view/main/GameBootstrap.gd` | Fixed `border_width_all` → `set_border_width_all()` (Godot 4 StyleBoxFlat API) |
+| `view/worldmap/WorldMapScene.gd` | Same `set_border_width_all()` fix |
+| `view/menu/MainMenuScene.gd` | `list_saves()` → `save_exists()` inline check (SaveManager has no list_saves); `set_border_width_all()` fix |
+| `view/cityview/CityViewScene.gd` | `set_border_width_all()` fix |
+
+### Bugs Fixed
+
+- `StyleBoxFlat.border_width_all` does not exist in Godot 4 — replaced with `set_border_width_all()` method call across all view files
+- `SaveManager.list_saves()` did not exist — replaced with inline `save_exists()` check for the single default slot
+- Poisson-disc city placement had a 3-pass fallback that reduced min_dist, causing some cities to be closer than 120px — fixed by removing the fallback and increasing attempt count to `CITY_COUNT * 80`
+
+---
+
 ## 2026-06-13 — Phase 8: Full Game Integration
 
 ### Files Created

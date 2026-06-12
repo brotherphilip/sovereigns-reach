@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://sr_worldmap01"]
+
+[ext_resource type="Script" path="res://view/worldmap/WorldMapScene.gd" id="1_wm"]
+
+[node name="WorldMapScene" type="Node"]
+script = ExtResource("1_wm")

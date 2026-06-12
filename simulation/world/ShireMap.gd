@@ -6,7 +6,7 @@ extends RefCounted
 # Capturing a Capital flips region ownership. Taxes are calculated
 # based on which Shire a player's village sits in.
 
-const MAX_SHIRES: int = 16
+const MAX_SHIRES: int = 60
 const UNCLAIMED_SHIRE: int = 255
 
 # Biome traits per shire (matched to GDD §1.2.1)
@@ -37,9 +37,26 @@ func initialize(shire_definitions: Array) -> void:
 
 func generate_default(map_width: int, map_height: int, count: int = 8) -> void:
 	shires.clear()
-	var biomes: Array = [BiomeTrait.PLAINS, BiomeTrait.HIGHLAND, BiomeTrait.COAST, BiomeTrait.FOREST]
-	var names: Array = ["Ironvale", "Stonereach", "Greymoor", "Ashfield",
-	                    "Hollowhaven", "Thornwick", "Coldwater", "Emberveil"]
+	var biomes: Array = [BiomeTrait.PLAINS, BiomeTrait.HIGHLAND, BiomeTrait.COAST,
+	                     BiomeTrait.FOREST, BiomeTrait.TUNDRA]
+	var names: Array = [
+		"Ironvale", "Stonereach", "Greymoor", "Ashfield",
+		"Hollowhaven", "Thornwick", "Coldwater", "Emberveil",
+		"Ravensmere", "Coldspire", "Saltmarsh", "Duskholm",
+		"Fenwallow", "Ironpeak", "Amberveil", "Silvercliff",
+		"Dawnsward", "Mirefall", "Stonegate", "Ashcroft",
+		"Bramblewood", "Cresthollow", "Deepwater", "Elmhurst",
+		"Farrow", "Grimstone", "Hartwick", "Ivywood",
+		"Jadecliff", "Kestrel", "Longmere", "Mistfall",
+		"Nighthollow", "Oakenshield", "Pineholt", "Quarrystone",
+		"Redmoor", "Sandgate", "Thistlewood", "Umbridge",
+		"Valewatch", "Wolfden", "Yelford", "Zephyrcliff",
+		"Aldgate", "Bridgemere", "Copperhill", "Dunmore",
+		"Eastmarch", "Frostgate", "Goldvale", "Highbury",
+		"Ironwall", "Jasperfield", "Kingsholm", "Leatherbridge",
+		"Millhaven", "Northwatch", "Oldcastle", "Pebbleton",
+		"Queensgate", "Rookmere",
+	]
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 42
 	for i in range(min(count, names.size())):
