@@ -62,6 +62,7 @@
   <a href="#phase2">Phase 2</a>
   <a href="#phase3">Phase 3</a>
   <a href="#phase4">Phase 4</a>
+  <a href="#phase5">Phase 5</a>
   <a href="#eventbus">EventBus</a>
   <a href="#commandqueue">CommandQueue</a>
   <a href="#simclock">SimulationClock</a>
@@ -335,7 +336,7 @@ INPUT (Keyboard/Mouse)
       <p>Core Gameplay — Food/Ale/Tax/Disease/Market</p>
     </div>
     <div class="toc-item">
-      <a href="#">Phase 5 ⬜</a>
+      <a href="#phase5">Phase 5 ✅</a>
       <p>Progression — Save/Load, Tech Tree, Edicts</p>
     </div>
     <div class="toc-item">
@@ -656,11 +657,111 @@ PRICE_VARIANCE = ±30% every 2400 ticks (10 game-days)</div>
   </div>
 </section>
 
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<section id="phase5">
+  <h2>Phase 5 Systems <span class="phase-badge complete">COMPLETE</span></h2>
+  <p style="margin-top:0.5rem; color:#ccc; font-size:0.9rem">98/98 tests passing. Headless run: <code style="background:var(--code-bg);padding:2px 6px;border-radius:4px">godot --headless --script tests/TestPhase5.gd</code></p>
+
+  <div class="system-grid" style="margin-top:1.5rem">
+
+    <div class="card">
+      <h2>SaveManager <span class="file-path">simulation/persistence/SaveManager.gd</span></h2>
+      <p style="color:#ccc;font-size:0.85rem">GDD §1.5.4. JSON file I/O with version guard. All GameState data is JSON-safe per MFA constraint.</p>
+      <h3>Save Envelope Format</h3>
+      <div class="flow">{"save_version": 1, "saved_at": unix_timestamp, "state": {...}}</div>
+      <h3>Key Methods</h3>
+      <table><tr><th>Method</th><th>Returns</th><th>Purpose</th></tr>
+        <tr><td>save(state, path)</td><td>bool</td><td>Writes JSON to file. Returns false if empty or IO error.</td></tr>
+        <tr><td>load_save(path)</td><td>Dict</td><td>Returns state dict or {} if missing/corrupt/wrong version.</td></tr>
+        <tr><td>save_exists(path)</td><td>bool</td><td>FileAccess.file_exists check.</td></tr>
+        <tr><td>delete_save(path)</td><td>bool</td><td>Removes file via DirAccess.</td></tr>
+        <tr><td>get_save_metadata(path)</td><td>Dict</td><td>Returns {save_version, saved_at, valid} without loading full state.</td></tr>
+      </table>
+    </div>
+
+    <div class="card">
+      <h2>TechTree <span class="file-path">simulation/tech/TechTree.gd</span></h2>
+      <p style="color:#ccc;font-size:0.85rem">GDD §4. 20 techs across 5 branches. Prerequisite DAG. Prestige is the research currency.</p>
+      <h3>Branches</h3>
+      <div class="flow">AGRICULTURE: crop_tiers → farming_speed/storage_capacity → animal_husbandry → advanced_tools
+INDUSTRY:    resource_unlocks → mining_speed/transport_logistics → refining_processing → advanced_masonry
+MILITARY:    weapon_crafting → armor_forging/unit_unlocks → training_speed → siege_engines
+STATECRAFT:  scouting_vision → monastic_orders/army_logistics/royal_edicts → diplomacy</div>
+      <h3>Key Methods</h3>
+      <table><tr><th>Method</th><th>Returns</th><th>Purpose</th></tr>
+        <tr><td>lookup(tech_id)</td><td>Dict</td><td>Full tech definition or {}.</td></tr>
+        <tr><td>can_research(player, tech_id)</td><td>{ok, reason}</td><td>Validates unlocks + prestige.</td></tr>
+        <tr><td>research(player, tech_id)</td><td>Dict</td><td>Deducts prestige, adds to tech_unlocks, returns unlocked lists.</td></tr>
+        <tr><td>get_researchable(player)</td><td>Array</td><td>All techs the player can research right now.</td></tr>
+        <tr><td>get_all_modifiers(player)</td><td>Dict</td><td>Merged stat bonuses from all researched techs.</td></tr>
+      </table>
+    </div>
+
+    <div class="card">
+      <h2>PrestigeSystem <span class="file-path">simulation/tech/PrestigeSystem.gd</span></h2>
+      <p style="color:#ccc;font-size:0.85rem">GDD §4.1. Prestige accumulates over game-days; spent via TechTree.research().</p>
+      <h3>Daily Generation Formula</h3>
+      <div class="flow">delta = (5 + variety × 2 + active_buildings × 1) × popularity_mult × capital_mult
+popularity_mult: 0.3 (@&lt;20) 0.7 (@20+) 1.0 (@40+) 1.2 (@60+) 1.5 (@80+)
+capital_mult: +0.1 per capital level (shire_id linkage)
+Starvation: delta = 0  |  Defeat: player.prestige -= 50</div>
+      <h3>Key Methods</h3>
+      <table><tr><th>Method</th><th>Returns</th><th>Purpose</th></tr>
+        <tr><td>tick(player, world, tick)</td><td>Dict</td><td>Day boundary. Returns {old, new, delta} or {}.</td></tr>
+        <tr><td>spend(player, amount)</td><td>bool</td><td>Deducts prestige, floored at 0. Returns false if insufficient.</td></tr>
+        <tr><td>can_afford(player, cost)</td><td>bool</td><td>player.prestige &gt;= cost</td></tr>
+        <tr><td>apply_defeat_loss(player)</td><td>float</td><td>Deducts DEFEAT_PRESTIGE_LOSS (50). Returns amount lost.</td></tr>
+      </table>
+    </div>
+
+    <div class="card">
+      <h2>CapitalSystem <span class="file-path">simulation/world/CapitalSystem.gd</span></h2>
+      <p style="color:#ccc;font-size:0.85rem">GDD §7.5. Shire capital upgrades via player donations. Levels 0–5 grant server-wide buffs.</p>
+      <h3>Level Buffs</h3>
+      <div class="flow">Level 0: (none)
+Level 1: prestige_mult +0.1
+Level 2: prestige_mult +0.2, edict_tier_cap 1
+Level 3: prestige_mult +0.3, edict_tier_cap 2, iron_mining_bonus +0.15  (Grand Forge)
+Level 4: prestige_mult +0.4, edict_tier_cap 3, ai_warning_bonus +2      (Watchtower)
+Level 5: prestige_mult +0.5, edict_tier_cap 4, border_radius_bonus +0.2 (Grand Surveyor)</div>
+      <h3>Key Methods</h3>
+      <table><tr><th>Method</th><th>Returns</th><th>Purpose</th></tr>
+        <tr><td>record_donation(player, shire, resource, amount)</td><td>void</td><td>Appends to shire.capital_donations[player_id][resource].</td></tr>
+        <tr><td>can_upgrade(shire, world)</td><td>{ok, reason}</td><td>Checks donations vs UPGRADE_COSTS[current_level].</td></tr>
+        <tr><td>upgrade(shire, world)</td><td>int</td><td>Increments level, resets donations. Returns new level.</td></tr>
+        <tr><td>get_capital_buffs(shire)</td><td>Dict</td><td>Returns buff dict for current level.</td></tr>
+      </table>
+    </div>
+
+    <div class="card">
+      <h2>EdictSystem <span class="file-path">simulation/edicts/EdictSystem.gd</span></h2>
+      <p style="color:#ccc;font-size:0.85rem">GDD §7. 20 Edicts across Economy/Military/Logistics. Active edicts expire; passive edicts apply while slotted.</p>
+      <h3>Notable Edicts</h3>
+      <table><tr><th>ID</th><th>Type</th><th>Effect</th></tr>
+        <tr><td>agrarian_subsidies</td><td>Passive</td><td>Orchard yield +15%</td></tr>
+        <tr><td>taxation_bumps</td><td>Active (1d)</td><td>Tax ×2, popularity −15</td></tr>
+        <tr><td>levy_summons</td><td>Active (instant)</td><td>+50 peasants, popularity −50</td></tr>
+        <tr><td>siege_repairs</td><td>Active (instant)</td><td>Heals all stone walls +500 HP</td></tr>
+        <tr><td>festival_decree</td><td>Active (instant)</td><td>Triggers festival event (+8 popularity)</td></tr>
+        <tr><td>weather_resistance</td><td>Passive</td><td>Nullifies rain movement penalty, stops lightning fires</td></tr>
+      </table>
+      <h3>Key Methods</h3>
+      <table><tr><th>Method</th><th>Returns</th><th>Purpose</th></tr>
+        <tr><td>can_activate(player, edict_id, tick)</td><td>{ok, reason}</td><td>Validates tech, points, not-already-active, not-cooldown.</td></tr>
+        <tr><td>activate(player, edict_id, tick)</td><td>Dict</td><td>Deducts edict_points, adds active entry, sets cooldown.</td></tr>
+        <tr><td>tick(player, current_tick)</td><td>Array</td><td>Expires active edicts past expires_at. Returns expired IDs.</td></tr>
+        <tr><td>get_active_modifiers(player)</td><td>Dict</td><td>Merged modifier dict from all active edicts.</td></tr>
+      </table>
+    </div>
+
+  </div>
+</section>
+
 </main>
 
 <footer>
   <p>Sovereign's Reach — Auto-generated systems encyclopedia. Updated at the end of every phase.</p>
-  <p style="margin-top:0.5rem">GDD: 8 sections · 40 subsections · 200 mechanics defined · Phase 1–4 complete (308 tests passing)</p>
+  <p style="margin-top:0.5rem">GDD: 8 sections · 40 subsections · 200 mechanics defined · Phase 1–5 complete (406 tests passing)</p>
 </footer>
 
 </body>

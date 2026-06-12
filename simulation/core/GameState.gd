@@ -16,6 +16,12 @@ const PlacementValidator = preload("res://simulation/buildings/PlacementValidato
 const WorkerSystem     = preload("res://simulation/player/WorkerSystem.gd")
 const WorldGrid        = preload("res://simulation/world/WorldGrid.gd")
 const ShireMap         = preload("res://simulation/world/ShireMap.gd")
+# Phase 5
+const TechTree         = preload("res://simulation/tech/TechTree.gd")
+const PrestigeSystem   = preload("res://simulation/tech/PrestigeSystem.gd")
+const CapitalSystem    = preload("res://simulation/world/CapitalSystem.gd")
+const EdictSystem      = preload("res://simulation/edicts/EdictSystem.gd")
+const SaveManager      = preload("res://simulation/persistence/SaveManager.gd")
 # All fields are plain Dictionary/Array/int/float/bool — JSON-serializable.
 # Never stores Godot objects (Vector2, Node, etc.) to ensure network/save readiness.
 # The View layer reads from here; it never writes here directly.
@@ -208,6 +214,14 @@ func _tick_player_economy(player: Dictionary, tick: int) -> void:
 		if old_pop != new_pop:
 			EventBus.popularity_changed.emit(player["id"], old_pop, new_pop)
 
+		# Phase 5: Prestige generation
+		var prestige_result: Dictionary = PrestigeSystem.tick(player, world, tick)
+		if not prestige_result.is_empty():
+			EventBus.prestige_changed.emit(player["id"], prestige_result["old_prestige"], prestige_result["new_prestige"])
+
+	# Phase 5: Edict expiration (every tick, not just day boundary)
+	EdictSystem.tick(player, tick)
+
 # _collect_taxes removed — logic migrated to TaxSystem.tick() (Phase 4)
 
 # --- Command dispatch ---
@@ -233,6 +247,10 @@ func apply_command(command: Dictionary) -> void:
 			success = _cmd_buy_resource(command)
 		CommandQueue.CommandType.SELL_RESOURCE:
 			success = _cmd_sell_resource(command)
+		CommandQueue.CommandType.DONATE_TO_CAPITAL:
+			success = _cmd_donate_to_capital(command)
+		CommandQueue.CommandType.ACTIVATE_EDICT:
+			success = _cmd_activate_edict(command)
 		CommandQueue.CommandType.SET_GAME_SPEED:
 			success = _cmd_set_game_speed(command)
 		CommandQueue.CommandType.TOGGLE_VIEW_MODE:
@@ -426,6 +444,58 @@ func _cmd_rotate_view(cmd: Dictionary) -> bool:
 	var rotation_index: int = cmd["payload"].get("rotation_index", 0)
 	EventBus.view_rotated.emit(rotation_index)
 	return true
+
+func _cmd_donate_to_capital(cmd: Dictionary) -> bool:
+	var pid: int = cmd["player_id"]
+	if not _valid_player(pid):
+		return false
+	var payload: Dictionary = cmd["payload"]
+	var resource: String = payload.get("resource", "")
+	var amount: int = payload.get("amount", 0)
+	if amount <= 0 or resource == "":
+		return false
+	var player: Dictionary = players[pid]
+	# Deduct resource from player
+	var has: int = player.get("resources", {}).get(resource, 0)
+	if has < amount:
+		return false
+	player["resources"][resource] = has - amount
+	# Find the player's shire and record donation
+	var shire_id: int = player.get("shire_id", -1)
+	for shire in world.get("shires", []):
+		if shire.get("id", -1) == shire_id:
+			CapitalSystem.record_donation(player, shire, resource, amount)
+			return true
+	return false
+
+func _cmd_activate_edict(cmd: Dictionary) -> bool:
+	var pid: int = cmd["player_id"]
+	if not _valid_player(pid):
+		return false
+	var edict_id: String = cmd["payload"].get("edict_id", "")
+	var result: Dictionary = EdictSystem.activate(players[pid], edict_id, SimulationClock.current_tick)
+	if result.get("ok", false):
+		# Handle instant effects
+		var mods: Dictionary = result.get("modifiers", {})
+		if mods.has("instant_event"):
+			var events: Array = [mods["instant_event"]]
+			PopularityEngine.apply_tick(players[pid], events)
+		if mods.has("summon_peasants"):
+			players[pid]["population"] = players[pid].get("population", 0) + mods["summon_peasants"]
+			players[pid]["popularity"] = maxf(0.0, players[pid].get("popularity", 50.0) + mods.get("popularity_delta", 0))
+		if mods.has("instant_gold_bonus"):
+			players[pid]["gold"] = players[pid].get("gold", 0) + mods["instant_gold_bonus"]
+		var dur: int = EdictSystem.lookup(edict_id).get("duration_ticks", 0)
+		EventBus.edict_activated.emit(pid, edict_id, dur)
+	return result.get("ok", false)
+
+func _cmd_research_tech(cmd: Dictionary) -> bool:
+	var pid: int = cmd["player_id"]
+	if not _valid_player(pid):
+		return false
+	var tech_id: String = cmd["payload"].get("tech_id", "")
+	var result: Dictionary = TechTree.research(players[pid], tech_id)
+	return result.get("ok", false)
 
 # --- Accessors ---
 

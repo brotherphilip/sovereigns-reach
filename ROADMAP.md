@@ -67,18 +67,20 @@
 
 ---
 
-## PHASE 5: Progression & Persistence ⬜ NEXT
+## PHASE 5: Progression & Persistence ✅ COMPLETE
 **Goal:** Save/load to JSON, tech tree with 5 branches, prestige accumulation, Shire Capital upgrades, Royal Edicts.
 
-- [ ] `simulation/persistence/SaveManager.gd` — JSON save/load with versioning
-- [ ] `simulation/tech/TechTree.gd` — 5 branches (Agriculture, Industry, Military, Statecraft, Prestige)
-- [ ] `simulation/tech/PrestigeSystem.gd` — Points/min, multipliers, decay, spending
-- [ ] `simulation/world/CapitalSystem.gd` — Donation tracking, upgrades, server-wide buffs
-- [ ] `simulation/edicts/EdictSystem.gd` — All 20 Edicts (Economy/Military/Logistics/Capital)
+- [x] `simulation/persistence/SaveManager.gd` — JSON save/load with version guard; save/load/delete/metadata
+- [x] `simulation/tech/TechTree.gd` — 20 techs across 5 branches; prerequisite chains; modifier stacking
+- [x] `simulation/tech/PrestigeSystem.gd` — Food variety bonuses, popularity multiplier, capital multiplier, decay
+- [x] `simulation/world/CapitalSystem.gd` — Donation tracking, 5 upgrade levels, server-wide buff dicts
+- [x] `simulation/edicts/EdictSystem.gd` — 20 Edicts (Economy/Military/Logistics), active/passive, cooldowns, expiration
+- [x] `GameState.gd` — Phase 5 preloads, PrestigeSystem/EdictSystem in tick loop, DONATE_TO_CAPITAL/ACTIVATE_EDICT handlers
+- [x] `tests/TestPhase5.gd` — 98 tests, all passing
 
 ---
 
-## PHASE 6: AI & Entities ⬜
+## PHASE 6: AI & Entities ⬜ NEXT
 **Goal:** Unit state machines, A* pathfinding, all 4 AI archetypes with distinct behaviors, siege assembly system.
 
 - [ ] `simulation/units/UnitRegistry.gd` — All unit types, base stats, equipment requirements

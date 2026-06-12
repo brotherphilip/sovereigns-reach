@@ -128,3 +128,31 @@
 - **Coverage values updated every tick:** `AleSystem.tick()` and `ReligionSystem.tick()` run on every tick (not just day boundaries) so `PopularityEngine` always reads fresh `inn_coverage` / `religion_coverage` on the day boundary where it runs.
 - **TaxSystem replaces GameState._collect_taxes():** Phase 4 moves all gold collection into TaxSystem.tick() to keep GameState thin. Same tick-boundary guard: `tick > 0 and tick % 240 == 0`.
 - **DiseaseSystem returns events array:** Instead of directly modifying popularity, DiseaseSystem returns `["disease_outbreak"]` which GameState passes to PopularityEngine via the events array, keeping the popularity delta logic in one place.
+
+---
+
+## 2026-06-13 — Phase 5: Progression & Persistence
+
+### Files Created
+
+| File | Purpose |
+|------|---------|
+| `simulation/persistence/SaveManager.gd` | JSON save/load with version guard (SAVE_VERSION=1). `save()`, `load_save()`, `save_exists()`, `delete_save()`, `get_save_metadata()`. Version mismatch or corrupt JSON returns empty dict. |
+| `simulation/tech/TechTree.gd` | Static registry of 20 techs across 5 branches. Prerequisite DAG: `can_research()` validates unlocks+prestige; `research()` deducts prestige and appends to player.tech_unlocks. `get_all_modifiers()` merges all stat bonuses from researched techs. |
+| `simulation/tech/PrestigeSystem.gd` | Prestige generation per game-day: BASE (5) + food_variety × 2 + building_bonus, multiplied by popularity tier (0.3–1.5) and capital level (+0.1/level). `spend()`, `can_afford()`, `apply_defeat_loss()`. |
+| `simulation/world/CapitalSystem.gd` | Shire capital upgrade system (levels 0–5). Donation tracking per player per resource. `can_upgrade()` checks if donated resources cover UPGRADE_COSTS[level]. `upgrade()` increases level and resets donations. `get_capital_buffs()` returns buff dict per level (prestige_mult, edict_tier_cap, mining/vision/border bonuses). |
+| `simulation/edicts/EdictSystem.gd` | 20 Edicts (Economy ×7, Military ×5, Logistics ×5, plus extras). PASSIVE: permanent while slot occupied. ACTIVE: expires after duration_ticks, goes on cooldown. `activate()` deducts edict_points, starts timer. `tick()` expires stale actives. `get_active_modifiers()` merges modifier dicts. |
+| `tests/TestPhase5.gd` | 98 headless unit tests — all passing. Covers all 5 systems and 5 GameState integration commands. |
+
+### Files Modified
+
+| File | Change |
+|------|--------|
+| `simulation/core/GameState.gd` | Added preloads for TechTree, PrestigeSystem, CapitalSystem, EdictSystem, SaveManager. Added PrestigeSystem.tick() at day boundaries, EdictSystem.tick() every tick. Added `_cmd_donate_to_capital()`, `_cmd_activate_edict()`, `_cmd_research_tech()` handlers. Fixed edict_activated signal to include duration_ticks parameter. |
+
+### Architecture Decisions
+
+- **TechTree uses DAG prerequisites:** `research()` enforces the full prerequisite chain. Building unlock requirements are already encoded in BuildingRegistry.requires_tech, so TechTree only needs to track player.tech_unlocks.
+- **EdictSystem returns modifiers dict:** `get_active_modifiers()` merges all active edict modifiers into a flat dict. Game systems (ResourceTick, etc.) can query this in Phase 6+ to apply bonuses without knowing which specific edicts are active.
+- **SaveManager wraps state in metadata envelope:** `{"save_version": 1, "saved_at": unix_time, "state": {...}}` — version check is the outermost guard so corrupt/old saves are rejected before any deserialization.
+- **ACTIVATE_EDICT handles instant effects in GameState:** levy_summons summon_peasants, festival_decree instant_event, and diplomatic_tribute instant_gold_bonus are applied by `_cmd_activate_edict()`, not EdictSystem, keeping EdictSystem pure-functional.
