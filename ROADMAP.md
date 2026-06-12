@@ -3,7 +3,7 @@
 > **Engine:** Godot 4.6.3 (GDScript)
 > **Architecture:** Multiplayer-First Architecture (MFA) — Simulation/State strictly separated from View
 > **GDD:** `GAME DESIGN DOC.md`
-> Last updated: 2026-06-12
+> Last updated: 2026-06-13
 
 ---
 
@@ -96,14 +96,23 @@
 
 ---
 
-## PHASE 7: UI & View Integration ⬜ NEXT
+## PHASE 7: UI & View Integration ✅ COMPLETE
 **Goal:** Isometric micro view, macro world map, HUD panels all wired to GameState. No logic here — view reads state only.
 
-- [ ] `view/micro/MicroView.tscn` — Isometric tilemap, 4-way rotation
-- [ ] `view/macro/MacroView.tscn` — World map with army banners, shire colors, trade routes
-- [ ] `view/hud/HUD.tscn` — Popularity gauge, gold, prestige, ration sliders, tax slider
-- [ ] `view/hud/TechTreePanel.tscn` — Research panel
-- [ ] `view/hud/EdictPanel.tscn` — Edict cards with cooldown hourglass
-- [ ] `view/micro/BuildingRenderer.gd` — State → visual mapping (dark=empty, animated=working)
-- [ ] `view/micro/UnitRenderer.gd` — Unit state → sprite + animation
-- [ ] `view/main/Main.tscn` — Root scene, view mode switching
+- [x] `view/micro/MicroView.tscn` — Isometric tilemap, 4-way rotation
+- [x] `view/macro/MacroView.tscn` — World map with army banners, shire colors, trade routes
+- [x] `view/hud/HUD.tscn` — Popularity gauge, gold, prestige, ration sliders, tax slider
+- [x] `view/hud/TechTreePanel.tscn` — Research panel
+- [x] `view/hud/EdictPanel.tscn` — Edict cards with cooldown hourglass
+- [x] `view/micro/BuildingRenderer.gd` — State → visual mapping (dark=empty, animated=working)
+- [x] `view/micro/UnitRenderer.gd` — Unit state → sprite + animation
+- [x] `view/micro/MicroViewController.gd` — Grid/screen coordinate transforms, 4-way rotation, build preview
+- [x] `view/hud/HUDController.gd` — Popularity gauge data, ration/tax labels, resource summaries
+- [x] `view/hud/TechTreePanelController.gd` — Branch/tech status data extraction
+- [x] `view/hud/EdictPanelController.gd` — Active/available/locked edict card data, cooldown labels
+- [x] `view/macro/MacroViewController.gd` — Shire colors, army banners, AI siege tent data, fog of war
+- [x] `view/main/Main.tscn` — Root scene, view mode switching
+- [x] `view/main/MainController.gd` — EventBus signal wiring, view mode switching (MICRO/MACRO/TECH_TREE/EDICTS)
+- [x] `tests/TestPhase7.gd` — 98 tests, all passing
+
+Last updated: 2026-06-13

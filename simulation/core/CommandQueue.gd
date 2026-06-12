@@ -40,6 +40,9 @@ enum CommandType {
 	ROTATE_VIEW,
 	SAVE_GAME,
 	LOAD_GAME,
+
+	# Tech
+	RESEARCH_TECH,
 }
 
 var _queue: Array[Dictionary] = []

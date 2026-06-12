@@ -869,11 +869,152 @@ daily_income_gold/wood/iron</div>
   </div>
 </section>
 
+<section id="phase7">
+<h2 style="margin:2rem 0 1rem">Phase 7 — UI &amp; View Integration</h2>
+<p style="color:#aaa;margin-bottom:1.5rem">Pure view controllers: GameState snapshot → render data. No simulation logic, no Node inheritance (except MainController). All methods testable headless.</p>
+<div class="grid">
+
+  <div class="card">
+    <h2>HUDController.gd <span class="file-path">view/hud/HUDController.gd</span></h2>
+    <p>Extracts all HUD display data from a player dict + weather dict + current tick. No simulation calls; all inputs are plain Dictionaries.</p>
+    <h3>Popularity Tiers</h3>
+    <table><tr><th>Range</th><th>Tier</th><th>Hex Color</th></tr>
+      <tr><td>&lt; 20</td><td>revolt</td><td>#e94560</td></tr>
+      <tr><td>20–40</td><td>poor</td><td>#ff9800</td></tr>
+      <tr><td>40–60</td><td>fair</td><td>#ffd700</td></tr>
+      <tr><td>60–80</td><td>good</td><td>#8bc34a</td></tr>
+      <tr><td>≥ 80</td><td>excellent</td><td>#4caf50</td></tr>
+    </table>
+    <h3>Key Methods</h3>
+    <table><tr><th>Method</th><th>Returns</th></tr>
+      <tr><td>get_hud_data(player, weather, tick)</td><td>Full HUD dict (gold, prestige, popularity, labels, food, edict_points…)</td></tr>
+      <tr><td>get_popularity_tier(pop)</td><td>"revolt"|"poor"|"fair"|"good"|"excellent"</td></tr>
+      <tr><td>get_popularity_color(tier)</td><td>Hex color string</td></tr>
+      <tr><td>get_ration_label(level)</td><td>"None"|"Half"|"Normal"|"Extra"|"Double" (index 0–4)</td></tr>
+      <tr><td>get_tax_label(rate)</td><td>"Bribe ×3" … "Tax ×3" (rate –3 to +3)</td></tr>
+      <tr><td>get_total_food(player)</td><td>Sum of all food values across food dict</td></tr>
+      <tr><td>is_revolt_risk(player)</td><td>bool — true if popularity &lt; 20</td></tr>
+      <tr><td>format_tick_time(tick)</td><td>"Day N (T/240)"</td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>TechTreePanelController.gd <span class="file-path">view/hud/TechTreePanelController.gd</span></h2>
+    <p>Extracts tech branch and status data for the research panel. Delegates all unlock logic to TechTree.gd.</p>
+    <h3>Tech Status Values</h3>
+    <table><tr><th>Status</th><th>Condition</th></tr>
+      <tr><td>researched</td><td>In player.tech_unlocks</td></tr>
+      <tr><td>available</td><td>Prerequisites met AND can afford</td></tr>
+      <tr><td>unaffordable</td><td>Prerequisites met, prestige insufficient</td></tr>
+      <tr><td>locked</td><td>Prerequisites not met</td></tr>
+    </table>
+    <h3>Key Methods</h3>
+    <table><tr><th>Method</th><th>Returns</th></tr>
+      <tr><td>get_panel_data(player)</td><td>{branches, prestige, unlocked_count}</td></tr>
+      <tr><td>get_researchable_items(player)</td><td>Array of {id, name, cost_prestige, status="available"}</td></tr>
+      <tr><td>get_tech_status(player, tech_id)</td><td>One of the four status strings above</td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>EdictPanelController.gd <span class="file-path">view/hud/EdictPanelController.gd</span></h2>
+    <p>Extracts edict card data for the edict panel. Separates active / available / locked into three arrays.</p>
+    <h3>Key Methods</h3>
+    <table><tr><th>Method</th><th>Returns</th></tr>
+      <tr><td>get_panel_data(player, tick)</td><td>{active, available, locked, edict_points}</td></tr>
+      <tr><td>get_active_cards(player, tick)</td><td>Active edicts with remaining_ticks + remaining_label</td></tr>
+      <tr><td>get_remaining_ticks(player, id, tick)</td><td>int — ticks until expiry (0 if expired)</td></tr>
+      <tr><td>get_cooldown_remaining(player, id, tick)</td><td>int — ticks until cooldown clears</td></tr>
+      <tr><td>format_ticks(ticks)</td><td>"Xd Y%" for multi-day; "Y%" for sub-day; "Ready" for 0</td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>BuildingRenderer.gd <span class="file-path">view/micro/BuildingRenderer.gd</span></h2>
+    <p>Maps a BuildingState dict to visual display data. No rendering; callers read the returned dict and drive TileMap / AnimationPlayer.</p>
+    <h3>Visual States</h3>
+    <table><tr><th>State</th><th>Condition</th><th>Color Tint</th></tr>
+      <tr><td>fire</td><td>on_fire = true</td><td>fire_orange</td></tr>
+      <tr><td>damaged</td><td>hp/max_hp &lt; 0.3</td><td>damaged_gray</td></tr>
+      <tr><td>empty</td><td>not operational OR workers = 0</td><td>dark</td></tr>
+      <tr><td>working</td><td>operational AND workers &gt; 0</td><td>normal</td></tr>
+    </table>
+    <h3>Tile Layer Mapping</h3>
+    <table><tr><th>Category</th><th>Layer</th></tr>
+      <tr><td>FOOD</td><td>0</td></tr>
+      <tr><td>HARVESTING</td><td>1</td></tr>
+      <tr><td>MILITARY</td><td>2</td></tr>
+      <tr><td>CIVIC</td><td>3</td></tr>
+      <tr><td>DEFENSE</td><td>4</td></tr>
+    </table>
+    <div class="note">has_progress_bar() returns true if the building has a non-empty "produces" dict.</div>
+  </div>
+
+  <div class="card">
+    <h2>UnitRenderer.gd <span class="file-path">view/micro/UnitRenderer.gd</span></h2>
+    <p>Maps a UnitState dict to sprite/animation data. Dead units always return animation="die", color_tint="dead".</p>
+    <h3>Order → Animation</h3>
+    <table><tr><th>Order</th><th>Animation</th></tr>
+      <tr><td>idle, garrison, training</td><td>idle</td></tr>
+      <tr><td>move, patrol</td><td>walk</td></tr>
+      <tr><td>attack</td><td>attack</td></tr>
+    </table>
+    <h3>Color Tint Rules</h3>
+    <table><tr><th>owner_id</th><th>Tint</th></tr>
+      <tr><td>0–7</td><td>"player_N"</td></tr>
+      <tr><td>&lt; 0 (AI)</td><td>"enemy"</td></tr>
+      <tr><td>dead</td><td>"dead"</td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>MicroViewController.gd <span class="file-path">view/micro/MicroViewController.gd</span></h2>
+    <p>Isometric coordinate transforms. 4-way camera rotation; build preview validation; render list extraction.</p>
+    <h3>Rotation Transforms</h3>
+    <table><tr><th>Rotation</th><th>Facing</th><th>ax,ay,bx,by</th></tr>
+      <tr><td>0</td><td>NW</td><td>1, 1,−1, 1</td></tr>
+      <tr><td>1</td><td>NE</td><td>1,−1, 1, 1</td></tr>
+      <tr><td>2</td><td>SE</td><td>−1,−1, 1,−1</td></tr>
+      <tr><td>3</td><td>SW</td><td>−1, 1,−1,−1</td></tr>
+    </table>
+    <div class="flow">screen_x = (TILE_WIDTH/2)  × (ax×gx + bx×gy)
+screen_y = (TILE_HEIGHT/2) × (ay×gx + by×gy)</div>
+  </div>
+
+  <div class="card">
+    <h2>MacroViewController.gd <span class="file-path">view/macro/MacroViewController.gd</span></h2>
+    <p>World-map render data: shire owner colors, army banner positions, AI siege tent progress, fog of war.</p>
+    <h3>Color Palettes</h3>
+    <table><tr><th>Key</th><th>Color</th></tr>
+      <tr><td>SHIRE_COLORS[0..7]</td><td>8 distinct player hex colors</td></tr>
+      <tr><td>bandit_king</td><td>#8d6e63 (brown)</td></tr>
+      <tr><td>merchant_prince</td><td>#ffd54f (gold)</td></tr>
+      <tr><td>ironhand</td><td>#90a4ae (steel gray)</td></tr>
+      <tr><td>ashen_barony</td><td>#7e57c2 (purple)</td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>MainController.gd <span class="file-path">view/main/MainController.gd</span></h2>
+    <p>Root Node. Connects EventBus.state_changed, manages view mode switching, calls all panel controller refresh methods.</p>
+    <h3>ViewMode Enum</h3>
+    <table><tr><th>Mode</th><th>Visible Nodes</th></tr>
+      <tr><td>MICRO</td><td>MicroView</td></tr>
+      <tr><td>MACRO</td><td>MacroView</td></tr>
+      <tr><td>TECH_TREE</td><td>MicroView + TechTreePanel</td></tr>
+      <tr><td>EDICTS</td><td>MicroView + EdictPanel</td></tr>
+    </table>
+    <div class="note">Refresh calls use has_method() checks — silently skips child nodes that don't implement the apply_* interface.</div>
+  </div>
+
+</div>
+</section>
+
 </main>
 
 <footer>
   <p>Sovereign's Reach — Auto-generated systems encyclopedia. Updated at the end of every phase.</p>
-  <p style="margin-top:0.5rem">GDD: 8 sections · 40 subsections · 200 mechanics defined · Phase 1–6 complete (487 tests passing)</p>
+  <p style="margin-top:0.5rem">GDD: 8 sections · 40 subsections · 200 mechanics defined · Phase 1–7 complete (585 tests passing)</p>
 </footer>
 
 </body>

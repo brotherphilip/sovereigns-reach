@@ -195,3 +195,40 @@
 - **AI faction composition via static functions:** Each archetype file (BanditKing, MerchantPrince, etc.) has a `make()` factory and a `tick()` function. GameState.simulate_tick dispatches to the correct archetype file using a `match` on `faction["archetype"]`. No inheritance, no Node subclassing — pure composition.
 - **Pathfinder carries its own passability/cost tables:** Constants duplicated from WorldGrid so Pathfinder is self-contained. A test-only `find_path_dict()` variant accepts a simple 2D tile array, avoiding the need to instantiate WorldGrid objects in unit tests.
 - **SIEGE_PRIORITIES dict:** Rather than encoding target priorities as AI behavior, they're registered per unit type in CombatSystem.SIEGE_PRIORITIES so the View layer can also query them for HUD targeting indicators.
+
+---
+
+## 2026-06-13 — Phase 7: UI & View Integration
+
+### Files Created
+
+| File | Purpose |
+|------|---------|
+| `view/micro/BuildingRenderer.gd` | Pure static mapper: BuildingState dict → visual data dict (`state`, `animation`, `color_tint`, `show_fire`, `hp_bar`, `label`, `workers`). States: empty (no workers), working (staffed+operational), fire (on_fire flag), damaged (hp < 30%). `has_progress_bar()` checks produces dict; `get_tile_layer()` maps BuildingRegistry.Category enum to 0–4 layer index. |
+| `view/micro/UnitRenderer.gd` | Pure static mapper: UnitState dict → sprite info dict (`animation`, `health_bar`, `color_tint`, `label`, `facing_dir`, `is_alive`). Dead units → `{animation:"die", color_tint:"dead"}`. Color tint encodes team as "player_N" or "enemy" (owner_id < 0). Facing derived from pos→target delta. |
+| `view/micro/MicroViewController.gd` | Isometric coordinate system: 4-way rotation transforms (NW/NE/SE/SW); `grid_to_screen()` / `screen_to_grid()` round-trip. `get_build_preview()` delegates to PlacementValidator. `get_building_render_list()` and `get_unit_render_list()` extract full render arrays from player dict. |
+| `view/hud/HUDController.gd` | `get_hud_data()` produces complete HUD dict (gold, prestige, popularity tier+color, tax/ration labels, food totals, weather, edict points, inn/religion coverage). `get_popularity_tier()` (revolt/poor/fair/good/excellent) and `get_popularity_color()` are testable in isolation. `format_tick_time()` converts ticks to "Day N (T/240)". |
+| `view/hud/TechTreePanelController.gd` | `get_panel_data()` returns branches dict keyed by Branch enum (all 5 branches), prestige, unlocked_count. `get_tech_status()` returns `researched` / `available` / `unaffordable` / `locked`. `get_researchable_items()` returns only items TechTree.can_research() approves. |
+| `view/hud/EdictPanelController.gd` | `get_panel_data()` returns `{active, available, locked, edict_points}`. Active cards include remaining_label. `format_ticks()` formats tick countdown as "Xd Y%" or "Ready". `get_remaining_ticks()` and `get_cooldown_remaining()` are separately queryable. |
+| `view/macro/MacroViewController.gd` | `get_shire_render_list()` — shire id/owner/color/name/level. `get_player_army_banners()` — alive players with ≥1 alive unit. `get_ai_army_banners()` — alive AI factions. `get_siege_tent_data()` — active siege_assembly with 0–1 progress and eta_label. `is_tile_revealed()` / `get_revealed_tiles()` for fog-of-war queries. Color palettes: SHIRE_COLORS[8] for players, AI_COLORS per archetype. |
+| `view/main/MainController.gd` | Root Node subclass. `ViewMode` enum: MICRO/MACRO/TECH_TREE/EDICTS. `switch_to_micro()`, `switch_to_macro()`, `toggle_tech_tree()`, `toggle_edicts()` set visibility on NodePath-referenced child scenes. Connects `EventBus.state_changed` → `_refresh_all()` which calls all panel controllers and applies data via `apply_hud_data()` / `apply_render_data()` / `apply_panel_data()` duck-typed calls. |
+| `view/micro/MicroView.tscn` | Minimal valid Godot 4 scene — Node2D root, no script. Stub for isometric tile layer. |
+| `view/macro/MacroView.tscn` | Minimal valid Godot 4 scene — Node2D root. Stub for macro world-map layer. |
+| `view/hud/HUD.tscn` | CanvasLayer root with PopularityBar, GoldLabel, PrestigeLabel, DayLabel as overlay widgets. TechTreePanel and EdictPanel as hidden child Controls. |
+| `view/hud/TechTreePanel.tscn` | Control root with VBoxContainer + per-branch HBoxContainers for tech card layout. |
+| `view/hud/EdictPanel.tscn` | Control root with ActiveEdicts / AvailableEdicts / LockedEdicts HBoxContainers. |
+| `view/main/Main.tscn` | Root scene: Main (Node + MainController.gd) → MacroView (Node2D) + MicroView (Node2D) + HUD (CanvasLayer → TechTreePanel + EdictPanel). NodePath exports wired so MainController can toggle visibility. |
+| `tests/TestPhase7.gd` | 98 headless unit tests — all passing. Covers HUDController (20), TechTreePanelController (12), EdictPanelController (10), BuildingRenderer (13), UnitRenderer (11), MicroViewController (10), MacroViewController (12), MainController (5). |
+
+### Bugs Fixed
+
+- `BuildingRenderer.get_tile_layer()` matched strings ("food", "military") against `BuildingRegistry.Category` which stores enum integers (CIVIC=0, HARVESTING=1, FOOD=2, MILITARY=3, DEFENSE=4). Fixed to match against `BuildingRegistry.Category.X` enum values.
+- `BuildingRenderer.has_progress_bar()` checked `production_interval` field which doesn't exist in BuildingRegistry. Fixed to check `produces` dict non-empty (any building with output shows a progress bar).
+- Test for `popularity_tier` at 62.0 expected "fair" (40–60 range) but 62 falls in "good" (60–80). Fixed expected value.
+
+### Architecture Decisions
+
+- **View layer is pure static functions:** All `*Controller.gd` files extend `RefCounted` with only static methods. Runtime signal connections live in `MainController.gd` (the one Node subclass). This keeps every controller 100% headless-testable without a scene tree.
+- **No direct GameState reads in view controllers:** Controllers accept plain Dictionary arguments. The EventBus `state_changed` signal delivers a serialized snapshot. Controllers never hold references to live simulation nodes.
+- **Duck-typed apply methods:** `MainController._refresh_*` calls `has_method("apply_X")` before invoking view node callbacks. This means scene children don't need to implement every interface — a missing method is silently skipped, not an error. Avoids tight coupling between Main.tscn and the controller logic.
+- **`BuildingRenderer.get_tile_layer()` maps to render layers 0–4:** Layer ordering (food, harvesting, military, civic, defense) matches the intended Z-order for the isometric tilemap: food buildings at ground level, defensive structures at highest layer. HARVESTING maps to layer 1 (industry group) rather than a new entry to keep the layer count to 5.

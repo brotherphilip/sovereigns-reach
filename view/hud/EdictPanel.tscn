@@ -1,0 +1,20 @@
+[gd_scene format=3 uid="uid://sr_edict_panel1"]
+
+[node name="EdictPanel" type="Control"]
+anchor_right = 1.0
+anchor_bottom = 1.0
+
+[node name="ActiveEdicts" type="HBoxContainer" parent="."]
+anchor_top = 0.0
+anchor_right = 1.0
+anchor_bottom = 0.2
+
+[node name="AvailableEdicts" type="HBoxContainer" parent="."]
+anchor_top = 0.2
+anchor_right = 1.0
+anchor_bottom = 0.6
+
+[node name="LockedEdicts" type="HBoxContainer" parent="."]
+anchor_top = 0.6
+anchor_right = 1.0
+anchor_bottom = 1.0

@@ -275,6 +275,8 @@ func apply_command(command: Dictionary) -> void:
 			success = _cmd_issue_attack_order(command)
 		CommandQueue.CommandType.DISBAND_UNIT:
 			success = _cmd_disband_unit(command)
+		CommandQueue.CommandType.RESEARCH_TECH:
+			success = _cmd_research_tech(command)
 		CommandQueue.CommandType.SAVE_GAME:
 			EventBus.save_requested.emit()
 			success = true
