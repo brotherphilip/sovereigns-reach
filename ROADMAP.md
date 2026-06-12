@@ -115,4 +115,21 @@
 - [x] `view/main/MainController.gd` — EventBus signal wiring, view mode switching (MICRO/MACRO/TECH_TREE/EDICTS)
 - [x] `tests/TestPhase7.gd` — 98 tests, all passing
 
+---
+
+## PHASE 8: Full Game Integration ✅ COMPLETE
+**Goal:** Transform Phase 7 scene skeletons into a fully playable game with visual rendering, player input, HUD panels, camera, and all game systems wired end-to-end.
+
+- [x] `simulation/core/GameState.gd` — Added `get_terrain_at()`, `get_grid_size()`, `grid_in_bounds()`, `prepare_starting_area()`
+- [x] `simulation/units/UnitRegistry.gd` — Added `get_units_for_building(building_type)` helper
+- [x] `view/micro/CameraController.gd` — WASD/arrow pan, scroll-wheel zoom, middle-mouse drag, `center_on()`
+- [x] `view/micro/IsometricGrid.gd` — Diamond-tile terrain renderer with viewport culling, `grid_to_screen()`, `screen_to_grid()`
+- [x] `view/micro/BuildingLayer.gd` — Player + AI faction buildings; category colors, HP bars, fire indicators
+- [x] `view/micro/UnitLayer.gd` — Player + AI faction units; red=enemy; HP bars, selection ring, dead-X markers
+- [x] `view/macro/MacroMapView.gd` — Full-screen overlay: shire circles, army banners, siege tent progress arcs, legend
+- [x] `view/main/PlayerInputHandler.gd` — Left-click: build placement or entity selection; right-click: cancel build or move selected unit
+- [x] `view/hud/HUDNode.gd` — Complete programmatic HUD: TopBar (resources), RightPanel (popularity/rations/tax), BuildMenu (all categories), BottomBar (speed/macro/tech/edicts/save), SelectionPanel (entity info + recruit + trade + worker buttons), TechTreePanel, EdictPanel
+- [x] `view/main/GameBootstrap.gd` — Scene assembler, simulation init, signal wiring, starting buildings, win/loss overlay
+- [x] `view/main/Main.tscn` — Minimal root with GameBootstrap script
+
 Last updated: 2026-06-13

@@ -2,6 +2,52 @@
 
 ---
 
+## 2026-06-13 — Phase 8: Full Game Integration
+
+### Files Created
+
+| File | Description |
+|------|-------------|
+| `view/micro/CameraController.gd` | Camera2D with WASD pan, scroll zoom, middle-mouse drag, `center_on()` |
+| `view/micro/IsometricGrid.gd` | Node2D diamond-tile terrain renderer; viewport culling; `grid_to_screen()` / `screen_to_grid()` static |
+| `view/micro/BuildingLayer.gd` | Draws player + AI faction buildings as colored iso-diamond polygons with HP bars and fire circle |
+| `view/micro/UnitLayer.gd` | Draws player (blue) and AI (red) units as circles with HP bars, selection ring, dead-X |
+| `view/macro/MacroMapView.gd` | Full-screen Control overlay: shire circles, army flag banners, siege tent arcs, legend |
+| `view/main/PlayerInputHandler.gd` | Translates mouse/keyboard to CommandQueue; build mode, entity selection, right-click-to-move |
+| `view/hud/HUDNode.gd` | CanvasLayer with all HUD panels built in code; tech/edict/selection/build/top/right/bottom panels |
+| `view/main/GameBootstrap.gd` | Assembles scene tree, initializes simulation, wires all signals, places starting buildings, shows win/loss overlay |
+
+### Files Modified
+
+| File | Change |
+|------|--------|
+| `simulation/core/GameState.gd` | Added `get_terrain_at()`, `get_grid_size()`, `grid_in_bounds()`, `prepare_starting_area()` helpers |
+| `simulation/units/UnitRegistry.gd` | Added `get_units_for_building(building_type)` helper — returns all unit types requiring that building |
+| `view/main/Main.tscn` | Updated to minimal Node + GameBootstrap.gd (no scene tree .tscn complexity) |
+
+### Gameplay Features Added
+
+- **Isometric rendering**: Terrain tiles, building footprints, unit circles all visible on 200×200 grid with viewport culling
+- **Camera**: WASD pan + scroll zoom + middle-mouse drag; starts centered on player keep
+- **Player input**: Left-click places buildings (in build mode) or selects entities; right-click cancels build or issues move order to selected unit
+- **HUD**: Resource top bar, popularity/tax/ration right panel, category build menu with afford check, speed controls, macro/tech/edict/save buttons
+- **Selection panel**: Shows HP, description, worker buttons, recruit buttons (for military buildings), buy/sell buttons (for market/guildhall)
+- **Tech tree panel**: Browsable by branch, Research buttons for available techs
+- **Edict panel**: Active edicts with remaining time, Available edicts with Activate buttons
+- **AI faction rendering**: Enemy units (red) and buildings (dark red) rendered on micro view
+- **Win/loss overlay**: Defeat if keep destroyed or popularity < 10; Victory if all AI factions defeated; Restart/Quit buttons
+- **All EventBus signals wired**: Unit killed, building destroyed, weather, siege assembly, edict activate/expire all show HUD notifications
+- **Trade UI**: Buy/Sell 10× resource buttons shown when market or guildhall selected
+- **Right-click-to-move**: Right-click with a unit selected issues move order to clicked grid cell
+
+### Bugs Fixed
+
+- `HUDNode._refresh_tech_panel` / `_refresh_edict_panel`: Used `get_node_or_null("ScrollContainer")` which fails since ScrollContainer has no explicit name. Fixed by storing `_tech_content` / `_edict_content` VBoxContainer references directly.
+- `HUDNode._build_all_panels`: `get_viewport().get_visible_rect().size` returns (0,0) in headless mode. Added `if vp == Vector2.ZERO: vp = Vector2(1280, 720)` fallback.
+- `show_selected_building`: `_add_label()` in an HBoxContainer sets `position` which is ignored by layout. Replaced with direct `Label.new()` + `add_child()` for inline labels.
+
+---
+
 ## 2026-06-12 — Phase 1: Core Architecture & Input
 
 ### Files Created

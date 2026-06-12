@@ -650,6 +650,37 @@ func find_building(player_id: int, building_id: int) -> Dictionary:
 func _valid_player(pid: int) -> bool:
 	return pid >= 0 and pid < players.size() and not players[pid].is_empty()
 
+# --- View-layer helpers (read-only grid accessors for the renderer) ---
+
+func get_terrain_at(x: int, y: int) -> int:
+	if _grid == null:
+		return WorldGrid.Terrain.GRASS
+	return _grid.get_terrain(x, y)
+
+func get_grid_size() -> Vector2i:
+	if _grid == null:
+		return Vector2i(server_config.get("map_width", 200), server_config.get("map_height", 200))
+	return Vector2i(_grid.width, _grid.height)
+
+func grid_in_bounds(x: int, y: int) -> bool:
+	if _grid == null:
+		return false
+	return _grid.in_bounds(x, y)
+
+# Clears impassable terrain in a square radius around (cx, cy) so the starting area is buildable.
+func prepare_starting_area(cx: int, cy: int, radius: int) -> void:
+	if _grid == null:
+		return
+	for dy in range(-radius, radius + 1):
+		for dx in range(-radius, radius + 1):
+			var x: int = cx + dx
+			var y: int = cy + dy
+			if _grid.in_bounds(x, y):
+				var t: int = _grid.get_terrain(x, y)
+				if t == WorldGrid.Terrain.MOUNTAIN or t == WorldGrid.Terrain.RIVER \
+						or t == WorldGrid.Terrain.ROCK or t == WorldGrid.Terrain.MARSH:
+					_grid.set_terrain(x, y, WorldGrid.Terrain.GRASS)
+
 # --- Serialization ---
 
 func serialize() -> Dictionary:

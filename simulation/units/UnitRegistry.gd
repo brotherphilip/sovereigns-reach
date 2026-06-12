@@ -303,6 +303,13 @@ static func get_by_category(category: String) -> Array:
 			result.append(utype)
 	return result
 
+static func get_units_for_building(building_type: String) -> Array:
+	var result: Array = []
+	for utype in UNITS:
+		if UNITS[utype].get("requires_building", "") == building_type:
+			result.append(utype)
+	return result
+
 # Returns true if the player has the tech and building required to recruit this unit.
 static func can_recruit(unit_type: String, player: Dictionary) -> Dictionary:
 	var defn: Dictionary = UNITS.get(unit_type, {})
