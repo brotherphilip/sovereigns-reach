@@ -50,19 +50,24 @@
 
 ---
 
-## PHASE 4: Core Gameplay Loop ⬜ NEXT
+## PHASE 4: Core Gameplay Loop ✅ COMPLETE
 **Goal:** Full Popularity Engine running per game-day tick, all economic chains, disease, weather penalties.
 
-- [ ] `simulation/economy/FoodSystem.gd` — Rations, granary distribution, food variety bonuses
-- [ ] `simulation/economy/AleSystem.gd` — Hops → brewery → inn AoE distribution
-- [ ] `simulation/economy/ReligionSystem.gd` — Church/Cathedral radius, blessing rates
-- [ ] `simulation/economy/TaxSystem.gd` — Daily tax tick, gold ledger, bribe mechanics
-- [ ] `simulation/economy/DiseaseSystem.gd` — Crowding → disease spread, apothecary cure radius
-- [ ] `simulation/economy/MarketSystem.gd` — Fluctuating server-wide prices, cart generation
+- [x] `simulation/economy/FoodSystem.gd` — Rations, granary cap enforcement, food variety, starvation flag
+- [x] `simulation/economy/AleSystem.gd` — Inn coverage (per-tick), ale consumption at day boundaries
+- [x] `simulation/economy/ReligionSystem.gd` — Church/Cathedral coverage → religion_coverage → ΔR
+- [x] `simulation/economy/TaxSystem.gd` — Daily gold with shire modifier; replaced GameState._collect_taxes
+- [x] `simulation/economy/DiseaseSystem.gd` — Crowding thresholds, apothecary coverage, outbreak/death/cure
+- [x] `simulation/economy/MarketSystem.gd` — BUY/SELL commands, buy price markup (ceili 20%), price fluctuation
+- [x] `GameState.gd` — Wired all 6 systems into _tick_player_economy; added BUY/SELL command handlers
+- [x] `tests/TestPhase4.gd` — 60 tests, all passing
+
+**Key fix:** `MarketSystem.get_buy_price` uses `ceili()` not `int()` to guarantee buy > sell for all base prices.
+**Key fix:** Integer constants for CommandType (CT_BUY_RESOURCE=5, CT_SELL_RESOURCE=6) to avoid compile-time autoload resolution (same pattern as Phase 3).
 
 ---
 
-## PHASE 5: Progression & Persistence ⬜
+## PHASE 5: Progression & Persistence ⬜ NEXT
 **Goal:** Save/load to JSON, tech tree with 5 branches, prestige accumulation, Shire Capital upgrades, Royal Edicts.
 
 - [ ] `simulation/persistence/SaveManager.gd` — JSON save/load with versioning

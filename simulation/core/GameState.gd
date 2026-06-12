@@ -4,6 +4,12 @@ extends Node
 const WeatherSystem    = preload("res://simulation/world/WeatherSystem.gd")
 const PopularityEngine = preload("res://simulation/economy/PopularityEngine.gd")
 const ResourceTick     = preload("res://simulation/economy/ResourceTick.gd")
+const FoodSystem       = preload("res://simulation/economy/FoodSystem.gd")
+const AleSystem        = preload("res://simulation/economy/AleSystem.gd")
+const ReligionSystem   = preload("res://simulation/economy/ReligionSystem.gd")
+const TaxSystem        = preload("res://simulation/economy/TaxSystem.gd")
+const DiseaseSystem    = preload("res://simulation/economy/DiseaseSystem.gd")
+const MarketSystem     = preload("res://simulation/economy/MarketSystem.gd")
 const BuildingRegistry = preload("res://simulation/buildings/BuildingRegistry.gd")
 const BuildingState    = preload("res://simulation/buildings/BuildingState.gd")
 const PlacementValidator = preload("res://simulation/buildings/PlacementValidator.gd")
@@ -24,6 +30,7 @@ var milestones: Dictionary = {}
 
 # Non-serialized runtime instances (reconstructed from world dict on deserialize)
 var _weather_rng: RandomNumberGenerator = null
+var _disease_rng: RandomNumberGenerator = null
 var _grid: Object = null       # WorldGrid instance
 var _shire_map: Object = null  # ShireMap instance
 var _next_building_id: int = 1
@@ -43,6 +50,8 @@ func _init_default_state() -> void:
 	}
 	_weather_rng = RandomNumberGenerator.new()
 	_weather_rng.seed = server_config["map_seed"]
+	_disease_rng = RandomNumberGenerator.new()
+	_disease_rng.seed = server_config["map_seed"] ^ 0xDEADBEEF
 	weather = WeatherSystem.make_state()
 	milestones = {}
 	_next_building_id = 1
@@ -60,6 +69,7 @@ func setup_world(seed_value: int = 12345, shire_count: int = 8) -> void:
 
 	world["grid"] = _grid.serialize()
 	world["shires"] = _shire_map.serialize().get("shires", [])
+	MarketSystem.initialize_prices(world)
 
 # --- Player initialization ---
 
@@ -148,17 +158,7 @@ func _make_armory() -> Dictionary:
 	}
 
 func _tick_player_economy(player: Dictionary, tick: int) -> void:
-	# Collect current weather effects as events for popularity calculation
-	var events: Array = []
-	var weather_pop_delta: float = WeatherSystem.get_popularity_delta(weather)
-	if weather_pop_delta != 0:
-		match weather["current"]:
-			WeatherSystem.WeatherType.SNOW:     events.append("blizzard")
-			WeatherSystem.WeatherType.DROUGHT:  events.append("drought")
-			WeatherSystem.WeatherType.STORM:    events.append("blizzard")
-			WeatherSystem.WeatherType.RAIN:     pass  # handled via multiplier
-
-	# Tick all buildings for resource production
+	# Phase 2: resource production from all buildings
 	for building in player.get("buildings", []):
 		if not building is Dictionary:
 			continue
@@ -166,35 +166,49 @@ func _tick_player_economy(player: Dictionary, tick: int) -> void:
 		if not changes.is_empty():
 			ResourceTick.apply_changes(player, changes)
 
-	# Food consumption on game-day boundaries
-	var food_changes: Dictionary = ResourceTick.tick_food_consumption(player, tick)
-	if not food_changes.is_empty():
-		ResourceTick.apply_changes(player, food_changes)
+	# Phase 4: update live coverage values every tick (needed by PopularityEngine)
+	AleSystem.tick(player, tick)    # updates inn_coverage, consumes ale at day boundaries
+	ReligionSystem.tick(player)     # updates religion_coverage
 
-	# Popularity update on game-day boundaries
-	if tick % SimulationClock.TICKS_PER_GAME_DAY == 0:
+	# Everything below only fires at day boundaries
+	if tick > 0 and tick % SimulationClock.TICKS_PER_GAME_DAY == 0:
+		# Weather events for popularity
+		var events: Array = []
+		var weather_pop_delta: float = WeatherSystem.get_popularity_delta(weather)
+		if weather_pop_delta != 0:
+			match weather["current"]:
+				WeatherSystem.WeatherType.SNOW:    events.append("blizzard")
+				WeatherSystem.WeatherType.DROUGHT: events.append("drought")
+				WeatherSystem.WeatherType.STORM:   events.append("blizzard")
+
+		# Phase 4: disease events
+		var disease_events: Array = DiseaseSystem.tick(player, _disease_rng, tick)
+		events.append_array(disease_events)
+
+		# Phase 2 food consumption (ResourceTick handles production quantities)
+		var food_changes: Dictionary = ResourceTick.tick_food_consumption(player, tick)
+		if not food_changes.is_empty():
+			ResourceTick.apply_changes(player, food_changes)
+
+		# Phase 4: FoodSystem granary cap enforcement
+		FoodSystem.apply_granary_cap(player)
+
+		# Phase 4: TaxSystem (replaces GameState._collect_taxes)
+		var tax_result: Dictionary = TaxSystem.tick(player, world, tick)
+		if not tax_result.is_empty() and tax_result["old_gold"] != tax_result["new_gold"]:
+			EventBus.gold_changed.emit(player["id"], tax_result["old_gold"], tax_result["new_gold"])
+
+		# Phase 4: market price fluctuation (server-wide, driven by player 0 tick)
+		if player.get("id", -1) == 0:
+			MarketSystem.tick_prices(world, _disease_rng, tick)
+
+		# Popularity update
 		var old_pop: float = player.get("popularity", 50)
 		var new_pop: float = PopularityEngine.apply_tick(player, events)
 		if old_pop != new_pop:
 			EventBus.popularity_changed.emit(player["id"], old_pop, new_pop)
 
-		# Daily tax collection
-		_collect_taxes(player)
-
-func _collect_taxes(player: Dictionary) -> void:
-	var tax_rate: int = player.get("tax_rate", 0)
-	if tax_rate == 0:
-		return
-	var population: int = player.get("population", 0)
-	var gold_per_peasant: float = abs(tax_rate) * 0.5
-	var delta: int = int(population * gold_per_peasant)
-	var old_gold: int = player.get("gold", 0)
-	if tax_rate > 0:
-		player["gold"] = old_gold + delta
-	else:
-		player["gold"] = maxi(0, old_gold - delta)  # Bribe costs gold
-	if player["gold"] != old_gold:
-		EventBus.gold_changed.emit(player["id"], old_gold, player["gold"])
+# _collect_taxes removed — logic migrated to TaxSystem.tick() (Phase 4)
 
 # --- Command dispatch ---
 # apply_command is called by SimulationClock._advance_tick() for every
@@ -215,6 +229,10 @@ func apply_command(command: Dictionary) -> void:
 			success = _cmd_demolish_building(command)
 		CommandQueue.CommandType.SET_BUILDING_WORKERS:
 			success = _cmd_set_building_workers(command)
+		CommandQueue.CommandType.BUY_RESOURCE:
+			success = _cmd_buy_resource(command)
+		CommandQueue.CommandType.SELL_RESOURCE:
+			success = _cmd_sell_resource(command)
 		CommandQueue.CommandType.SET_GAME_SPEED:
 			success = _cmd_set_game_speed(command)
 		CommandQueue.CommandType.TOGGLE_VIEW_MODE:
@@ -367,6 +385,32 @@ func _cmd_set_building_workers(cmd: Dictionary) -> bool:
 		return true
 
 	return false  # Building not found
+
+func _cmd_buy_resource(cmd: Dictionary) -> bool:
+	var pid: int = cmd["player_id"]
+	if not _valid_player(pid):
+		return false
+	var payload: Dictionary = cmd["payload"]
+	var result: Dictionary = MarketSystem.buy(
+		players[pid],
+		payload.get("resource", ""),
+		payload.get("quantity", 0),
+		world
+	)
+	return result.get("ok", false)
+
+func _cmd_sell_resource(cmd: Dictionary) -> bool:
+	var pid: int = cmd["player_id"]
+	if not _valid_player(pid):
+		return false
+	var payload: Dictionary = cmd["payload"]
+	var result: Dictionary = MarketSystem.sell(
+		players[pid],
+		payload.get("resource", ""),
+		payload.get("quantity", 0),
+		world
+	)
+	return result.get("ok", false)
 
 func _cmd_set_game_speed(cmd: Dictionary) -> bool:
 	var speed: int = cmd["payload"].get("speed", SimulationClock.SPEED_NORMAL)

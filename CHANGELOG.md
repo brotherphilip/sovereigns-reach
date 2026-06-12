@@ -94,3 +94,37 @@
   compile-time autoload resolution failures in `--script` mode.
 - **SimulationClock drives everything:** `_advance_tick()` is the single authority that drains
   CommandQueue, applies commands, ticks GameState, and emits `simulation_tick`.
+
+---
+
+## 2026-06-12 — Phase 4: Core Gameplay Loop
+
+### Files Created
+
+| File | Purpose |
+|------|---------|
+| `simulation/economy/FoodSystem.gd` | Granary capacity enforcement (sum of `storage_max` across granary buildings, default 200). Food consumption at day boundaries in `FOOD_CONSUMPTION_ORDER` (apples→bread→cheese→meat). Starvation flag, shortage tracking, `apply_granary_cap()` spills cheapest food first. |
+| `simulation/economy/AleSystem.gd` | Inn coverage ratio (staffed inns × 4 / hovel count, clamped 0–1). Updates `player.inn_coverage` on every tick. Consumes ale at day boundaries per inn per day scaled by ale_ration. |
+| `simulation/economy/ReligionSystem.gd` | Church (radius 12) and Cathedral (radius 30) coverage. `coverage_sum / tiles_per_hovel / hovel_count`, clamped 0–1. Updates `player.religion_coverage` every tick. `coverage_to_popularity_delta` scales to MAX 10.0. |
+| `simulation/economy/TaxSystem.gd` | Replaces `GameState._collect_taxes`. Daily gold = `abs(tax_rate) × 0.5 × population × shire_modifier`. Negative rates deduct gold (bribe). Gold floored at 0. |
+| `simulation/economy/DiseaseSystem.gd` | Crowding threshold: 5+ hovels with apothecary coverage < 0.5. `OUTBREAK_PROBABILITY` = 8%/day. Active disease kills 2 peasants/day. High coverage (≥ 0.8) cures disease. Returns `["disease_outbreak"]` event string for PopularityEngine. |
+| `simulation/economy/MarketSystem.gd` | `initialize_prices()` populates `world["market_prices"]`. Buy price = `ceili(base × 1.2)`, sell price = base. `tick_prices()` fluctuates ±30% every 10 game-days. `buy()`/`sell()` require a market building and check gold/stock. |
+| `tests/TestPhase4.gd` | 60 headless unit tests — all passing. Covers all 6 systems and 6 GameState integration commands. |
+
+### Files Modified
+
+| File | Change |
+|------|--------|
+| `simulation/core/GameState.gd` | Added preloads for all Phase 4 systems. Added `_disease_rng`. `setup_world()` now calls `MarketSystem.initialize_prices()`. `_tick_player_economy()` rewritten: AleSystem/ReligionSystem every tick; DiseaseSystem, FoodSystem.apply_granary_cap, TaxSystem, MarketSystem.tick_prices, PopularityEngine at day boundaries. Added `_cmd_buy_resource()` and `_cmd_sell_resource()` handlers. Removed `_collect_taxes()`. |
+| `simulation/economy/MarketSystem.gd` | `get_buy_price` changed from `int(base × 1.2)` to `ceili(base × 1.2)` to guarantee buy > sell for all base prices including cheap items (e.g. wood=3: int(3.6)=3=sell; ceili(3.6)=4>3). |
+
+### Bugs Fixed
+
+- `MarketSystem.get_buy_price` used `int()` truncation: for wood (base=3), int(3×1.2)=int(3.6)=3 equals sell price. Fixed to `ceili()`.
+- `CommandQueue.CommandType.BUY_RESOURCE` reference in test caused compile-time reload of CommandQueue.gd, which fails because `SimulationClock` isn't available then — corrupting the autoload node. Used integer constants instead (CT_BUY_RESOURCE=5, CT_SELL_RESOURCE=6).
+
+### Architecture Decisions
+
+- **Coverage values updated every tick:** `AleSystem.tick()` and `ReligionSystem.tick()` run on every tick (not just day boundaries) so `PopularityEngine` always reads fresh `inn_coverage` / `religion_coverage` on the day boundary where it runs.
+- **TaxSystem replaces GameState._collect_taxes():** Phase 4 moves all gold collection into TaxSystem.tick() to keep GameState thin. Same tick-boundary guard: `tick > 0 and tick % 240 == 0`.
+- **DiseaseSystem returns events array:** Instead of directly modifying popularity, DiseaseSystem returns `["disease_outbreak"]` which GameState passes to PopularityEngine via the events array, keeping the popularity delta logic in one place.

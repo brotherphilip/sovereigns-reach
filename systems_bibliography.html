@@ -61,6 +61,7 @@
   <a href="#phase1">Phase 1</a>
   <a href="#phase2">Phase 2</a>
   <a href="#phase3">Phase 3</a>
+  <a href="#phase4">Phase 4</a>
   <a href="#eventbus">EventBus</a>
   <a href="#commandqueue">CommandQueue</a>
   <a href="#simclock">SimulationClock</a>
@@ -322,15 +323,15 @@ INPUT (Keyboard/Mouse)
       <p>Core Architecture & Input</p>
     </div>
     <div class="toc-item">
-      <a href="#">Phase 2 ⬜</a>
+      <a href="#phase2">Phase 2 ✅</a>
       <p>Simulation Loop — Grid, Weather, Popularity Engine</p>
     </div>
     <div class="toc-item">
-      <a href="#">Phase 3 ⬜</a>
+      <a href="#phase3">Phase 3 ✅</a>
       <p>Player Controller — Buildings, Workers, Camera</p>
     </div>
     <div class="toc-item">
-      <a href="#">Phase 4 ⬜</a>
+      <a href="#phase4">Phase 4 ✅</a>
       <p>Core Gameplay — Food/Ale/Tax/Disease/Market</p>
     </div>
     <div class="toc-item">
@@ -545,11 +546,121 @@ MISSING_TECH=4  MISSING_RESOURCES=5  OUTSIDE_BORDERS=6  INVALID_TYPE=7</div>
   </div>
 </section>
 
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<section id="phase4">
+  <h2>Phase 4 Systems <span class="phase-badge complete">COMPLETE</span></h2>
+  <p style="margin-top:0.5rem; color:#ccc; font-size:0.9rem">60/60 tests passing. Headless run: <code style="background:var(--code-bg);padding:2px 6px;border-radius:4px">godot --headless --script tests/TestPhase4.gd</code></p>
+
+  <div class="system-grid" style="margin-top:1.5rem">
+
+    <div class="card">
+      <h2>FoodSystem <span class="file-path">simulation/economy/FoodSystem.gd</span></h2>
+      <p style="color:#ccc;font-size:0.85rem">GDD §3.1. Manages granary capacity, food distribution, starvation detection, and spoilage caps.</p>
+      <h3>Consumption Order</h3>
+      <div class="flow">apples → bread → cheese → meat  (cheapest first)</div>
+      <h3>Ration Drains (food/peasant/day)</h3>
+      <div class="flow">0=0.0  1=0.5  2=1.0  3=1.5  4=2.0</div>
+      <h3>Key Methods</h3>
+      <table><tr><th>Method</th><th>Returns</th><th>Purpose</th></tr>
+        <tr><td>get_total_food(player)</td><td>int</td><td>Sum across all food dict values</td></tr>
+        <tr><td>get_granary_capacity(player)</td><td>int</td><td>Sum of building storage_max; default 200 if no granary</td></tr>
+        <tr><td>tick(player, tick)</td><td>Dict</td><td>Day boundary only. Returns {food_consumed, food_shortage, starving}. Sets player.is_starving.</td></tr>
+        <tr><td>apply_granary_cap(player)</td><td>void</td><td>Spills cheapest food first if above capacity</td></tr>
+        <tr><td>get_food_variety_count(player)</td><td>int</td><td>Count of food types with stock &gt; 0</td></tr>
+      </table>
+      <div class="note">FoodSystem.tick() handles starvation flags. GameState still calls ResourceTick.tick_food_consumption() for production-side food deduction; FoodSystem.apply_granary_cap() runs after.</div>
+    </div>
+
+    <div class="card">
+      <h2>AleSystem <span class="file-path">simulation/economy/AleSystem.gd</span></h2>
+      <p style="color:#ccc;font-size:0.85rem">GDD §3.2. Inn coverage ratio and ale consumption chain. Updates player.inn_coverage on every tick.</p>
+      <h3>Coverage Formula</h3>
+      <div class="flow">inn_coverage = clamp(staffed_inn_count × 4 / hovel_count, 0.0, 1.0)
+(an inn must have workers > 0 and is_active = true to count)</div>
+      <h3>Key Methods</h3>
+      <table><tr><th>Method</th><th>Returns</th><th>Purpose</th></tr>
+        <tr><td>compute_inn_coverage(player)</td><td>float</td><td>0.0–1.0 coverage ratio</td></tr>
+        <tr><td>tick(player, tick)</td><td>Dict</td><td>Always updates inn_coverage. Day boundary: consumes ale per inn × ration_mult (ration × 0.5).</td></tr>
+      </table>
+    </div>
+
+    <div class="card">
+      <h2>ReligionSystem <span class="file-path">simulation/economy/ReligionSystem.gd</span></h2>
+      <p style="color:#ccc;font-size:0.85rem">GDD §3.3. Church/Cathedral coverage → religion_coverage → ΔR in Popularity Engine.</p>
+      <h3>Coverage Formula</h3>
+      <div class="flow">coverage_sum = Σ(building.coverage_radius / 4.0)  per church/cathedral
+religion_coverage = clamp(coverage_sum / hovel_count, 0.0, 1.0)
+
+Church radius=12, Cathedral radius=30. Both require "monastic_orders" tech.</div>
+      <h3>Key Methods</h3>
+      <table><tr><th>Method</th><th>Returns</th><th>Purpose</th></tr>
+        <tr><td>compute_religion_coverage(player)</td><td>float</td><td>0.0–1.0 from buildings</td></tr>
+        <tr><td>coverage_to_popularity_delta(cov)</td><td>float</td><td>coverage × 10.0 (MAX_RELIGION_DELTA)</td></tr>
+        <tr><td>tick(player)</td><td>float</td><td>Updates player.religion_coverage every tick</td></tr>
+      </table>
+    </div>
+
+    <div class="card">
+      <h2>TaxSystem <span class="file-path">simulation/economy/TaxSystem.gd</span></h2>
+      <p style="color:#ccc;font-size:0.85rem">GDD §3.4. Replaced GameState._collect_taxes(). Fires at day boundaries only.</p>
+      <h3>Gold Formula</h3>
+      <div class="flow">daily_gold = sign(tax_rate) × abs(tax_rate) × 0.5 × population × shire_modifier
+  positive → player earns gold
+  negative → player loses gold (bribe cost)
+  gold floored at 0</div>
+      <h3>Key Methods</h3>
+      <table><tr><th>Method</th><th>Returns</th><th>Purpose</th></tr>
+        <tr><td>calculate_daily_gold(player, world)</td><td>int</td><td>Gold delta (negative for bribes)</td></tr>
+        <tr><td>tick(player, world, tick)</td><td>Dict</td><td>Day boundary only. Returns {old_gold, new_gold, delta} or {} if no change.</td></tr>
+      </table>
+    </div>
+
+    <div class="card">
+      <h2>DiseaseSystem <span class="file-path">simulation/economy/DiseaseSystem.gd</span></h2>
+      <p style="color:#ccc;font-size:0.85rem">GDD §3.5.3. Crowded housing without apothecary coverage triggers outbreaks. Returns event strings for PopularityEngine.</p>
+      <h3>Thresholds</h3>
+      <div class="flow">CROWDING_THRESHOLD = 5 hovels
+apothecary_coverage = clamp(apothecary_count × 6.0 / hovel_count, 0.0, 1.0)
+is_crowding_risk = hovel_count ≥ 5 AND coverage &lt; 0.5
+OUTBREAK_PROBABILITY = 8%/day
+DISEASE_DEATH_RATE = 2 peasants/day when active
+cure = coverage ≥ 0.8</div>
+      <h3>Key Methods</h3>
+      <table><tr><th>Method</th><th>Returns</th><th>Purpose</th></tr>
+        <tr><td>compute_apothecary_coverage(player)</td><td>float</td><td>0.0–1.0 based on staffed apothecaries vs hovels</td></tr>
+        <tr><td>is_crowding_risk(player)</td><td>bool</td><td>True if hovel_count ≥ 5 AND coverage &lt; 0.5</td></tr>
+        <tr><td>tick(player, rng, tick)</td><td>Array</td><td>Day boundary. Returns ["disease_outbreak"] if disease active or triggered. Kills/cures accordingly.</td></tr>
+      </table>
+    </div>
+
+    <div class="card">
+      <h2>MarketSystem <span class="file-path">simulation/economy/MarketSystem.gd</span></h2>
+      <p style="color:#ccc;font-size:0.85rem">GDD §5.1.3. BUY/SELL commands, server-wide fluctuating prices. Requires a market building.</p>
+      <h3>Pricing</h3>
+      <div class="flow">BASE_PRICES: wood=3 stone=5 iron=8 pitch=6 hops=4 wheat=3 bread=5 ale=8 ...
+buy_price  = ceili(base × 1.2)   ← 20% markup, rounded UP
+sell_price = base
+PRICE_VARIANCE = ±30% every 2400 ticks (10 game-days)</div>
+      <div class="warn">Uses ceili() not int() for buy price. int(3×1.2)=int(3.6)=3=sell_price (no margin). ceili(3.6)=4 &gt; 3.</div>
+      <h3>Key Methods</h3>
+      <table><tr><th>Method</th><th>Returns</th><th>Purpose</th></tr>
+        <tr><td>initialize_prices(world)</td><td>void</td><td>Sets world["market_prices"] from BASE_PRICES (idempotent)</td></tr>
+        <tr><td>tick_prices(world, rng, tick)</td><td>void</td><td>Fluctuates all prices every 2400 ticks. Must be called by player 0's tick.</td></tr>
+        <tr><td>get_buy_price(resource, world)</td><td>int</td><td>ceili(base × 1.2)</td></tr>
+        <tr><td>get_sell_price(resource, world)</td><td>int</td><td>base price</td></tr>
+        <tr><td>buy(player, resource, qty, world)</td><td>Dict</td><td>{ok, message, cost}. Requires market building + sufficient gold.</td></tr>
+        <tr><td>sell(player, resource, qty, world)</td><td>Dict</td><td>{ok, message, earned}. Requires market building + stock.</td></tr>
+      </table>
+    </div>
+
+  </div>
+</section>
+
 </main>
 
 <footer>
   <p>Sovereign's Reach — Auto-generated systems encyclopedia. Updated at the end of every phase.</p>
-  <p style="margin-top:0.5rem">GDD: 8 sections · 40 subsections · 200 mechanics defined · Phase 1–3 complete (248 tests passing)</p>
+  <p style="margin-top:0.5rem">GDD: 8 sections · 40 subsections · 200 mechanics defined · Phase 1–4 complete (308 tests passing)</p>
 </footer>
 
 </body>
