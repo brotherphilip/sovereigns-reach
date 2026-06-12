@@ -22,6 +22,15 @@ const PrestigeSystem   = preload("res://simulation/tech/PrestigeSystem.gd")
 const CapitalSystem    = preload("res://simulation/world/CapitalSystem.gd")
 const EdictSystem      = preload("res://simulation/edicts/EdictSystem.gd")
 const SaveManager      = preload("res://simulation/persistence/SaveManager.gd")
+# Phase 6
+const UnitRegistry     = preload("res://simulation/units/UnitRegistry.gd")
+const UnitState        = preload("res://simulation/units/UnitState.gd")
+const AIFaction        = preload("res://simulation/ai/AIFaction.gd")
+const BanditKing       = preload("res://simulation/ai/BanditKing.gd")
+const MerchantPrince   = preload("res://simulation/ai/MerchantPrince.gd")
+const Ironhand         = preload("res://simulation/ai/Ironhand.gd")
+const AshenBarony      = preload("res://simulation/ai/AshenBarony.gd")
+const CombatSystem     = preload("res://simulation/combat/CombatSystem.gd")
 # All fields are plain Dictionary/Array/int/float/bool — JSON-serializable.
 # Never stores Godot objects (Vector2, Node, etc.) to ensure network/save readiness.
 # The View layer reads from here; it never writes here directly.
@@ -40,6 +49,7 @@ var _disease_rng: RandomNumberGenerator = null
 var _grid: Object = null       # WorldGrid instance
 var _shire_map: Object = null  # ShireMap instance
 var _next_building_id: int = 1
+var _next_unit_id: int = 1     # Phase 6: monotonically increasing unit id
 
 func _ready() -> void:
 	_init_default_state()
@@ -257,11 +267,19 @@ func apply_command(command: Dictionary) -> void:
 			success = _cmd_toggle_view_mode(command)
 		CommandQueue.CommandType.ROTATE_VIEW:
 			success = _cmd_rotate_view(command)
+		CommandQueue.CommandType.RECRUIT_UNIT:
+			success = _cmd_recruit_unit(command)
+		CommandQueue.CommandType.ISSUE_MOVE_ORDER:
+			success = _cmd_issue_move_order(command)
+		CommandQueue.CommandType.ISSUE_ATTACK_ORDER:
+			success = _cmd_issue_attack_order(command)
+		CommandQueue.CommandType.DISBAND_UNIT:
+			success = _cmd_disband_unit(command)
 		CommandQueue.CommandType.SAVE_GAME:
 			EventBus.save_requested.emit()
 			success = true
 		_:
-			success = true  # Future phases add more handlers
+			success = true
 	EventBus.command_processed.emit(command, success)
 
 # Phase 2: economy + weather tick
@@ -277,6 +295,25 @@ func simulate_tick(tick: int) -> void:
 		if not player.get("is_alive", false):
 			continue
 		_tick_player_economy(player, tick)
+
+	# Phase 6: tick AI factions each game-day
+	if tick > 0 and tick % SimulationClock.TICKS_PER_GAME_DAY == 0:
+		for faction in ai_factions:
+			if not (faction is Dictionary and faction.get("is_alive", false)):
+				continue
+			var arch: String = faction.get("archetype", "")
+			var ai_events: Array = []
+			match arch:
+				AIFaction.ARCHETYPE_BANDIT:
+					ai_events = BanditKing.tick(faction, players, world, tick)
+				AIFaction.ARCHETYPE_MERCHANT:
+					ai_events = MerchantPrince.tick(faction, players, world, tick)
+				AIFaction.ARCHETYPE_IRONHAND:
+					ai_events = Ironhand.tick(faction, players, world, tick)
+				AIFaction.ARCHETYPE_ASHEN_BARONY:
+					ai_events = AshenBarony.tick(faction, players, world, tick)
+			for ev in ai_events:
+				EventBus.command_processed.emit({"type": "ai_event", "event": ev}, true)
 
 # --- Command handlers ---
 
@@ -497,6 +534,92 @@ func _cmd_research_tech(cmd: Dictionary) -> bool:
 	var result: Dictionary = TechTree.research(players[pid], tech_id)
 	return result.get("ok", false)
 
+# Phase 6: unit command handlers
+
+func _cmd_recruit_unit(cmd: Dictionary) -> bool:
+	var pid: int = cmd["player_id"]
+	if not _valid_player(pid):
+		return false
+	var unit_type: String = cmd["payload"].get("unit_type", "")
+	var player: Dictionary = players[pid]
+	var check: Dictionary = UnitRegistry.can_recruit(unit_type, player)
+	if not check["ok"]:
+		return false
+	var defn: Dictionary = UnitRegistry.lookup(unit_type)
+	var cost_gold: int = defn.get("cost_gold", 0)
+	if player.get("gold", 0) < cost_gold:
+		return false
+	if not UnitRegistry.has_equipment(unit_type, player):
+		return false
+	# Deduct costs
+	player["gold"] = player.get("gold", 0) - cost_gold
+	var raw_cost: Dictionary = defn.get("cost_resources", {})
+	for item in raw_cost:
+		if item in player.get("resources", {}):
+			player["resources"][item] = maxi(0, player["resources"].get(item, 0) - raw_cost[item])
+	var uid: int = _next_unit_id
+	_next_unit_id += 1
+	var unit: Dictionary = UnitState.create(unit_type, pid, player.get("keep_x", 0), player.get("keep_y", 0), uid)
+	player["units"].append(unit)
+	return true
+
+func _cmd_issue_move_order(cmd: Dictionary) -> bool:
+	var pid: int = cmd["player_id"]
+	if not _valid_player(pid):
+		return false
+	var uid: int = cmd["payload"].get("unit_id", -1)
+	var tx: int  = cmd["payload"].get("target_x", 0)
+	var ty: int  = cmd["payload"].get("target_y", 0)
+	for unit in players[pid].get("units", []):
+		if unit is Dictionary and unit.get("id", -1) == uid:
+			UnitState.issue_move_order(unit, tx, ty)
+			return true
+	return false
+
+func _cmd_issue_attack_order(cmd: Dictionary) -> bool:
+	var pid: int = cmd["player_id"]
+	if not _valid_player(pid):
+		return false
+	var uid: int     = cmd["payload"].get("unit_id", -1)
+	var tx: int      = cmd["payload"].get("target_x", 0)
+	var ty: int      = cmd["payload"].get("target_y", 0)
+	var target_id: int = cmd["payload"].get("target_id", -1)
+	for unit in players[pid].get("units", []):
+		if unit is Dictionary and unit.get("id", -1) == uid:
+			UnitState.issue_attack_order(unit, tx, ty, target_id)
+			return true
+	return false
+
+func _cmd_disband_unit(cmd: Dictionary) -> bool:
+	var pid: int = cmd["player_id"]
+	if not _valid_player(pid):
+		return false
+	var uid: int = cmd["payload"].get("unit_id", -1)
+	var units: Array = players[pid].get("units", [])
+	for i in range(units.size()):
+		if units[i] is Dictionary and units[i].get("id", -1) == uid:
+			units.remove_at(i)
+			return true
+	return false
+
+# Add AI faction to the world (called during game setup)
+func add_ai_faction(archetype: String, capital_x: int, capital_y: int) -> int:
+	var fid: int = ai_factions.size()
+	var faction: Dictionary
+	match archetype:
+		AIFaction.ARCHETYPE_BANDIT:
+			faction = BanditKing.make(fid, capital_x, capital_y)
+		AIFaction.ARCHETYPE_MERCHANT:
+			faction = MerchantPrince.make(fid, capital_x, capital_y)
+		AIFaction.ARCHETYPE_IRONHAND:
+			faction = Ironhand.make(fid, capital_x, capital_y)
+		AIFaction.ARCHETYPE_ASHEN_BARONY:
+			faction = AshenBarony.make(fid, capital_x, capital_y)
+		_:
+			faction = AIFaction.make_faction(fid, archetype, archetype, capital_x, capital_y)
+	ai_factions.append(faction)
+	return fid
+
 # --- Accessors ---
 
 func get_player(player_id: int) -> Dictionary:
@@ -539,6 +662,7 @@ func serialize() -> Dictionary:
 		"milestones": milestones.duplicate(true),
 		"clock": SimulationClock.serialize(),
 		"next_building_id": _next_building_id,
+		"next_unit_id": _next_unit_id,
 	}
 
 func deserialize(data: Dictionary) -> void:
@@ -550,6 +674,7 @@ func deserialize(data: Dictionary) -> void:
 	server_config = data.get("server_config", {})
 	milestones = data.get("milestones", {})
 	_next_building_id = data.get("next_building_id", 1)
+	_next_unit_id = data.get("next_unit_id", 1)
 	if data.has("clock"):
 		SimulationClock.deserialize(data["clock"])
 

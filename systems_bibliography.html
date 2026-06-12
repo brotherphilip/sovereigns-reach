@@ -53,7 +53,7 @@
 <header>
   <h1>⚔ Sovereign's Reach</h1>
   <p>Systems Bibliography — Living Codebase Encyclopedia</p>
-  <p style="color:#aaa; font-size:0.85rem">Engine: Godot 4.6.3 · Architecture: Multiplayer-First (MFA) · Last updated: 2026-06-12</p>
+  <p style="color:#aaa; font-size:0.85rem">Engine: Godot 4.6.3 · Architecture: Multiplayer-First (MFA) · Last updated: 2026-06-13</p>
 </header>
 
 <nav>
@@ -63,6 +63,7 @@
   <a href="#phase3">Phase 3</a>
   <a href="#phase4">Phase 4</a>
   <a href="#phase5">Phase 5</a>
+  <a href="#phase6">Phase 6</a>
   <a href="#eventbus">EventBus</a>
   <a href="#commandqueue">CommandQueue</a>
   <a href="#simclock">SimulationClock</a>
@@ -340,7 +341,7 @@ INPUT (Keyboard/Mouse)
       <p>Progression — Save/Load, Tech Tree, Edicts</p>
     </div>
     <div class="toc-item">
-      <a href="#">Phase 6 ⬜</a>
+      <a href="#phase6">Phase 6 ✅</a>
       <p>AI & Entities — 4 Archetypes, Pathfinding, Combat</p>
     </div>
     <div class="toc-item">
@@ -757,11 +758,122 @@ Level 5: prestige_mult +0.5, edict_tier_cap 4, border_radius_bonus +0.2 (Grand S
   </div>
 </section>
 
+<!-- Phase 6 -->
+<section id="phase6">
+  <h2>Phase 6 Systems <span class="phase-badge complete">COMPLETE</span></h2>
+  <p style="margin-top:0.5rem; color:#ccc">AI &amp; Entities: unit roster, A* pathfinding, 4 AI archetypes, and a deterministic combat engine. 81 tests, all passing.</p>
+  <div class="system-grid">
+
+    <div class="card">
+      <h2>UnitRegistry.gd <span class="file-path">simulation/units/UnitRegistry.gd</span></h2>
+      <p>Static registry of 20 unit types across 4 categories (GDD §6). Each definition is a plain Dictionary: max_hp, attack, defense, attack_type, armor_type, range, speed, cost_gold, cost_resources, requires_tech, requires_building, train_ticks, morale_buff.</p>
+      <h3>Attack/Armor Type Constants</h3>
+      <table><tr><th>Constant</th><th>Value</th><th>Notes</th></tr>
+        <tr><td>ATTACK_PIERCE</td><td>"pierce"</td><td>Archers, crossbowmen — 1.5× vs unarmored, 0.75× vs heavy</td></tr>
+        <tr><td>ATTACK_SIEGE</td><td>"siege"</td><td>Rams, catapults — 3× vs structure, 1× vs any armor</td></tr>
+        <tr><td>ARMOR_HEAVY</td><td>"heavy"</td><td>Plate armor; melee 0.5×, pierce 0.75×, siege 1×</td></tr>
+        <tr><td>ARMOR_STRUCTURE</td><td>"structure"</td><td>Buildings/walls; melee 0.1×, pierce 0.05×, siege 3×</td></tr>
+      </table>
+      <h3>Key Methods</h3>
+      <table><tr><th>Method</th><th>Returns</th><th>Purpose</th></tr>
+        <tr><td>lookup(unit_type)</td><td>Dictionary</td><td>Returns definition dict; {} if unknown.</td></tr>
+        <tr><td>can_recruit(type, player)</td><td>{ok, reason}</td><td>Validates tech and building gates.</td></tr>
+        <tr><td>has_equipment(type, player)</td><td>bool</td><td>Checks armory for required weapons/armor.</td></tr>
+        <tr><td>get_by_category(cat)</td><td>Array</td><td>All unit type strings in a category.</td></tr>
+      </table>
+    </div>
+
+    <div class="card">
+      <h2>UnitState.gd <span class="file-path">simulation/units/UnitState.gd</span></h2>
+      <p>Per-unit serializable state. All fields are plain Dictionary — no Godot objects. The attack_type × armor_type damage multiplier table lives here as <code>_damage_multiplier()</code>.</p>
+      <h3>State Fields</h3>
+      <div class="flow">id, type, owner_id, hp, max_hp, attack, defense
+attack_type, armor_type, range, speed
+morale, order (idle/move/attack/patrol/garrison/training)
+pos_x, pos_y, target_x, target_y, target_id
+is_alive, ticks_in_training, is_garrisoned, modifiers</div>
+      <h3>Key Methods</h3>
+      <table><tr><th>Method</th><th>Returns</th><th>Purpose</th></tr>
+        <tr><td>create(type, owner_id, x, y, uid)</td><td>Dictionary</td><td>Factory; copies stats from UnitRegistry.</td></tr>
+        <tr><td>apply_damage(unit, raw, attack_type)</td><td>{killed, damage, remaining_hp}</td><td>Applies mult table, subtracts defense, clamps to 1 min.</td></tr>
+        <tr><td>issue_move_order(unit, tx, ty)</td><td>void</td><td>Sets order=move, target coords.</td></tr>
+        <tr><td>issue_attack_order(unit, tx, ty, target_id)</td><td>void</td><td>Sets order=attack with target.</td></tr>
+      </table>
+      <div class="note">Damage formula: effective = max(1, int(raw × mult) − defense). Killed when hp ≤ 0; is_alive set false.</div>
+    </div>
+
+    <div class="card">
+      <h2>Pathfinder.gd <span class="file-path">simulation/pathfinding/Pathfinder.gd</span></h2>
+      <p>A* on WorldGrid or a test Dictionary grid. 4-directional movement. Returns Array of [x,y] waypoints from start (exclusive) to goal (inclusive). Empty Array if unreachable.</p>
+      <h3>Passability Masks</h3>
+      <table><tr><th>Mask</th><th>Value</th><th>Terrain blocked for this type</th></tr>
+        <tr><td>PASS_FOOT</td><td>0b0001</td><td>Only RIVER (all other terrain passable)</td></tr>
+        <tr><td>PASS_CAVALRY</td><td>0b0010</td><td>RIVER, FOREST, MOUNTAIN, MARSH, ROCK, ORE_VEIN</td></tr>
+        <tr><td>PASS_SIEGE</td><td>0b1000</td><td>RIVER, FOREST, MOUNTAIN, MARSH, ROCK, ORE_VEIN, COASTAL</td></tr>
+      </table>
+      <h3>Key Methods</h3>
+      <table><tr><th>Method</th><th>Purpose</th></tr>
+        <tr><td>find_path(grid_instance, fx, fy, tx, ty, mask)</td><td>A* on WorldGrid object. Uses grid.get_terrain().</td></tr>
+        <tr><td>find_path_dict(grid_dict, fx, fy, tx, ty, mask)</td><td>A* on {"width","height","tiles":[[int]]}. For unit tests.</td></tr>
+      </table>
+      <div class="warn">Road tiles (cost 0.5) are strongly preferred over grass (1.0). Forest (2.5), Mountain (3.0), River (99.0).</div>
+    </div>
+
+    <div class="card">
+      <h2>CombatSystem.gd <span class="file-path">simulation/combat/CombatSystem.gd</span></h2>
+      <p>Damage calculations, captain morale buffs, army-level combat resolution, and siege targeting priorities (GDD §2.5.2).</p>
+      <h3>Siege Priorities</h3>
+      <table><tr><th>Unit Type</th><th>Target</th><th>GDD Reference</th></tr>
+        <tr><td>battering_ram</td><td>gatehouse</td><td>§2.5.2 "Rams hit gates"</td></tr>
+        <tr><td>trebuchet</td><td>great_tower</td><td>§2.5.2 "Trebuchets hit towers"</td></tr>
+        <tr><td>swordsman</td><td>keep</td><td>§2.5.2 "Swordsmen rush the keep"</td></tr>
+        <tr><td>archer / armed_peasant</td><td>farm</td><td>§2.5.2 "AI burns farms first"</td></tr>
+        <tr><td>tunneler</td><td>stone_wall</td><td>§8.3.5 "tunnelers on walls"</td></tr>
+      </table>
+      <h3>Key Methods</h3>
+      <table><tr><th>Method</th><th>Returns</th><th>Notes</th></tr>
+        <tr><td>calculate_damage(attacker, defender)</td><td>{damage, kills, remaining_hp}</td><td>Applies halberdier anti-armor bonus; blocks pierce on battering_ram.</td></tr>
+        <tr><td>resolve_combat(atk_army, def_army, rng)</td><td>{atk_casualties, def_casualties}</td><td>Each unit attacks a random live enemy. Mutates both arrays.</td></tr>
+        <tr><td>get_morale_attack_bonus(army)</td><td>int</td><td>+10 if captain present, 0 otherwise.</td></tr>
+        <tr><td>get_army_value(army)</td><td>int</td><td>Sum of (attack+defense+hp) for alive units.</td></tr>
+      </table>
+    </div>
+
+    <div class="card">
+      <h2>AIFaction.gd + Archetypes <span class="file-path">simulation/ai/</span></h2>
+      <p>Base AI logic shared by all four archetypes. Each archetype has a <code>make()</code> factory and a <code>tick()</code> function. GameState dispatches by matching <code>faction["archetype"]</code>.</p>
+      <h3>AI Archetypes (GDD §8)</h3>
+      <table><tr><th>Archetype</th><th>File</th><th>Attack Threshold</th><th>Army Focus</th></tr>
+        <tr><td>bandit_king</td><td>BanditKing.gd</td><td>15 threat</td><td>armed_peasant 50% + archer 40%</td></tr>
+        <tr><td>merchant_prince</td><td>MerchantPrince.gd</td><td>60 threat</td><td>crossbowman 60% + swordsman/pikeman</td></tr>
+        <tr><td>ironhand</td><td>Ironhand.gd</td><td>50 threat + 50-unit gate</td><td>swordsman + trebuchet + ram + tunneler</td></tr>
+        <tr><td>ashen_barony</td><td>AshenBarony.gd</td><td>40 threat</td><td>swordsman + trebuchet + crossbowman</td></tr>
+      </table>
+      <h3>Shared State Fields</h3>
+      <div class="flow">archetype, is_alive, capital_x/y, gold, prestige
+resources{}, food{}, units[], buildings[]
+tech_unlocks[], shire_ids[], threat_level (0-100)
+days_alive, siege_assembly{}, tribute_demands[]
+daily_income_gold/wood/iron</div>
+      <h3>Key Methods (AIFaction.gd)</h3>
+      <table><tr><th>Method</th><th>Purpose</th></tr>
+        <tr><td>make_faction(id, name, archetype, cx, cy)</td><td>Creates base faction Dictionary.</td></tr>
+        <tr><td>tick(faction, world, tick)</td><td>Day-boundary: processes economy, advances siege assembly, updates threat.</td></tr>
+        <tr><td>should_attack(faction, players)</td><td>Returns {attack, target_player_id} when threat ≥ threshold.</td></tr>
+        <tr><td>start_siege(faction, pid, tx, ty)</td><td>Begins 48-day siege tent assembly (GDD §1.1.4).</td></tr>
+        <tr><td>send_tribute_demand(faction, pid, res, amt, tick)</td><td>Adds demand entry (Ashen Barony pattern).</td></tr>
+      </table>
+      <div class="note">Threat level formula: (army_value / 10) + (gold / 100) + (days_alive / 5), capped at 100.</div>
+    </div>
+
+  </div>
+</section>
+
 </main>
 
 <footer>
   <p>Sovereign's Reach — Auto-generated systems encyclopedia. Updated at the end of every phase.</p>
-  <p style="margin-top:0.5rem">GDD: 8 sections · 40 subsections · 200 mechanics defined · Phase 1–5 complete (406 tests passing)</p>
+  <p style="margin-top:0.5rem">GDD: 8 sections · 40 subsections · 200 mechanics defined · Phase 1–6 complete (487 tests passing)</p>
 </footer>
 
 </body>

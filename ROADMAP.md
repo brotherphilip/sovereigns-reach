@@ -80,23 +80,23 @@
 
 ---
 
-## PHASE 6: AI & Entities ⬜ NEXT
+## PHASE 6: AI & Entities ✅ COMPLETE
 **Goal:** Unit state machines, A* pathfinding, all 4 AI archetypes with distinct behaviors, siege assembly system.
 
-- [ ] `simulation/units/UnitRegistry.gd` — All unit types, base stats, equipment requirements
-- [ ] `simulation/units/UnitState.gd` — Per-unit serializable state (position, hp, orders, faction)
-- [ ] `simulation/pathfinding/Pathfinder.gd` — A* on WorldGrid with terrain costs
-- [ ] `simulation/ai/AIFaction.gd` — Base AI class (economy sim, logistics, diplomacy)
-- [ ] `simulation/ai/BanditKing.gd` — Archetype 1: swarm harasser, wooden forts
-- [ ] `simulation/ai/MerchantPrince.gd` — Archetype 2: economic defender, elite units
-- [ ] `simulation/ai/Ironhand.gd` — Archetype 3: late-game industrial fortress
-- [ ] `simulation/ai/AshenBarony.gd` — Archetype 4: Lord Malakor, Highwatch capital
-- [ ] `simulation/combat/CombatSystem.gd` — Damage calc, armor, siege targeting priorities
-- [ ] `tests/TestPhase6.gd`
+- [x] `simulation/units/UnitRegistry.gd` — 20 unit types across 4 categories, full GDD §6 stats
+- [x] `simulation/units/UnitState.gd` — Serializable unit state; attack_type × armor_type damage table
+- [x] `simulation/pathfinding/Pathfinder.gd` — A* with terrain costs and passability masks; dict-grid test variant
+- [x] `simulation/ai/AIFaction.gd` — Base AI: economy sim, threat level, siege assembly, tribute demands
+- [x] `simulation/ai/BanditKing.gd` — Archetype 1: swarm harasser, 50% armed peasant + 40% archer
+- [x] `simulation/ai/MerchantPrince.gd` — Archetype 2: hoards gold, elite crossbowmen, embargoes weak players
+- [x] `simulation/ai/Ironhand.gd` — Archetype 3: iron/stone industrial, 50-unit army gate before attacking
+- [x] `simulation/ai/AshenBarony.gd` — Archetype 4: Lord Malakor / Highwatch; 14-day tribute demand cycle
+- [x] `simulation/combat/CombatSystem.gd` — Damage calc, anti-armor bonuses, captain morale, siege priorities
+- [x] `tests/TestPhase6.gd` — 81 tests, all passing
 
 ---
 
-## PHASE 7: UI & View Integration ⬜
+## PHASE 7: UI & View Integration ⬜ NEXT
 **Goal:** Isometric micro view, macro world map, HUD panels all wired to GameState. No logic here — view reads state only.
 
 - [ ] `view/micro/MicroView.tscn` — Isometric tilemap, 4-way rotation

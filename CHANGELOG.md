@@ -156,3 +156,42 @@
 - **EdictSystem returns modifiers dict:** `get_active_modifiers()` merges all active edict modifiers into a flat dict. Game systems (ResourceTick, etc.) can query this in Phase 6+ to apply bonuses without knowing which specific edicts are active.
 - **SaveManager wraps state in metadata envelope:** `{"save_version": 1, "saved_at": unix_time, "state": {...}}` — version check is the outermost guard so corrupt/old saves are rejected before any deserialization.
 - **ACTIVATE_EDICT handles instant effects in GameState:** levy_summons summon_peasants, festival_decree instant_event, and diplomatic_tribute instant_gold_bonus are applied by `_cmd_activate_edict()`, not EdictSystem, keeping EdictSystem pure-functional.
+
+---
+
+## 2026-06-13 — Phase 6: AI & Entities
+
+### Files Created
+
+| File | Purpose |
+|------|---------|
+| `simulation/units/UnitRegistry.gd` | Static registry of 20 unit types (GDD §6): 5 civilian, 5 light infantry, 5 heavy infantry, 5 siege. Each definition includes max_hp, attack, defense, attack_type (none/melee/pierce/siege), armor_type (none/light/heavy/structure), range, speed, cost_gold, equipment costs, requires_tech, requires_building, train_ticks, morale_buff. `can_recruit()` checks tech + building gate. `has_equipment()` validates armory. |
+| `simulation/units/UnitState.gd` | Per-unit serializable state factory. `create()` returns a plain Dictionary. `apply_damage()` uses the attack_type × armor_type multiplier table (pierce×1.5 vs unarmored, siege×3.0 vs structure, melee×0.5 vs heavy). `issue_move_order()`, `issue_attack_order()`, `advance_along_path()`. Units are killed when hp ≤ 0. |
+| `simulation/pathfinding/Pathfinder.gd` | A* on WorldGrid. Two variants: `find_path()` for WorldGrid instances, `find_path_dict()` for test Dictionary grids. 4-directional movement with terrain cost weights (road=0.5, forest=2.5, mountain=3.0, river=99.0). Passability masks: PASS_FOOT/PASS_CAVALRY/PASS_CART/PASS_SIEGE. Impassable target returns []. |
+| `simulation/ai/AIFaction.gd` | Base AI state factory (`make_faction()`). Shared logic: `tick()` handles economy simulation and day increments, `should_attack()` compares threat_level vs archetype threshold, `start_siege()` begins 48-day tent assembly, `recruit_unit()`, `send_tribute_demand()`, `get_pending_demands()`. Threat level = army_value/10 + gold/100 + days/5. |
+| `simulation/ai/BanditKing.gd` | Archetype 1. Swarm harasser. Large wood income, ignores stone. 50% armed_peasant + 40% archer + 10% militia army. Threshold 15 threat; attacks early and often. |
+| `simulation/ai/MerchantPrince.gd` | Archetype 2. Economic defender. 80 gold/day income, hoards 2000 gold reserve. Elite crossbowman/swordsman/pikeman army. Threshold 60 threat; rarely attacks. Embargoes players with gold ≤ 50. |
+| `simulation/ai/Ironhand.gd` | Archetype 3. Late-game industrial fortress. 25 iron/day + 200 gold/day. Tech: unit_unlocks + armor_forging + siege_engines. Swordsman/pikeman/trebuchet/ram/tunneler mix. Threshold 50; recruits to 50-unit army before attacking. |
+| `simulation/ai/AshenBarony.gd` | Archetype 4 (Lord Malakor). Capital: Highwatch. Sends tribute demands (50 ale + 30 iron) every 14 game-days with 7-day deadline. Supply lines provide bonus wood income; cutting them (GDD §8.4.4) stops wall repairs. Swordsman/pikeman/trebuchet/ram/crossbowman mix. Threshold 40. |
+| `simulation/combat/CombatSystem.gd` | `calculate_damage()`: applies anti-armor bonus (halberdier +25% vs heavy); immune_to_arrows blocks pierce on battering_ram; delegates to UnitState.apply_damage for multiplier table. `get_morale_attack_bonus()`: captain grants +10 attack to all allies. `resolve_combat()`: each alive attacker deals damage to random alive defender and vice versa; returns {attacker_casualties, defender_casualties}. `get_siege_priority()`: GDD §2.5.2 target mapping (ram→gatehouse, trebuchet→great_tower, swordsman→keep, etc.). |
+| `tests/TestPhase6.gd` | 81 headless unit tests — all passing. Covers UnitRegistry (14), UnitState (12), Pathfinder (11), CombatSystem (14), AI Factions (21), GameState integration (9). |
+
+### Files Modified
+
+| File | Change |
+|------|--------|
+| `simulation/core/GameState.gd` | Added Phase 6 preloads: UnitRegistry, UnitState, AIFaction, BanditKing, MerchantPrince, Ironhand, AshenBarony, CombatSystem. Added `_next_unit_id` field. Added RECRUIT_UNIT, ISSUE_MOVE_ORDER, ISSUE_ATTACK_ORDER, DISBAND_UNIT command handlers. Added `add_ai_faction()` factory. `simulate_tick()` now ticks all ai_factions at day boundaries (dispatches to archetype tick). Updated serialize/deserialize to include next_unit_id. |
+
+### Bugs Fixed
+
+- A* `find_path_dict()` tested with a full-column river (all y) from (0,2) to (4,2): path was truly impossible. Fixed test to leave a gap at y=0 so a path exists.
+- Halberdier anti-armor test used swordsman (defense=12) as target — defense cancelled bonus. Fixed to use zero-defense heavy-armored dummy.
+- `AshenBarony` tribute demand check required 14 days; test only advanced 1 tick. Fixed test to loop 15 days.
+- Integration tests used `_gs.simulate_tick()` which doesn't drain CommandQueue. Fixed to use `_sc._advance_tick()`.
+
+### Architecture Decisions
+
+- **Damage multiplier table in UnitState:** The attack_type × armor_type matrix lives in UnitState._damage_multiplier() so all code that applies damage uses a single path, whether it's player units, AI units, or CombatSystem.resolve_combat.
+- **AI faction composition via static functions:** Each archetype file (BanditKing, MerchantPrince, etc.) has a `make()` factory and a `tick()` function. GameState.simulate_tick dispatches to the correct archetype file using a `match` on `faction["archetype"]`. No inheritance, no Node subclassing — pure composition.
+- **Pathfinder carries its own passability/cost tables:** Constants duplicated from WorldGrid so Pathfinder is self-contained. A test-only `find_path_dict()` variant accepts a simple 2D tile array, avoiding the need to instantiate WorldGrid objects in unit tests.
+- **SIEGE_PRIORITIES dict:** Rather than encoding target priorities as AI behavior, they're registered per unit type in CombatSystem.SIEGE_PRIORITIES so the View layer can also query them for HUD targeting indicators.
