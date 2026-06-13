@@ -41,3 +41,11 @@ notes = AI now reacts to real player strength; fixed latent military_strength ta
 files changed = res://simulation/economy/ResourceTick.gd, res://simulation/buildings/BuildingRegistry.gd, res://simulation/tech/TechTree.gd
 tests = TestPhase3/5/7 PASS
 notes = 3 buildings + trade_networks tech; added gold production support to ResourceTick
+
+## Phase 5 — Tutorial System — STARTED
+
+## Phase 5 — COMPLETE
+
+files changed = res://simulation/core/TutorialSystem.gd, res://project.godot, res://view/main/GameBootstrap.gd
+tests = boot smoke clean, TestPhase7 98/0
+notes = contextual tutorial hints surfaced via the notification feed; uses real building keys (woodcutter_camp/wheat_farm/granary)

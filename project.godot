@@ -22,6 +22,7 @@ SimulationClock="*res://simulation/core/SimulationClock.gd"
 GameState="*res://simulation/core/GameState.gd"
 InputSetup="*res://simulation/core/InputSetup.gd"
 AudioManager="*res://simulation/audio/AudioManager.gd"
+TutorialSystem="*res://simulation/core/TutorialSystem.gd"
 
 [debug]
 
