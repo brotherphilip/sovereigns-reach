@@ -2,6 +2,19 @@
 
 ---
 
+## [Iteration 97] 2026-06-14 — Fix #053: tribute_demands array grows unbounded — purge fulfilled/expired entries
+
+- Delegated to: Supervisor
+- What changed: AIFaction.tick() day boundary — added demand purge that rebuilds tribute_demands keeping only unfulfilled entries whose deadline hasn't passed.
+- Before: every demand cycle appended 2 entries; none were ever removed. 100 game-days = ~14 dangling entries.
+- After: demands are purged daily; only active unfulfilled demands within deadline remain.
+- Scene test: ALL_SCENES_OK
+- Issues resolved: #053
+- Issues discovered: none
+- Supervisor correction: none
+
+---
+
 ## [Iteration 96] 2026-06-14 — Fix #052: DiplomacySystem.accept() never marks tribute demands fulfilled
 
 - Delegated to: Supervisor

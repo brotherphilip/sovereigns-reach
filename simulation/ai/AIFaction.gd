@@ -86,6 +86,13 @@ static func tick(faction: Dictionary, world: Dictionary, tick: int) -> Array:
 		# Threat level grows with time and resources
 		_update_threat_level(faction)
 
+		# Purge fulfilled or expired tribute demands so the array doesn't grow unbounded
+		var live_demands: Array = []
+		for d in faction.get("tribute_demands", []):
+			if d is Dictionary and not d.get("fulfilled", false) and d.get("deadline_tick", 0) >= tick:
+				live_demands.append(d)
+		faction["tribute_demands"] = live_demands
+
 	return events
 
 # ── Economy simulation ────────────────────────────────────────────────────────

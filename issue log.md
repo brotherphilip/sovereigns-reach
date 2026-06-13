@@ -3,6 +3,10 @@
 <!-- Format: ## [ID] Title | Severity: Blocker/High/Medium/Low | Status: Open/In Progress/Resolved/Byproduct -->
 <!-- Severities: Blocker=crashes/data loss, High=broken feature, Medium=wrong behavior, Low=polish/text -->
 
+## [053] tribute_demands array grows unbounded — fulfilled and expired demands never purged | Severity: Low | Status: Resolved
+`faction["tribute_demands"]` is appended to on every demand cycle (every 14 days) but no code ever removed entries. `DiplomacySystem.refuse()` marked demands fulfilled; `DiplomacySystem.accept()` (fixed in #052) now also marks them fulfilled. But even fulfilled demands remained in the array forever. After 100 game-days, a faction would have ~14 demand entries; after 1000 days: ~143. `DiplomacyPanel.update_active_demands()` iterates all of them on every render. The array also included demands past their deadline_tick that the player never responded to.
+Resolution: Added demand purge in `AIFaction.tick()` at day boundary — rebuilds `tribute_demands` keeping only entries where `fulfilled == false AND deadline_tick >= tick`. Runs once per game-day per faction. Scene test: ALL_SCENES_OK.
+
 ## [052] DiplomacySystem.accept() doesn't mark tribute demands fulfilled — accepted demands re-appear in next envoy | Severity: Medium | Status: Resolved
 `DiplomacySystem.accept()` deducted the demanded resources from player state but never modified `faction["tribute_demands"]`. After accepting a demand (paying ale + iron), the demands remained as `fulfilled: false` in the faction. The next time AshenBarony fired "ashen_tribute_demanded" (after 14 days), `AIFaction.get_pending_demands()` returned ALL unfulfilled demands including the previously-accepted ones. The envoy panel showed accumulating demands from multiple cycles. Contrast with refuse(): it correctly marks demands as fulfilled via `d["fulfilled"] = true`.
 Resolution: Added optional `faction` parameter to DiplomacySystem.accept(); after deducting resources, marks all pending demands for that player as fulfilled (same pattern as refuse()). Updated DiplomacyPanel._on_accept() to find and pass the faction dict. Scene test: ALL_SCENES_OK.
