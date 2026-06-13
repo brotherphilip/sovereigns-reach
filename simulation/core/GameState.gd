@@ -51,6 +51,7 @@ var milestones: Dictionary = {}
 var _weather_rng: RandomNumberGenerator = null
 var _disease_rng: RandomNumberGenerator = null
 var _fire_rng: RandomNumberGenerator = null
+var _social_rng: RandomNumberGenerator = null
 var _grid: Object = null       # WorldGrid instance
 var _shire_map: Object = null  # ShireMap instance
 var _next_building_id: int = 1
@@ -75,6 +76,8 @@ func _init_default_state() -> void:
 	_disease_rng.seed = server_config["map_seed"] ^ 0xDEADBEEF
 	_fire_rng = RandomNumberGenerator.new()
 	_fire_rng.seed = server_config["map_seed"] ^ 0xCAFEBABE
+	_social_rng = RandomNumberGenerator.new()
+	_social_rng.seed = server_config["map_seed"] ^ 0xBEEF1234
 	weather = WeatherSystem.make_state()
 	milestones = {}
 	_next_building_id = 1
@@ -85,6 +88,7 @@ func setup_world(seed_value: int = 12345, shire_count: int = 8) -> void:
 	_weather_rng.seed = seed_value
 	_disease_rng.seed = seed_value ^ 0xDEADBEEF
 	_fire_rng.seed = seed_value ^ 0xCAFEBABE
+	_social_rng.seed = seed_value ^ 0xBEEF1234
 
 	_grid = WorldGrid.new(server_config["map_width"], server_config["map_height"])
 	_grid.generate(seed_value, shire_count)
@@ -249,6 +253,12 @@ func _tick_player_economy(player: Dictionary, tick: int) -> void:
 				if faction["siege_assembly"].get("target_player_id", -1) == pid:
 					events.append("active_siege")
 					break
+
+		# Wedding events from churches (GDD §3.3 — "Marriage events give popularity spikes")
+		# Chance scales with coverage above 30% threshold; max ~7%/day at full coverage.
+		var church_coverage: float = player.get("religion_coverage", 0.0)
+		if church_coverage >= 0.3 and _social_rng.randf() < (church_coverage - 0.3) * 0.1:
+			events.append("wedding_event")
 
 		# Fire ignition from weather (DROUGHT / STORM have fire_risk > 0)
 		var fire_risk: float = weather.get("effects", {}).get("fire_risk", 0.0)

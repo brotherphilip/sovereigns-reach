@@ -3,6 +3,10 @@
 <!-- Format: ## [ID] Title | Severity: Blocker/High/Medium/Low | Status: Open/In Progress/Resolved/Byproduct -->
 <!-- Severities: Blocker=crashes/data loss, High=broken feature, Medium=wrong behavior, Low=polish/text -->
 
+## [040] "wedding_event" never fired — church description promises "Marriage events give popularity spikes" but no code generates it | Severity: Medium | Status: Resolved
+BuildingRegistry church entry description reads "Distributes Faith. Marriage events give popularity spikes." PopularityEngine.EVENT_POPULARITY_DELTA defines "wedding_event": +4. However, no code in GameState or any system ever appended "wedding_event" to the events array. Churches provided zero random popularity events despite the promise in the building description visible to the player.
+Resolution: Added `_social_rng` (seeded from map_seed ^ 0xBEEF1234) to GameState. In the day-boundary tick block, if player's religion_coverage >= 0.3, rolls `(coverage − 0.3) × 0.1` chance to append "wedding_event". At 50% coverage: ~2%/day; at 100%: ~7%/day. Gives +4 × 0.05 = +0.2 popularity on event days. Scene test: ALL_SCENES_OK.
+
 ## [039] Religion coverage 10× too weak — raw ratio (0–1) passed where scaled delta (0–10) expected | Severity: Low | Status: Resolved
 ReligionSystem.tick() stores raw coverage ratio (0.0–1.0) in player["religion_coverage"]. PopularityEngine.calculate_delta() reads this value directly as religion_score, which then multiplies by 0.05 in apply_tick(). This means at 100% church coverage, religion contributes max 0.05 popularity/day. ReligionSystem defines coverage_to_popularity_delta() returning coverage × 10.0 (max 10.0) and MAX_RELIGION_DELTA = 10.0, meaning the intended max is 10.0 pre-scaling = 0.5/day. The conversion function was defined but never called in production code — only in unit tests.
 Resolution: Added `* 10.0` multiplier to religion_score read in PopularityEngine.calculate_delta(), equivalent to calling coverage_to_popularity_delta() inline. Religion now contributes 0–0.5/day (matching intended scale of other components: food 0–0.5/day, ale 0–0.4/day, tax ±0.6/day). Scene test: ALL_SCENES_OK.

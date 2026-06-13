@@ -2,6 +2,19 @@
 
 ---
 
+## [Iteration 84] 2026-06-14 — Fix #040: church "wedding_event" never fired — building description promised feature was unimplemented
+
+- Delegated to: Supervisor
+- What changed: GameState.gd — added `_social_rng`, seeded from `map_seed ^ 0xBEEF1234`. Added wedding event check in day-boundary block: if religion_coverage ≥ 0.3, rolls (coverage − 0.3) × 0.1 chance to append "wedding_event".
+- Before: churches delivered zero random popularity spikes despite BuildingRegistry description saying "Marriage events give popularity spikes" and PopularityEngine having "wedding_event": +4 defined.
+- After: at full church coverage, ~7 wedding events per 100 days → ~+0.014 avg pop/day from weddings, plus occasional spikes.
+- Scene test: ALL_SCENES_OK
+- Issues resolved: #040
+- Issues discovered: "ai_tribute_refused" in PopularityEngine.EVENT_POPULARITY_DELTA is dead (DiplomacySystem.refuse() uses direct −5.0 instead) — Low cleanup, skipped for now.
+- Supervisor correction: none
+
+---
+
 ## [Iteration 83] 2026-06-14 — Fix #039: religion coverage 10× too weak — raw ratio used where scaled delta expected
 
 - Delegated to: Supervisor
