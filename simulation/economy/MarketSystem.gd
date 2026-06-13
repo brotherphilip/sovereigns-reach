@@ -1,5 +1,6 @@
 extends RefCounted
 const EdictSystem = preload("res://simulation/edicts/EdictSystem.gd")
+const TechTree    = preload("res://simulation/tech/TechTree.gd")
 # GDD §5.1.3 — Market
 # Handles BUY_RESOURCE and SELL_RESOURCE commands.
 # Prices are stored in world["market_prices"] and fluctuate over time.
@@ -85,6 +86,9 @@ static func buy(player: Dictionary, resource: String, quantity: int, world: Dict
 		return {"ok": false, "message": "No market building"}
 
 	var unit_price: int = get_buy_price(resource, world)
+	var fee_reduction: float = TechTree.get_all_modifiers(player).get("market_buy_fee_reduction", 0.0)
+	if fee_reduction > 0.0:
+		unit_price = maxi(1, int(floor(float(unit_price) * (1.0 - fee_reduction))))
 	if is_embargoed(player):
 		unit_price = ceili(float(unit_price) * 1.40)
 	var total_cost: int = unit_price * quantity

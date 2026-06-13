@@ -2,6 +2,19 @@
 
 ---
 
+## [Iteration 99] 2026-06-14 — Fix #055: four TechTree modifiers dead (farm_yield_bonus, mining_rate_bonus, granary_capacity_bonus, market_buy_fee_reduction)
+
+- Delegated to: Supervisor
+- What changed: ResourceTick.tick_building() — wired farm_yield_bonus for farm buildings and mining_rate_bonus for quarry/mine; moved get_all_modifiers() outside inner loop. FoodSystem.get_granary_capacity() — wired granary_capacity_bonus; added TechTree preload. MarketSystem.buy() — wired market_buy_fee_reduction; added TechTree preload.
+- Before: 7 of 10 TechTree modifiers were dead code. 4 had clear existing integration points.
+- After: 6 of 10 modifiers active (+ army_food_cost_reduction, army_move_speed_bonus, trade_income_bonus already wired). Remaining 4 (cart_capacity, wall_hp_bonus, unit_armor_rating, scout_vision_radius) lack hooks in current systems.
+- Scene test: ALL_SCENES_OK
+- Issues resolved: #055
+- Issues discovered: none
+- Supervisor correction: none
+
+---
+
 ## [Iteration 98] 2026-06-14 — Fix #054: dead units accumulate unbounded in player and AI faction units arrays
 
 - Delegated to: Supervisor
