@@ -2,6 +2,19 @@
 
 ---
 
+## [Iteration 111] 2026-06-14 — Fix #067: Five siege units required non-existent "siege_tent" building
+
+- Delegated to: Supervisor
+- What changed: UnitRegistry.gd — changed `requires_building: "siege_tent"` → `"siege_workshop"` for battering_ram, catapult, trebuchet, siege_tower, mantlet (5 total, all replace_all).
+- Before: The entire CAT_SIEGE unit tier was permanently inaccessible. Researching siege_engines gave the tech but can_recruit() always failed "Requires building: siege_tent" (no such building existed).
+- After: Siege units require siege_workshop (existing 2×2 building, 60 wood + 30 iron, already requires siege_engines tech).
+- Scene test: ALL_SCENES_OK
+- Issues resolved: #067
+- Issues discovered: none
+- Supervisor correction: none
+
+---
+
 ## [Iteration 110] 2026-06-14 — Fix #066: TutorialSystem hints referenced non-existent edicts
 
 - Delegated to: Supervisor
