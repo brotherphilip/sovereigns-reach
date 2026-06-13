@@ -2,6 +2,19 @@
 
 ---
 
+## [Iteration 104] 2026-06-14 — Fix #060: weather movement_penalty shown in HUD tooltip but never applied to unit movement
+
+- Delegated to: Supervisor
+- What changed: _tick_player_unit_movement() — multiply effective_speed by weather.effects.movement_penalty so units slow down in rain/snow/storm/fog as the HUD tooltip says they do.
+- Before: HUD told players "Movement speed: ×0.5" during snow but units moved at full speed. Display/simulation mismatch.
+- After: Storm (×0.4), snow (×0.5), fog (×0.8), rain (×0.7) penalties now applied to all player units.
+- Scene test: ALL_SCENES_OK
+- Issues resolved: #060
+- Issues discovered: none
+- Supervisor correction: none
+
+---
+
 ## [Iteration 103] 2026-06-14 — Fix #059: weather farm_yield_mult and food_drain effects never applied
 
 - Delegated to: Supervisor

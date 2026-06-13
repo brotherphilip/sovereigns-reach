@@ -3,6 +3,10 @@
 <!-- Format: ## [ID] Title | Severity: Blocker/High/Medium/Low | Status: Open/In Progress/Resolved/Byproduct -->
 <!-- Severities: Blocker=crashes/data loss, High=broken feature, Medium=wrong behavior, Low=polish/text -->
 
+## [060] Weather movement_penalty shown in HUD tooltip but never applied to unit movement | Severity: Low | Status: Resolved
+WeatherSystem defines `movement_penalty` per weather type: STORM: 0.4 (60% slower), SNOW: 0.5, RAIN: 0.7, FOG: 0.8. HUDController.get_weather_tooltip() reads it and displays "Movement speed: ×0.5" etc. But _tick_player_unit_movement() doesn't read this field — units move at full effective_speed regardless of weather. Players see the tooltip warning but units march through blizzards at full pace.
+Resolution: In _tick_player_unit_movement(), multiply effective_speed by weather.effects.movement_penalty (also reduces AI faction units via their own tick which calls CombatSystem independently of this). Scene test: ALL_SCENES_OK.
+
 ## [059] Two WEATHER_EFFECTS fields dead — farm_yield_mult and food_drain never applied | Severity: Medium | Status: Resolved
 WeatherSystem.WEATHER_EFFECTS defines `farm_yield_mult` (DROUGHT: 0.0 = no crop production; SNOW: 0.0; STORM: 0.5; RAIN: 1.1) and `food_drain` (SNOW: 2.0 = 2× extra consumption; DROUGHT/STORM: 0.5 = +50%). GDD §1.1.3: "Snow drains food." Neither was applied: ResourceTick.tick_building() used only static terrain_yield for farms; food consumption didn't read weather. Drought and snow had no effect on farm output; cold weather didn't increase food demand.
 Resolution: In _tick_player_economy() building loop, after ResourceTick returns changes for farm buildings (apple_orchard/wheat_farm/hops_farm/pig_farm/dairy_farm), multiply positive outputs by weather.effects.farm_yield_mult — drought/snow suppress to 0, rain boosts 10%. In day-boundary block, after standard food consumption, apply extra food_drain × population extra demand for severe weather, consuming from food stock in priority order. Scene test: ALL_SCENES_OK.
