@@ -57,3 +57,11 @@ notes = contextual tutorial hints surfaced via the notification feed; uses real 
 files changed = res://simulation/world/VisibilitySystem.gd, res://simulation/core/GameState.gd, res://view/micro/BuildingLayer.gd, res://view/micro/UnitLayer.gd
 tests = fog functional PASS, boot smoke clean, TestPhase6 81/0
 notes = enemy fog (terrain stays visible); watchtower gives early warning of approaching armies
+
+## Phase 7 — Diplomacy — STARTED
+
+## Phase 7 — COMPLETE
+
+files changed = res://simulation/ai/DiplomacySystem.gd, res://view/hud/DiplomacyPanel.gd, res://simulation/core/GameState.gd, res://view/hud/HUDNode.gd
+tests = resolution PASS, TestPhase6 81/0, TestPhase7 98/0, boot smoke clean
+notes = player accept/refuse tribute UI built on the existing tribute backend; refuse angers the faction

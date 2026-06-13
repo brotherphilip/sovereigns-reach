@@ -121,6 +121,11 @@ func _build_all_panels() -> void:
 	_notification_feed.size = Vector2(400, 0)
 	add_child(_notification_feed)
 
+	# Diplomacy panel (tribute demands) — hidden until an envoy arrives
+	var diplomacy_panel := preload("res://view/hud/DiplomacyPanel.gd").new()
+	diplomacy_panel.position = Vector2(vp.x * 0.5 - 160, vp.y * 0.32)
+	add_child(diplomacy_panel)
+
 func _make_panel(rect: Rect2) -> Panel:
 	var p := Panel.new()
 	p.position = rect.position

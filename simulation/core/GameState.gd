@@ -319,6 +319,18 @@ func simulate_tick(tick: int) -> void:
 					ai_events = AshenBarony.tick(faction, players, world, tick)
 			for ev in ai_events:
 				EventBus.command_processed.emit({"type": "ai_event", "event": ev}, true)
+				if ev == "ashen_tribute_demanded":
+					var pending: Array = AIFaction.get_pending_demands(faction, 0)
+					var demands_map: Dictionary = {}
+					for d in pending:
+						demands_map[d.get("resource", "")] = d.get("amount", 0)
+					EventBus.ai_envoy_sent.emit(faction.get("id", -1), {
+						"player_id": 0,
+						"faction_id": faction.get("id", -1),
+						"faction_name": faction.get("name", "A rival lord"),
+						"demands": demands_map,
+						"deadline_tick": pending[0].get("deadline_tick", 0) if pending.size() > 0 else 0,
+					})
 
 # --- Command handlers ---
 
