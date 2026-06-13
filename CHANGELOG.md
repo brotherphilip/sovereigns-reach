@@ -2,6 +2,19 @@
 
 ---
 
+## [Iteration 118] 2026-06-14 — Fix #073: festival_decree gave ~+0.4 popularity instead of +8
+
+- Delegated to: Supervisor
+- What changed: EdictSystem.gd — festival_decree.modifiers changed from `{"instant_event": "festival"}` to `{"popularity_delta": 8}`.
+- Before: Activation routed through PopularityEngine.apply_tick() which scales total delta by 0.05. The +8 from EVENT_POPULARITY_DELTA["festival"] gave only ~+0.4 actual popularity — 20× less than described. Players spending 3 edict points expecting a crisis rescue saw negligible effect.
+- After: Direct popularity_delta: 8 is applied by GameState activation handler without scaling. Festival Decree now grants exactly +8 popularity on use, matching description and TutorialSystem hint.
+- Scene test: ALL_SCENES_OK
+- Issues resolved: #073
+- Issues discovered: none
+- Supervisor correction: none
+
+---
+
 ## [Iteration 117] 2026-06-14 — Fix #072: BuildingState.take_damage fired destroy event every tick after hp=0
 
 - Delegated to: Supervisor
