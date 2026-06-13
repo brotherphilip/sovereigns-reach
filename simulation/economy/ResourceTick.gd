@@ -1,5 +1,6 @@
 extends RefCounted
 const EdictSystem = preload("res://simulation/edicts/EdictSystem.gd")
+const TechTree    = preload("res://simulation/tech/TechTree.gd")
 # Handles per-tick resource production and consumption for all buildings.
 # Called from GameState.simulate_tick() once per simulation tick.
 # GDD §5.2–5.4 (Building Roster), §4.2–4.4 (Tech Tree production bonuses).
@@ -129,7 +130,9 @@ static func tick_food_consumption(player: Dictionary, current_tick: int) -> Dict
 	var mult: float = RATION_CONSUMPTION_MULTIPLIERS.get(ration, 1.0)
 	var daily_demand: float = population * FOOD_CONSUMPTION_PER_PEASANT_PER_DAY * mult
 	var _consumption_mods: Dictionary = EdictSystem.get_active_modifiers(player)
-	daily_demand *= maxf(0.0, 1.0 - _consumption_mods.get("food_consumption_reduction", 0.0))
+	var _tech_mods: Dictionary = TechTree.get_all_modifiers(player)
+	var total_food_reduction: float = _consumption_mods.get("food_consumption_reduction", 0.0) + _tech_mods.get("army_food_cost_reduction", 0.0)
+	daily_demand *= maxf(0.0, 1.0 - total_food_reduction)
 
 	var changes: Dictionary = {}
 	var food: Dictionary = player.get("food", {})

@@ -2,6 +2,22 @@
 
 ---
 
+## [Iteration 87] 2026-06-14 — Fix #043: TechTree.get_all_modifiers() existed but was called by nothing
+
+- Delegated to: Supervisor
+- What changed:
+  - GameState._tick_player_unit_movement() — reads army_move_speed_bonus from TechTree.get_all_modifiers(); applied as (1 + bonus) multiplier to base speed before edict speed_multiplier.
+  - ResourceTick.tick_food_consumption() — adds army_food_cost_reduction from TechTree to edict food_consumption_reduction (additive).
+  - ResourceTick.gd — added TechTree preload.
+- Before: army_logistics tech (400 prestige) gave zero movement or food benefit.
+- After: army_logistics correctly gives +20% army speed and −30% food consumption.
+- Scene test: ALL_SCENES_OK
+- Issues resolved: #043
+- Issues discovered: none (trade_income_bonus, training_rate_bonus, scout_vision_radius left for future audit)
+- Supervisor correction: none
+
+---
+
 ## [Iteration 86] 2026-06-14 — Fix #042: military_march edict army_speed_multiplier ignored in unit movement
 
 - Delegated to: Supervisor

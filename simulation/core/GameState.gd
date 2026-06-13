@@ -335,7 +335,9 @@ func _tick_player_unit_movement(player: Dictionary, tick: int) -> void:
 			continue
 		var speed: int = UnitRegistry.lookup(unit.get("type", "")).get("speed", 3)
 		var army_speed_mult: float = EdictSystem.get_active_modifiers(player).get("army_speed_multiplier", 1.0)
-		var step_ticks: int = maxi(1, int(float(TICKS_PER_DAY) / (float(maxi(1, speed)) * maxf(0.1, army_speed_mult))))
+		var tech_speed_bonus: float = TechTree.get_all_modifiers(player).get("army_move_speed_bonus", 0.0)
+		var effective_speed: float = float(maxi(1, speed)) * (1.0 + tech_speed_bonus) * maxf(0.1, army_speed_mult)
+		var step_ticks: int = maxi(1, int(float(TICKS_PER_DAY) / effective_speed))
 		if tick % step_ticks != 0:
 			continue
 		unit["pos_x"] = path[0][0]
