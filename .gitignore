@@ -6,3 +6,6 @@
 
 # Driver scratch
 .driver/
+
+# Omniscience RAG index (regenerated locally)
+addons/omniscience/rag/index.json

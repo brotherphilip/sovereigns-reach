@@ -7,13 +7,14 @@ const SAVE_VERSION: int = 1
 const DEFAULT_SAVE_PATH: String = "user://sovereign_save.json"
 
 # Writes a serialized GameState dict to a JSON file.
-# Returns true on success.
-static func save(state: Dictionary, file_path: String = DEFAULT_SAVE_PATH) -> bool:
+# Returns true on success. Pass extra_meta to include shire_count, game_day, difficulty etc.
+static func save(state: Dictionary, file_path: String = DEFAULT_SAVE_PATH, extra_meta: Dictionary = {}) -> bool:
 	if state.is_empty():
 		return false
 	var wrapped: Dictionary = {
 		"save_version": SAVE_VERSION,
 		"saved_at": Time.get_unix_time_from_system(),
+		"meta": extra_meta,
 		"state": state,
 	}
 	var file = FileAccess.open(file_path, FileAccess.WRITE)
@@ -69,8 +70,13 @@ static func get_save_metadata(file_path: String = DEFAULT_SAVE_PATH) -> Dictiona
 	var data = json.get_data()
 	if not data is Dictionary:
 		return {}
+	var meta: Dictionary = data.get("meta", {})
 	return {
 		"save_version": data.get("save_version", 0),
 		"saved_at": data.get("saved_at", 0),
 		"valid": data.get("save_version", 0) == SAVE_VERSION,
+		"game_day": meta.get("game_day", 0),
+		"shire_count": meta.get("shire_count", 0),
+		"difficulty": meta.get("difficulty", "Normal"),
+		"playtime_days": meta.get("game_day", 0),
 	}

@@ -79,6 +79,7 @@ static func tick(faction: Dictionary, world: Dictionary, tick: int) -> Array:
 			faction["siege_assembly"] = asm
 			if asm["ticks_elapsed"] >= SIEGE_ASSEMBLY_TICKS:
 				events.append("siege_assembled")
+				faction["last_siege_player_id"] = asm.get("target_player_id", -1)
 				faction["siege_assembly"] = {}
 				faction["last_attack_tick"] = tick
 

@@ -54,6 +54,9 @@ signal trade_route_updated(route_id: int, status: String)
 signal edict_activated(player_id: int, edict_id: String, duration_ticks: int)
 signal edict_expired(player_id: int, edict_id: String)
 
+# --- Milestones ---
+signal milestone_earned(player_id: int, milestone_id: String, prestige_bonus: float)
+
 # --- Persistence ---
 signal save_requested()
 signal save_completed(path: String)

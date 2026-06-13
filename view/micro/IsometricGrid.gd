@@ -42,6 +42,23 @@ var _map_h: int = 200
 var _last_cam_pos: Vector2 = Vector2.INF
 var _last_cam_zoom: float = -1.0
 
+# Hover highlight state (build-mode cursor)
+var _hover_active: bool  = false
+var _hover_gx:     int   = 0
+var _hover_gy:     int   = 0
+var _hover_valid:  bool  = true
+
+func set_hover_tile(gx: int, gy: int, valid: bool) -> void:
+	_hover_active = true
+	_hover_gx     = gx
+	_hover_gy     = gy
+	_hover_valid  = valid
+	queue_redraw()
+
+func clear_hover_tile() -> void:
+	_hover_active = false
+	queue_redraw()
+
 func _ready() -> void:
 	var gs: Vector2i = GameState.get_grid_size()
 	_map_w = gs.x
@@ -101,6 +118,9 @@ func _draw() -> void:
 				continue
 			_draw_tile(gx, gy)
 
+	if _hover_active:
+		_draw_hover_highlight()
+
 func _draw_range(x0: int, y0: int, x1: int, y1: int) -> void:
 	for gy in range(y0, y1):
 		for gx in range(x0, x1):
@@ -131,3 +151,17 @@ static func screen_to_grid(sx: float, sy: float) -> Vector2i:
 	var gx: int = roundi(sx / HALF_W * 0.5 + sy / HALF_H * 0.5)
 	var gy: int = roundi(sy / HALF_H * 0.5 - sx / HALF_W * 0.5)
 	return Vector2i(gx, gy)
+
+func _draw_hover_highlight() -> void:
+	var cx: float = (_hover_gx - _hover_gy) * HALF_W
+	var cy: float = (_hover_gx + _hover_gy) * HALF_H
+	var pts := PackedVector2Array([
+		Vector2(cx,          cy - HALF_H),
+		Vector2(cx + HALF_W, cy),
+		Vector2(cx,          cy + HALF_H),
+		Vector2(cx - HALF_W, cy),
+	])
+	var fill_col: Color = Color(0.25, 1.0, 0.25, 0.18) if _hover_valid else Color(1.0, 0.20, 0.20, 0.20)
+	var line_col: Color = Color(0.30, 1.0, 0.30, 0.85) if _hover_valid else Color(1.0, 0.25, 0.25, 0.85)
+	draw_colored_polygon(pts, fill_col)
+	draw_polyline(PackedVector2Array([pts[0], pts[1], pts[2], pts[3], pts[0]]), line_col, 1.5)

@@ -12,8 +12,24 @@ static func accept(player: Dictionary, demands: Dictionary) -> void:
 		elif player.get("resources", {}).has(res):
 			player["resources"][res] = maxi(0, player["resources"][res] - amount)
 
-# Refuse: the populace grows uneasy and the snubbed faction grows more hostile.
+# Refuse: the populace grows uneasy, the snubbed faction grows more hostile, and
+# Ashen Barony (or any faction that tracks embargoes) imposes a trade embargo.
 static func refuse(player: Dictionary, faction) -> void:
 	player["popularity"] = maxf(0.0, player.get("popularity", 50.0) - 5.0)
 	if faction is Dictionary:
 		faction["threat_level"] = minf(100.0, faction.get("threat_level", 0.0) + 15.0)
+		# Impose embargo: block the player from this faction's trade for future interactions.
+		var pid: int = player.get("id", 0)
+		var embargoed: Array = faction.get("embargoed_players", [])
+		if pid not in embargoed:
+			embargoed.append(pid)
+		faction["embargoed_players"] = embargoed
+		# Mark all pending demands for this player as fulfilled=true so the cooldown resets
+		# and the next demand will arrive sooner at a higher scale.
+		for d in faction.get("tribute_demands", []):
+			if d is Dictionary and d.get("player_id", -1) == pid and not d.get("fulfilled", false):
+				d["fulfilled"] = true
+
+# Returns true if the player is embargoed by this faction (trade penalty applies).
+static func is_embargoed(faction: Dictionary, player_id: int) -> bool:
+	return player_id in faction.get("embargoed_players", [])

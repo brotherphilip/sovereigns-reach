@@ -48,6 +48,27 @@ static func get_tech_status(player: Dictionary, tech_id: String) -> String:
 		return STATUS_UNAFFORDABLE
 	return STATUS_LOCKED
 
+# Returns a plain-language benefit summary for a tech definition dict.
+static func get_tech_hint_text(defn: Dictionary) -> String:
+	var lines: Array = []
+	var unlocks: Array = defn.get("unlocks_buildings", [])
+	if not unlocks.is_empty():
+		lines.append("Unlocks: " + ", ".join(unlocks))
+	var mods: Dictionary = defn.get("modifiers", {})
+	for key in mods:
+		var val = mods[key]
+		var display_key: String = key.replace("_", " ").capitalize()
+		if val is float or val is int:
+			lines.append("%s: %+.0f%%" % [display_key, float(val) * 100.0] if float(val) < 5.0 else "%s: +%s" % [display_key, str(val)])
+		else:
+			lines.append("%s: %s" % [display_key, str(val)])
+	var req: Array = defn.get("requires", [])
+	if not req.is_empty():
+		lines.append("Requires: " + ", ".join(req))
+	if lines.is_empty():
+		return defn.get("description", "No details available.")
+	return "\n".join(lines)
+
 # ── Internal ──────────────────────────────────────────────────────────────────
 
 static func _get_all_branches(player: Dictionary) -> Dictionary:

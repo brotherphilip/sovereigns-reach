@@ -1,35 +1,97 @@
 extends Node
 # Tutorial system (autoload). Guides new players through the core loop with brief
 # contextual hints surfaced via the HUD notification feed. Self-contained: it holds
-# its own progress and watches EventBus.building_placed. A game session calls start().
+# its own progress and watches EventBus signals. A game session calls start().
 
 signal tutorial_hint(message: String)
 
 const STEP_PLACE_WOODCUTTER := 0
-const STEP_PLACE_FARM := 1
-const STEP_BUILD_GRANARY := 2
-const STEP_DONE := 3
+const STEP_PLACE_FARM       := 1
+const STEP_BUILD_GRANARY    := 2
+const STEP_OPEN_MARKET      := 3
+const STEP_USE_EDICT        := 4
+const STEP_DONE             := 99
 
 var step: int = STEP_DONE  # inert until a game session calls start()
+var _skipped: bool = false
+var _last_edict_hint_tick: int = -999
 
 func _ready() -> void:
 	EventBus.building_placed.connect(_on_building_placed)
+	EventBus.gold_changed.connect(_on_gold_changed)
+	EventBus.edict_activated.connect(_on_edict_activated)
+	EventBus.ai_envoy_sent.connect(_on_envoy_sent)
+	EventBus.simulation_tick.connect(_on_tick)
 
 func start() -> void:
+	# Restore persisted step from world state if available
+	var saved_step: int = GameState.world.get("tutorial_step", -1)
+	if saved_step >= 0:
+		step = saved_step
+		return
 	step = STEP_PLACE_WOODCUTTER
+	_save_step()
 	tutorial_hint.emit("Welcome, my liege! Build a Woodcutter's Camp to gather wood.")
 
-func _on_building_placed(_player_id: int, building_type: String, _grid_x: int, _grid_y: int, _building_id: int) -> void:
+func skip_tutorial() -> void:
+	_skipped = true
+	step = STEP_DONE
+	_save_step()
+
+func _save_step() -> void:
+	GameState.world["tutorial_step"] = step
+
+func _on_building_placed(_player_id: int, building_type: String, _gx: int, _gy: int, _bid: int) -> void:
+	if _skipped: return
 	match step:
 		STEP_PLACE_WOODCUTTER:
 			if building_type == "woodcutter_camp":
 				step = STEP_PLACE_FARM
+				_save_step()
 				tutorial_hint.emit("Good! Now build a Wheat Farm or Orchard to feed your peasants.")
 		STEP_PLACE_FARM:
 			if building_type in ["wheat_farm", "apple_orchard", "pig_farm", "dairy_farm"]:
 				step = STEP_BUILD_GRANARY
+				_save_step()
 				tutorial_hint.emit("Well done. Build a Granary to store food and raise your cap.")
 		STEP_BUILD_GRANARY:
 			if building_type == "granary":
-				step = STEP_DONE
-				tutorial_hint.emit("Tutorial complete — you know the basics. Rule well!")
+				step = STEP_OPEN_MARKET
+				_save_step()
+				tutorial_hint.emit("Food secured! Build a Market and open the trade panel (bottom bar) to buy and sell resources.")
+
+func _on_gold_changed(_pid: int, _old: int, new_val: int) -> void:
+	if _skipped or step != STEP_OPEN_MARKET: return
+	# Any gold decrease after granary step = player bought something
+	if new_val < _old:
+		step = STEP_USE_EDICT
+		_save_step()
+		tutorial_hint.emit("You traded! Now try a Royal Edict (🏛 button) to boost your realm — Feast, Tax Holiday, or the Bards.")
+
+func _on_edict_activated(_pid: int, _eid: String, _dur: int) -> void:
+	if _skipped or step != STEP_USE_EDICT: return
+	step = STEP_DONE
+	_save_step()
+	tutorial_hint.emit("Tutorial complete — you know the basics. Rule well, my liege!")
+
+func _on_envoy_sent(_fid: int, _demand: Dictionary) -> void:
+	if _skipped or step != STEP_DONE: return
+	tutorial_hint.emit("A rival faction demands tribute! Accept to keep peace, or Refuse and prepare your defenses.")
+
+func _on_tick(tick: int) -> void:
+	if _skipped or step != STEP_DONE: return
+	# Contextual edict hints every ~20 game-days (4800 ticks)
+	if tick - _last_edict_hint_tick < 4800: return
+	if GameState.players.is_empty(): return
+	var p: Dictionary = GameState.players[0]
+	var pop: float = p.get("popularity", 50.0)
+	var diseased: bool = p.get("disease_active", false)
+	var active_edict_ids: Array = []
+	for ae in p.get("active_edicts", []):
+		if ae is Dictionary: active_edict_ids.append(ae.get("id", ""))
+	if pop < 35.0 and "feast" not in active_edict_ids:
+		tutorial_hint.emit("Popularity is dangerously low! Consider the Feast or Tax Holiday edict to recover fast.")
+		_last_edict_hint_tick = tick
+	elif diseased and "sanitation_drive" not in active_edict_ids:
+		tutorial_hint.emit("Disease is spreading! The Sanitation Drive edict can slow the outbreak.")
+		_last_edict_hint_tick = tick

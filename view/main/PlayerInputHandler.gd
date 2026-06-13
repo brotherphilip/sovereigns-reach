@@ -26,14 +26,18 @@ var _build_mode_type: String = ""   # empty = not in build mode
 var _selected_building_id: int = -1
 var _selected_unit_id: int = -1
 
-var _iso_grid: Node2D = null         # IsometricGrid node for coordinate transforms
-var _camera: Camera2D = null
-var _unit_layer: Node2D = null
+var _iso_grid:    Node2D   = null
+var _camera:      Camera2D = null
+var _unit_layer:  Node2D   = null
+var _bld_layer:   Node2D   = null
 
 func setup(iso_grid: Node2D, camera: Camera2D, unit_layer: Node2D) -> void:
 	_iso_grid     = iso_grid
 	_camera       = camera
 	_unit_layer   = unit_layer
+
+func set_building_layer(layer: Node2D) -> void:
+	_bld_layer = layer
 
 func _input(event: InputEvent) -> void:
 	if event is InputEventMouseButton:
@@ -41,6 +45,8 @@ func _input(event: InputEvent) -> void:
 			_on_left_click(event.global_position)
 		elif event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
 			_on_right_click(event.global_position)
+	elif event is InputEventMouseMotion and _build_mode_type != "":
+		_update_ghost(event.global_position)
 	elif event is InputEventKey and event.pressed:
 		_on_key(event)
 
@@ -111,6 +117,7 @@ func _select_building(building: Dictionary) -> void:
 	_selected_building_id = building.get("id", -1)
 	_selected_unit_id = -1
 	entity_selected.emit("building", building)
+	_update_cursor()
 
 func _select_unit(unit: Dictionary) -> void:
 	_selected_unit_id = unit.get("id", -1)
@@ -118,6 +125,7 @@ func _select_unit(unit: Dictionary) -> void:
 	if _unit_layer != null:
 		_unit_layer.set_selected(_selected_unit_id)
 	entity_selected.emit("unit", unit)
+	_update_cursor()
 
 func _deselect() -> void:
 	_selected_building_id = -1
@@ -125,6 +133,17 @@ func _deselect() -> void:
 	if _unit_layer != null:
 		_unit_layer.set_selected(-1)
 	entity_deselected.emit()
+	_update_cursor()
+
+func _update_cursor() -> void:
+	if _build_mode_type != "":
+		Input.set_default_cursor_shape(Input.CURSOR_CROSS)
+	elif _selected_unit_id >= 0:
+		Input.set_default_cursor_shape(Input.CURSOR_MOVE)
+	elif _selected_building_id >= 0:
+		Input.set_default_cursor_shape(Input.CURSOR_POINTING_HAND)
+	else:
+		Input.set_default_cursor_shape(Input.CURSOR_ARROW)
 
 func _on_right_click(screen_pos: Vector2) -> void:
 	if _build_mode_type != "":
@@ -137,9 +156,28 @@ func _on_right_click(screen_pos: Vector2) -> void:
 		var grid_pos: Vector2i = _iso_grid.screen_to_grid(world_pos.x, world_pos.y)
 		issue_move_to_selected(grid_pos.x, grid_pos.y)
 
+func _update_ghost(screen_pos: Vector2) -> void:
+	if _iso_grid == null or _camera == null or _bld_layer == null:
+		return
+	var canvas_transform := _iso_grid.get_canvas_transform()
+	var world_pos: Vector2 = canvas_transform.affine_inverse() * screen_pos
+	var grid_pos: Vector2i = _iso_grid.screen_to_grid(world_pos.x, world_pos.y)
+	if GameState.players.size() == 0:
+		return
+	var player: Dictionary = GameState.players[0]
+	var preview: Dictionary = _get_build_preview(grid_pos.x, grid_pos.y, player)
+	var valid: bool = preview.get("valid", false)
+	_bld_layer.set_ghost(_build_mode_type, grid_pos.x, grid_pos.y, valid)
+	_iso_grid.set_hover_tile(grid_pos.x, grid_pos.y, valid)
+
 func _cancel_build() -> void:
 	_build_mode_type = ""
 	build_mode_changed.emit("")
+	if _bld_layer != null:
+		_bld_layer.clear_ghost()
+	if _iso_grid != null:
+		_iso_grid.clear_hover_tile()
+	_update_cursor()
 
 func _on_key(event: InputEventKey) -> void:
 	match event.keycode:
@@ -163,6 +201,7 @@ func enter_build_mode(building_type: String) -> void:
 	_build_mode_type = building_type
 	_deselect()
 	build_mode_changed.emit(building_type)
+	_update_cursor()
 
 func set_workers_on_selected(count: int) -> void:
 	if _selected_building_id < 0:

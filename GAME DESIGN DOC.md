@@ -52,7 +52,7 @@
 2.3 Micro View Instancing
 
 2.3.1 Isometric Perspective: (1) View is an isometric grid. (2) Supports four-way rotation. (3) Allows deep zooming. (4) Peasants are animated. (5) Time of day shifts lighting.
-2.3.2 Grid Placement: (1) Buildings snap to grid. (2) Terrain limits placement. (3) Walls require flat land. (4) Moats require digging. (5) Spacing prevents fires.
+2.3.2 Grid Placement: (1) Buildings snap to grid. (2) Terrain limits placement. (3) Walls require flat land. (4) Moats require digging. (5) Spacing prevents fires. (6) Ghost preview follows cursor in build mode — green for valid, red for invalid, with animated pulse.
 2.3.3 Visual Feedback: (1) Empty buildings look dark. (2) Working buildings animate. (3) Fires physically spread. (4) Damaged walls crumble. (5) Disease shows green clouds.
 2.3.4 Audio Design: (1) Blacksmiths ring anvils. (2) Taverns play music. (3) Archery makes thwacks. (4) Alarms sound on attack. (5) Peasants give voice barks.
 2.3.5 Single-Scene Scope: (1) Covers the entire village. (2) Includes the castle. (3) Includes the resource outskirts. (4) Seamless panning. (5) No load screens inside.  
@@ -121,7 +121,7 @@
 2.3 Micro View Instancing
 
 2.3.1 Isometric Perspective: (1) View is an isometric grid. (2) Supports four-way rotation. (3) Allows deep zooming. (4) Peasants are animated. (5) Time of day shifts lighting.
-2.3.2 Grid Placement: (1) Buildings snap to grid. (2) Terrain limits placement. (3) Walls require flat land. (4) Moats require digging. (5) Spacing prevents fires.
+2.3.2 Grid Placement: (1) Buildings snap to grid. (2) Terrain limits placement. (3) Walls require flat land. (4) Moats require digging. (5) Spacing prevents fires. (6) Ghost preview follows cursor in build mode — green for valid, red for invalid, with animated pulse.
 2.3.3 Visual Feedback: (1) Empty buildings look dark. (2) Working buildings animate. (3) Fires physically spread. (4) Damaged walls crumble. (5) Disease shows green clouds.
 2.3.4 Audio Design: (1) Blacksmiths ring anvils. (2) Taverns play music. (3) Archery makes thwacks. (4) Alarms sound on attack. (5) Peasants give voice barks.
 2.3.5 Single-Scene Scope: (1) Covers the entire village. (2) Includes the castle. (3) Includes the resource outskirts. (4) Seamless panning. (5) No load screens inside.  

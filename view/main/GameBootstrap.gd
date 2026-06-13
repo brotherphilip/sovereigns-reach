@@ -27,13 +27,84 @@ var _macro_view:  CanvasLayer   = null
 var _input_handler: Node        = null
 
 func _ready() -> void:
+	get_tree().set_auto_accept_quit(false)
 	_init_simulation()
 	_build_scene()
 	_connect_signals()
 	_place_starting_buildings()
 	SimulationClock.set_speed(SimulationClock.SPEED_NORMAL)
 	print("[Bootstrap] Game initialized. Player: %s at (%d,%d)" % [PLAYER_NAME, KEEP_X, KEEP_Y])
-	TutorialSystem.start()
+	_show_tutorial_prompt()
+
+func _show_tutorial_prompt() -> void:
+	# If tutorial was already completed in a prior save, skip silently
+	var saved_step: int = GameState.world.get("tutorial_step", -1)
+	if saved_step == 99:
+		TutorialSystem.start()
+		return
+	var overlay := CanvasLayer.new()
+	overlay.name  = "TutorialPrompt"
+	overlay.layer = 30
+	add_child(overlay)
+	var panel := Panel.new()
+	panel.position = Vector2(390, 260)
+	panel.size     = Vector2(500, 140)
+	var sty := StyleBoxFlat.new()
+	sty.bg_color = Color(0.08, 0.10, 0.07, 0.96)
+	sty.set_border_width_all(2)
+	sty.border_color = Color(0.55, 0.45, 0.20, 0.9)
+	panel.add_theme_stylebox_override("panel", sty)
+	overlay.add_child(panel)
+	var lbl := Label.new()
+	lbl.text = "Play through the tutorial?"
+	lbl.position = Vector2(0, 16)
+	lbl.size = Vector2(500, 32)
+	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lbl.add_theme_font_size_override("font_size", 16)
+	lbl.add_theme_color_override("font_color", Color(0.91, 0.76, 0.26))
+	panel.add_child(lbl)
+	var sub := Label.new()
+	sub.text = "Guides you through the first few buildings and mechanics."
+	sub.position = Vector2(0, 50)
+	sub.size = Vector2(500, 24)
+	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	sub.add_theme_font_size_override("font_size", 11)
+	sub.add_theme_color_override("font_color", Color.LIGHT_GRAY)
+	panel.add_child(sub)
+	var yes_btn := Button.new()
+	yes_btn.text = "Yes, guide me"
+	yes_btn.position = Vector2(80, 90)
+	yes_btn.size = Vector2(140, 36)
+	yes_btn.pressed.connect(func():
+		overlay.queue_free()
+		TutorialSystem.start())
+	panel.add_child(yes_btn)
+	var no_btn := Button.new()
+	no_btn.text = "Skip tutorial"
+	no_btn.position = Vector2(280, 90)
+	no_btn.size = Vector2(140, 36)
+	no_btn.pressed.connect(func():
+		overlay.queue_free()
+		TutorialSystem.skip_tutorial())
+	panel.add_child(no_btn)
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_CLOSE_REQUEST:
+		_auto_save_and_quit()
+
+func _auto_save_and_quit() -> void:
+	if GameState.players.size() > 0:
+		const _SaveManager = preload("res://simulation/persistence/SaveManager.gd")
+		const _DiffSystem  = preload("res://simulation/core/DifficultySystem.gd")
+		var state: Dictionary = GameState.serialize()
+		var p: Dictionary = GameState.players[0]
+		var meta: Dictionary = {
+			"game_day": SimulationClock.game_day() if SimulationClock.has_method("game_day") else 0,
+			"shire_count": p.get("shire_ids", []).size(),
+			"difficulty": _DiffSystem.level_name(_DiffSystem.current),
+		}
+		_SaveManager.save(state, _SaveManager.DEFAULT_SAVE_PATH, meta)
+	get_tree().quit()
 
 # ── Simulation initialization ─────────────────────────────────────────────────
 
@@ -106,6 +177,7 @@ func _build_scene() -> void:
 	_input_handler.name = "InputHandler"
 	add_child(_input_handler)
 	_input_handler.setup(_iso_grid, _camera, _unit_layer)
+	_input_handler.set_building_layer(_bld_layer)
 
 func _iso_origin(gx: int, gy: int) -> Vector2:
 	return Vector2((gx - gy) * 32.0, (gx + gy) * 16.0)
@@ -344,11 +416,18 @@ func _auto_assign_workers() -> void:
 
 func _do_save() -> void:
 	const SaveManager = preload("res://simulation/persistence/SaveManager.gd")
+	const DiffSystem  = preload("res://simulation/core/DifficultySystem.gd")
 	var state: Dictionary = GameState.serialize()
-	var ok: bool = SaveManager.save(state, "save_slot_1")
+	var p: Dictionary = GameState.players[0] if GameState.players.size() > 0 else {}
+	var meta: Dictionary = {
+		"game_day": SimulationClock.game_day() if SimulationClock.has_method("game_day") else 0,
+		"shire_count": p.get("shire_ids", []).size(),
+		"difficulty": DiffSystem.level_name(DiffSystem.current),
+	}
+	var ok: bool = SaveManager.save(state, SaveManager.DEFAULT_SAVE_PATH, meta)
 	if ok:
 		_hud.show_notification("Game saved!", 2.0)
-		EventBus.save_completed.emit("save_slot_1")
+		EventBus.save_completed.emit(SaveManager.DEFAULT_SAVE_PATH)
 	else:
 		_hud.show_notification("Save failed!", 2.0)
 

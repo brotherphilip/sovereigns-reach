@@ -4,18 +4,39 @@ extends VBoxContainer
 # notification so rapid events no longer clobber one another. View-only: call push().
 
 const MAX_ITEMS := 5
+const FADE_IN_DUR  := 0.25
+const FADE_OUT_DUR := 0.4
 
 func push(text: String, duration: float = 3.0, color: Color = Color.YELLOW) -> void:
 	while get_child_count() >= MAX_ITEMS:
 		var oldest := get_child(0)
 		remove_child(oldest)
 		oldest.queue_free()
+	var row := HBoxContainer.new()
+	row.modulate.a = 0.0
+	add_child(row)
 	var lbl := Label.new()
 	lbl.text = text
 	lbl.add_theme_color_override("font_color", color)
-	lbl.add_theme_font_size_override("font_size", 15)
-	add_child(lbl)
-	get_tree().create_timer(duration).timeout.connect(func() -> void:
-		if is_instance_valid(lbl):
-			lbl.queue_free()
+	lbl.add_theme_font_size_override("font_size", 12)
+	lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(lbl)
+	var dismiss_btn := Button.new()
+	dismiss_btn.text = "×"
+	dismiss_btn.flat = true
+	dismiss_btn.add_theme_font_size_override("font_size", 12)
+	dismiss_btn.custom_minimum_size = Vector2(20, 0)
+	dismiss_btn.pressed.connect(func(): _fade_out(row))
+	row.add_child(dismiss_btn)
+	create_tween().tween_property(row, "modulate:a", 1.0, FADE_IN_DUR)
+	var expire_delay: float = max(FADE_IN_DUR, duration - FADE_OUT_DUR)
+	get_tree().create_timer(expire_delay).timeout.connect(func() -> void:
+		_fade_out(row)
 	)
+
+func _fade_out(node: Control) -> void:
+	if not is_instance_valid(node):
+		return
+	var tw := create_tween()
+	tw.tween_property(node, "modulate:a", 0.0, FADE_OUT_DUR)
+	tw.tween_callback(node.queue_free)

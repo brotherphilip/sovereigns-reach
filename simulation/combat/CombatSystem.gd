@@ -52,6 +52,17 @@ static func get_morale_attack_bonus(army: Array) -> int:
 # ── Army-level combat resolution ─────────────────────────────────────────────
 
 # Resolve one round of combat between two armies.
+# Returns the most-damaged unit in pool (lowest HP ratio). Falls back to random when all are full.
+static func _pick_target(pool: Array, rng: RandomNumberGenerator) -> Dictionary:
+	var best: Dictionary = pool[0]
+	var best_ratio: float = float(best.get("hp", 1)) / float(maxi(best.get("max_hp", 1), 1))
+	for u in pool:
+		var r: float = float(u.get("hp", 1)) / float(maxi(u.get("max_hp", 1), 1))
+		if r < best_ratio:
+			best_ratio = r
+			best = u
+	return best if best_ratio < 1.0 else pool[rng.randi() % pool.size()]
+
 # Each alive attacker unit deals damage to a random alive defender unit (and vice versa).
 # Returns {attacker_casualties: int, defender_casualties: int}.
 # Both attacker_army and defender_army arrays are mutated in-place (hp reduced, is_alive set).
@@ -73,7 +84,7 @@ static func resolve_combat(attacker_army: Array, defender_army: Array, rng: Rand
 			continue
 		if alive_defenders.is_empty():
 			break
-		var target: Dictionary = alive_defenders[rng.randi() % alive_defenders.size()]
+		var target: Dictionary = _pick_target(alive_defenders, rng)
 		var boosted: Dictionary = attacker.duplicate()
 		boosted["attack"] = attacker.get("attack", 0) + atk_morale
 		var result: Dictionary = calculate_damage(boosted, target)
@@ -92,7 +103,7 @@ static func resolve_combat(attacker_army: Array, defender_army: Array, rng: Rand
 			continue
 		if alive_attackers.is_empty():
 			break
-		var target: Dictionary = alive_attackers[rng.randi() % alive_attackers.size()]
+		var target: Dictionary = _pick_target(alive_attackers, rng)
 		var boosted: Dictionary = defender.duplicate()
 		boosted["attack"] = defender.get("attack", 0) + def_morale
 		var result: Dictionary = calculate_damage(boosted, target)

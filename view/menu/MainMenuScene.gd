@@ -74,11 +74,15 @@ func _build_ui() -> void:
 	panel.add_child(div)
 
 	# Buttons
-	var buttons: Array = [
+	var has_save: bool = SaveManager.save_exists(SaveManager.DEFAULT_SAVE_PATH)
+	var buttons: Array = []
+	if has_save:
+		buttons.append(["Resume Save", _on_resume_save])
+	buttons.append_array([
 		["New Game",  _on_new_game],
 		["Load Game", _on_load_game],
 		["Quit",      _on_quit],
-	]
+	])
 	var btn_y: float = 130.0
 	for b in buttons:
 		var btn := _make_menu_button(b[0], Vector2(80, btn_y), Vector2(240, 46), b[1])
@@ -92,7 +96,7 @@ func _build_ui() -> void:
 
 	# Version
 	var ver := Label.new()
-	ver.text = "Phase 9 build"
+	ver.text = "v2.0"
 	ver.position = Vector2(vp.x - 130, vp.y - 24)
 	ver.size = Vector2(120, 20)
 	ver.add_theme_font_size_override("font_size", 10)
@@ -121,6 +125,9 @@ func _on_new_game() -> void:
 	GameState.world.erase("world_map")
 	GameState.world.erase("selected_city_id")
 	get_tree().change_scene_to_file("res://view/worldmap/WorldMapScene.tscn")
+
+func _on_resume_save() -> void:
+	_load_slot(SaveManager.DEFAULT_SAVE_PATH)
 
 func _on_load_game() -> void:
 	_show_load_overlay()
@@ -157,10 +164,7 @@ func _show_load_overlay() -> void:
 	overlay.add_child(hdr)
 
 	# Build save list from the single default slot if it exists
-	var saves: Array = []
-	if SaveManager.save_exists(SaveManager.DEFAULT_SAVE_PATH):
-		saves.append(SaveManager.DEFAULT_SAVE_PATH)
-	if saves.is_empty():
+	if not SaveManager.save_exists(SaveManager.DEFAULT_SAVE_PATH):
 		var no_saves := Label.new()
 		no_saves.text = "No save files found."
 		no_saves.position = Vector2(0, 100)
@@ -169,16 +173,28 @@ func _show_load_overlay() -> void:
 		no_saves.add_theme_color_override("font_color", Color.LIGHT_GRAY)
 		overlay.add_child(no_saves)
 	else:
-		var sy: float = 50.0
-		for slot in saves:
-			var s: String = slot
-			var btn := Button.new()
-			btn.text     = "Load: " + s
-			btn.position = Vector2(60, sy)
-			btn.size     = Vector2(320, 36)
-			btn.pressed.connect(func(): _load_slot(s))
-			overlay.add_child(btn)
-			sy += 44.0
+		var meta: Dictionary = SaveManager.get_save_metadata(SaveManager.DEFAULT_SAVE_PATH)
+		var saved_ts: int = int(meta.get("saved_at", 0))
+		var date_str: String = Time.get_datetime_string_from_unix_time(saved_ts).left(16).replace("T", " ") if saved_ts > 0 else "Unknown date"
+		var game_day: int = int(meta.get("game_day", 0))
+		var shires: int   = int(meta.get("shire_count", 0))
+		var diff: String  = meta.get("difficulty", "Normal")
+		var info_lbl := Label.new()
+		info_lbl.text = "Saved: %s\nDay %d  ·  %d Shires  ·  %s" % [date_str, game_day, shires, diff]
+		info_lbl.position = Vector2(20, 52)
+		info_lbl.size = Vector2(400, 46)
+		info_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		info_lbl.add_theme_font_size_override("font_size", 11)
+		info_lbl.add_theme_color_override("font_color", Color(0.80, 0.74, 0.54))
+		overlay.add_child(info_lbl)
+		var slot: String = SaveManager.DEFAULT_SAVE_PATH
+		var btn := Button.new()
+		btn.text     = "Load Save"
+		btn.position = Vector2(110, 108)
+		btn.size     = Vector2(220, 40)
+		btn.add_theme_font_size_override("font_size", 14)
+		btn.pressed.connect(func(): _load_slot(slot))
+		overlay.add_child(btn)
 
 	var close_btn := Button.new()
 	close_btn.text     = "Cancel"
@@ -197,6 +213,11 @@ func _load_slot(slot: String) -> void:
 # ── Background inner class ────────────────────────────────────────────────────
 
 class _MenuBG extends Node2D:
+	var _angle: float = 0.0
+
+	func _process(delta: float) -> void:
+		_angle += delta * 0.08
+		queue_redraw()
 	const BLOB_DATA: Array = [
 		# [cx_frac, cy_frac, rx, ry, color]
 		[0.10, 0.15, 180, 120, Color(0.18, 0.27, 0.14, 1.0)],
@@ -255,6 +276,21 @@ class _MenuBG extends Node2D:
 		draw_rect(Rect2(0, vp.y - 40, vp.x, 40), Color(0, 0, 0, 0.4))
 		draw_rect(Rect2(0, 0, 40, vp.y), Color(0, 0, 0, 0.4))
 		draw_rect(Rect2(vp.x - 40, 0, 40, vp.y), Color(0, 0, 0, 0.4))
+
+		# Animated decorative sigil (slowly rotating crown-like ring)
+		var cx: float = vp.x * 0.5
+		var cy: float = vp.y * 0.25
+		var ring_col := Color(0.55, 0.45, 0.20, 0.18)
+		draw_arc(Vector2(cx, cy), 80.0, 0, TAU, 32, ring_col, 1.5)
+		draw_arc(Vector2(cx, cy), 64.0, 0, TAU, 32, ring_col, 0.8)
+		const POINTS: int = 8
+		for i in range(POINTS):
+			var a: float = _angle + TAU * float(i) / float(POINTS)
+			var p1: Vector2 = Vector2(cx + cos(a) * 64.0, cy + sin(a) * 64.0)
+			var p2: Vector2 = Vector2(cx + cos(a) * 80.0, cy + sin(a) * 80.0)
+			draw_line(p1, p2, Color(0.55, 0.45, 0.20, 0.30), 1.5)
+		var inner_ring_col := Color(0.91, 0.76, 0.26, 0.10)
+		draw_arc(Vector2(cx, cy), 44.0, _angle, _angle + TAU, 32, inner_ring_col, 2.5)
 
 	func _draw_ellipse(cx: float, cy: float, rx: float, ry: float, col: Color) -> void:
 		var pts := PackedVector2Array()
