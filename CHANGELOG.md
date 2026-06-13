@@ -2,6 +2,19 @@
 
 ---
 
+## [Iteration 78] 2026-06-14 — Audit pass: cross-file constant and serialization checks
+
+- Delegated to: Supervisor (STEP 3D — Audit)
+- What changed: no code changes
+- Cross-file checks: all 12 CT_ constants in PlayerInputHandler verified against CommandQueue enum (0-25, all correct); CT_ constants in GameBootstrap/CityViewScene also verified
+- GameState.serialize()/deserialize() verified complete — includes all 10 fields (world, players, ai_factions, weather, active_edicts, server_config, milestones, clock, next_building_id, next_unit_id)
+- EdictSystem.tick() → EventBus.edict_expired emit chain verified correct
+- Issues resolved: none
+- Issues discovered: none
+- Supervisor correction: none
+
+---
+
 ## [Iteration 77] 2026-06-14 — Audit pass: FULL CODEBASE AUDIT COMPLETE — all clear
 
 - Delegated to: Supervisor (STEP 3D — Audit)
