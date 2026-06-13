@@ -2,6 +2,19 @@
 
 ---
 
+## [Iteration 83] 2026-06-14 — Fix #039: religion coverage 10× too weak — raw ratio used where scaled delta expected
+
+- Delegated to: Supervisor
+- What changed: PopularityEngine.calculate_delta() — religion_score now multiplied by 10.0 (was reading raw 0–1 ratio directly)
+- Before: 100% church coverage gave +0.05/day; ReligionSystem.coverage_to_popularity_delta() defined MAX=10.0 but was never called in production. Religion 10× weaker than designed.
+- After: religion contributes 0–0.5/day, consistent with food/tax/ale magnitudes and GDD §3.3.
+- Scene test: ALL_SCENES_OK
+- Issues resolved: #039
+- Issues discovered: none
+- Supervisor correction: none
+
+---
+
 ## [Iteration 82] 2026-06-14 — Fix #038: siege has no morale penalty — active_siege event never wired
 
 - Delegated to: Supervisor

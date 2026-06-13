@@ -70,7 +70,7 @@ const EVENT_POPULARITY_DELTA: Dictionary = {
 static func calculate_delta(player: Dictionary, events: Array) -> float:
 	var food_score: float    = _food_score(player)
 	var ale_score: float     = _ale_score(player)
-	var religion_score: float = player.get("religion_coverage", 0.0)
+	var religion_score: float = player.get("religion_coverage", 0.0) * 10.0
 	var tax_delta: float     = TAX_POPULARITY_DELTA.get(player.get("tax_rate", 0), 0)
 	var event_delta: float   = _event_delta(events)
 

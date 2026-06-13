@@ -3,6 +3,10 @@
 <!-- Format: ## [ID] Title | Severity: Blocker/High/Medium/Low | Status: Open/In Progress/Resolved/Byproduct -->
 <!-- Severities: Blocker=crashes/data loss, High=broken feature, Medium=wrong behavior, Low=polish/text -->
 
+## [039] Religion coverage 10× too weak — raw ratio (0–1) passed where scaled delta (0–10) expected | Severity: Low | Status: Resolved
+ReligionSystem.tick() stores raw coverage ratio (0.0–1.0) in player["religion_coverage"]. PopularityEngine.calculate_delta() reads this value directly as religion_score, which then multiplies by 0.05 in apply_tick(). This means at 100% church coverage, religion contributes max 0.05 popularity/day. ReligionSystem defines coverage_to_popularity_delta() returning coverage × 10.0 (max 10.0) and MAX_RELIGION_DELTA = 10.0, meaning the intended max is 10.0 pre-scaling = 0.5/day. The conversion function was defined but never called in production code — only in unit tests.
+Resolution: Added `* 10.0` multiplier to religion_score read in PopularityEngine.calculate_delta(), equivalent to calling coverage_to_popularity_delta() inline. Religion now contributes 0–0.5/day (matching intended scale of other components: food 0–0.5/day, ale 0–0.4/day, tax ±0.6/day). Scene test: ALL_SCENES_OK.
+
 ## [038] Active siege has no morale penalty — "active_siege" event never appended | Severity: Low | Status: Resolved
 PopularityEngine.EVENT_POPULARITY_DELTA defines "active_siege": −12, intended to reduce morale while a siege is assembling (GDD §3.5). However, nothing in GameState._tick_player_economy() ever appended "active_siege" to the events array. AI siege state lives in faction["siege_assembly"], which is set when an AI faction begins assembling against a player. The event was entirely unwired: sieges had zero morale impact on the player despite the GDD spec.
 Resolution: Added siege check to the day-boundary events block in GameState._tick_player_economy() — iterates ai_factions, and if any faction's siege_assembly.target_player_id matches the current player's id, appends "active_siege" to events. Scene test: ALL_SCENES_OK.
