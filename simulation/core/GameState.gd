@@ -632,7 +632,7 @@ func _cmd_buy_resource(cmd: Dictionary) -> bool:
 	var result: Dictionary = MarketSystem.buy(
 		players[pid],
 		payload.get("resource", ""),
-		payload.get("quantity", 0),
+		payload.get("amount", 0),
 		world
 	)
 	return result.get("ok", false)
@@ -645,7 +645,7 @@ func _cmd_sell_resource(cmd: Dictionary) -> bool:
 	var result: Dictionary = MarketSystem.sell(
 		players[pid],
 		payload.get("resource", ""),
-		payload.get("quantity", 0),
+		payload.get("amount", 0),
 		world
 	)
 	return result.get("ok", false)

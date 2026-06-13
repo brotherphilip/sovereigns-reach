@@ -3,6 +3,10 @@
 <!-- Format: ## [ID] Title | Severity: Blocker/High/Medium/Low | Status: Open/In Progress/Resolved/Byproduct -->
 <!-- Severities: Blocker=crashes/data loss, High=broken feature, Medium=wrong behavior, Low=polish/text -->
 
+## [036] Market trade silently does nothing — payload key "amount" vs "quantity" mismatch | Severity: Medium | Status: Resolved
+_cmd_buy_resource() and _cmd_sell_resource() in GameState.gd read `payload.get("quantity", 0)` to pass to MarketSystem.buy/sell. However, all callers (GameBootstrap._on_trade_buy/sell, CityViewScene._on_trade_buy/sell) enqueue with key `"amount"` — e.g. `{"resource": resource, "amount": amount}`. The fallback 0 is always returned, so every trade call passes quantity=0 to MarketSystem. No resources are ever bought or sold; no gold changes hands; no error or notification is shown (MarketSystem.buy(qty=0) returns ok=false silently). Trade panel buttons appear to work but do nothing.
+Resolution: Changed both `payload.get("quantity", 0)` calls to `payload.get("amount", 0)` in GameState._cmd_buy_resource() and _cmd_sell_resource(). Scene test: ALL_SCENES_OK.
+
 ## [035] HUDNode.gd parse error — duplicate "hp" variable crashes CityViewScene load | Severity: Blocker | Status: Resolved
 show_selected_building() declares `var hp: int = building.get("hp", 0)` at line 567 and then redeclares `var hp: int = udefn.get("max_hp", 0)` at line 605 inside the same function scope (inside a for loop over recruitable units). GDScript treats both as function-scope, so the second declaration is a parse error. This prevented HUDNode.gd from loading, which prevented CityViewScene.tscn from loading entirely. User reported "could not load the city scene."
 Resolution: Renamed the second `hp` to `unit_hp` and updated the format string reference.

@@ -2,6 +2,17 @@
 
 ---
 
+## [Iteration 79] 2026-06-14 — Fix #036: market trade silently broken — payload key mismatch
+
+- Delegated to: Supervisor
+- What changed: GameState.gd lines 635 and 648 — changed `payload.get("quantity", 0)` to `payload.get("amount", 0)` in _cmd_buy_resource() and _cmd_sell_resource(). Callers (GameBootstrap, CityViewScene) enqueue with key "amount"; GameState was reading key "quantity" (always returned 0). All market trades permanently did nothing — quantity 0 passed to MarketSystem silently.
+- Scene test: ALL_SCENES_OK
+- Issues resolved: #036
+- Issues discovered: none
+- Supervisor correction: none
+
+---
+
 ## [Iteration 78] 2026-06-14 — Audit pass: cross-file constant and serialization checks
 
 - Delegated to: Supervisor (STEP 3D — Audit)
