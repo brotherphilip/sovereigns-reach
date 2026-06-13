@@ -3,6 +3,10 @@
 <!-- Format: ## [ID] Title | Severity: Blocker/High/Medium/Low | Status: Open/In Progress/Resolved/Byproduct -->
 <!-- Severities: Blocker=crashes/data loss, High=broken feature, Medium=wrong behavior, Low=polish/text -->
 
+## [026] Population count never displayed in HUD — "Population:" label in right panel is an orphan stub | Severity: Low | Status: Resolved
+HUDNode._build_right_panel() adds static label text "Population:" at y=222 via `_add_label()` but discards the return value — no reference stored, never updated in `_refresh_right_panel()`. The player's population count is shown nowhere in the HUD. The top bar shows gold/wood/stone/iron/food/ale/day/weather/prestige but has no population figure. The right panel's "Population:" is a dead-end label with no value.
+Resolution: Added `_pop_count_label` member var to HUDNode. `_build_right_panel()` now stores the label reference (`_pop_count_label = _add_label(...)`). `_refresh_right_panel()` now updates it each refresh cycle as "Pop: N" from `player["population"]`. Population count is now visible in the right panel.
+
 ## [025] WorldMapScene uses has_method("server_config") — always evaluates false, world always seeds from 42 | Severity: Low | Status: Resolved
 WorldMapScene._init_and_build() line 34–36: `GameState.server_config.get("map_seed", 42) if GameState.has_method("server_config") else 42`. `server_config` is a Dictionary var, not a method — `has_method()` always returns false. World map generation always used seed 42 regardless of the actual map seed set by setup_world().
 Resolution: Removed the has_method guard. Now reads `GameState.server_config.get("map_seed", 42)` directly.

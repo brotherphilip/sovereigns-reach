@@ -34,6 +34,8 @@ var _selection_panel: Panel = null
 var _tech_panel: Panel = null
 var _edict_panel: Panel = null
 var _notification_feed: NotificationFeed = null
+var _was_starving: bool = false
+var _had_disease: bool  = false
 
 # Resource labels
 var _gold_label: Label = null
@@ -44,6 +46,7 @@ var _food_label: Label = null
 var _ale_label: Label = null
 var _day_label: Label = null
 var _weather_label: Label = null
+var _prestige_label: Label = null
 
 # Right panel controls
 var _pop_bar: ProgressBar = null
@@ -51,6 +54,12 @@ var _pop_label: Label = null
 var _tax_label_disp: Label = null
 var _food_ration_label: Label = null
 var _ale_ration_label: Label = null
+var _tax_delta_label: Label = null
+var _food_ration_delta: Label = null
+var _ale_ration_delta: Label = null
+var _pop_bar_fill: StyleBoxFlat = null
+var _food_variety_label: Label = null
+var _pop_count_label: Label = null
 
 # Build menu
 var _build_category_btns: Dictionary = {}
@@ -77,13 +86,60 @@ func _ready() -> void:
 	EventBus.simulation_tick.connect(_on_tick)
 	EventBus.building_placed.connect(func(_a,_b,_c,_d,_e): _refresh_build_menu())
 	EventBus.popularity_changed.connect(func(_a,_b,_c): _refresh_right_panel())
-	EventBus.gold_changed.connect(func(_a,_b,_c): _refresh_top_bar())
+	EventBus.gold_changed.connect(_on_gold_changed)
+	EventBus.milestone_earned.connect(_on_milestone_earned)
 
 func _on_tick(tick: int) -> void:
 	_refresh_top_bar()
 	if tick % 20 == 0:
 		_refresh_right_panel()
 		_refresh_build_menu()
+	_check_crisis_alerts()
+
+func _check_crisis_alerts() -> void:
+	if GameState.players.size() == 0: return
+	var p: Dictionary = GameState.players[0]
+	var starving: bool = p.get("is_starving", false)
+	var diseased: bool = p.get("disease_active", false)
+	if starving and not _was_starving:
+		var ration: int = int(p.get("food_ration", 2))
+		var cause: String = "No rations set!" if ration == 0 else "Food stores depleted!"
+		show_notification("STARVATION: %s Popularity falling fast." % cause, 5.0, Color(1.0, 0.35, 0.35))
+	elif not starving and _was_starving:
+		show_notification("Food crisis resolved — peasants fed.", 3.0, Color(0.4, 1.0, 0.5))
+	if diseased and not _had_disease:
+		show_notification("DISEASE OUTBREAK: Population falling ill. Reduce crowding.", 5.0, Color(1.0, 0.55, 0.1))
+	elif not diseased and _had_disease:
+		show_notification("Disease cleared — population recovering.", 3.0, Color(0.4, 1.0, 0.5))
+	_was_starving = starving
+	_had_disease  = diseased
+
+func _on_milestone_earned(_player_id: int, milestone_id: String, prestige_bonus: float) -> void:
+	const MilestoneSystem = preload("res://simulation/core/MilestoneSystem.gd")
+	var label: String = MilestoneSystem.get_label(milestone_id)
+	show_notification("Milestone: %s  (+%.0f prestige)" % [label, prestige_bonus], 6.0, Color(1.0, 0.85, 0.2))
+
+func _on_gold_changed(_player_id: int, old_amount: int, new_amount: int) -> void:
+	_refresh_top_bar()
+	var delta: int = new_amount - old_amount
+	if delta != 0:
+		_spawn_gold_flash(delta)
+
+func _spawn_gold_flash(delta: int) -> void:
+	var lbl := Label.new()
+	lbl.text = "+%d" % delta if delta > 0 else str(delta)
+	lbl.add_theme_font_size_override("font_size", 13)
+	lbl.add_theme_color_override("font_color",
+		Color(0.4, 1.0, 0.4) if delta > 0 else Color(1.0, 0.4, 0.4))
+	# Position near the gold label in the top bar (top-left of screen)
+	lbl.position = Vector2(8, 38)
+	lbl.size = Vector2(80, 20)
+	add_child(lbl)
+	var tw: Tween = create_tween()
+	tw.set_parallel(true)
+	tw.tween_property(lbl, "position:y", lbl.position.y - 32.0, 1.4)
+	tw.tween_property(lbl, "modulate:a", 0.0, 1.4)
+	tw.tween_callback(lbl.queue_free).set_delay(1.4)
 
 # ── Panel construction ────────────────────────────────────────────────────────
 
@@ -150,12 +206,19 @@ func _add_label(parent: Control, text: String, pos: Vector2,
 	return lbl
 
 func _add_button(parent: Control, text: String, pos: Vector2, sz: Vector2,
-		callback: Callable) -> Button:
+		callback: Callable, tooltip: String = "") -> Button:
 	var btn := Button.new()
 	btn.text = text
 	btn.position = pos
 	btn.size = sz
 	btn.add_theme_font_size_override("font_size", 11)
+	if tooltip != "":
+		btn.tooltip_text = tooltip
+	var hover_sty := StyleBoxFlat.new()
+	hover_sty.bg_color = Color(0.30, 0.38, 0.55, 0.82)
+	hover_sty.set_border_width_all(1)
+	hover_sty.border_color = Color(0.55, 0.65, 0.90, 0.9)
+	btn.add_theme_stylebox_override("hover", hover_sty)
 	btn.pressed.connect(callback)
 	parent.add_child(btn)
 	return btn
@@ -171,7 +234,8 @@ func _build_top_bar(vp: Vector2) -> void:
 	_food_label    = _add_label(_top_bar, "Food: 0",     Vector2(x, 8));     x += 110
 	_ale_label     = _add_label(_top_bar, "Ale: 0",      Vector2(x, 8));     x += 90
 	_day_label     = _add_label(_top_bar, "Day 0",       Vector2(x, 8), 13, Color.LIGHT_YELLOW); x += 90
-	_weather_label = _add_label(_top_bar, "Clear",       Vector2(x, 8), 12, Color.LIGHT_CYAN)
+	_weather_label = _add_label(_top_bar, "Clear",       Vector2(x, 8), 12, Color.LIGHT_CYAN); x += 160
+	_prestige_label = _add_label(_top_bar, "Prestige: 0", Vector2(x, 8), 12, Color(0.95, 0.8, 0.3))
 
 func _refresh_top_bar() -> void:
 	if GameState.players.size() == 0:
@@ -181,14 +245,27 @@ func _refresh_top_bar() -> void:
 	var food: Dictionary = p.get("food", {})
 	var total_food: int = HUDController.get_total_food(p)
 	var total_ale: int  = int(food.get("ale", 0))
-	_gold_label.text    = "Gold: %d" % int(p.get("gold", 0))
+	_gold_label.text         = "Gold: %d" % int(p.get("gold", 0))
+	_gold_label.tooltip_text = HUDController.get_gold_tooltip(p, GameState.world)
 	_wood_label.text    = "Wood: %d" % int(res.get("wood", 0))
 	_stone_label.text   = "Stone: %d" % int(res.get("stone", 0))
 	_iron_label.text    = "Iron: %d" % int(res.get("iron", 0))
 	_food_label.text    = "Food: %d" % total_food
 	_ale_label.text     = "Ale: %d" % total_ale
 	_day_label.text     = "Day %d" % SimulationClock.game_day()
-	_weather_label.text = GameState.weather.get("current_name", "Clear")
+	var _wicon: String = HUDController.get_weather_icon(GameState.weather)
+	_weather_label.text = "%s %s" % [_wicon, GameState.weather.get("current_name", "Clear")]
+	_weather_label.tooltip_text = HUDController.get_weather_tooltip(GameState.weather)
+	if _prestige_label != null:
+		_prestige_label.text = "Prestige: %d" % int(p.get("prestige", 0.0))
+	var _crit: Array   = HUDController.get_critical_resources(p)
+	var _alert: Color  = Color(1.0, 0.28, 0.28)
+	var _norm: Color   = Color.WHITE
+	_gold_label.add_theme_color_override("font_color",  _alert if "gold"  in _crit else _norm)
+	_wood_label.add_theme_color_override("font_color",  _alert if "wood"  in _crit else _norm)
+	_stone_label.add_theme_color_override("font_color", _alert if "stone" in _crit else _norm)
+	_iron_label.add_theme_color_override("font_color",  _alert if "iron"  in _crit else _norm)
+	_food_label.add_theme_color_override("font_color",  _alert if "food"  in _crit else _norm)
 
 # ── Right panel ───────────────────────────────────────────────────────────────
 
@@ -198,26 +275,47 @@ func _build_right_panel() -> void:
 	_pop_bar.position = Vector2(6, 24)
 	_pop_bar.size = Vector2(204, 18)
 	_pop_bar.min_value = 0; _pop_bar.max_value = 100; _pop_bar.value = 50
+	_pop_bar_fill = StyleBoxFlat.new()
+	_pop_bar_fill.bg_color = Color(0.55, 0.76, 0.29)  # "good" green default
+	_pop_bar.add_theme_stylebox_override("fill", _pop_bar_fill)
 	_right_panel.add_child(_pop_bar)
 	_pop_label = _add_label(_right_panel, "50%", Vector2(84, 24), 11)
 
 	_add_label(_right_panel, "Tax Rate:", Vector2(6, 50), 11)
 	_tax_label_disp = _add_label(_right_panel, "0 (None)", Vector2(90, 50), 11)
-	_add_button(_right_panel, "−", Vector2(6, 66), Vector2(30, 22), func(): _change_tax(-1))
-	_add_button(_right_panel, "+", Vector2(40, 66), Vector2(30, 22), func(): _change_tax(1))
+	_tax_delta_label = _add_label(_right_panel, "", Vector2(154, 50), 9, Color.GRAY)
+	_tax_delta_label.size = Vector2(60, 20)
+	_add_button(_right_panel, "−", Vector2(6, 66), Vector2(30, 22), func(): _change_tax(-1),
+		"Lower tax rate\nReduces income, improves popularity")
+	_add_button(_right_panel, "+", Vector2(40, 66), Vector2(30, 22), func(): _change_tax(1),
+		"Raise tax rate\nIncreases income, reduces popularity")
+	_add_label(_right_panel, "◄Bribe  Free  Tax►", Vector2(74, 69), 8, Color(0.5, 0.5, 0.5))
 
 	_add_label(_right_panel, "Food Ration:", Vector2(6, 98), 11)
 	_food_ration_label = _add_label(_right_panel, "Normal", Vector2(112, 98), 11, Color.LIGHT_GREEN)
-	_add_button(_right_panel, "−", Vector2(6, 114), Vector2(30, 22), func(): _change_food_ration(-1))
-	_add_button(_right_panel, "+", Vector2(40, 114), Vector2(30, 22), func(): _change_food_ration(1))
+	_food_ration_delta = _add_label(_right_panel, "", Vector2(154, 98), 9, Color.GRAY)
+	_food_ration_delta.size = Vector2(60, 20)
+	_add_button(_right_panel, "−", Vector2(6, 114), Vector2(30, 22), func(): _change_food_ration(-1),
+		"Reduce food rations\nSaves food, reduces popularity")
+	_add_button(_right_panel, "+", Vector2(40, 114), Vector2(30, 22), func(): _change_food_ration(1),
+		"Increase food rations\nBoosts popularity, uses more food")
+	_add_label(_right_panel, "◄None  Norm  Dbl►", Vector2(74, 117), 8, Color(0.5, 0.5, 0.5))
 
 	_add_label(_right_panel, "Ale Ration:", Vector2(6, 146), 11)
 	_ale_ration_label = _add_label(_right_panel, "Half", Vector2(112, 146), 11, Color.LIGHT_BLUE)
-	_add_button(_right_panel, "−", Vector2(6, 162), Vector2(30, 22), func(): _change_ale_ration(-1))
-	_add_button(_right_panel, "+", Vector2(40, 162), Vector2(30, 22), func(): _change_ale_ration(1))
+	_ale_ration_delta = _add_label(_right_panel, "", Vector2(154, 146), 9, Color.GRAY)
+	_ale_ration_delta.size = Vector2(60, 20)
+	_add_button(_right_panel, "−", Vector2(6, 162), Vector2(30, 22), func(): _change_ale_ration(-1),
+		"Reduce ale rations\nSaves ale, reduces popularity")
+	_add_button(_right_panel, "+", Vector2(40, 162), Vector2(30, 22), func(): _change_ale_ration(1),
+		"Increase ale rations\nBoosts popularity, uses more ale")
+	_add_label(_right_panel, "◄None  Half  Dbl►", Vector2(74, 165), 8, Color(0.5, 0.5, 0.5))
 
-	_add_label(_right_panel, "Prestige:", Vector2(6, 196), 11, Color.LIGHT_YELLOW)
-	_add_label(_right_panel, "Population:", Vector2(6, 212), 11, Color.LIGHT_CYAN)
+	_food_variety_label = _add_label(_right_panel, "Variety: none", Vector2(6, 186), 9, Color.GRAY)
+	_food_variety_label.size = Vector2(206, 18)
+
+	_add_label(_right_panel, "Prestige:", Vector2(6, 206), 11, Color.LIGHT_YELLOW)
+	_pop_count_label = _add_label(_right_panel, "Pop: 0", Vector2(6, 222), 11, Color.LIGHT_CYAN)
 
 func _refresh_right_panel() -> void:
 	if GameState.players.size() == 0:
@@ -229,9 +327,57 @@ func _refresh_right_panel() -> void:
 	var col: Color = Color.from_string(HUDController.get_popularity_color(tier), Color.WHITE)
 	_pop_label.text = "%d%% (%s)" % [int(pop), tier]
 	_pop_label.add_theme_color_override("font_color", col)
-	_tax_label_disp.text = HUDController.get_tax_label(int(p.get("tax_rate", 0)))
+	_pop_label.tooltip_text = HUDController.get_popularity_breakdown_tooltip(p)
+	_pop_bar_fill.bg_color = col
+	var _tr: int = int(p.get("tax_rate", 0))
+	_tax_label_disp.text = HUDController.get_tax_label(_tr)
+	_tax_label_disp.tooltip_text = HUDController.get_tax_tooltip(_tr)
 	_food_ration_label.text = HUDController.get_ration_label(int(p.get("food_ration", 2)))
 	_ale_ration_label.text  = HUDController.get_ration_label(int(p.get("ale_ration", 1)))
+
+	if _tr < 0:
+		_tax_delta_label.text = "↑pop"
+		_tax_delta_label.add_theme_color_override("font_color", Color.LIGHT_GREEN)
+	elif _tr == 0:
+		_tax_delta_label.text = "neutral"
+		_tax_delta_label.add_theme_color_override("font_color", Color.GRAY)
+	else:
+		_tax_delta_label.text = "↓pop"
+		_tax_delta_label.add_theme_color_override("font_color", Color.ORANGE_RED)
+
+	var food_lvl: int = int(p.get("food_ration", 2))
+	if food_lvl < 2:
+		_food_ration_delta.text = "↓pop"
+		_food_ration_delta.add_theme_color_override("font_color", Color.ORANGE_RED)
+	elif food_lvl == 2:
+		_food_ration_delta.text = "normal"
+		_food_ration_delta.add_theme_color_override("font_color", Color.GRAY)
+	else:
+		_food_ration_delta.text = "↑pop"
+		_food_ration_delta.add_theme_color_override("font_color", Color.LIGHT_GREEN)
+
+	var ale_lvl: int = int(p.get("ale_ration", 1))
+	if ale_lvl == 0:
+		_ale_ration_delta.text = "↓pop"
+		_ale_ration_delta.add_theme_color_override("font_color", Color.ORANGE_RED)
+	elif ale_lvl == 1:
+		_ale_ration_delta.text = "½ bonus"
+		_ale_ration_delta.add_theme_color_override("font_color", Color.GRAY)
+	else:
+		_ale_ration_delta.text = "↑pop"
+		_ale_ration_delta.add_theme_color_override("font_color", Color.LIGHT_GREEN)
+
+	if _pop_count_label != null:
+		_pop_count_label.text = "Pop: %d" % int(p.get("population", 0))
+
+	var var_bonus: int = HUDController.get_food_variety_bonus(p)
+	var var_types: Array = HUDController.get_food_variety_types(p)
+	if var_bonus > 0:
+		_food_variety_label.text = "Variety +%d pop: %s" % [var_bonus, ", ".join(var_types)]
+		_food_variety_label.add_theme_color_override("font_color", Color.LIGHT_GREEN)
+	else:
+		_food_variety_label.text = "Variety: none (diversify food for bonus)"
+		_food_variety_label.add_theme_color_override("font_color", Color.GRAY)
 
 func _change_tax(delta: int) -> void:
 	if GameState.players.size() == 0: return
@@ -256,11 +402,18 @@ func _build_build_menu(vp: Vector2) -> void:
 
 	# Category tabs
 	var cat_names: Array = ["Civic", "Harvest", "Food", "Military", "Defense"]
+	var cat_tips: Array  = [
+		"Civic buildings: housing, wells, markets",
+		"Harvest buildings: farms, mines, woodcutters",
+		"Food production: mills, bakeries, fisheries",
+		"Military: barracks, stables, training grounds",
+		"Defenses: walls, towers, gates",
+	]
 	var cat_x: float = 120.0
 	for i in range(cat_names.size()):
 		var ci: int = i
 		var btn: Button = _add_button(_build_menu, cat_names[i], Vector2(cat_x, 2),
-			Vector2(70, 20), func(): _show_build_category(ci))
+			Vector2(70, 20), func(): _show_build_category(ci), cat_tips[i])
 		_build_category_btns[i] = btn
 		cat_x += 74
 
@@ -321,6 +474,12 @@ func _show_build_category(cat: int) -> void:
 		build_btn.text = "Build"
 		build_btn.disabled = not (can_afford and tech_ok)
 		build_btn.add_theme_font_size_override("font_size", 10)
+		var reason: String = ""
+		if not tech_ok:
+			reason = "\nRequires: %s" % ", ".join(req_tech)
+		elif not can_afford:
+			reason = "\n(Cannot afford)"
+		build_btn.tooltip_text = "Place %s\n%s%s" % [name_str, cost_str, reason]
 		build_btn.pressed.connect(func(): build_requested.emit(bi))
 		card.add_child(build_btn)
 
@@ -358,22 +517,27 @@ func _tech_met(req_tech: Array, player: Dictionary) -> bool:
 # ── Bottom bar ────────────────────────────────────────────────────────────────
 
 func _build_bottom_bar(vp: Vector2) -> void:
-	var speeds: Array = [["❚❚", 0], ["▶ 1×", 1], ["▶▶ 2×", 2], ["▶▶▶ 5×", 3]]
+	var speeds: Array = [
+		["❚❚",      0, "Pause game"],
+		["▶ 1×",    1, "Normal speed (1×)"],
+		["▶▶ 2×",   2, "Fast speed (2×)"],
+		["▶▶▶ 5×",  3, "Very fast speed (5×)"],
+	]
 	var x: float = 6.0
 	for s in speeds:
 		var sp: int = s[1]
 		_add_button(_bottom_bar, s[0], Vector2(x, 4), Vector2(56, 26),
-			func(): speed_changed.emit(sp))
+			func(): speed_changed.emit(sp), s[2])
 		x += 60
 
 	_add_button(_bottom_bar, "⊞ Macro [Tab]", Vector2(x + 10, 4), Vector2(110, 26),
-		func(): macro_view_toggled.emit())
+		func(): macro_view_toggled.emit(), "Toggle world map view (Tab)")
 	_add_button(_bottom_bar, "🔬 Tech", Vector2(x + 130, 4), Vector2(70, 26),
-		func(): _toggle_tech_panel())
+		func(): _toggle_tech_panel(), "Open technology tree")
 	_add_button(_bottom_bar, "📜 Edicts", Vector2(x + 208, 4), Vector2(80, 26),
-		func(): _toggle_edict_panel())
+		func(): _toggle_edict_panel(), "Open royal edicts panel")
 	_add_button(_bottom_bar, "💾 Save", Vector2(x + 296, 4), Vector2(70, 26),
-		func(): save_requested.emit())
+		func(): save_requested.emit(), "Save game")
 
 # ── Selection panel ────────────────────────────────────────────────────────────
 
@@ -405,7 +569,7 @@ func show_selected_building(building: Dictionary) -> void:
 	var max_w: int = defn.get("max_workers", 0)
 	_sel_info.text = "HP: %d/%d  |  Fire: %s\n%s" % [
 		hp, max_hp,
-		"YES" if building.get("on_fire", false) else "No",
+		"YES" if building.get("is_on_fire", false) else "No",
 		defn.get("description", "")
 	]
 	_sel_workers_label.text = "Workers: %d/%d" % [workers, max_w]
@@ -436,7 +600,11 @@ func show_selected_building(building: Dictionary) -> void:
 			rb.add_theme_font_size_override("font_size", 9)
 			rb.custom_minimum_size = Vector2(90, 24)
 			rb.disabled = not check.get("ok", false)
-			rb.tooltip_text = check.get("reason", "")
+			var gold_cost: int = udefn.get("cost_gold", 0)
+			var hp: int = udefn.get("max_hp", 0)
+			var atk: int = udefn.get("attack", 0)
+			var tip_base: String = "%s · Cost: %dg · HP: %d · Atk: %d" % [udefn.get("name", utype), gold_cost, hp, atk]
+			rb.tooltip_text = tip_base if check.get("ok", false) else "%s\n%s" % [tip_base, check.get("reason", "Cannot recruit")]
 			var ut: String = utype
 			rb.pressed.connect(func(): recruit_requested.emit(ut))
 			_sel_actions.add_child(rb)
@@ -458,7 +626,23 @@ func show_selected_unit(unit: Dictionary) -> void:
 		int(defn.get("attack", 0)), int(defn.get("defense", 0)),
 		int(defn.get("speed", 0)),
 	]
-	_sel_workers_label.text = ""
+	const CAT_DISPLAY: Dictionary = {
+		"civilian":       ["CIVILIAN",  Color(0.70, 0.70, 0.70)],
+		"light_infantry": ["LIGHT INF", Color(0.50, 1.00, 0.50)],
+		"heavy_infantry": ["HEAVY INF", Color(1.00, 0.80, 0.30)],
+		"siege":          ["SIEGE",     Color(1.00, 0.42, 0.42)],
+	}
+	const ATK_DISPLAY: Dictionary = {
+		"none":   "-",
+		"melee":  "MELEE",
+		"pierce": "PIERCE",
+		"siege":  "SIEGE",
+	}
+	var cat: String   = defn.get("category", "civilian")
+	var cat_d: Array  = CAT_DISPLAY.get(cat, ["?", Color.GRAY])
+	var atk_s: String = ATK_DISPLAY.get(defn.get("attack_type", "none"), "-")
+	_sel_workers_label.text = "[%s · %s]" % [cat_d[0], atk_s]
+	_sel_workers_label.add_theme_color_override("font_color", cat_d[1])
 	for c in _sel_actions.get_children(): c.queue_free()
 
 func clear_selection() -> void:
@@ -466,6 +650,7 @@ func clear_selection() -> void:
 	_sel_title.text = "Nothing selected"
 	_sel_info.text = ""
 	_sel_workers_label.text = ""
+	_sel_workers_label.remove_theme_color_override("font_color")
 	for c in _sel_actions.get_children(): c.queue_free()
 
 func _set_workers_on_building(bid: int, count: int) -> void:
@@ -473,18 +658,29 @@ func _set_workers_on_building(bid: int, count: int) -> void:
 
 func _add_market_actions(_building: Dictionary) -> void:
 	var trade_resources: Array = ["wood", "stone", "iron", "gold"]
+	var world: Dictionary = GameState.world
 	for res in trade_resources:
 		var r: String = res
+		var trend: String = HUDController.get_market_trend(r, world)
+		var mp: Dictionary = HUDController.get_market_prices(r, world)
+		var trend_note: String = (
+			"↑ above normal — good time to sell" if trend == "↑" else
+			"↓ below normal — good time to buy" if trend == "↓" else
+			"→ at normal price"
+		)
 		var buy_btn := Button.new()
-		buy_btn.text = "Buy %s" % r.left(2).to_upper()
+		buy_btn.text = "%s %s" % [trend, r.left(2).to_upper()]
 		buy_btn.add_theme_font_size_override("font_size", 9)
-		buy_btn.custom_minimum_size = Vector2(56, 22)
+		buy_btn.custom_minimum_size = Vector2(52, 22)
+		var hist_tip: String = HUDController.get_market_history_tooltip(r, world)
+		buy_btn.tooltip_text = "Buy 10 %s · Cost: %s each\n%s\n%s" % [r, mp["buy"], trend_note, hist_tip]
 		buy_btn.pressed.connect(func(): trade_buy_requested.emit(r, 10))
 		_sel_actions.add_child(buy_btn)
 		var sell_btn := Button.new()
 		sell_btn.text = "Sell"
 		sell_btn.add_theme_font_size_override("font_size", 9)
-		sell_btn.custom_minimum_size = Vector2(36, 22)
+		sell_btn.custom_minimum_size = Vector2(34, 22)
+		sell_btn.tooltip_text = "Sell 10 %s · Receive: %s each\n%s\n%s" % [r, mp["sell"], trend_note, hist_tip]
 		sell_btn.pressed.connect(func(): trade_sell_requested.emit(r, 10))
 		_sel_actions.add_child(sell_btn)
 
@@ -546,14 +742,18 @@ func _add_tech_item(parent: VBoxContainer, item: Dictionary, player: Dictionary)
 		btn.text = "Research"
 		btn.add_theme_font_size_override("font_size", 10)
 		btn.custom_minimum_size = Vector2(80, 24)
+		var hint: String = TechTreePanelController.get_tech_hint_text(item)
+		btn.tooltip_text = "Research %s for %d prestige\n%s" % [item.get("name", ""), int(item.get("cost_prestige", 0)), hint]
 		btn.pressed.connect(func(): tech_research_requested.emit(tech_id))
 		row.add_child(btn)
 
 func _toggle_tech_panel() -> void:
-	_tech_panel.visible = not _tech_panel.visible
 	_edict_panel.visible = false
 	if _tech_panel.visible:
+		_animate_panel_close(_tech_panel)
+	else:
 		_refresh_tech_panel()
+		_animate_panel_open(_tech_panel)
 
 # ── Edict Panel ────────────────────────────────────────────────────────────────
 
@@ -608,20 +808,33 @@ func _add_edict_section(parent: VBoxContainer, title: String, items: Array, is_a
 			var btn := Button.new()
 			btn.text = "Activate (%dP)" % int(item.get("cost_points", 0))
 			btn.add_theme_font_size_override("font_size", 9)
+			btn.tooltip_text = "Activate '%s'\nCosts %d edict points" % [item.get("name", ""), int(item.get("cost_points", 0))]
 			btn.pressed.connect(func(): edict_activate_requested.emit(eid))
 			row.add_child(btn)
 
 func _toggle_edict_panel() -> void:
-	_edict_panel.visible = not _edict_panel.visible
 	_tech_panel.visible = false
 	if _edict_panel.visible:
+		_animate_panel_close(_edict_panel)
+	else:
 		_refresh_edict_panel()
+		_animate_panel_open(_edict_panel)
+
+func _animate_panel_open(panel: Panel) -> void:
+	panel.modulate.a = 0.0
+	panel.visible = true
+	create_tween().tween_property(panel, "modulate:a", 1.0, 0.18)
+
+func _animate_panel_close(panel: Panel) -> void:
+	var tw: Tween = create_tween()
+	tw.tween_property(panel, "modulate:a", 0.0, 0.14)
+	tw.tween_callback(func(): panel.visible = false; panel.modulate.a = 1.0)
 
 # ── Notification system ───────────────────────────────────────────────────────
 
-func show_notification(text: String, duration: float = 3.0) -> void:
+func show_notification(text: String, duration: float = 3.0, color: Color = Color.YELLOW) -> void:
 	if _notification_feed == null: return
-	_notification_feed.push(text, duration)
+	_notification_feed.push(text, duration, color)
 
 func set_build_mode_display(building_type: String) -> void:
 	if _build_mode_label:

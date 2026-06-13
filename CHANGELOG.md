@@ -2,6 +2,16 @@
 
 ---
 
+## [Iteration 63] 2026-06-14 — Fix #026: Population count never shown in HUD — orphan label stub
+
+- Delegated to: Supervisor (Omniscience unavailable — Ollama HTTP 500)
+- What changed: HUDNode.gd — added `_pop_count_label: Label` member var. `_build_right_panel()` now assigns the return value of the "Population:" `_add_label()` call to `_pop_count_label` (previously discarded). `_refresh_right_panel()` now updates `_pop_count_label.text = "Pop: %d"` from `player["population"]` each refresh cycle. Population count is now visible in the right panel alongside tax, rations, and food variety.
+- Issues resolved: #026 (population count never displayed)
+- Issues discovered: none
+- Supervisor correction: none
+
+---
+
 ## [Iteration 62] 2026-06-14 — Fix #025: WorldMapScene has_method("server_config") always false — world always seed 42
 
 - Delegated to: Supervisor (Omniscience unavailable — Ollama HTTP 500)
