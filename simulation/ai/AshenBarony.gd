@@ -78,8 +78,9 @@ static func _send_demands(faction: Dictionary, players: Array, tick: int) -> voi
 	for p in players:
 		if not (p is Dictionary and p.get("is_alive", false)):
 			continue
-		AIFaction.send_tribute_demand(faction, p.get("id", -1), DEMAND_RESOURCE_1, TRIBUTE_ALE_AMOUNT, deadline)
-		AIFaction.send_tribute_demand(faction, p.get("id", -1), DEMAND_RESOURCE_2, TRIBUTE_IRON_AMOUNT, deadline)
+		var scale: float = clampf(AIFaction.assess_player_strength(p) / 50.0, 0.5, 3.0)
+		AIFaction.send_tribute_demand(faction, p.get("id", -1), DEMAND_RESOURCE_1, int(TRIBUTE_ALE_AMOUNT * scale), deadline)
+		AIFaction.send_tribute_demand(faction, p.get("id", -1), DEMAND_RESOURCE_2, int(TRIBUTE_IRON_AMOUNT * scale), deadline)
 	faction["last_demand_day"] = faction.get("days_alive", 0)
 
 static func _recruit_barony(faction: Dictionary) -> void:

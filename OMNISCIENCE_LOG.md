@@ -25,3 +25,11 @@ notes = audio system wired to all EventBus signals
 files changed = res://view/hud/NotificationFeed.gd, res://view/hud/HUDNode.gd, res://view/main/GameBootstrap.gd
 tests = SKIPPED (bootstrap only)
 notes = upgraded single-label notification to a stacking feed (max 5) and added a popularity-critical alert
+
+## Phase 3 — Adaptive AI — STARTED
+
+## Phase 3 — COMPLETE
+
+files changed = res://simulation/ai/AIFaction.gd, res://simulation/ai/BanditKing.gd, res://simulation/ai/Ironhand.gd, res://simulation/ai/MerchantPrince.gd, res://simulation/ai/AshenBarony.gd
+tests = TestPhase6 PASS 81/0
+notes = AI now reacts to real player strength; fixed latent military_strength targeting bug

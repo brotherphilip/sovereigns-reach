@@ -159,11 +159,11 @@ static func should_attack(faction: Dictionary, players: Array) -> Dictionary:
 
 	# Target the player with the lowest military strength (or lowest prestige)
 	var best_target: int = -1
-	var lowest_strength: int = 9999999
+	var lowest_strength: float = INF
 	for p in players:
 		if not (p is Dictionary and p.get("is_alive", false)):
 			continue
-		var strength: int = p.get("military_strength", 0) + p.get("prestige", 0)
+		var strength: float = assess_player_strength(p)
 		if strength < lowest_strength:
 			lowest_strength = strength
 			best_target = p.get("id", -1)
@@ -173,6 +173,19 @@ static func should_attack(faction: Dictionary, players: Array) -> Dictionary:
 	return {"attack": true, "target_player_id": best_target}
 
 # ── Recruit units ─────────────────────────────────────────────────────────────
+
+# Composite strength score for a player (higher = stronger / harder target).
+# Used by archetypes to choose targets and scale aggression adaptively.
+static func assess_player_strength(player: Dictionary) -> float:
+	var alive_units: int = 0
+	for u in player.get("units", []):
+		if u is Dictionary and u.get("is_alive", true):
+			alive_units += 1
+	var buildings: int = player.get("buildings", []).size()
+	var gold: int = player.get("gold", 0)
+	var population: int = player.get("population", 0)
+	var popularity: float = player.get("popularity", 50.0)
+	return float(alive_units) * 2.0 + float(buildings) * 0.5 + float(gold) * 0.01 + float(population) * 0.1 + popularity * 0.1
 
 # Recruit one unit of the given type into the faction's army (no armory check for AI).
 static func recruit_unit(faction: Dictionary, unit_type: String, next_uid: int) -> bool:

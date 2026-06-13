@@ -42,7 +42,10 @@ static func tick(faction: Dictionary, players: Array, _world: Dictionary, tick: 
 
 		# Decision: harass players if army is above minimal size
 		var army_size: int = _alive_unit_count(faction)
-		if army_size >= 5:
+		# Adaptive: harass sooner when the weakest player is vulnerable
+		var weakest: float = _weakest_player_strength(players)
+		var harass_gate: int = 3 if weakest < 25.0 else 5
+		if army_size >= harass_gate:
 			var attack_info: Dictionary = AIFaction.should_attack(faction, players)
 			if attack_info.get("attack", false):
 				AIFaction.start_siege(faction, attack_info["target_player_id"],
@@ -95,3 +98,10 @@ static func _get_player_y(players: Array, pid: int) -> int:
 		if p is Dictionary and p.get("id", -1) == pid:
 			return p.get("keep_y", 0)
 	return 0
+
+static func _weakest_player_strength(players: Array) -> float:
+	var lowest: float = INF
+	for p in players:
+		if p is Dictionary and p.get("is_alive", false):
+			lowest = minf(lowest, AIFaction.assess_player_strength(p))
+	return lowest if lowest != INF else 999.0

@@ -75,8 +75,9 @@ static func _apply_embargoes(faction: Dictionary, players: Array) -> void:
 		if not (p is Dictionary and p.get("is_alive", false)):
 			continue
 		var pid: int = p.get("id", -1)
-		# Embargo players with very little gold (GDD §8.2.5)
-		if p.get("gold", 0) <= EMBARGO_GOLD_THRESHOLD and pid not in embargoed:
+		# Embargo players that are economically OR militarily weak (GDD §8.2.5)
+		var weak: bool = AIFaction.assess_player_strength(p) < 30.0
+		if (p.get("gold", 0) <= EMBARGO_GOLD_THRESHOLD or weak) and pid not in embargoed:
 			embargoed.append(pid)
 	faction["embargoed_players"] = embargoed
 

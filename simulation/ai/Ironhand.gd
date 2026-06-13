@@ -42,7 +42,10 @@ static func tick(faction: Dictionary, players: Array, _world: Dictionary, tick: 
 
 		# Only attacks once army is large enough (GDD §8.3.5: attacks rarely)
 		var army_size: int = _alive_unit_count(faction)
-		if army_size >= ARMY_SIZE_TARGET:
+		# Adaptive: strike sooner if the weakest player is weak (punish weakness)
+		var weakest: float = _weakest_player_strength(players)
+		var gate: int = 30 if weakest < 25.0 else ARMY_SIZE_TARGET
+		if army_size >= gate:
 			var attack_info: Dictionary = AIFaction.should_attack(faction, players)
 			if attack_info.get("attack", false):
 				AIFaction.start_siege(faction, attack_info["target_player_id"],
@@ -99,3 +102,10 @@ static func _get_player_y(players: Array, pid: int) -> int:
 # GDD §8.3.5: uses tunnelers on stone walls.
 static func tunneler_target(building_type: String) -> bool:
 	return building_type in ["stone_wall", "great_tower", "lookout_tower"]
+
+static func _weakest_player_strength(players: Array) -> float:
+	var lowest: float = INF
+	for p in players:
+		if p is Dictionary and p.get("is_alive", false):
+			lowest = minf(lowest, AIFaction.assess_player_strength(p))
+	return lowest if lowest != INF else 999.0
