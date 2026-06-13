@@ -33,6 +33,7 @@ const Ironhand         = preload("res://simulation/ai/Ironhand.gd")
 const AshenBarony      = preload("res://simulation/ai/AshenBarony.gd")
 const CombatSystem     = preload("res://simulation/combat/CombatSystem.gd")
 const MilestoneSystem  = preload("res://simulation/core/MilestoneSystem.gd")
+const Pathfinder       = preload("res://simulation/pathfinding/Pathfinder.gd")
 # All fields are plain Dictionary/Array/int/float/bool — JSON-serializable.
 # Never stores Godot objects (Vector2, Node, etc.) to ensure network/save readiness.
 # The View layer reads from here; it never writes here directly.
@@ -279,6 +280,28 @@ func _tick_player_economy(player: Dictionary, tick: int) -> void:
 
 # _collect_taxes removed — logic migrated to TaxSystem.tick() (Phase 4)
 
+func _tick_player_unit_movement(player: Dictionary, tick: int) -> void:
+	const TICKS_PER_DAY: int = SimulationClock.TICKS_PER_GAME_DAY
+	for unit in player.get("units", []):
+		if not (unit is Dictionary and unit.get("is_alive", false)):
+			continue
+		if unit.get("order", "") != UnitState.ORDER_MOVE:
+			continue
+		var path: Array = unit.get("move_path", [])
+		if path.is_empty():
+			unit["order"] = UnitState.ORDER_IDLE
+			continue
+		var speed: int = UnitRegistry.lookup(unit.get("type", "")).get("speed", 3)
+		var step_ticks: int = maxi(1, TICKS_PER_DAY / maxi(1, speed))
+		if tick % step_ticks != 0:
+			continue
+		unit["pos_x"] = path[0][0]
+		unit["pos_y"] = path[0][1]
+		path.remove_at(0)
+		unit["move_path"] = path
+		if path.is_empty():
+			unit["order"] = UnitState.ORDER_IDLE
+
 # --- Command dispatch ---
 # apply_command is called by SimulationClock._advance_tick() for every
 # command dequeued from CommandQueue. Each handler returns bool success.
@@ -342,6 +365,7 @@ func simulate_tick(tick: int) -> void:
 		if not player.get("is_alive", false):
 			continue
 		_tick_player_economy(player, tick)
+		_tick_player_unit_movement(player, tick)
 
 	# Phase 6: tick AI factions each game-day
 	if tick > 0 and tick % SimulationClock.TICKS_PER_GAME_DAY == 0:
@@ -719,6 +743,11 @@ func _cmd_issue_move_order(cmd: Dictionary) -> bool:
 	for unit in players[pid].get("units", []):
 		if unit is Dictionary and unit.get("id", -1) == uid:
 			UnitState.issue_move_order(unit, tx, ty)
+			if _grid != null:
+				unit["move_path"] = Pathfinder.find_path(
+					_grid, unit.get("pos_x", 0), unit.get("pos_y", 0), tx, ty)
+			else:
+				unit["move_path"] = []
 			return true
 	return false
 
