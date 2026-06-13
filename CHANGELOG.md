@@ -2,6 +2,20 @@
 
 ---
 
+## [Iteration 81] 2026-06-14 — Fix #037: weather popularity event mismatches (STORM too harsh, RAIN ignored)
+
+- Delegated to: Supervisor
+- What changed:
+  - GameState.gd: match block for weather events — changed STORM→"blizzard" to STORM→"storm"; added RAIN→"rain" case
+  - PopularityEngine.gd: added "storm": −2 and "rain": −1 to EVENT_POPULARITY_DELTA
+- Before: STORM caused −5/day (2.5× too harsh); RAIN caused 0/day (should be −1). Both mismatches vs WeatherSystem.WEATHER_EFFECTS definitions.
+- Scene test: ALL_SCENES_OK
+- Issues resolved: #037
+- Issues discovered: none
+- Supervisor correction: none
+
+---
+
 ## [Iteration 80] 2026-06-14 — Audit: full command handler payload audit — all clear
 
 - Delegated to: Supervisor (STEP 3D — Audit)

@@ -55,6 +55,8 @@ const EVENT_POPULARITY_DELTA: Dictionary = {
 	"active_siege":       -12,  # Being attacked
 	"disease_outbreak":   -10,
 	"blizzard":           -5,
+	"storm":              -2,
+	"rain":               -1,
 	"heatwave":           -4,
 	"drought":            -3,
 	"festival":           +8,   # Royal Edict bonus

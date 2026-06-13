@@ -235,7 +235,8 @@ func _tick_player_economy(player: Dictionary, tick: int) -> void:
 			match weather["current"]:
 				WeatherSystem.WeatherType.SNOW:    events.append("blizzard")
 				WeatherSystem.WeatherType.DROUGHT: events.append("drought")
-				WeatherSystem.WeatherType.STORM:   events.append("blizzard")
+				WeatherSystem.WeatherType.STORM:   events.append("storm")
+				WeatherSystem.WeatherType.RAIN:    events.append("rain")
 
 		# Phase 4: disease events
 		var disease_events: Array = DiseaseSystem.tick(player, _disease_rng, tick)

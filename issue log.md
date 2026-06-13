@@ -3,6 +3,10 @@
 <!-- Format: ## [ID] Title | Severity: Blocker/High/Medium/Low | Status: Open/In Progress/Resolved/Byproduct -->
 <!-- Severities: Blocker=crashes/data loss, High=broken feature, Medium=wrong behavior, Low=polish/text -->
 
+## [037] Weather popularity events wrong — STORM maps to "blizzard" (−5 vs intended −2), RAIN has no event (0 vs intended −1) | Severity: Low | Status: Resolved
+GameState._tick_player_economy() builds a weather events Array: when weather_pop_delta != 0, it matches weather["current"] to an event string and appends to events[]. The match had SNOW→"blizzard" (−5), DROUGHT→"drought" (−3), STORM→"blizzard" (−5). But WeatherSystem.WEATHER_EFFECTS defines STORM popularity_delta=−2 (not −5). Additionally RAIN has popularity_delta=−1 but no match case, so rain weather always contributes 0 to popularity instead of −1/day. During storms (which can persist 1-3 days and transition at 20% from RAIN), popularity fell 2.5× faster than designed. Rain (common weather) had no popularity effect at all.
+Resolution: Changed STORM match case to append "storm" (not "blizzard"). Added RAIN match case appending "rain". Added "storm": −2 and "rain": −1 to PopularityEngine.EVENT_POPULARITY_DELTA. Scene test: ALL_SCENES_OK.
+
 ## [036] Market trade silently does nothing — payload key "amount" vs "quantity" mismatch | Severity: Medium | Status: Resolved
 _cmd_buy_resource() and _cmd_sell_resource() in GameState.gd read `payload.get("quantity", 0)` to pass to MarketSystem.buy/sell. However, all callers (GameBootstrap._on_trade_buy/sell, CityViewScene._on_trade_buy/sell) enqueue with key `"amount"` — e.g. `{"resource": resource, "amount": amount}`. The fallback 0 is always returned, so every trade call passes quantity=0 to MarketSystem. No resources are ever bought or sold; no gold changes hands; no error or notification is shown (MarketSystem.buy(qty=0) returns ok=false silently). Trade panel buttons appear to work but do nothing.
 Resolution: Changed both `payload.get("quantity", 0)` calls to `payload.get("amount", 0)` in GameState._cmd_buy_resource() and _cmd_sell_resource(). Scene test: ALL_SCENES_OK.
