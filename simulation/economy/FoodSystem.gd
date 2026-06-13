@@ -4,6 +4,8 @@ extends RefCounted
 # ResourceTick handles production; FoodSystem handles storage and consumption accounting.
 
 # Food drain multipliers per ration level (units of food consumed per peasant per day)
+const DifficultySystem = preload("res://simulation/core/DifficultySystem.gd")
+
 const FOOD_DRAIN_PER_PEASANT: Dictionary = {
 	0: 0.0,    # No rations — starvation risk (zero drain because no food issued)
 	1: 0.5,    # Low rations
@@ -42,7 +44,7 @@ static func tick(player: Dictionary, tick: int) -> Dictionary:
 	var ration: int = player.get("food_ration", 2)
 	var population: int = player.get("population", 0)
 	var drain_per_cap: float = FOOD_DRAIN_PER_PEASANT.get(ration, 1.0)
-	var total_to_consume: int = int(float(population) * drain_per_cap)
+	var total_to_consume: int = int(float(population) * drain_per_cap * DifficultySystem.get_mod("food_consumption"))
 
 	if total_to_consume <= 0:
 		# Zero rations: trigger starvation flag but no food deducted

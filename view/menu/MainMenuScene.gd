@@ -3,6 +3,9 @@ extends Node
 # New Game → WorldMapScene; Load Game → save picker → CityViewScene; Quit.
 
 const SaveManager = preload("res://simulation/persistence/SaveManager.gd")
+const DifficultySystem = preload("res://simulation/core/DifficultySystem.gd")
+
+var _diff_btn: Button = null
 
 func _ready() -> void:
 	_build_background()
@@ -82,6 +85,11 @@ func _build_ui() -> void:
 		panel.add_child(btn)
 		btn_y += 60.0
 
+	# Difficulty selector — cycles PEACEFUL -> NORMAL -> HARD -> SIEGE_LORD
+	_diff_btn = _make_menu_button("Difficulty: " + DifficultySystem.level_name(DifficultySystem.current), Vector2(80, btn_y), Vector2(240, 46), _on_cycle_difficulty)
+	panel.add_child(_diff_btn)
+	btn_y += 60.0
+
 	# Version
 	var ver := Label.new()
 	ver.text = "Phase 9 build"
@@ -100,6 +108,11 @@ func _make_menu_button(text: String, pos: Vector2, sz: Vector2,
 	btn.add_theme_font_size_override("font_size", 15)
 	btn.pressed.connect(callback)
 	return btn
+
+func _on_cycle_difficulty() -> void:
+	DifficultySystem.current = (DifficultySystem.current + 1) % 4
+	if _diff_btn != null:
+		_diff_btn.text = "Difficulty: " + DifficultySystem.level_name(DifficultySystem.current)
 
 # ── Transitions ───────────────────────────────────────────────────────────────
 

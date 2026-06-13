@@ -7,6 +7,7 @@ extends RefCounted
 const UnitRegistry  = preload("res://simulation/units/UnitRegistry.gd")
 const UnitState     = preload("res://simulation/units/UnitState.gd")
 const CombatSystem  = preload("res://simulation/combat/CombatSystem.gd")
+const DifficultySystem = preload("res://simulation/core/DifficultySystem.gd")
 
 const TICKS_PER_DAY: int = 240
 
@@ -119,6 +120,7 @@ static func _update_threat_level(faction: Dictionary) -> void:
 	var days: int       = faction.get("days_alive", 0)
 	# Threat = (army power / 10) + (gold / 100) + (days_alive / 5), capped at 100
 	var threat: float = float(army_value) / 10.0 + float(gold) / 100.0 + float(days) / 5.0
+	threat *= DifficultySystem.get_mod("ai_threat")
 	faction["threat_level"] = minf(100.0, threat)
 
 # ── Siege assembly ────────────────────────────────────────────────────────────

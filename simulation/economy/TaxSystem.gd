@@ -5,6 +5,7 @@ extends RefCounted
 
 # Gold collected per peasant per day per tax level (magnitude)
 const GOLD_PER_PEASANT_LEVEL: float = 0.5
+const DifficultySystem = preload("res://simulation/core/DifficultySystem.gd")
 
 # Returns the gold delta for one game-day.
 # Positive = gold collected; negative = bribe paid.
@@ -22,7 +23,9 @@ static func calculate_daily_gold(player: Dictionary, world: Dictionary) -> int:
 	var modifier: float = _get_shire_tax_modifier(player, world)
 	base_delta = int(float(base_delta) * (1.0 + modifier))
 
-	return base_delta if tax_rate > 0 else -base_delta
+	if tax_rate > 0:
+		return int(float(base_delta) * DifficultySystem.get_mod("tax_income"))
+	return -base_delta
 
 # Applies the daily gold calculation to the player dict. Call at tick%240==0.
 # Returns dict with "old_gold", "new_gold", "delta".

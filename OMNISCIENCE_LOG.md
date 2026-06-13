@@ -65,3 +65,11 @@ notes = enemy fog (terrain stays visible); watchtower gives early warning of app
 files changed = res://simulation/ai/DiplomacySystem.gd, res://view/hud/DiplomacyPanel.gd, res://simulation/core/GameState.gd, res://view/hud/HUDNode.gd
 tests = resolution PASS, TestPhase6 81/0, TestPhase7 98/0, boot smoke clean
 notes = player accept/refuse tribute UI built on the existing tribute backend; refuse angers the faction
+
+## Phase 8 — Difficulty Scaling — STARTED
+
+## Phase 8 — COMPLETE
+
+files changed = res://simulation/core/DifficultySystem.gd, res://simulation/ai/AIFaction.gd, res://simulation/economy/TaxSystem.gd, res://simulation/economy/FoodSystem.gd, res://view/menu/MainMenuScene.gd
+tests = tax multiplier PASS, TestPhase4 60/0, TestPhase6 81/0, boot smoke clean
+notes = 4 difficulty levels scaling AI threat / tax income / food consumption; static-state class avoids the autoload-in-RefCounted pitfall
