@@ -208,7 +208,7 @@ func _make_armory() -> Dictionary:
 func _tick_player_economy(player: Dictionary, tick: int) -> void:
 	# Phase 2: resource production from all buildings
 	for building in player.get("buildings", []):
-		if not building is Dictionary:
+		if not building is Dictionary or not building.get("is_active", true):
 			continue
 		var changes: Dictionary = ResourceTick.tick_building(building, player, tick)
 		if not changes.is_empty():
