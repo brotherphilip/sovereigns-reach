@@ -2,6 +2,19 @@
 
 ---
 
+## [Iteration 101] 2026-06-14 — Fix #057: remove dead "heatwave" entry from PopularityEngine.EVENT_POPULARITY_DELTA
+
+- Delegated to: Supervisor
+- What changed: Removed "heatwave": -4 from EVENT_POPULARITY_DELTA. WeatherSystem has no HEATWAVE type; no code emits this event.
+- Before: dead entry identical to "ai_tribute_refused" and "levy_summons" removed in iteration 83.
+- After: EVENT_POPULARITY_DELTA contains only events that are actually emitted.
+- Scene test: ALL_SCENES_OK
+- Issues resolved: #057
+- Issues discovered: none
+- Supervisor correction: none
+
+---
+
 ## [Iteration 100] 2026-06-14 — Fix #056: recruitment_cost_reduction and orchard_yield_bonus edict modifiers never consumed
 
 - Delegated to: Supervisor

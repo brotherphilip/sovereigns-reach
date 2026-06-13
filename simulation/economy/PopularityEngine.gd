@@ -57,7 +57,6 @@ const EVENT_POPULARITY_DELTA: Dictionary = {
 	"blizzard":           -5,
 	"storm":              -2,
 	"rain":               -1,
-	"heatwave":           -4,
 	"drought":            -3,
 	"festival":           +8,   # Royal Edict bonus (fired via instant_event)
 	"wedding_event":      +4,   # Church random event

@@ -3,6 +3,10 @@
 <!-- Format: ## [ID] Title | Severity: Blocker/High/Medium/Low | Status: Open/In Progress/Resolved/Byproduct -->
 <!-- Severities: Blocker=crashes/data loss, High=broken feature, Medium=wrong behavior, Low=polish/text -->
 
+## [057] "heatwave" entry in PopularityEngine.EVENT_POPULARITY_DELTA dead — WeatherSystem has no HEATWAVE type | Severity: Low | Status: Resolved
+PopularityEngine.EVENT_POPULARITY_DELTA maps "heatwave" to -4. But WeatherSystem.WeatherType has only CLEAR/RAIN/DROUGHT/SNOW/FOG/STORM — no HEATWAVE. No code ever appends "heatwave" to the events array passed to apply_tick(). The entry is permanently dead (like "ai_tribute_refused" and "levy_summons" removed in iteration 83). get("heatwave", 0.0) in _event_delta() always returns 0.
+Resolution: Removed "heatwave": -4 from EVENT_POPULARITY_DELTA. Scene test: ALL_SCENES_OK.
+
 ## [056] Two EdictSystem modifiers dead — recruitment_cost_reduction and orchard_yield_bonus never consumed | Severity: Low | Status: Resolved
 EdictSystem defines ~20 modifier keys. Most are wired (army_speed_multiplier, market_sell_price_bonus, fire_risk_reduction, food_production_bonus, food_consumption_reduction, tax_multiplier, etc.). Two remain unconsumed: `recruitment_cost_reduction: 0.5` (Mercenary Levy edict — should halve unit gold cost) and `orchard_yield_bonus: 0.15` (Harvest Blessing — should boost apple_orchard output by 15%). Neither was being applied, so activating either edict produced no simulation effect beyond the edict_points cost.
 Resolution: GameState._cmd_recruit_unit() — apply recruitment_cost_reduction from EdictSystem.get_active_modifiers() to cost_gold before the gold check and deduction. ResourceTick.tick_building() — read orchard_yield_bonus from edict_mods alongside existing food_bonus; apply to apple_orchard outputs. Scene test: ALL_SCENES_OK.
