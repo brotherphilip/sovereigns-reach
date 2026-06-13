@@ -3,6 +3,10 @@
 <!-- Format: ## [ID] Title | Severity: Blocker/High/Medium/Low | Status: Open/In Progress/Resolved/Byproduct -->
 <!-- Severities: Blocker=crashes/data loss, High=broken feature, Medium=wrong behavior, Low=polish/text -->
 
+## [034] HUDController.get_weather_tooltip uses wrong effect key names | Severity: Low | Status: Resolved
+get_weather_tooltip() reads `effects.get("speed_modifier", 1.0)` and `effects.get("farm_yield", 1.0)` but WeatherSystem stores these as `"movement_penalty"` and `"farm_yield_mult"` respectively. Additionally, `get_hud_data()` reads `weather.get("popularity_delta", 0.0)` from the top-level weather dict, but popularity_delta lives in `weather["effects"]["popularity_delta"]`. All three always returned fallback values (1.0, 1.0, 0.0), so weather effects were invisible in the tooltip.
+Resolution: Fixed all three key mismatches in HUDController.gd.
+
 ## [033] Weather label always shows "Clear" — weather dict has no "current_name" key | Severity: Low | Status: Resolved
 HUDNode._refresh_top_bar() reads `GameState.weather.get("current_name", "Clear")` and HUDController.get_weather_tooltip() reads `weather.get("current_name", "Unknown")`. WeatherSystem.make_state() and _transition() never write a `current_name` key — they only write `"current"` (int) and `"effects"`. The fallback `"Clear"` is returned permanently, so the HUD weather label is always "Clear" regardless of rain, drought, snow, etc. WeatherSystem has a static `weather_name(int)` function that converts the int to a display string but it was never called from the HUD.
 Resolution: Replaced `weather.get("current_name", "Clear")` and `"Unknown"` variants in HUDNode.gd and HUDController.gd with `WeatherSystem.weather_name(weather.get("current", 0))`. Added `const WeatherSystem = preload(...)` to both files.

@@ -37,7 +37,7 @@ static func get_hud_data(player: Dictionary, weather: Dictionary, current_tick: 
 		"food_total": get_total_food(player),
 		"is_starving": player.get("is_starving", false),
 		"weather_name": WeatherSystem.weather_name(weather.get("current", 0)),
-		"weather_popularity_delta": weather.get("popularity_delta", 0.0),
+		"weather_popularity_delta": weather.get("effects", {}).get("popularity_delta", 0.0),
 		"game_day": current_tick / 240,
 		"edict_points": player.get("edict_points", 0),
 		"inn_coverage": player.get("inn_coverage", 0.0),
@@ -224,8 +224,8 @@ static func get_weather_tooltip(weather: Dictionary) -> String:
 	var effects: Dictionary = weather.get("effects", {})
 	var pop: float  = effects.get("popularity_delta", 0.0)
 	var food: float = effects.get("food_drain", 0.0)
-	var speed: float = effects.get("speed_modifier", 1.0)
-	var farm: float = effects.get("farm_yield", 1.0)
+	var speed: float = effects.get("movement_penalty", 1.0)
+	var farm: float = effects.get("farm_yield_mult", 1.0)
 	var lines: Array = ["Weather: %s" % WeatherSystem.weather_name(weather.get("current", 0))]
 	if pop != 0.0:
 		lines.append("Popularity: %+.0f/day" % pop)
