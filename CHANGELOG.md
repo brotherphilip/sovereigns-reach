@@ -2,6 +2,20 @@
 
 ---
 
+## [Iteration 86] 2026-06-14 — Fix #042: military_march edict army_speed_multiplier ignored in unit movement
+
+- Delegated to: Supervisor
+- What changed: GameState._tick_player_unit_movement() — reads army_speed_multiplier from EdictSystem.get_active_modifiers(player) and divides step_ticks by it.
+- Before: military_march edict (8 policy points, 3-day duration) had zero effect on army movement speed.
+- After: armies move 2× faster while military_march is active.
+- Note: wall_armor_bonus and archer_fire_rate_bonus (defensive_zeal) remain dead — CombatSystem has no underlying mechanics for these.
+- Scene test: ALL_SCENES_OK
+- Issues resolved: #042
+- Issues discovered: none
+- Supervisor correction: none
+
+---
+
 ## [Iteration 85] 2026-06-14 — Fix #041: remove dead "ai_tribute_refused" and "levy_summons" entries from PopularityEngine
 
 - Delegated to: Supervisor

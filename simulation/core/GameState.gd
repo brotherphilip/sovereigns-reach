@@ -334,7 +334,8 @@ func _tick_player_unit_movement(player: Dictionary, tick: int) -> void:
 			unit["order"] = UnitState.ORDER_IDLE
 			continue
 		var speed: int = UnitRegistry.lookup(unit.get("type", "")).get("speed", 3)
-		var step_ticks: int = maxi(1, TICKS_PER_DAY / maxi(1, speed))
+		var army_speed_mult: float = EdictSystem.get_active_modifiers(player).get("army_speed_multiplier", 1.0)
+		var step_ticks: int = maxi(1, int(float(TICKS_PER_DAY) / (float(maxi(1, speed)) * maxf(0.1, army_speed_mult))))
 		if tick % step_ticks != 0:
 			continue
 		unit["pos_x"] = path[0][0]
