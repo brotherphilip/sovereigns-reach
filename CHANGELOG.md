@@ -2,6 +2,19 @@
 
 ---
 
+## [Iteration 75] 2026-06-14 — Audit pass: all clear, no new issues
+
+- Delegated to: Supervisor (STEP 3D — Audit)
+- What changed: no code changes
+- Files audited: SaveManager.gd, TechTreePanelController.gd, DiplomacyPanel.gd, NotificationFeed.gd, GameBootstrap.gd
+- All EventBus signal connections in GameBootstrap.gd verified against EventBus.gd (10 signals, all match)
+- Tutorial logic in GameBootstrap._show_tutorial_prompt() confirmed correct (misleading comment, not a bug)
+- Issues resolved: none
+- Issues discovered: none
+- Supervisor correction: none
+
+---
+
 ## [Iteration 74] 2026-06-14 — Audit pass: all clear, no new issues
 
 - Delegated to: Supervisor (STEP 3D — Audit)
