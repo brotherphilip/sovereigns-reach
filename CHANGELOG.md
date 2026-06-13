@@ -2,6 +2,19 @@
 
 ---
 
+## [Iteration 89] 2026-06-14 — Fix #045: fletcher and poleturner produce weapons without consuming wood
+
+- Delegated to: Supervisor
+- What changed: ResourceTick.gd PRODUCTION_INPUTS — added "fletcher": {"wood": 1} and "poleturner": {"wood": 1}.
+- Before: both buildings crafted weapons with zero resource cost (missing from inputs dict → check always passed). Players could freely produce unlimited bows and pikes.
+- After: production halts when wood is unavailable, matching BuildingRegistry definition.
+- Scene test: ALL_SCENES_OK
+- Issues resolved: #045
+- Issues discovered: pitch resource is produced but never consumed by any chain (dead resource) — Low, not fixing now.
+- Supervisor correction: none
+
+---
+
 ## [Iteration 88] 2026-06-14 — Fix #044: trading_post produces no gold — missing from ResourceTick production tables
 
 - Delegated to: Supervisor

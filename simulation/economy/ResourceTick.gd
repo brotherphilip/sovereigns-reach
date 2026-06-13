@@ -33,10 +33,12 @@ const PRODUCTION_INTERVALS: Dictionary = {
 
 # Resource input requirements (what each producer CONSUMES to make output)
 const PRODUCTION_INPUTS: Dictionary = {
-	"mill":       {"wheat": 1},
-	"bakery":     {"flour": 1},
-	"brewery":    {"hops": 1},
-	"blacksmith": {"iron": 2},
+	"mill":        {"wheat": 1},
+	"bakery":      {"flour": 1},
+	"brewery":     {"hops": 1},
+	"blacksmith":  {"iron": 2},
+	"fletcher":    {"wood": 1},
+	"poleturner":  {"wood": 1},
 }
 
 # Resource outputs per production tick
