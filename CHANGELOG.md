@@ -2,6 +2,18 @@
 
 ---
 
+## [Iteration 76] 2026-06-14 — Audit pass: all clear, no new issues
+
+- Delegated to: Supervisor (STEP 3D — Audit)
+- What changed: no code changes
+- Files audited: BuildingState.gd, DifficultySystem.gd, PlacementValidator.gd, BuildingRenderer.gd, WorldGrid (get_building_at), MainController.gd (dead code — not attached to Main.tscn), Pathfinder.gd, UnitRegistry.gd (can_recruit)
+- Key findings: building IDs start at 1 (0 = empty, != 0 check correct); MainController.gd is dead code (not in scene, connects to signals that don't exist, but never instantiated); UnitRegistry correctly guards is_active on required buildings
+- Issues resolved: none
+- Issues discovered: none
+- Supervisor correction: none
+
+---
+
 ## [Iteration 75] 2026-06-14 — Audit pass: all clear, no new issues
 
 - Delegated to: Supervisor (STEP 3D — Audit)
