@@ -948,6 +948,12 @@ func deserialize(data: Dictionary) -> void:
 	milestones = data.get("milestones", {})
 	_next_building_id = data.get("next_building_id", 1)
 	_next_unit_id = data.get("next_unit_id", 1)
+	# Re-seed RNGs from the loaded map_seed so random events use the correct seed
+	var loaded_seed: int = server_config.get("map_seed", 12345)
+	_weather_rng.seed = loaded_seed
+	_disease_rng.seed = loaded_seed ^ 0xDEADBEEF
+	_fire_rng.seed = loaded_seed ^ 0xCAFEBABE
+	_social_rng.seed = loaded_seed ^ 0xBEEF1234
 	if data.has("clock"):
 		SimulationClock.deserialize(data["clock"])
 

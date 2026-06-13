@@ -2,6 +2,19 @@
 
 ---
 
+## [Iteration 94] 2026-06-14 — Fix #050: RNGs not re-seeded after deserialize — save/load breaks random event seeds
+
+- Delegated to: Supervisor
+- What changed: GameState.deserialize() — added re-seeding block for all four RNGs (_weather_rng, _disease_rng, _fire_rng, _social_rng) from server_config.map_seed after it's loaded.
+- Before: loading any save would use seed 12345 for all random events regardless of the actual map_seed. Weather, disease, fire, and wedding events used wrong randomness after load.
+- After: RNGs use the correct map_seed on load. Sequences restart from seed (state not serialized) but use the right seed.
+- Scene test: ALL_SCENES_OK
+- Issues resolved: #050
+- Issues discovered: capital level buffs (edict_tier_cap, iron_mining_bonus) — dead, Low/Medium, noting for future audit.
+- Supervisor correction: none
+
+---
+
 ## [Iteration 93] 2026-06-14 — Fix #049: fog of war entirely non-functional — player["fog_of_war"] never populated
 
 - Delegated to: Supervisor
