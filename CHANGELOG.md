@@ -2,6 +2,19 @@
 
 ---
 
+## [Iteration 88] 2026-06-14 — Fix #044: trading_post produces no gold — missing from ResourceTick production tables
+
+- Delegated to: Supervisor
+- What changed: ResourceTick.gd — added "trading_post": 480 to PRODUCTION_INTERVALS, "trading_post": {"gold": 3} to PRODUCTION_OUTPUTS, and trade_income_bonus scaling for trading_post gold output.
+- Before: trading_post buildings generated no gold. Players who paid 40 wood + 50 gold to build one got nothing. trade_income_bonus tech modifier was also dead.
+- After: each fully-staffed trading_post generates 6 gold/day (3 per worker × 2 workers). trade_routes tech gives +25% → 7–8 gold/day.
+- Scene test: ALL_SCENES_OK
+- Issues resolved: #044
+- Issues discovered: none
+- Supervisor correction: none
+
+---
+
 ## [Iteration 87] 2026-06-14 — Fix #043: TechTree.get_all_modifiers() existed but was called by nothing
 
 - Delegated to: Supervisor

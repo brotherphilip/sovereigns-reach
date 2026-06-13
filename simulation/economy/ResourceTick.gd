@@ -28,6 +28,7 @@ const PRODUCTION_INTERVALS: Dictionary = {
 	"fletcher":          90,   # 4.5s per bow
 	"poleturner":        60,   # 3s per pike
 	"blacksmith":        300,  # 15s per sword (slow — iron required)
+	"trading_post":      480,  # once per game day (24s) — gold income from caravans
 }
 
 # Resource input requirements (what each producer CONSUMES to make output)
@@ -55,6 +56,7 @@ const PRODUCTION_OUTPUTS: Dictionary = {
 	"fletcher":          {"bows": 1},
 	"poleturner":        {"pikes": 1},
 	"blacksmith":        {"swords": 1},
+	"trading_post":      {"gold": 3},
 }
 
 # Per-tick food consumption per peasant (GDD §3.1.3 granary distribution)
@@ -109,6 +111,10 @@ static func tick_building(building: Dictionary, player: Dictionary, current_tick
 			amount = int(ceil(amount * yield_mult))
 		if food_bonus > 0.0 and res in ["apples", "meat", "cheese", "wheat", "hops", "flour", "bread"]:
 			amount = int(ceil(float(amount) * (1.0 + food_bonus)))
+		if res == "gold" and btype == "trading_post":
+			var trade_bonus: float = TechTree.get_all_modifiers(player).get("trade_income_bonus", 0.0)
+			if trade_bonus > 0.0:
+				amount = int(ceil(float(amount) * (1.0 + trade_bonus)))
 		if changes.has(res):
 			changes[res] += amount
 		else:
