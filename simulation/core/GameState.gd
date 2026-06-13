@@ -766,9 +766,15 @@ func _cmd_recruit_unit(cmd: Dictionary) -> bool:
 		return false
 	if not UnitRegistry.has_equipment(unit_type, player):
 		return false
+	# Check raw material availability (has_equipment skips these)
+	var raw_cost: Dictionary = defn.get("cost_resources", {})
+	for item in raw_cost:
+		var needed: int = raw_cost[item]
+		if not player.get("armory", {}).has(item):
+			if player.get("resources", {}).get(item, 0) < needed:
+				return false
 	# Deduct costs
 	player["gold"] = player.get("gold", 0) - cost_gold
-	var raw_cost: Dictionary = defn.get("cost_resources", {})
 	for item in raw_cost:
 		var needed: int = raw_cost[item]
 		if player.get("armory", {}).has(item):

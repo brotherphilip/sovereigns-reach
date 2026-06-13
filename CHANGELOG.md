@@ -2,6 +2,19 @@
 
 ---
 
+## [Iteration 92] 2026-06-14 — Fix #048: raw material check missing — siege engines free when player has no resources
+
+- Delegated to: Supervisor
+- What changed: GameState._cmd_recruit_unit() — added raw material availability check before deduction loop. Moved raw_cost dict declaration before the check block.
+- Before: siege units (battering_ram, trebuchet) could be recruited with 0 wood/iron. has_equipment() skipped raw materials; deduction was maxi(0, 0-30) = 0 (silent no-op).
+- After: recruitment returns false if player lacks sufficient raw materials for any cost_resource not in the armory.
+- Scene test: ALL_SCENES_OK
+- Issues resolved: #048
+- Issues discovered: none
+- Supervisor correction: none
+
+---
+
 ## [Iteration 91] 2026-06-14 — Fix #047: leather_armor, plate_armor, crossbows have no source — 5 unit types permanently locked
 
 - Delegated to: Supervisor
