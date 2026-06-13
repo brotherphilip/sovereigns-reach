@@ -784,6 +784,9 @@ func _cmd_recruit_unit(cmd: Dictionary) -> bool:
 		return false
 	var defn: Dictionary = UnitRegistry.lookup(unit_type)
 	var cost_gold: int = defn.get("cost_gold", 0)
+	var recruit_reduction: float = EdictSystem.get_active_modifiers(player).get("recruitment_cost_reduction", 0.0)
+	if recruit_reduction > 0.0:
+		cost_gold = maxi(0, int(floor(float(cost_gold) * (1.0 - recruit_reduction))))
 	if player.get("gold", 0) < cost_gold:
 		return false
 	if not UnitRegistry.has_equipment(unit_type, player):

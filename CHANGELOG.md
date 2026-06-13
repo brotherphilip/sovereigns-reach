@@ -2,6 +2,19 @@
 
 ---
 
+## [Iteration 100] 2026-06-14 — Fix #056: recruitment_cost_reduction and orchard_yield_bonus edict modifiers never consumed
+
+- Delegated to: Supervisor
+- What changed: GameState._cmd_recruit_unit() — after computing cost_gold, apply EdictSystem recruitment_cost_reduction before gold check. ResourceTick.tick_building() — read orchard_yield_bonus from edict_mods; apply as multiplier to apple_orchard outputs.
+- Before: Mercenary Levy and Harvest Blessing edicts spent edict_points but produced zero simulation effect.
+- After: Mercenary Levy halves unit gold cost; Harvest Blessing boosts apple output by 15% (stacks with farm_yield_bonus).
+- Scene test: ALL_SCENES_OK
+- Issues resolved: #056
+- Issues discovered: none
+- Supervisor correction: none
+
+---
+
 ## [Iteration 99] 2026-06-14 — Fix #055: four TechTree modifiers dead (farm_yield_bonus, mining_rate_bonus, granary_capacity_bonus, market_buy_fee_reduction)
 
 - Delegated to: Supervisor

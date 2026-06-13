@@ -106,6 +106,7 @@ static func tick_building(building: Dictionary, player: Dictionary, current_tick
 	var outputs: Dictionary = PRODUCTION_OUTPUTS.get(btype, {})
 	var edict_mods: Dictionary = EdictSystem.get_active_modifiers(player)
 	var food_bonus: float = edict_mods.get("food_production_bonus", 0.0)
+	var orchard_yield_bonus: float = edict_mods.get("orchard_yield_bonus", 0.0)
 	var tech_mods: Dictionary = TechTree.get_all_modifiers(player)
 	var farm_yield_bonus: float = tech_mods.get("farm_yield_bonus", 0.0)
 	var mining_rate_bonus: float = tech_mods.get("mining_rate_bonus", 0.0)
@@ -118,6 +119,8 @@ static func tick_building(building: Dictionary, player: Dictionary, current_tick
 			amount = int(ceil(float(amount) * (1.0 + food_bonus)))
 		if farm_yield_bonus > 0.0 and btype in ["apple_orchard", "wheat_farm", "hops_farm", "pig_farm", "dairy_farm"]:
 			amount = int(ceil(float(amount) * (1.0 + farm_yield_bonus)))
+		if orchard_yield_bonus > 0.0 and btype == "apple_orchard":
+			amount = int(ceil(float(amount) * (1.0 + orchard_yield_bonus)))
 		if mining_rate_bonus > 0.0 and btype in ["stone_quarry", "iron_mine"]:
 			amount = int(ceil(float(amount) * (1.0 + mining_rate_bonus)))
 		if res == "gold" and btype == "trading_post":
