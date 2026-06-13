@@ -413,7 +413,7 @@ func _test_gamestate_integration() -> void:
 
 	# 4. RECRUIT_UNIT command: place barracks first (no grid so validator skips)
 	p["buildings"].append({
-		"id": 1, "type": "barracks", "is_operational": true,
+		"id": 1, "type": "barracks", "is_active": true,
 		"grid_x": 0, "grid_y": 0, "workers": 1, "owner_id": 0,
 	})
 	p["gold"] = 200

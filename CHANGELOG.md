@@ -2,6 +2,16 @@
 
 ---
 
+## [Iteration 62] 2026-06-14 — Fix #025: WorldMapScene has_method("server_config") always false — world always seed 42
+
+- Delegated to: Supervisor (Omniscience unavailable — Ollama HTTP 500)
+- What changed: WorldMapScene._init_and_build() seed_val calculation simplified from a ternary with `GameState.has_method("server_config")` to a direct `GameState.server_config.get("map_seed", 42)`. Also updated TestPhase6.gd and TestPhase7.gd building fixtures from `is_operational` to `is_active` key for consistency with BuildingState.
+- Issues resolved: #025 (world map always seeds from 42)
+- Issues discovered: none
+- Supervisor correction: none
+
+---
+
 ## [Iteration 61] 2026-06-14 — Fix #024: BuildingRenderer/BuildingLayer wrong field names — buildings always empty
 
 - Delegated to: Supervisor (Omniscience unavailable — Ollama HTTP 500)

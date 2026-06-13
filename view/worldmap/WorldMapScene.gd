@@ -6,16 +6,39 @@ const WorldMapData = preload("res://simulation/world/WorldMapData.gd")
 
 var _world_view: Control = null
 
+var _loading_canvas: CanvasLayer = null
+
 func _ready() -> void:
+	_show_loading()
+	# Defer actual build one frame so the loading screen renders first
+	call_deferred("_init_and_build")
+
+func _show_loading() -> void:
+	_loading_canvas = CanvasLayer.new()
+	_loading_canvas.layer = 100
+	add_child(_loading_canvas)
+	var bg := ColorRect.new()
+	bg.color = Color(0.08, 0.10, 0.07, 1.0)
+	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_loading_canvas.add_child(bg)
+	var lbl := Label.new()
+	lbl.text = "Generating world map…"
+	lbl.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+	lbl.add_theme_font_size_override("font_size", 20)
+	lbl.add_theme_color_override("font_color", Color(0.91, 0.76, 0.26))
+	_loading_canvas.add_child(lbl)
+
+func _init_and_build() -> void:
 	# Generate or reuse world map data
 	if not GameState.world.has("world_map") or GameState.world["world_map"].is_empty():
-		var seed_val: int = GameState.server_config.get("map_seed", 42) \
-		                    if GameState.has_method("server_config") \
-		                    else 42
+		var seed_val: int = GameState.server_config.get("map_seed", 42)
 		GameState.world["world_map"] = WorldMapData.generate(seed_val)
 
 	_build_scene()
 	SimulationClock.set_speed(SimulationClock.SPEED_PAUSED)
+	if _loading_canvas:
+		_loading_canvas.queue_free()
+		_loading_canvas = null
 
 func _build_scene() -> void:
 	var data: Dictionary = GameState.world["world_map"]
@@ -73,6 +96,18 @@ func _build_scene() -> void:
 	menu_btn.pressed.connect(_on_main_menu)
 	top_bar.add_child(menu_btn)
 
+	var last_city_id: int = GameState.world.get("selected_city_id", -1)
+	if last_city_id >= 0:
+		var last_city: Dictionary = GameState.get_city(last_city_id)
+		if not last_city.is_empty():
+			var resume_btn := Button.new()
+			resume_btn.text = "↩ Return to %s" % last_city.get("name", "City")
+			resume_btn.position = Vector2(vp.x - 260, 4)
+			resume_btn.size = Vector2(140, 28)
+			resume_btn.add_theme_font_size_override("font_size", 11)
+			resume_btn.pressed.connect(func(): _fade_to_scene("res://view/cityview/CityViewScene.tscn"))
+			top_bar.add_child(resume_btn)
+
 	# Info panel (bottom-left) — shows selected city info
 	var info_panel := Panel.new()
 	info_panel.name     = "InfoPanel"
@@ -111,9 +146,21 @@ func _on_city_clicked(city_id: int) -> void:
 			info.text = "Entering %s..." % city.get("name", "city")
 			info.add_theme_color_override("font_color", Color.YELLOW)
 
-	# Defer scene change so the label has a frame to render
-	get_tree().create_timer(0.05).timeout.connect(
-		func(): get_tree().change_scene_to_file("res://view/cityview/CityViewScene.tscn"))
+	_fade_to_scene("res://view/cityview/CityViewScene.tscn")
+
+func _fade_to_scene(path: String) -> void:
+	var canvas: CanvasLayer = get_node_or_null("HUD")
+	if not canvas:
+		get_tree().change_scene_to_file(path)
+		return
+	var fade := ColorRect.new()
+	fade.name = "FadeOverlay"
+	fade.color = Color(0, 0, 0, 0)
+	fade.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	canvas.add_child(fade)
+	var tween: Tween = create_tween()
+	tween.tween_property(fade, "color", Color(0, 0, 0, 1), 0.35)
+	tween.tween_callback(func(): get_tree().change_scene_to_file(path))
 
 func _on_main_menu() -> void:
 	get_tree().change_scene_to_file("res://view/menu/MainMenuScene.tscn")

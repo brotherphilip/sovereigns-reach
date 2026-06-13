@@ -245,7 +245,7 @@ func _test_building_renderer() -> void:
 
 	# Use wheat_farm (category FOOD, has produces)
 	var farm_empty: Dictionary = {
-		"type": "wheat_farm", "is_operational": false, "workers": 0,
+		"type": "wheat_farm", "is_active": false, "workers": 0,
 		"is_on_fire": false, "hp": 40, "max_hp": 40, "grid_x": 5, "grid_y": 5,
 	}
 	var vs_empty: Dictionary = BuildingRenderer.get_visual_state(farm_empty)
@@ -255,7 +255,7 @@ func _test_building_renderer() -> void:
 
 	# working wheat_farm
 	var farm_working: Dictionary = {
-		"type": "wheat_farm", "is_operational": true, "workers": 2,
+		"type": "wheat_farm", "is_active": true, "workers": 2,
 		"is_on_fire": false, "hp": 40, "max_hp": 40, "grid_x": 5, "grid_y": 5,
 	}
 	var vs_work: Dictionary = BuildingRenderer.get_visual_state(farm_working)
@@ -264,7 +264,7 @@ func _test_building_renderer() -> void:
 
 	# on fire
 	var farm_fire: Dictionary = {
-		"type": "wheat_farm", "is_operational": true, "workers": 2,
+		"type": "wheat_farm", "is_active": true, "workers": 2,
 		"is_on_fire": true, "hp": 30, "max_hp": 40, "grid_x": 5, "grid_y": 5,
 	}
 	var vs_fire: Dictionary = BuildingRenderer.get_visual_state(farm_fire)

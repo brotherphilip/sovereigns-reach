@@ -3,6 +3,10 @@
 <!-- Format: ## [ID] Title | Severity: Blocker/High/Medium/Low | Status: Open/In Progress/Resolved/Byproduct -->
 <!-- Severities: Blocker=crashes/data loss, High=broken feature, Medium=wrong behavior, Low=polish/text -->
 
+## [025] WorldMapScene uses has_method("server_config") — always evaluates false, world always seeds from 42 | Severity: Low | Status: Resolved
+WorldMapScene._init_and_build() line 34–36: `GameState.server_config.get("map_seed", 42) if GameState.has_method("server_config") else 42`. `server_config` is a Dictionary var, not a method — `has_method()` always returns false. World map generation always used seed 42 regardless of the actual map seed set by setup_world().
+Resolution: Removed the has_method guard. Now reads `GameState.server_config.get("map_seed", 42)` directly.
+
 ## [024] BuildingRenderer/BuildingLayer use wrong field names — buildings always render as "empty" (no work animation, fire animation loop broken) | Severity: Medium | Status: Resolved
 BuildingRenderer.get_visual_state() line 21 read `building.get("is_operational", false)` — BuildingState uses `is_active` (never writes `is_operational`). Default false meant `is_op` was always false → condition `if not is_op or workers == 0` at line 43 always true → all buildings returned `"state": "empty"` (dark tint, idle animation) regardless of workers assigned. No building ever showed "working" state/animation. Separately, BuildingLayer._on_tick() set `_has_fire` by checking `b.get("state", "") == "fire"` on raw GameState building dicts (which have no `"state"` field — that field is in the computed view-state dict, not the simulation dict). `_has_fire` was always false, breaking the per-frame fire animation redraw in `_process()`.
 Resolution: BuildingRenderer.gd: changed `is_operational` → `is_active`, default `true`. BuildingLayer.gd: changed `b.get("state", "") == "fire"` → `b.get("is_on_fire", false)` to read the actual simulation field. Buildings with workers now show "working" state; burning buildings now trigger per-frame animation redraw.
