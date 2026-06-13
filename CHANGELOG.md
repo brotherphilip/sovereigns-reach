@@ -2,6 +2,19 @@
 
 ---
 
+## [Iteration 106] 2026-06-14 — Fix #062: AleSystem.tick() return discarded — ale shortage had no popularity consequence
+
+- Delegated to: Supervisor
+- What changed: GameState._tick_player_economy() — captured return dict from AleSystem.tick(); when ale_shortage > 0, scales player["inn_coverage"] by (ale_consumed / ale_total) so PopularityEngine.apply_tick() receives the reduced effective coverage.
+- Before: Running out of ale stock was a silent cosmetic problem — inn_coverage stayed high, ΔA popularity term was unaffected. Players could maintain max ale popularity forever once they built inns, regardless of ale supply.
+- After: Ale shortages proportionally reduce effective inn coverage → ΔA drops → popularity falls when supply can't meet ration demand.
+- Scene test: ALL_SCENES_OK
+- Issues resolved: #062
+- Issues discovered: none
+- Supervisor correction: none
+
+---
+
 ## [Iteration 105] 2026-06-14 — Fix #061: Mud Roads edict rain_movement_penalty modifier never consumed
 
 - Delegated to: Supervisor

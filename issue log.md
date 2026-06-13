@@ -3,6 +3,10 @@
 <!-- Format: ## [ID] Title | Severity: Blocker/High/Medium/Low | Status: Open/In Progress/Resolved/Byproduct -->
 <!-- Severities: Blocker=crashes/data loss, High=broken feature, Medium=wrong behavior, Low=polish/text -->
 
+## [062] AleSystem.tick() return value discarded — ale shortage never reduces popularity | Severity: Medium | Status: Resolved
+`AleSystem.tick()` returns `{"ale_consumed", "ale_shortage"}` on day boundaries; `GameState._tick_player_economy()` called it as a void statement, discarding the result. `inn_coverage` was set by the ale tick (based on physical inn count) but the shortage had no effect. If a player ran out of ale stock while keeping ale_ration=2 (normal), `_ale_score()` in PopularityEngine still returned `ALE_RATION_POPULARITY[2] * coverage = 5 * coverage` as if ale was flowing. Running out of ale had zero popularity consequence beyond ale stock showing 0.
+Resolution: Captured the return dict; when `ale_shortage > 0`, scale `player["inn_coverage"]` by `ale_consumed / (ale_consumed + ale_shortage)` before PopularityEngine.apply_tick() reads it. Scene test: ALL_SCENES_OK.
+
 ## [061] rain_movement_penalty edict modifier dead — Mud Roads edict never negates rain movement penalty | Severity: Low | Status: Resolved
 EdictSystem defines "mud_roads" edict with modifier `{"rain_movement_penalty": 0.0, "fire_risk_reduction": 1.0}`. fire_risk_reduction is wired. rain_movement_penalty: 0.0 was never read. Since #060 wired weather.movement_penalty into unit speed, this edict should override rain's ×0.7 speed penalty to ×1.0 when active.
 Resolution: In _tick_player_unit_movement(), after reading weather_penalty, if current weather is RAIN and EdictSystem.get_active_modifiers(player) has rain_movement_penalty ≤ 0.0, set weather_penalty to 1.0 (no penalty). Scene test: ALL_SCENES_OK.

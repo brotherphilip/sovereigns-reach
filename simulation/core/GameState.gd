@@ -241,7 +241,15 @@ func _tick_player_economy(player: Dictionary, tick: int) -> void:
 			EventBus.building_destroyed.emit(player.get("id", 0), building.get("id", -1), "fire")
 
 	# Phase 4: update live coverage values every tick (needed by PopularityEngine)
-	AleSystem.tick(player, tick)    # updates inn_coverage, consumes ale at day boundaries
+	var _ale_result: Dictionary = AleSystem.tick(player, tick)
+	# If ale stock ran short, scale inn_coverage by the delivery ratio so the shortage
+	# reduces the ΔA popularity term proportionally (shortage > 0 only on day boundaries).
+	var _ale_shortage: int = _ale_result.get("ale_shortage", 0)
+	if _ale_shortage > 0:
+		var _ale_consumed: int = _ale_result.get("ale_consumed", 0)
+		var _ale_total: int = _ale_consumed + _ale_shortage
+		if _ale_total > 0:
+			player["inn_coverage"] = player.get("inn_coverage", 0.0) * float(_ale_consumed) / float(_ale_total)
 	ReligionSystem.tick(player)     # updates religion_coverage
 
 	# Everything below only fires at day boundaries
