@@ -2,6 +2,19 @@
 
 ---
 
+## [Iteration 74] 2026-06-14 — Audit pass: all clear, no new issues
+
+- Delegated to: Supervisor (STEP 3D — Audit)
+- What changed: no code changes
+- GDD spot-checks: DiseaseSystem (disease_active gated correctly), UnitState kill guard (is_alive check before unit_killed.emit), CapitalSystem upgrade wiring (_cmd_donate_to_capital), AudioManager signal connections (all 8 EventBus connections match declared signals) — all clean
+- TODO/FIXME/HACK grep: nothing found across simulation/ and view/
+- Scene test: CityViewScene.tscn and Main.tscn load OK (ALL_SCENES_OK)
+- Issues resolved: none
+- Issues discovered: none
+- Supervisor correction: none
+
+---
+
 ## [Iterations 70-72] 2026-06-14 — Fix #032 #033 #034: deep audit bugs (demolished building production, weather display)
 
 - Delegated to: Supervisor
