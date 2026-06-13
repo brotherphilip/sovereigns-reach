@@ -2,6 +2,37 @@
 
 ---
 
+## [Iterations 70-72] 2026-06-14 — Fix #032 #033 #034: deep audit bugs (demolished building production, weather display)
+
+- Delegated to: Supervisor
+- What changed:
+  - #032 (iter 70): GameState._tick_player_economy() — added `or not building.get("is_active", true)` guard before calling ResourceTick.tick_building(). Buildings with hp=0 (demolished/on fire) were still producing resources.
+  - #033 (iter 71): HUDNode._refresh_top_bar() and HUDController.get_hud_data() — replaced `weather.get("current_name", …)` with `WeatherSystem.weather_name(weather.get("current", 0))`. The weather dict never had a "current_name" key; WeatherSystem only stores the weather type as an int under "current". The HUD weather label was permanently stuck showing "Clear".
+  - #034 (iter 72): HUDController.get_weather_tooltip() — fixed three key mismatches vs WeatherSystem.WEATHER_EFFECTS: "speed_modifier"→"movement_penalty", "farm_yield"→"farm_yield_mult", and `weather.get("popularity_delta")` → `weather["effects"].get("popularity_delta")`. All effects were invisible in the tooltip. Added WeatherSystem preload to both HUDNode.gd and HUDController.gd.
+- Issues resolved: #032 #033 #034
+- Issues discovered: none (full audit of all 67 GDScript files complete — EventBus signal consistency verified)
+
+---
+
+## [Iteration 69] 2026-06-14 — Fix #031: player shire_id never assigned
+
+- Delegated to: Supervisor
+- What changed: GameState._make_player() — added `"shire_ids": []` key. New `_assign_starting_shire()` function finds nearest unclaimed shire to player's start position, sets player["shire_id"] and player["shire_ids"] = [shire_id], marks shire["owner_id"] = player_id. Called from initialize_player(). Before this, shire_id was always -1: donations silently failed, PrestigeSystem capital multiplier always returned 0, TaxSystem shire modifier always returned 0, milestone "three_shires" could never trigger.
+- Issues resolved: #031
+- Issues discovered: none
+
+---
+
+## [Iterations 67-68] 2026-06-14 — Fix #023: unit movement never executes; commit 791 lines of phase work
+
+- Delegated to: Supervisor
+- What changed (iter 67): GameState._cmd_issue_move_order() now calls Pathfinder.find_path() and stores result in unit["move_path"]. New _tick_player_unit_movement() advances units along their path at speed-gated intervals (TICKS_PER_DAY / speed). Called from simulate_tick(). Previously, UnitState.issue_move_order() set order/target but no tick ever advanced position.
+- What changed (iter 68): committed 791 lines of unstaged phase implementation work across 18 files (AudioManager UNIT_HIT/DEATH events; DiplomacySystem embargo; TutorialSystem persistence; SaveManager meta; HUDController tooltips; DiplomacyPanel threat bar; NotificationFeed fade animation; TechTreePanelController hints; GameBootstrap tutorial overlay; PlayerInputHandler set_building_layer; UnitLayer damage popups/death ring/hit flash/morale color shift; and more).
+- Issues resolved: #023
+- Issues discovered: #031 (during audit)
+
+---
+
 ## [Iteration 66] 2026-06-14 — Fix #030: MacroMapView shire flash animation never fires — wrong dict key
 
 - Delegated to: Supervisor (Omniscience unavailable — Ollama HTTP 500)
