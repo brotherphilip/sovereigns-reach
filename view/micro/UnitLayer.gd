@@ -30,7 +30,7 @@ func _on_tick(_tick: int) -> void:
 	for fac in GameState.ai_factions:
 		if fac is Dictionary:
 			for unit in fac.get("units", []):
-				if unit is Dictionary:
+				if unit is Dictionary and GameState.visibility.has("%d,%d" % [unit.get("pos_x", 0), unit.get("pos_y", 0)]):
 					_ai_units.append(unit)
 	queue_redraw()
 

@@ -42,7 +42,7 @@ func _refresh() -> void:
 	for fac in GameState.ai_factions:
 		if fac is Dictionary:
 			for bld in fac.get("buildings", []):
-				if bld is Dictionary:
+				if bld is Dictionary and GameState.visibility.has("%d,%d" % [bld.get("grid_x", 0), bld.get("grid_y", 0)]):
 					_enemy_buildings.append(bld)
 	queue_redraw()
 

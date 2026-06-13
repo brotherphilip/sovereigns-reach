@@ -49,3 +49,11 @@ notes = 3 buildings + trade_networks tech; added gold production support to Reso
 files changed = res://simulation/core/TutorialSystem.gd, res://project.godot, res://view/main/GameBootstrap.gd
 tests = boot smoke clean, TestPhase7 98/0
 notes = contextual tutorial hints surfaced via the notification feed; uses real building keys (woodcutter_camp/wheat_farm/granary)
+
+## Phase 6 — Fog of War — STARTED
+
+## Phase 6 — COMPLETE
+
+files changed = res://simulation/world/VisibilitySystem.gd, res://simulation/core/GameState.gd, res://view/micro/BuildingLayer.gd, res://view/micro/UnitLayer.gd
+tests = fog functional PASS, boot smoke clean, TestPhase6 81/0
+notes = enemy fog (terrain stays visible); watchtower gives early warning of approaching armies
