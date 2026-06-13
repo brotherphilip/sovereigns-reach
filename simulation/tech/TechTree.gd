@@ -140,7 +140,7 @@ const TECHS: Dictionary = {
 		"name": "Siege Engines",
 		"branch": Branch.MILITARY, "tier": 4, "cost_prestige": 1000,
 		"requires": ["unit_unlocks", "refining_processing"],
-		"unlocks_buildings": ["siege_tent"],
+		"unlocks_buildings": ["siege_workshop"],
 		"unlocks_units": ["battering_ram", "catapult", "trebuchet"],
 		"unlocks_edicts": [],
 		"modifiers": {},
