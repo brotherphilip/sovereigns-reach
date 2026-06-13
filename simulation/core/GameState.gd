@@ -283,7 +283,12 @@ func _tick_player_economy(player: Dictionary, tick: int) -> void:
 					continue
 				if building.get("is_on_fire", false):
 					continue
-				if _fire_rng.randf() < fire_risk:
+				# Scale ignition chance by per-building flammability (0.04 = hovel baseline).
+				# Buildings with fire_risk=0.0 (stone) are immune; pitch_rig (0.12) is 3× more likely.
+				var per_bld_risk: float = BuildingRegistry.lookup(building.get("type", "")).get("fire_risk", 0.0)
+				if per_bld_risk == 0.0:
+					continue
+				if _fire_rng.randf() < fire_risk * (per_bld_risk / 0.04):
 					BuildingState.ignite(building)
 
 		# Phase 2 food consumption (ResourceTick handles production quantities)

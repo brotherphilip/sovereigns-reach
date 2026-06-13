@@ -2,6 +2,19 @@
 
 ---
 
+## [Iteration 102] 2026-06-14 — Fix #058: per-building fire_risk magnitude dead in ignition probability calculation
+
+- Delegated to: Supervisor
+- What changed: GameState fire ignition loop — before RNG roll, read per-building fire_risk from BuildingRegistry; skip immune buildings (fire_risk=0.0) without an RNG call; roll against fire_risk * (per_bld_risk / 0.04) so hovel=baseline, pitch_rig=3×, armory=2×.
+- Before: all non-immune buildings had identical ignition probability = weather_fire_risk.
+- After: pitch rigs burn 3× more often; armories/siege workshops 2×; hovels/mills at baseline; stone structures skipped entirely.
+- Scene test: ALL_SCENES_OK
+- Issues resolved: #058
+- Issues discovered: none
+- Supervisor correction: none
+
+---
+
 ## [Iteration 101] 2026-06-14 — Fix #057: remove dead "heatwave" entry from PopularityEngine.EVENT_POPULARITY_DELTA
 
 - Delegated to: Supervisor

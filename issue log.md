@@ -3,6 +3,10 @@
 <!-- Format: ## [ID] Title | Severity: Blocker/High/Medium/Low | Status: Open/In Progress/Resolved/Byproduct -->
 <!-- Severities: Blocker=crashes/data loss, High=broken feature, Medium=wrong behavior, Low=polish/text -->
 
+## [058] Per-building fire_risk magnitude from BuildingRegistry never factored into ignition probability | Severity: Low | Status: Resolved
+BuildingRegistry defines `fire_risk` per building type encoding relative flammability: pitch_rig=0.12 (3×), armory=0.08 (2×), hovel=0.04 (1×), stone_wall=0.0 (immune). GameState fire ignition loop rolled `_fire_rng.randf() < weather_fire_risk` uniformly for all non-immune buildings, then called `BuildingState.ignite()` which only uses fire_risk as a binary >0.0 check. Stone buildings (fire_risk=0.0) were correctly immune, but the magnitude information (0.04 vs 0.12) was dead — pitch rigs had the same daily ignition probability as hovels during drought.
+Resolution: In the ignition loop, read per_bld_risk from BuildingRegistry; skip immune (0.0) buildings early; scale the roll threshold by (per_bld_risk / 0.04) so hovel=baseline, pitch_rig=3×, armory=2×. Scene test: ALL_SCENES_OK.
+
 ## [057] "heatwave" entry in PopularityEngine.EVENT_POPULARITY_DELTA dead — WeatherSystem has no HEATWAVE type | Severity: Low | Status: Resolved
 PopularityEngine.EVENT_POPULARITY_DELTA maps "heatwave" to -4. But WeatherSystem.WeatherType has only CLEAR/RAIN/DROUGHT/SNOW/FOG/STORM — no HEATWAVE. No code ever appends "heatwave" to the events array passed to apply_tick(). The entry is permanently dead (like "ai_tribute_refused" and "levy_summons" removed in iteration 83). get("heatwave", 0.0) in _event_delta() always returns 0.
 Resolution: Removed "heatwave": -4 from EVENT_POPULARITY_DELTA. Scene test: ALL_SCENES_OK.
