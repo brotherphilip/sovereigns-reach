@@ -81,3 +81,15 @@ notes = 4 difficulty levels scaling AI threat / tax income / food consumption; s
 files changed = view/micro/IsometricGrid.gd, view/micro/BuildingLayer.gd
 tests = all 625 pass, boot smoke clean
 notes = camera-driven terrain redraw + dirty-flagged building list rebuild; no behavior change
+
+## Phase 10 — Documentation & Release — STARTED
+
+## Phase 10 — COMPLETE
+
+files changed = CHANGELOG.md, ROADMAP.md, OMNISCIENCE_LOG.md
+tests = all 625 pass
+notes = updated docs for v2.0 release
+
+## ALL PHASES COMPLETE
+
+10 phases done; all 625 headless tests pass; the game gained audio, stacking notifications, adaptive AI (with a latent targeting-bug fix), 3 buildings + a tech, a tutorial, enemy fog of war, diplomacy accept/refuse, difficulty scaling, and render-performance improvements.

@@ -160,3 +160,10 @@
 - [x] `tests/TestPhase9.gd` — 40 tests: WorldMapData (20), WorldMapController (15), ShireMap-60 (5) — all passing
 
 Last updated: 2026-06-13
+
+---
+
+## AI-DRIVEN IMPROVEMENTS (v2.0) ✅ COMPLETE
+**Executed by the Omniscience AI assistant (qwen3-coder:30b, local) under guardian supervision — 10 phases, each git-snapshotted, parser-validated, and test-gated.**
+Audio system · stacking notifications · adaptive AI (+ latent targeting-bug fix) · new buildings & tech · tutorial · enemy fog of war · diplomacy accept/refuse UI · difficulty scaling · render performance.
+All 625 headless tests pass. Tagged `v2.0-ai-improved`. Full per-phase record in `OMNISCIENCE_LOG.md`.

@@ -2,6 +2,26 @@
 
 ---
 
+## 2026-06-13 — v2.0: AI-Driven Improvements (Omniscience, 10 phases)
+
+Ten improvement phases executed by the Omniscience AI assistant (qwen3-coder:30b, local) under guardian supervision. Each phase took a git snapshot, validated every edit with the Godot parser, and ran the headless test suites before committing.
+
+| Phase | Improvement |
+|-------|-------------|
+| 1 | **Audio system** — `AudioManager` autoload maps 8 EventBus signals to sound triggers (drop-in `.ogg` ready). |
+| 2 | **Stacking notification feed** — upgraded the single-label notification to a 5-message timed feed; added a popularity-critical alert. |
+| 3 | **Adaptive AI** — `assess_player_strength()` drives targeting (fixed a latent bug: targeting had used a non-existent `military_strength` field, always 0); all 4 factions adapt aggression/embargo/tribute to real player strength. |
+| 4 | **New buildings & tech** — Watchtower (vision), Trading Post (gold income), Siege Workshop, and a `trade_networks` tech; added gold-output support to `ResourceTick`. |
+| 5 | **Tutorial system** — `TutorialSystem` autoload guides new players (Woodcutter's Camp -> farm -> Granary) via the notification feed. |
+| 6 | **Fog of war (enemy fog)** — `VisibilitySystem` hides enemy units/buildings until within player vision; watchtowers give early warning. Terrain stays visible. |
+| 7 | **Diplomacy** — player-facing Accept/Refuse UI for AI tribute demands, built on the existing tribute backend; refusal angers the faction. |
+| 8 | **Difficulty scaling** — 4 levels (Peaceful->Siege Lord) scaling AI threat, tax income, and food pressure; main-menu selector. |
+| 9 | **Performance** — camera-driven terrain redraw (was every tick) and dirty-flagged building-list rebuild. |
+
+All 625 tests across the 9 phase suites pass. See `OMNISCIENCE_LOG.md` for the per-phase record.
+
+---
+
 ## 2026-06-13 — Phase 9: Main Menu, World Map & Visual Overhaul
 
 ### Files Created
