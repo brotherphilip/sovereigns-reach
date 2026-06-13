@@ -2,6 +2,19 @@
 
 ---
 
+## [Iteration 93] 2026-06-14 — Fix #049: fog of war entirely non-functional — player["fog_of_war"] never populated
+
+- Delegated to: Supervisor
+- What changed: GameState._tick_server() — after VisibilitySystem.recompute(self), copy visibility dict to players[0]["fog_of_war"] and emit fog_of_war_updated signal.
+- Before: MacroViewController read player["fog_of_war"] (always {}) — entire map appeared as fog. VisibilitySystem was correctly computing visibility to GameState.visibility but the view never saw it.
+- After: every game-day, player["fog_of_war"] is updated to reflect current visibility and the view layer receives the update via EventBus.
+- Scene test: ALL_SCENES_OK
+- Issues resolved: #049
+- Issues discovered: capital level buffs (edict_tier_cap, iron_mining_bonus, ai_warning_bonus, border_radius_bonus) are dead — not consumed by any system.
+- Supervisor correction: none
+
+---
+
 ## [Iteration 92] 2026-06-14 — Fix #048: raw material check missing — siege engines free when player has no resources
 
 - Delegated to: Supervisor

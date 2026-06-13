@@ -415,6 +415,9 @@ func simulate_tick(tick: int) -> void:
 	# Phase 6: tick AI factions each game-day
 	if tick > 0 and tick % SimulationClock.TICKS_PER_GAME_DAY == 0:
 		VisibilitySystem.recompute(self)
+		if not players.is_empty():
+			players[0]["fog_of_war"] = visibility.duplicate()
+			EventBus.fog_of_war_updated.emit(0, visibility.keys())
 		for faction in ai_factions:
 			if not (faction is Dictionary and faction.get("is_alive", false)):
 				continue
