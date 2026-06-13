@@ -2,6 +2,19 @@
 
 ---
 
+## [Iteration 80] 2026-06-14 — Audit: full command handler payload audit — all clear
+
+- Delegated to: Supervisor (STEP 3D — Audit)
+- What changed: no code changes
+- Audited all 17 implemented command handlers in GameState.apply_command() against their callers in PlayerInputHandler.gd, GameBootstrap.gd, CityViewScene.gd — all payload keys match
+- UPGRADE_BUILDING and SET_TRADE_ROUTE are enum stubs with no callers — harmless, not bugs
+- Confirmed #036 fix was the only payload key mismatch across all commands
+- Issues resolved: none
+- Issues discovered: none
+- Supervisor correction: none
+
+---
+
 ## [Iteration 79] 2026-06-14 — Fix #036: market trade silently broken — payload key mismatch
 
 - Delegated to: Supervisor
