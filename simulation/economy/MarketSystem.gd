@@ -22,9 +22,12 @@ const BASE_PRICES: Dictionary = {
 	"bread":   5,
 	"ale":     8,
 	# Armory
-	"bows":    12,
-	"pikes":   10,
-	"swords":  18,
+	"bows":         12,
+	"crossbows":    20,
+	"pikes":        10,
+	"swords":       18,
+	"leather_armor": 15,
+	"plate_armor":   25,
 }
 
 # Price fluctuation range (±30% around base)

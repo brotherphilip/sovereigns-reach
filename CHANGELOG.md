@@ -2,6 +2,19 @@
 
 ---
 
+## [Iteration 91] 2026-06-14 — Fix #047: leather_armor, plate_armor, crossbows have no source — 5 unit types permanently locked
+
+- Delegated to: Supervisor
+- What changed: MarketSystem.gd BASE_PRICES — added crossbows (20g), leather_armor (15g), plate_armor (25g).
+- Before: pikeman, swordsman, halberdier, captain, crossbowman could never be recruited. No building produces these items and they weren't on the market. Over half the military roster was permanently inaccessible.
+- After: players can purchase armor and crossbows through the market to unlock the full unit roster.
+- Scene test: ALL_SCENES_OK
+- Issues resolved: #047
+- Issues discovered: none
+- Supervisor correction: none
+
+---
+
 ## [Iteration 90] 2026-06-14 — Fix #046: unit recruitment equipment never deducted — armory exploit
 
 - Delegated to: Supervisor
