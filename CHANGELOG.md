@@ -2,6 +2,18 @@
 
 ---
 
+## [Iteration 85] 2026-06-14 — Fix #041: remove dead "ai_tribute_refused" and "levy_summons" entries from PopularityEngine
+
+- Delegated to: Supervisor
+- What changed: PopularityEngine.gd — removed "ai_tribute_refused": −2 and "levy_summons": −8 from EVENT_POPULARITY_DELTA. Both had actual effects implemented elsewhere at very different magnitudes (−5 and −50 direct, vs −0.1 and −0.4 via events).
+- Before: dead entries implied wrong gameplay costs; code readers would misunderstand the popularity impact of tribute refusal and levy summons.
+- Scene test: ALL_SCENES_OK
+- Issues resolved: #041
+- Issues discovered: none
+- Supervisor correction: none
+
+---
+
 ## [Iteration 84] 2026-06-14 — Fix #040: church "wedding_event" never fired — building description promised feature was unimplemented
 
 - Delegated to: Supervisor

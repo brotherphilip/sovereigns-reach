@@ -59,10 +59,8 @@ const EVENT_POPULARITY_DELTA: Dictionary = {
 	"rain":               -1,
 	"heatwave":           -4,
 	"drought":            -3,
-	"festival":           +8,   # Royal Edict bonus
-	"ai_tribute_refused": -2,
-	"wedding_event":      +4,   # Church event
-	"levy_summons":       -8,   # Forced conscription Edict
+	"festival":           +8,   # Royal Edict bonus (fired via instant_event)
+	"wedding_event":      +4,   # Church random event
 }
 
 # Returns the full popularity delta for one game-day tick.

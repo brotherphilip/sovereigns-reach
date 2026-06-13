@@ -3,6 +3,10 @@
 <!-- Format: ## [ID] Title | Severity: Blocker/High/Medium/Low | Status: Open/In Progress/Resolved/Byproduct -->
 <!-- Severities: Blocker=crashes/data loss, High=broken feature, Medium=wrong behavior, Low=polish/text -->
 
+## [041] Dead EVENT_POPULARITY_DELTA entries with misleading magnitudes — "ai_tribute_refused" and "levy_summons" | Severity: Low | Status: Resolved
+PopularityEngine.EVENT_POPULARITY_DELTA contained two entries that were never appended to any events array: "ai_tribute_refused": −2 and "levy_summons": −8. Their actual effects are implemented differently: DiplomacySystem.refuse() directly subtracts 5.0 from popularity (50× larger than −2 × 0.05 = −0.1), and the levy_summons edict applies "popularity_delta": −50 directly (125× larger than −8 × 0.05 = −0.4). The dead entries were misleading — a reader would infer tribute refusal costs −0.1 pop and levy costs −0.4 pop when the real costs are −5.0 and −50.0.
+Resolution: Removed "ai_tribute_refused" and "levy_summons" from EVENT_POPULARITY_DELTA. Both effects are correctly applied by their respective systems; these entries were dead code. Scene test: ALL_SCENES_OK.
+
 ## [040] "wedding_event" never fired — church description promises "Marriage events give popularity spikes" but no code generates it | Severity: Medium | Status: Resolved
 BuildingRegistry church entry description reads "Distributes Faith. Marriage events give popularity spikes." PopularityEngine.EVENT_POPULARITY_DELTA defines "wedding_event": +4. However, no code in GameState or any system ever appended "wedding_event" to the events array. Churches provided zero random popularity events despite the promise in the building description visible to the player.
 Resolution: Added `_social_rng` (seeded from map_seed ^ 0xBEEF1234) to GameState. In the day-boundary tick block, if player's religion_coverage >= 0.3, rolls `(coverage − 0.3) × 0.1` chance to append "wedding_event". At 50% coverage: ~2%/day; at 100%: ~7%/day. Gives +4 × 0.05 = +0.2 popularity on event days. Scene test: ALL_SCENES_OK.
