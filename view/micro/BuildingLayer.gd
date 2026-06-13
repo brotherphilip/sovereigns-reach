@@ -20,11 +20,33 @@ const BuildingRenderer  = preload("res://view/micro/BuildingRenderer.gd")
 var _buildings:       Array = []
 var _enemy_buildings: Array = []
 var _structure_dirty: bool = true
+var _has_fire:        bool = false
+
+# Ghost preview state (build-mode cursor)
+var _ghost_type:  String = ""
+var _ghost_gx:    int    = 0
+var _ghost_gy:    int    = 0
+var _ghost_valid: bool   = true
+
+func set_ghost(btype: String, gx: int, gy: int, valid: bool) -> void:
+	_ghost_type  = btype
+	_ghost_gx    = gx
+	_ghost_gy    = gy
+	_ghost_valid = valid
+	queue_redraw()
+
+func clear_ghost() -> void:
+	_ghost_type = ""
+	queue_redraw()
 
 func _ready() -> void:
 	EventBus.simulation_tick.connect(_on_tick)
 	EventBus.building_placed.connect(_on_building_placed)
 	EventBus.building_demolished.connect(_on_building_removed)
+
+func _process(_delta: float) -> void:
+	if _ghost_type != "" or _has_fire:
+		queue_redraw()
 
 func _on_tick(tick: int) -> void:
 	# Rebuild the lists only on structure change or daily (fog refresh); the per-tick
@@ -32,6 +54,11 @@ func _on_tick(tick: int) -> void:
 	if _structure_dirty or tick % 240 == 0:
 		_rebuild()
 		_structure_dirty = false
+	_has_fire = false
+	for b in _buildings:
+		if b is Dictionary and b.get("is_on_fire", false):
+			_has_fire = true
+			break
 	queue_redraw()
 
 func _on_building_placed(_pid, _btype, _gx, _gy, _bid) -> void:
@@ -53,6 +80,8 @@ func _rebuild() -> void:
 
 func _draw() -> void:
 	# Combine and depth-sort by grid_x + grid_y ascending (back-to-front)
+	if _ghost_type != "":
+		_draw_ghost()
 	var all: Array = []
 	for b in _enemy_buildings:
 		if b is Dictionary: all.append({"b": b, "enemy": true})
@@ -85,6 +114,10 @@ func _draw_building(b: Dictionary, is_enemy: bool) -> void:
 		"damaged": base_color = Color(0.8, 0.5, 0.3)
 		"fire":    base_color = Color(1.0, 0.4, 0.1)
 		"working": pass  # keep category color
+
+	var max_w: int = defn.get("max_workers", 0)
+	if max_w > 0 and int(b.get("workers", 0)) == 0 and vs.get("state", "") == "working":
+		base_color = base_color.darkened(0.30)
 
 	# Footprint corners in iso-space (painter's algorithm order)
 	var cx: float    = (gx - gy) * HALF_W
@@ -171,6 +204,11 @@ func _draw_building(b: Dictionary, is_enemy: bool) -> void:
 	draw_string(ThemeDB.fallback_font, center + Vector2(-20, -wall_height - ridge_h + 6),
 		name_str, HORIZONTAL_ALIGNMENT_LEFT, -1, 8, Color.WHITE.darkened(0.1))
 
+	# ── No-worker alert icon ───────────────────────────────────────────────────
+	if max_w > 0 and int(b.get("workers", 0)) == 0 and vs.get("state", "") == "working":
+		draw_string(ThemeDB.fallback_font, center + Vector2(-5, -wall_height - ridge_h - 2),
+			"!", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(1.0, 0.65, 0.1, 0.9))
+
 	# ── HP bar ────────────────────────────────────────────────────────────────
 	var hp_ratio: float = vs.get("hp_bar", 1.0)
 	if hp_ratio < 0.99:
@@ -178,8 +216,64 @@ func _draw_building(b: Dictionary, is_enemy: bool) -> void:
 		var bar_x: float = center.x - bar_w * 0.5
 		var bar_y: float = top_up.y - 6.0
 		draw_rect(Rect2(bar_x, bar_y, bar_w, 4.0), Color(0.3, 0.1, 0.1))
-		draw_rect(Rect2(bar_x, bar_y, bar_w * hp_ratio, 4.0), Color(0.1, 0.9, 0.2))
+		var hp_col: Color = (
+			Color(0.1, 0.9, 0.2).lerp(Color(0.95, 0.85, 0.05), 1.0 - clampf(hp_ratio * 2.0 - 1.0, 0.0, 1.0))
+			if hp_ratio > 0.5
+			else Color(0.95, 0.85, 0.05).lerp(Color(0.95, 0.15, 0.1), 1.0 - clampf(hp_ratio * 2.0, 0.0, 1.0))
+		)
+		draw_rect(Rect2(bar_x, bar_y, bar_w * hp_ratio, 4.0), hp_col)
 
-	# ── Fire indicator ────────────────────────────────────────────────────────
+	# ── Fire indicator (animated flicker) ────────────────────────────────────
 	if vs.get("show_fire", false):
-		draw_circle(center + Vector2(0, -wall_height * 0.5), 8.0, Color(1.0, 0.5, 0.0, 0.8))
+		var t: float       = Time.get_ticks_msec() * 0.001
+		var f1: float      = 0.70 + 0.30 * sin(t * 7.3)
+		var f2: float      = 0.80 + 0.20 * sin(t * 11.7 + 1.2)
+		var fire_c: Vector2 = center + Vector2(0, -wall_height * 0.55)
+		draw_circle(fire_c, 11.0 * f1, Color(1.0, 0.20, 0.0, 0.28))
+		draw_circle(fire_c + Vector2(sin(t * 5.1) * 2.0, 0), 7.5 * f2, Color(1.0, 0.42, 0.0, 0.85))
+		draw_circle(fire_c + Vector2(sin(t * 8.7) * 1.5, -2.5 * f1), 4.5 * f2, Color(1.0, 0.78, 0.1, 0.90))
+		draw_circle(fire_c + Vector2(sin(t * 13.1) * 1.0, -5.0 * f2), 2.2 * f1, Color(1.0, 1.0, 0.65, 0.80))
+
+func _draw_ghost() -> void:
+	var pulse: float = 0.45 + 0.20 * sin(Time.get_ticks_msec() * 0.006)
+	var tint: Color  = Color(0.35, 1.0, 0.35) if _ghost_valid else Color(1.0, 0.30, 0.30)
+
+	var defn: Dictionary  = BuildingRegistry.lookup(_ghost_type)
+	var w: int            = defn.get("width",  1)
+	var h: int            = defn.get("height", 1)
+	var cat: int          = defn.get("category", 0)
+	var base: Color       = CAT_COLORS[mini(cat, CAT_COLORS.size() - 1)]
+	var gc: Color         = base.lerp(tint, 0.55)
+
+	var cx: float  = (_ghost_gx - _ghost_gy) * HALF_W
+	var cy: float  = (_ghost_gx + _ghost_gy) * HALF_H
+
+	var top:   Vector2 = Vector2(cx,                    cy - HALF_H)
+	var right: Vector2 = Vector2(cx + w * HALF_W,       cy + (w - 1) * HALF_H)
+	var bot:   Vector2 = Vector2(cx + (w - h) * HALF_W, cy + (w + h - 1) * HALF_H)
+	var left:  Vector2 = Vector2(cx - h * HALF_W,       cy + (h - 1) * HALF_H)
+	var wall_h: float  = 18.0 + (w + h) * 4.0
+	var top_up:   Vector2 = top   + Vector2(0, -wall_h)
+	var right_up: Vector2 = right + Vector2(0, -wall_h)
+	var bot_up:   Vector2 = bot   + Vector2(0, -wall_h)
+	var left_up:  Vector2 = left  + Vector2(0, -wall_h)
+
+	# Floor
+	draw_colored_polygon(PackedVector2Array([top, right, bot, left]),
+		Color(gc.r, gc.g, gc.b, pulse * 0.45))
+	# Left wall
+	draw_colored_polygon(PackedVector2Array([left, top, top_up, left_up]),
+		Color(gc.r * 0.70, gc.g * 0.70, gc.b * 0.70, pulse * 0.55))
+	# Right wall
+	draw_colored_polygon(PackedVector2Array([top, right, right_up, top_up]),
+		Color(gc.r * 0.85, gc.g * 0.85, gc.b * 0.85, pulse * 0.55))
+	# Roof
+	draw_colored_polygon(PackedVector2Array([top_up, right_up, bot_up, left_up]),
+		Color(gc.r, gc.g, gc.b, pulse * 0.65))
+	# Outline edges
+	var ol := Color(tint.r, tint.g, tint.b, minf(pulse + 0.25, 1.0))
+	draw_polyline(PackedVector2Array([top, right, bot, left, top]), ol, 1.5)
+	draw_polyline(PackedVector2Array([top_up, right_up, bot_up, left_up, top_up]), ol, 1.0)
+	draw_polyline(PackedVector2Array([left, left_up]), ol, 0.8)
+	draw_polyline(PackedVector2Array([top, top_up]),   ol, 0.8)
+	draw_polyline(PackedVector2Array([right, right_up]), ol, 0.8)

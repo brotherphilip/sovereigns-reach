@@ -2,6 +2,26 @@
 
 ---
 
+## [Iteration 61] 2026-06-14 — Fix #024: BuildingRenderer/BuildingLayer wrong field names — buildings always empty
+
+- Delegated to: Supervisor (Omniscience unavailable — Ollama HTTP 500)
+- What changed: BuildingRenderer.get_visual_state() changed `building.get("is_operational", false)` to `building.get("is_active", true)`. BuildingLayer._on_tick() changed `b.get("state", "") == "fire"` to `b.get("is_on_fire", false)`. Both bugs used wrong field names (is_operational never written; "state" exists in view-state dicts but not raw simulation building dicts). Buildings now correctly show "working" animation when staffed, and fire animation redraws per-frame when any building is on fire.
+- Issues resolved: #024 (buildings always rendered as empty)
+- Issues discovered: none
+- Supervisor correction: none
+
+---
+
+## [Iteration 60] 2026-06-14 — Fix #022: UnitRegistry.can_recruit() checked wrong field — all units unrecruitable
+
+- Delegated to: Supervisor (Omniscience unavailable — Ollama HTTP 500)
+- What changed: UnitRegistry.can_recruit() line 325 changed from `b.get("is_operational", false)` to `b.get("is_active", true)`. BuildingState uses `"is_active"` (never writes `"is_operational"`). The wrong default of `false` meant the required-building check always failed for every unit type, making the entire unit recruitment system permanently locked. All units — peasants, scouts, military infantry, siege — require a specific building (village_hall, barracks, armory, etc.) and were all blocked.
+- Issues resolved: #022 (military system permanently locked)
+- Issues discovered: none
+- Supervisor correction: none
+
+---
+
 ## [Iteration 59] 2026-06-14 — Fix #021: first_edict milestone inner check used non-existent player_id field
 
 - Delegated to: Supervisor (Omniscience unavailable — Ollama HTTP 500)

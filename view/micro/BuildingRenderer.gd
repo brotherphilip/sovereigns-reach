@@ -18,9 +18,9 @@ const BuildingRegistry = preload("res://simulation/buildings/BuildingRegistry.gd
 static func get_visual_state(building: Dictionary) -> Dictionary:
 	var btype: String         = building.get("type", "")
 	var defn: Dictionary      = BuildingRegistry.lookup(btype)
-	var is_op: bool           = building.get("is_operational", false)
+	var is_op: bool           = building.get("is_active", true)
 	var workers: int          = building.get("workers", 0)
-	var on_fire: bool         = building.get("on_fire", false)
+	var on_fire: bool         = building.get("is_on_fire", false)
 	var hp: int               = building.get("hp", 1)
 	var max_hp: int           = defn.get("hp", 100) if not building.has("max_hp") else building.get("max_hp", 1)
 	if max_hp <= 0:

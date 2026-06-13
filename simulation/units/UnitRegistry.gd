@@ -322,7 +322,7 @@ static func can_recruit(unit_type: String, player: Dictionary) -> Dictionary:
 	if req_building != "":
 		var has_building: bool = false
 		for b in player.get("buildings", []):
-			if b is Dictionary and b.get("type", "") == req_building and b.get("is_operational", false):
+			if b is Dictionary and b.get("type", "") == req_building and b.get("is_active", true):
 				has_building = true
 				break
 		if not has_building:
