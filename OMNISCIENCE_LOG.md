@@ -73,3 +73,11 @@ notes = player accept/refuse tribute UI built on the existing tribute backend; r
 files changed = res://simulation/core/DifficultySystem.gd, res://simulation/ai/AIFaction.gd, res://simulation/economy/TaxSystem.gd, res://simulation/economy/FoodSystem.gd, res://view/menu/MainMenuScene.gd
 tests = tax multiplier PASS, TestPhase4 60/0, TestPhase6 81/0, boot smoke clean
 notes = 4 difficulty levels scaling AI threat / tax income / food consumption; static-state class avoids the autoload-in-RefCounted pitfall
+
+## Phase 9 — Performance — STARTED
+
+## Phase 9 — COMPLETE
+
+files changed = view/micro/IsometricGrid.gd, view/micro/BuildingLayer.gd
+tests = all 625 pass, boot smoke clean
+notes = camera-driven terrain redraw + dirty-flagged building list rebuild; no behavior change

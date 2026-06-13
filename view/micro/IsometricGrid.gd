@@ -39,6 +39,8 @@ const TERRAIN_BORDER: Array = [
 var _camera: Camera2D = null
 var _map_w: int = 200
 var _map_h: int = 200
+var _last_cam_pos: Vector2 = Vector2.INF
+var _last_cam_zoom: float = -1.0
 
 func _ready() -> void:
 	var gs: Vector2i = GameState.get_grid_size()
@@ -46,8 +48,19 @@ func _ready() -> void:
 	_map_h = gs.y
 	EventBus.simulation_tick.connect(_on_tick)
 
-func _on_tick(_tick: int) -> void:
-	queue_redraw()
+func _on_tick(tick: int) -> void:
+	# Terrain is static; redraws are driven by camera movement (_process below).
+	# Keep a low-frequency safety-net redraw in case terrain ever changes.
+	if tick % 30 == 0:
+		queue_redraw()
+
+func _process(_delta: float) -> void:
+	if _camera == null:
+		return
+	if _camera.position != _last_cam_pos or _camera.zoom.x != _last_cam_zoom:
+		_last_cam_pos = _camera.position
+		_last_cam_zoom = _camera.zoom.x
+		queue_redraw()
 
 func set_camera(cam: Camera2D) -> void:
 	_camera = cam

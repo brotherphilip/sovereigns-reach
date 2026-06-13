@@ -19,22 +19,28 @@ const BuildingRenderer  = preload("res://view/micro/BuildingRenderer.gd")
 
 var _buildings:       Array = []
 var _enemy_buildings: Array = []
+var _structure_dirty: bool = true
 
 func _ready() -> void:
 	EventBus.simulation_tick.connect(_on_tick)
 	EventBus.building_placed.connect(_on_building_placed)
 	EventBus.building_demolished.connect(_on_building_removed)
 
-func _on_tick(_tick: int) -> void:
-	_refresh()
+func _on_tick(tick: int) -> void:
+	# Rebuild the lists only on structure change or daily (fog refresh); the per-tick
+	# queue_redraw still repaints live visual state (fire / HP / construction).
+	if _structure_dirty or tick % 240 == 0:
+		_rebuild()
+		_structure_dirty = false
+	queue_redraw()
 
 func _on_building_placed(_pid, _btype, _gx, _gy, _bid) -> void:
-	_refresh()
+	_structure_dirty = true
 
 func _on_building_removed(_pid, _bid) -> void:
-	_refresh()
+	_structure_dirty = true
 
-func _refresh() -> void:
+func _rebuild() -> void:
 	_buildings = []
 	_enemy_buildings = []
 	if GameState.players.size() > 0:
@@ -44,7 +50,6 @@ func _refresh() -> void:
 			for bld in fac.get("buildings", []):
 				if bld is Dictionary and GameState.visibility.has("%d,%d" % [bld.get("grid_x", 0), bld.get("grid_y", 0)]):
 					_enemy_buildings.append(bld)
-	queue_redraw()
 
 func _draw() -> void:
 	# Combine and depth-sort by grid_x + grid_y ascending (back-to-front)
