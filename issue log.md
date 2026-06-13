@@ -3,6 +3,10 @@
 <!-- Format: ## [ID] Title | Severity: Blocker/High/Medium/Low | Status: Open/In Progress/Resolved/Byproduct -->
 <!-- Severities: Blocker=crashes/data loss, High=broken feature, Medium=wrong behavior, Low=polish/text -->
 
+## [074] siege_repairs edict repaired ALL buildings instead of only walls | Severity: Low | Status: Resolved
+`siege_repairs` edict (5 pts, "Instantly heals all stone walls") had `wall_repair_amount: 500`. The GameState activation handler looped over ALL player buildings and called `BuildingState.repair()` on each. This repaired farms, hovels, mills, and other non-defensive buildings — including fire-damaged structures that the edict is not designed to repair. The edict description says "stone walls."
+Resolution: Added `BuildingRegistry.Category.DEFENSE` check — wall_repair_amount now only repairs buildings in the DEFENSE category (wooden_palisade, stone_wall, gatehouse, lookout_tower, great_tower, watchtower). Scene test: ALL_SCENES_OK.
+
 ## [073] festival_decree edict gives ~+0.4 popularity instead of promised +8 | Severity: Medium | Status: Resolved
 `festival_decree.modifiers: {"instant_event": "festival"}` routes through `PopularityEngine.apply_tick()` at activation. That function scales the full delta by 0.05, so the +8 contribution from EVENT_POPULARITY_DELTA["festival"] yields only ~+0.4 actual popularity. TutorialSystem (fixed in #066) tells players "the Festival Decree edict gives an instant +8 popularity boost." Other instant edicts (taxation_bumps, royal_harvest) use `popularity_delta` for direct application — festival_decree was the exception.
 Resolution: Changed `festival_decree.modifiers` to `{"popularity_delta": 8}`. GameState activation handler (line 798-799) adds this directly to `player["popularity"]` without scaling. Description updated to remove the "(+8 popularity)" annotation (the value is now in the modifier itself). Scene test: ALL_SCENES_OK.

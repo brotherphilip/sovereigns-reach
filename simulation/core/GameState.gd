@@ -803,7 +803,9 @@ func _cmd_activate_edict(cmd: Dictionary) -> bool:
 			var repair_amt: int = mods["wall_repair_amount"]
 			for bld in players[pid].get("buildings", []):
 				if bld is Dictionary:
-					BuildingState.repair(bld, repair_amt)
+					var bcat: int = BuildingRegistry.lookup(bld.get("type", "")).get("category", -1)
+					if bcat == BuildingRegistry.Category.DEFENSE:
+						BuildingState.repair(bld, repair_amt)
 		var dur: int = EdictSystem.lookup(edict_id).get("duration_ticks", 0)
 		EventBus.edict_activated.emit(pid, edict_id, dur)
 	return result.get("ok", false)

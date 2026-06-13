@@ -2,6 +2,19 @@
 
 ---
 
+## [Iteration 119] 2026-06-14 — Fix #074: siege_repairs repaired all buildings instead of only walls
+
+- Delegated to: Supervisor
+- What changed: GameState.gd — wall_repair_amount handler now checks `BuildingRegistry.Category.DEFENSE` before calling `BuildingState.repair()`.
+- Before: `BuildingState.repair(bld, 500)` was called on every building in the player's list — farms, hovels, mills, siege_workshop, etc. The edict description says "heals all stone walls" but the code healed everything.
+- After: Only DEFENSE category buildings (stone_wall, wooden_palisade, gatehouse, great_tower, lookout_tower, watchtower) receive the repair. Other buildings are unaffected.
+- Scene test: ALL_SCENES_OK
+- Issues resolved: #074
+- Issues discovered: none
+- Supervisor correction: none
+
+---
+
 ## [Iteration 118] 2026-06-14 — Fix #073: festival_decree gave ~+0.4 popularity instead of +8
 
 - Delegated to: Supervisor
