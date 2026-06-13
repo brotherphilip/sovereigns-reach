@@ -1,0 +1,58 @@
+extends Node
+
+enum SoundEvent {
+	BUILDING_PLACED,
+	BUILDING_DEMOLISHED,
+	UNIT_KILLED,
+	SIEGE_INCOMING,
+	WEATHER_CHANGED,
+	POPULARITY_CRITICAL,
+	PRESTIGE_GAINED,
+	EDICT_ACTIVATED
+}
+
+func play(event: SoundEvent) -> void:
+	var player_name = SoundEvent.keys()[event]
+	var player = get_node_or_null(player_name)
+	if player == null:
+		player = AudioStreamPlayer.new()
+		player.name = player_name
+		add_child(player)
+	
+	if player.stream != null:
+		player.play()
+
+func _ready():
+	# Connect all the real EventBus signals
+	EventBus.connect("building_placed", func(_player_id, _building_type, _grid_x, _grid_y, _building_id):
+		play(SoundEvent.BUILDING_PLACED)
+	)
+	
+	EventBus.connect("building_demolished", func(_player_id, _building_id):
+		play(SoundEvent.BUILDING_DEMOLISHED)
+	)
+	
+	EventBus.connect("weather_changed", func(_new_weather, _duration_ticks):
+		play(SoundEvent.WEATHER_CHANGED)
+	)
+	
+	EventBus.connect("edict_activated", func(_player_id, _edict_id, _duration_ticks):
+		play(SoundEvent.EDICT_ACTIVATED)
+	)
+	
+	EventBus.connect("popularity_changed", func(_player_id, _old_value, _new_value):
+		if _new_value < 20:
+			play(SoundEvent.POPULARITY_CRITICAL)
+	)
+	
+	EventBus.connect("prestige_changed", func(_player_id, _old_value, _new_value):
+		play(SoundEvent.PRESTIGE_GAINED)
+	)
+	
+	EventBus.connect("unit_killed", func(_unit_id, _killer_id, _cause):
+		play(SoundEvent.UNIT_KILLED)
+	)
+	
+	EventBus.connect("ai_siege_assembling", func(_faction_id, _target_player_id, _eta_ticks):
+		play(SoundEvent.SIEGE_INCOMING)
+	)

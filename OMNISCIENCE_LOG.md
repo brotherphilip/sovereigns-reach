@@ -9,3 +9,11 @@ Agent: qwen3-coder:30b via Ollama
 files changed = OMNISCIENCE_LOG.md
 tests = SKIPPED (bootstrap only)
 notes = orientation done
+
+## Phase 1 — Audio — STARTED
+
+## Phase 1 — COMPLETE
+
+files changed = res://simulation/audio/AudioManager.gd, res://project.godot, res://simulation/audio/sfx/.keep
+tests = SKIPPED (bootstrap only)
+notes = audio system wired to all EventBus signals
