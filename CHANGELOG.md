@@ -2,6 +2,22 @@
 
 ---
 
+## [Iteration 115] 2026-06-14 — Fix #068–#070: Three TechTree cross-reference bugs
+
+- Delegated to: Supervisor
+- What changed: TechTree.gd — three fixes:
+  1. #068: `crop_tiers.unlocks_buildings`: `"hops_field"` → `"hops_farm"` (building name mismatch; hops_farm exists in BuildingRegistry)
+  2. #069: `refining_processing.unlocks_buildings`: `["sawmill", "smelter"]` → `[]` (neither building exists; updated description to reflect prerequisite-gate role)
+  3. #070: `farming_speed.modifiers`: `harvest_rate_bonus: 0.2` → `farm_yield_bonus: 0.2` (harvest_rate_bonus was dead; farm_yield_bonus is consumed by ResourceTick for all food buildings)
+- Before: TechTree panel showed phantom buildings; farming_speed gave no effect.
+- After: All TechTree unlocks_buildings reference real BuildingRegistry IDs; farming_speed now stacks with advanced_tools for +20%/+25% cumulative farm yield.
+- Scene test: ALL_SCENES_OK
+- Issues resolved: #068, #069, #070
+- Issues discovered: none
+- Supervisor correction: none
+
+---
+
 ## [Iteration 111] 2026-06-14 — Fix #067: Five siege units required non-existent "siege_tent" building
 
 - Delegated to: Supervisor

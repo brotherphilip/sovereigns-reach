@@ -3,6 +3,18 @@
 <!-- Format: ## [ID] Title | Severity: Blocker/High/Medium/Low | Status: Open/In Progress/Resolved/Byproduct -->
 <!-- Severities: Blocker=crashes/data loss, High=broken feature, Medium=wrong behavior, Low=polish/text -->
 
+## [070] TechTree farming_speed.harvest_rate_bonus dead — no code reads it | Severity: Low | Status: Resolved
+`farming_speed` tech (200 prestige) defines `modifiers: {"harvest_rate_bonus": 0.2}`. ResourceTick applies food building bonuses via `farm_yield_bonus`, not `harvest_rate_bonus`. Players researching farming_speed received no food production improvement.
+Resolution: Remapped `harvest_rate_bonus` → `farm_yield_bonus: 0.2` in TechTree. ResourceTick already applies this key to all food buildings (apple_orchard, wheat_farm, hops_farm, pig_farm, dairy_farm). Updated description to "Farm yield +20%. Stacks with Advanced Tools." Scene test: ALL_SCENES_OK.
+
+## [069] TechTree refining_processing claims to unlock sawmill and smelter — neither exists in BuildingRegistry | Severity: Medium | Status: Resolved
+`refining_processing` tech (400 prestige) defines `unlocks_buildings: ["sawmill", "smelter"]`. Neither building ID exists in BuildingRegistry (Phase 6 stubs never implemented). The TechTree panel displays "Unlocks: sawmill, smelter" to players who research this tech, but those buildings cannot be placed or accessed anywhere.
+Resolution: Cleared `unlocks_buildings: []` for refining_processing; updated description to "Prerequisite for Great Towers and Siege Engines. Unlocks advanced construction and military tiers." — accurately reflects its role as a prerequisite gate. Scene test: ALL_SCENES_OK.
+
+## [068] TechTree crop_tiers.unlocks_buildings references "hops_field" — building is named "hops_farm" | Severity: Medium | Status: Resolved
+`crop_tiers` tech (100 prestige) defines `unlocks_buildings: ["wheat_farm", "hops_field"]`. BuildingRegistry has no "hops_field" — the hops building is named "hops_farm". TechTree panel showed "Unlocks: wheat_farm, hops_field" to players, pointing to a building that cannot be placed.
+Resolution: Changed `"hops_field"` → `"hops_farm"` in crop_tiers.unlocks_buildings. Scene test: ALL_SCENES_OK.
+
 ## [067] Five siege units require "siege_tent" building that doesn't exist — entire siege tier locked | Severity: High | Status: Resolved
 UnitRegistry defines 5 siege units (battering_ram, catapult, trebuchet, siege_tower, mantlet) with `"requires_building": "siege_tent"`. No "siege_tent" exists in BuildingRegistry. Players who research siege_engines tech (200 prestige) and try to recruit any siege unit always fail `can_recruit()` with "Requires building: siege_tent". The building can never be placed. The entire siege equipment tier — the game's highest-tier military units (trebuchet: 250g + 80 wood + 40 stone + 30 iron; battering_ram: 100g + 30 wood + 10 iron) — was permanently locked.
 Resolution: Changed `requires_building: "siege_tent"` → `"siege_workshop"` for all 5 siege unit definitions. siege_workshop already exists in BuildingRegistry (cost: 60 wood + 30 iron, requires siege_engines tech, described as "Builds and maintains siege engines for assaults"). This correctly gates siege units behind the already-existing siege production building. Scene test: ALL_SCENES_OK.
