@@ -130,9 +130,9 @@ func _draw_building(b: Dictionary, is_enemy: bool) -> void:
 	# ── Ridge triangle (pitched roof apex) ───────────────────────────────────
 	var ridge_h: float
 	if cat == 2:  # FOOD — flat hay roof
-		ridge_h = (wall_height * 0.18).clampf(4.0, 12.0)
+		ridge_h = clampf(wall_height * 0.18, 4.0, 12.0)
 	else:
-		ridge_h = (wall_height * 0.40).clampf(8.0, 24.0)
+		ridge_h = clampf(wall_height * 0.40, 8.0, 24.0)
 
 	var ridge_apex: Vector2 = (top_up + bot_up) * 0.5 + Vector2(0, -ridge_h)
 	draw_colored_polygon(PackedVector2Array([

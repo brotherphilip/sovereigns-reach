@@ -1,0 +1,8 @@
+# Godot 4 generated editor cache (not source)
+.godot/
+
+# Omniscience AI plugin is a symlink to its own repo; tracked there, not here
+/addons/
+
+# Driver scratch
+.driver/
