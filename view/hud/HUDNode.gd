@@ -602,9 +602,9 @@ func show_selected_building(building: Dictionary) -> void:
 			rb.custom_minimum_size = Vector2(90, 24)
 			rb.disabled = not check.get("ok", false)
 			var gold_cost: int = udefn.get("cost_gold", 0)
-			var hp: int = udefn.get("max_hp", 0)
+			var unit_hp: int = udefn.get("max_hp", 0)
 			var atk: int = udefn.get("attack", 0)
-			var tip_base: String = "%s · Cost: %dg · HP: %d · Atk: %d" % [udefn.get("name", utype), gold_cost, hp, atk]
+			var tip_base: String = "%s · Cost: %dg · HP: %d · Atk: %d" % [udefn.get("name", utype), gold_cost, unit_hp, atk]
 			rb.tooltip_text = tip_base if check.get("ok", false) else "%s\n%s" % [tip_base, check.get("reason", "Cannot recruit")]
 			var ut: String = utype
 			rb.pressed.connect(func(): recruit_requested.emit(ut))

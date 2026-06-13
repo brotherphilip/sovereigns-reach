@@ -3,6 +3,10 @@
 <!-- Format: ## [ID] Title | Severity: Blocker/High/Medium/Low | Status: Open/In Progress/Resolved/Byproduct -->
 <!-- Severities: Blocker=crashes/data loss, High=broken feature, Medium=wrong behavior, Low=polish/text -->
 
+## [035] HUDNode.gd parse error — duplicate "hp" variable crashes CityViewScene load | Severity: Blocker | Status: Resolved
+show_selected_building() declares `var hp: int = building.get("hp", 0)` at line 567 and then redeclares `var hp: int = udefn.get("max_hp", 0)` at line 605 inside the same function scope (inside a for loop over recruitable units). GDScript treats both as function-scope, so the second declaration is a parse error. This prevented HUDNode.gd from loading, which prevented CityViewScene.tscn from loading entirely. User reported "could not load the city scene."
+Resolution: Renamed the second `hp` to `unit_hp` and updated the format string reference.
+
 ## [034] HUDController.get_weather_tooltip uses wrong effect key names | Severity: Low | Status: Resolved
 get_weather_tooltip() reads `effects.get("speed_modifier", 1.0)` and `effects.get("farm_yield", 1.0)` but WeatherSystem stores these as `"movement_penalty"` and `"farm_yield_mult"` respectively. Additionally, `get_hud_data()` reads `weather.get("popularity_delta", 0.0)` from the top-level weather dict, but popularity_delta lives in `weather["effects"]["popularity_delta"]`. All three always returned fallback values (1.0, 1.0, 0.0), so weather effects were invisible in the tooltip.
 Resolution: Fixed all three key mismatches in HUDController.gd.
