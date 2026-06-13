@@ -102,6 +102,28 @@ func initialize_player(player_id: int, player_name: String, start_x: int, start_
 	while players.size() <= player_id:
 		players.append({})
 	players[player_id] = _make_player(player_id, player_name, start_x, start_y)
+	_assign_starting_shire(player_id, start_x, start_y)
+
+func _assign_starting_shire(player_id: int, start_x: int, start_y: int) -> void:
+	var best_id: int   = -1
+	var best_d: float  = INF
+	for shire in world.get("shires", []):
+		if not shire is Dictionary or shire.get("owner_id", -1) != -1:
+			continue
+		var dx: float = float(shire.get("capital_x", 0) - start_x)
+		var dy: float = float(shire.get("capital_y", 0) - start_y)
+		var d: float  = sqrt(dx * dx + dy * dy)
+		if d < best_d:
+			best_d = d
+			best_id = shire.get("id", -1)
+	if best_id < 0:
+		return
+	players[player_id]["shire_id"]  = best_id
+	players[player_id]["shire_ids"] = [best_id]
+	for shire in world.get("shires", []):
+		if shire is Dictionary and shire.get("id", -1) == best_id:
+			shire["owner_id"] = player_id
+			break
 
 func _make_player(player_id: int, player_name: String, start_x: int, start_y: int) -> Dictionary:
 	return {
@@ -123,7 +145,8 @@ func _make_player(player_id: int, player_name: String, start_x: int, start_y: in
 		# Position (stored as plain ints, not Vector2i, for JSON safety)
 		"keep_x": start_x,
 		"keep_y": start_y,
-		"shire_id": -1,
+		"shire_id":  -1,
+		"shire_ids": [],
 
 		# Raw material stockpile
 		"resources": _make_resources(),
