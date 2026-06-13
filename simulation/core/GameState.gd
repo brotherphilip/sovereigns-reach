@@ -388,6 +388,10 @@ func _tick_player_unit_movement(player: Dictionary, tick: int) -> void:
 		var army_speed_mult: float = EdictSystem.get_active_modifiers(player).get("army_speed_multiplier", 1.0)
 		var tech_speed_bonus: float = TechTree.get_all_modifiers(player).get("army_move_speed_bonus", 0.0)
 		var weather_penalty: float = weather.get("effects", {}).get("movement_penalty", 1.0)
+		# Mud Roads edict (rain_movement_penalty: 0.0) negates rain movement penalty
+		if weather.get("current", -1) == WeatherSystem.WeatherType.RAIN:
+			if EdictSystem.get_active_modifiers(player).get("rain_movement_penalty", 1.0) <= 0.0:
+				weather_penalty = 1.0
 		var effective_speed: float = float(maxi(1, speed)) * (1.0 + tech_speed_bonus) * maxf(0.1, army_speed_mult) * maxf(0.1, weather_penalty)
 		var step_ticks: int = maxi(1, int(float(TICKS_PER_DAY) / effective_speed))
 		if tick % step_ticks != 0:

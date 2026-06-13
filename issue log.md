@@ -3,6 +3,10 @@
 <!-- Format: ## [ID] Title | Severity: Blocker/High/Medium/Low | Status: Open/In Progress/Resolved/Byproduct -->
 <!-- Severities: Blocker=crashes/data loss, High=broken feature, Medium=wrong behavior, Low=polish/text -->
 
+## [061] rain_movement_penalty edict modifier dead — Mud Roads edict never negates rain movement penalty | Severity: Low | Status: Resolved
+EdictSystem defines "mud_roads" edict with modifier `{"rain_movement_penalty": 0.0, "fire_risk_reduction": 1.0}`. fire_risk_reduction is wired. rain_movement_penalty: 0.0 was never read. Since #060 wired weather.movement_penalty into unit speed, this edict should override rain's ×0.7 speed penalty to ×1.0 when active.
+Resolution: In _tick_player_unit_movement(), after reading weather_penalty, if current weather is RAIN and EdictSystem.get_active_modifiers(player) has rain_movement_penalty ≤ 0.0, set weather_penalty to 1.0 (no penalty). Scene test: ALL_SCENES_OK.
+
 ## [060] Weather movement_penalty shown in HUD tooltip but never applied to unit movement | Severity: Low | Status: Resolved
 WeatherSystem defines `movement_penalty` per weather type: STORM: 0.4 (60% slower), SNOW: 0.5, RAIN: 0.7, FOG: 0.8. HUDController.get_weather_tooltip() reads it and displays "Movement speed: ×0.5" etc. But _tick_player_unit_movement() doesn't read this field — units move at full effective_speed regardless of weather. Players see the tooltip warning but units march through blizzards at full pace.
 Resolution: In _tick_player_unit_movement(), multiply effective_speed by weather.effects.movement_penalty (also reduces AI faction units via their own tick which calls CombatSystem independently of this). Scene test: ALL_SCENES_OK.

@@ -2,6 +2,19 @@
 
 ---
 
+## [Iteration 105] 2026-06-14 — Fix #061: Mud Roads edict rain_movement_penalty modifier never consumed
+
+- Delegated to: Supervisor
+- What changed: _tick_player_unit_movement() — after reading weather_penalty, if current weather is RAIN and EdictSystem modifier rain_movement_penalty ≤ 0.0 (Mud Roads edict active), override weather_penalty to 1.0 (full speed).
+- Before: Mud Roads edict wasted edict_points — fire_risk_reduction was wired but rain_movement_penalty did nothing.
+- After: Mud Roads edict also removes the ×0.7 rain movement penalty when active.
+- Scene test: ALL_SCENES_OK
+- Issues resolved: #061
+- Issues discovered: none
+- Supervisor correction: none
+
+---
+
 ## [Iteration 104] 2026-06-14 — Fix #060: weather movement_penalty shown in HUD tooltip but never applied to unit movement
 
 - Delegated to: Supervisor
