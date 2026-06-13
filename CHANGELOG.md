@@ -2,6 +2,19 @@
 
 ---
 
+## [Iteration 116] 2026-06-14 — Fix #071: TechTree armor_forging referenced non-existent "armored_archer" unit
+
+- Delegated to: Supervisor
+- What changed: TechTree.gd — removed `"armored_archer"` from `armor_forging.unlocks_units`; updated description.
+- Before: TechTree panel showed "Unlocks: armored_archer, swordsman" for armor_forging tech — armored_archer doesn't exist in UnitRegistry, so players who paid 300 prestige saw a phantom unit unlock.
+- After: armor_forging correctly shows only swordsman as a unit unlock.
+- Scene test: ALL_SCENES_OK
+- Issues resolved: #071
+- Issues discovered: none
+- Supervisor correction: none
+
+---
+
 ## [Iteration 115] 2026-06-14 — Fix #068–#070: Three TechTree cross-reference bugs
 
 - Delegated to: Supervisor

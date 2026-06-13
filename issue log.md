@@ -3,6 +3,10 @@
 <!-- Format: ## [ID] Title | Severity: Blocker/High/Medium/Low | Status: Open/In Progress/Resolved/Byproduct -->
 <!-- Severities: Blocker=crashes/data loss, High=broken feature, Medium=wrong behavior, Low=polish/text -->
 
+## [071] TechTree armor_forging.unlocks_units references "armored_archer" — unit doesn't exist in UnitRegistry | Severity: Medium | Status: Resolved
+`armor_forging` tech (300 prestige) defines `unlocks_units: ["armored_archer", "swordsman"]`. No "armored_archer" unit exists in UnitRegistry (Phase 6 stub never implemented). The TechTree panel displays "Unlocks: armored_archer, swordsman" when hovering over armor_forging, promising a unit type that cannot be recruited.
+Resolution: Removed `"armored_archer"` from `armor_forging.unlocks_units` — now just `["swordsman"]`. Updated description to reference "armored heavy infantry" generically. Scene test: ALL_SCENES_OK.
+
 ## [070] TechTree farming_speed.harvest_rate_bonus dead — no code reads it | Severity: Low | Status: Resolved
 `farming_speed` tech (200 prestige) defines `modifiers: {"harvest_rate_bonus": 0.2}`. ResourceTick applies food building bonuses via `farm_yield_bonus`, not `harvest_rate_bonus`. Players researching farming_speed received no food production improvement.
 Resolution: Remapped `harvest_rate_bonus` → `farm_yield_bonus: 0.2` in TechTree. ResourceTick already applies this key to all food buildings (apple_orchard, wheat_farm, hops_farm, pig_farm, dairy_farm). Updated description to "Farm yield +20%. Stacks with Advanced Tools." Scene test: ALL_SCENES_OK.

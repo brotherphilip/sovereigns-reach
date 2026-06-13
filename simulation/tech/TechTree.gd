@@ -114,10 +114,10 @@ const TECHS: Dictionary = {
 		"name": "Armor Forging",
 		"branch": Branch.MILITARY, "tier": 2, "cost_prestige": 300,
 		"requires": ["weapon_crafting"],
-		"unlocks_buildings": [], "unlocks_units": ["armored_archer", "swordsman"],
+		"unlocks_buildings": [], "unlocks_units": ["swordsman"],
 		"unlocks_edicts": [],
 		"modifiers": {"unit_armor_rating": 0.25},
-		"description": "Unlocks leather and iron armor. Required for Swordsmen. Unit armor +25%.",
+		"description": "Unlocks iron armor. Required for Swordsmen and armored heavy infantry. Unit armor +25%.",
 	},
 	"unit_unlocks": {
 		"name": "Unit Unlocks",
