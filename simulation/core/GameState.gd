@@ -237,6 +237,13 @@ func _tick_player_economy(player: Dictionary, tick: int) -> void:
 
 	# Everything below only fires at day boundaries
 	if tick > 0 and tick % SimulationClock.TICKS_PER_GAME_DAY == 0:
+		# Purge dead units so the array doesn't grow unbounded over long campaigns
+		var live_units: Array = []
+		for u in player.get("units", []):
+			if u is Dictionary and u.get("is_alive", false):
+				live_units.append(u)
+		player["units"] = live_units
+
 		# Weather events for popularity
 		var events: Array = []
 		var weather_pop_delta: float = WeatherSystem.get_popularity_delta(weather)

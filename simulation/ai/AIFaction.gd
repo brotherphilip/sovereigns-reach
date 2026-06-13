@@ -93,6 +93,13 @@ static func tick(faction: Dictionary, world: Dictionary, tick: int) -> Array:
 				live_demands.append(d)
 		faction["tribute_demands"] = live_demands
 
+		# Purge dead units so the army array doesn't grow unbounded over long campaigns
+		var live_units: Array = []
+		for u in faction.get("units", []):
+			if u is Dictionary and u.get("is_alive", false):
+				live_units.append(u)
+		faction["units"] = live_units
+
 	return events
 
 # ── Economy simulation ────────────────────────────────────────────────────────

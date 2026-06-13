@@ -3,6 +3,10 @@
 <!-- Format: ## [ID] Title | Severity: Blocker/High/Medium/Low | Status: Open/In Progress/Resolved/Byproduct -->
 <!-- Severities: Blocker=crashes/data loss, High=broken feature, Medium=wrong behavior, Low=polish/text -->
 
+## [054] Dead units accumulate unbounded in player and AI faction units arrays | Severity: Low | Status: Resolved
+`UnitState.apply_damage()` sets `unit["is_alive"] = false` when hp reaches 0 but never removes the unit from the owning array. `_cmd_disband_unit()` correctly uses `remove_at()` for player-initiated disbands, but combat deaths go unremoved. Every tick, `_tick_player_unit_movement()` and all AI faction code iterate all units (filtering by `is_alive`) — including arbitrarily many corpses. Over a 500-day campaign with active combat, hundreds of dead unit dicts accumulate, growing tick iteration time. Same unbounded-growth pattern as #053 (tribute_demands).
+Resolution: Added dead unit purge at day boundary in `GameState._tick_player_economy()` (rebuilds `player["units"]` keeping only `is_alive == true` entries) and in `AIFaction.tick()` day boundary (same pattern, after tribute_demands purge). Both run once per game-day. Scene test: ALL_SCENES_OK.
+
 ## [053] tribute_demands array grows unbounded — fulfilled and expired demands never purged | Severity: Low | Status: Resolved
 `faction["tribute_demands"]` is appended to on every demand cycle (every 14 days) but no code ever removed entries. `DiplomacySystem.refuse()` marked demands fulfilled; `DiplomacySystem.accept()` (fixed in #052) now also marks them fulfilled. But even fulfilled demands remained in the array forever. After 100 game-days, a faction would have ~14 demand entries; after 1000 days: ~143. `DiplomacyPanel.update_active_demands()` iterates all of them on every render. The array also included demands past their deadline_tick that the player never responded to.
 Resolution: Added demand purge in `AIFaction.tick()` at day boundary — rebuilds `tribute_demands` keeping only entries where `fulfilled == false AND deadline_tick >= tick`. Runs once per game-day per faction. Scene test: ALL_SCENES_OK.

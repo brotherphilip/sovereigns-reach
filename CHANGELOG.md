@@ -2,6 +2,19 @@
 
 ---
 
+## [Iteration 98] 2026-06-14 — Fix #054: dead units accumulate unbounded in player and AI faction units arrays
+
+- Delegated to: Supervisor
+- What changed: GameState._tick_player_economy() day boundary — added dead unit purge that rebuilds player["units"] keeping only is_alive==true entries. AIFaction.tick() day boundary — added same purge for faction["units"], alongside existing tribute_demands purge.
+- Before: UnitState.apply_damage() sets is_alive=false on kill but never removes from array. Over long campaigns, hundreds of dead unit dicts accumulate; every tick iterates all of them.
+- After: dead units removed once per game-day from both player and AI faction arrays.
+- Scene test: ALL_SCENES_OK
+- Issues resolved: #054
+- Issues discovered: none
+- Supervisor correction: none
+
+---
+
 ## [Iteration 97] 2026-06-14 — Fix #053: tribute_demands array grows unbounded — purge fulfilled/expired entries
 
 - Delegated to: Supervisor
