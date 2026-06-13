@@ -770,8 +770,11 @@ func _cmd_recruit_unit(cmd: Dictionary) -> bool:
 	player["gold"] = player.get("gold", 0) - cost_gold
 	var raw_cost: Dictionary = defn.get("cost_resources", {})
 	for item in raw_cost:
-		if item in player.get("resources", {}):
-			player["resources"][item] = maxi(0, player["resources"].get(item, 0) - raw_cost[item])
+		var needed: int = raw_cost[item]
+		if player.get("armory", {}).has(item):
+			player["armory"][item] = maxi(0, player["armory"].get(item, 0) - needed)
+		elif player.get("resources", {}).has(item):
+			player["resources"][item] = maxi(0, player["resources"].get(item, 0) - needed)
 	var uid: int = _next_unit_id
 	_next_unit_id += 1
 	var unit: Dictionary = UnitState.create(unit_type, pid, player.get("keep_x", 0), player.get("keep_y", 0), uid)

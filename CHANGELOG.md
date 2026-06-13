@@ -2,6 +2,19 @@
 
 ---
 
+## [Iteration 90] 2026-06-14 — Fix #046: unit recruitment equipment never deducted — armory exploit
+
+- Delegated to: Supervisor
+- What changed: GameState._cmd_recruit_unit() — deduction loop now checks armory first, then falls back to resources.
+- Before: equipment (bows, swords, etc.) in player["armory"] was never decremented. Players could recruit unlimited archers/swordsmen once they had 1 weapon. The entire equipment production chain (fletcher, poleturner, blacksmith) had no sink.
+- After: each unit correctly consumes its equipment from the armory. Production chains now matter.
+- Scene test: ALL_SCENES_OK
+- Issues resolved: #046
+- Issues discovered: none
+- Supervisor correction: none
+
+---
+
 ## [Iteration 89] 2026-06-14 — Fix #045: fletcher and poleturner produce weapons without consuming wood
 
 - Delegated to: Supervisor
