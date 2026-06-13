@@ -11,6 +11,7 @@ const BuildingRegistry = preload("res://simulation/buildings/BuildingRegistry.gd
 const TechTree = preload("res://simulation/tech/TechTree.gd")
 const EdictSystem = preload("res://simulation/edicts/EdictSystem.gd")
 const NotificationFeed = preload("res://view/hud/NotificationFeed.gd")
+const WeatherSystem = preload("res://simulation/world/WeatherSystem.gd")
 
 signal build_requested(building_type: String)
 signal tech_research_requested(tech_id: String)
@@ -254,7 +255,7 @@ func _refresh_top_bar() -> void:
 	_ale_label.text     = "Ale: %d" % total_ale
 	_day_label.text     = "Day %d" % SimulationClock.game_day()
 	var _wicon: String = HUDController.get_weather_icon(GameState.weather)
-	_weather_label.text = "%s %s" % [_wicon, GameState.weather.get("current_name", "Clear")]
+	_weather_label.text = "%s %s" % [_wicon, WeatherSystem.weather_name(GameState.weather.get("current", 0))]
 	_weather_label.tooltip_text = HUDController.get_weather_tooltip(GameState.weather)
 	if _prestige_label != null:
 		_prestige_label.text = "Prestige: %d" % int(p.get("prestige", 0.0))

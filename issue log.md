@@ -3,6 +3,10 @@
 <!-- Format: ## [ID] Title | Severity: Blocker/High/Medium/Low | Status: Open/In Progress/Resolved/Byproduct -->
 <!-- Severities: Blocker=crashes/data loss, High=broken feature, Medium=wrong behavior, Low=polish/text -->
 
+## [033] Weather label always shows "Clear" — weather dict has no "current_name" key | Severity: Low | Status: Resolved
+HUDNode._refresh_top_bar() reads `GameState.weather.get("current_name", "Clear")` and HUDController.get_weather_tooltip() reads `weather.get("current_name", "Unknown")`. WeatherSystem.make_state() and _transition() never write a `current_name` key — they only write `"current"` (int) and `"effects"`. The fallback `"Clear"` is returned permanently, so the HUD weather label is always "Clear" regardless of rain, drought, snow, etc. WeatherSystem has a static `weather_name(int)` function that converts the int to a display string but it was never called from the HUD.
+Resolution: Replaced `weather.get("current_name", "Clear")` and `"Unknown"` variants in HUDNode.gd and HUDController.gd with `WeatherSystem.weather_name(weather.get("current", 0))`. Added `const WeatherSystem = preload(...)` to both files.
+
 ## [032] Demolished buildings continue producing resources — is_active not checked in _tick_player_economy | Severity: Medium | Status: Resolved
 `_tick_player_economy()` in GameState.gd loops all player buildings and calls `ResourceTick.tick_building()` without checking `building.get("is_active", true)`. BuildingState sets `is_active = false` when a building's HP reaches 0 (fire damage, siege, demolish). A demolished building with workers assigned will keep producing wood, food, etc. even after destruction. The fire-ignition loop at line 251 correctly skips inactive buildings, but production does not.
 Resolution: Added `or not building.get("is_active", true)` guard to the production loop's early-exit in `_tick_player_economy()`, matching the pattern used throughout FoodSystem, AleSystem, and DiseaseSystem.
