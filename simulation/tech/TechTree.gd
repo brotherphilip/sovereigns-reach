@@ -193,6 +193,15 @@ const TECHS: Dictionary = {
 		"modifiers": {"market_buy_fee_reduction": 0.1},
 		"description": "Unlocks envoy actions. Market buy fees −10%. Allows AI bribe/truce.",
 	},
+	"trade_networks": {
+		"name": "Trade Networks",
+		"branch": Branch.STATECRAFT, "tier": 1, "cost_prestige": 150,
+		"requires": [],
+		"unlocks_buildings": ["trading_post"],
+		"unlocks_units": [], "unlocks_edicts": [],
+		"modifiers": {"trade_income_bonus": 0.25},
+		"description": "Establishes trade caravans. Unlocks the Trading Post for passive gold income.",
+	},
 }
 
 # Returns the tech definition dict, or {} if not found.

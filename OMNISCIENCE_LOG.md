@@ -33,3 +33,11 @@ notes = upgraded single-label notification to a stacking feed (max 5) and added 
 files changed = res://simulation/ai/AIFaction.gd, res://simulation/ai/BanditKing.gd, res://simulation/ai/Ironhand.gd, res://simulation/ai/MerchantPrince.gd, res://simulation/ai/AshenBarony.gd
 tests = TestPhase6 PASS 81/0
 notes = AI now reacts to real player strength; fixed latent military_strength targeting bug
+
+## Phase 4 — New Buildings & Tech — STARTED
+
+## Phase 4 — COMPLETE
+
+files changed = res://simulation/economy/ResourceTick.gd, res://simulation/buildings/BuildingRegistry.gd, res://simulation/tech/TechTree.gd
+tests = TestPhase3/5/7 PASS
+notes = 3 buildings + trade_networks tech; added gold production support to ResourceTick

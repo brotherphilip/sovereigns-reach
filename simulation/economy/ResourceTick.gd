@@ -155,4 +155,6 @@ static func apply_changes(player: Dictionary, changes: Dictionary) -> bool:
 				shortage = true
 		elif res in player["armory"]:
 			player["armory"][res] = maxi(0, player["armory"][res] + delta)
+		elif res == "gold":
+			player["gold"] = player.get("gold", 0) + delta
 	return shortage

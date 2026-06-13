@@ -364,6 +364,36 @@ const BUILDINGS: Dictionary = {
 		"is_tower": true, "immune_to_fire": true,
 		"description": "Hard to destroy. Mounts mangonels. Anchors wall corners.",
 	},
+	"watchtower": {
+		"name": "Watchtower", "category": Category.DEFENSE,
+		"width": 1, "height": 1,
+		"cost": {"wood": 30, "stone": 20},
+		"max_workers": 1, "worker_slots": 1,
+		"terrain_req": TERRAIN_ANY, "fire_risk": 0.01, "hp": 120,
+		"requires_tech": [], "produces": {}, "consumes": {},
+		"coverage_radius": 15,
+		"description": "Scout post. Reveals surrounding terrain and approaching enemies.",
+	},
+	"trading_post": {
+		"name": "Trading Post", "category": Category.CIVIC,
+		"width": 2, "height": 2,
+		"cost": {"wood": 40, "gold": 50},
+		"max_workers": 2, "worker_slots": 2,
+		"terrain_req": TERRAIN_FLAT, "fire_risk": 0.05, "hp": 100,
+		"requires_tech": ["trade_networks"], "produces": {"gold": 3}, "consumes": {},
+		"coverage_radius": 0,
+		"description": "Generates steady gold income from passing caravans.",
+	},
+	"siege_workshop": {
+		"name": "Siege Workshop", "category": Category.MILITARY,
+		"width": 2, "height": 2,
+		"cost": {"wood": 60, "iron": 30},
+		"max_workers": 3, "worker_slots": 3,
+		"terrain_req": TERRAIN_FLAT, "fire_risk": 0.08, "hp": 150,
+		"requires_tech": ["siege_engines"], "produces": {}, "consumes": {},
+		"coverage_radius": 0,
+		"description": "Builds and maintains siege engines for assaults.",
+	},
 }
 
 # Returns a building definition dict, or empty dict if not found.
