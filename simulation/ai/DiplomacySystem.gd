@@ -3,14 +3,20 @@ extends RefCounted
 # AI factions (AshenBarony) via EventBus.ai_envoy_sent; the DiplomacyPanel calls
 # these when the player Accepts (pays) or Refuses (consequences).
 
-# Accept: pay the demanded resources. ale lives in player.food, iron in player.resources.
-static func accept(player: Dictionary, demands: Dictionary) -> void:
+# Accept: pay the demanded resources and mark all pending demands fulfilled.
+# ale lives in player.food, iron in player.resources.
+static func accept(player: Dictionary, demands: Dictionary, faction = null) -> void:
 	for res in demands:
 		var amount: int = demands[res]
 		if player.get("food", {}).has(res):
 			player["food"][res] = maxi(0, player["food"][res] - amount)
 		elif player.get("resources", {}).has(res):
 			player["resources"][res] = maxi(0, player["resources"][res] - amount)
+	if faction is Dictionary:
+		var pid: int = player.get("id", 0)
+		for d in faction.get("tribute_demands", []):
+			if d is Dictionary and d.get("player_id", -1) == pid and not d.get("fulfilled", false):
+				d["fulfilled"] = true
 
 # Refuse: the populace grows uneasy, the snubbed faction grows more hostile, and
 # Ashen Barony (or any faction that tracks embargoes) imposes a trade embargo.

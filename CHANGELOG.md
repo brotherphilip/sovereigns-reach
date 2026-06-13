@@ -2,6 +2,19 @@
 
 ---
 
+## [Iteration 96] 2026-06-14 — Fix #052: DiplomacySystem.accept() never marks tribute demands fulfilled
+
+- Delegated to: Supervisor
+- What changed: DiplomacySystem.accept() — added optional faction parameter; marks all pending demands for the player as fulfilled after payment. DiplomacyPanel._on_accept() — finds and passes faction dict (same lookup pattern as _on_refuse).
+- Before: paying tribute left demands as unfulfilled; they re-accumulated in the envoy panel across cycles.
+- After: accepting a demand correctly marks it fulfilled, matching the refuse() behavior.
+- Scene test: ALL_SCENES_OK
+- Issues resolved: #052
+- Issues discovered: tribute_demands array grows unbounded (fulfilled demands never purged) — Low, noting for future.
+- Supervisor correction: none
+
+---
+
 ## [Iteration 95] 2026-06-14 — Fix #051: capital iron_mining_bonus never applied to iron mine production
 
 - Delegated to: Supervisor

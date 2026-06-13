@@ -125,7 +125,11 @@ func _get_active_agreement_lines() -> Array:
 
 func _on_accept() -> void:
 	if GameState.players.size() > 0:
-		DiplomacySystem.accept(GameState.players[0], _current.get("demands", {}))
+		var faction = null
+		for f in GameState.ai_factions:
+			if f is Dictionary and f.get("id", -1) == _current.get("faction_id", -1):
+				faction = f
+		DiplomacySystem.accept(GameState.players[0], _current.get("demands", {}), faction)
 		_record_history("accept", _current)
 	visible = false
 
