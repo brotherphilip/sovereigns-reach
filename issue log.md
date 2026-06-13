@@ -3,6 +3,10 @@
 <!-- Format: ## [ID] Title | Severity: Blocker/High/Medium/Low | Status: Open/In Progress/Resolved/Byproduct -->
 <!-- Severities: Blocker=crashes/data loss, High=broken feature, Medium=wrong behavior, Low=polish/text -->
 
+## [065] Three more edicts had only dead modifiers — defensive_zeal, training_surges, border_expansion | Severity: Medium | Status: Resolved
+`defensive_zeal` (4 pts): modifiers `wall_armor_bonus: 0.2, archer_fire_rate_bonus: 0.1` — no wall armor or fire rate system exists. `training_surges` (5 pts): modifiers `training_time_multiplier: 0.0, training_gold_cost_bonus: 0.5` — recruitment is instant with no training queue. `border_expansion` (4 pts): modifier `shire_radius_bonus: 0.2` — shire radii are static. 13 combined edict points with zero gameplay effect.
+Resolution: Remapped dead modifiers to wired equivalents. `defensive_zeal` → `recruitment_cost_reduction: 0.25` ("units cost 25% less gold"). `training_surges` → `army_speed_multiplier: 1.5` ("army movement ×1.5"). `border_expansion` → `market_sell_price_bonus: 0.2` ("sell prices +20%"). Scene test: ALL_SCENES_OK.
+
 ## [064] Three edicts had only dead movement-speed modifiers — cart_speed_bonus and peasant_walk_speed_bonus never consumed | Severity: Medium | Status: Resolved
 `iron_tariffs` (3 pts), `cart_speed` (2 pts), and `worker_speed` (4 pts) edicts defined modifiers `cart_speed_bonus` and `peasant_walk_speed_bonus`. No simulation code consumed these — the MFA tick-based simulation has no physical worker/cart movement. Players spending up to 9 combined edict points across these three edicts received zero gameplay effect.
 Resolution: Remapped dead modifiers to wired ones with matching thematic meaning: `cart_speed_bonus` → `trade_income_bonus` (iron_tariffs: +30%, cart_speed: +20%) with descriptions updated to "Trading posts generate X% more gold." `peasant_walk_speed_bonus` → `food_production_bonus` (+20% for 1 day) with description updated to "food production +20%." In ResourceTick.tick_building(), trading_post gold bonus now stacks TechTree `trade_income_bonus` with EdictSystem `trade_income_bonus`. Scene test: ALL_SCENES_OK.

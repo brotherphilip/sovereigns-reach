@@ -87,9 +87,9 @@ const EDICTS: Dictionary = {
 		"category": PolicyCategory.MILITARY, "type": EdictType.PASSIVE,
 		"cost_points": 4,
 		"duration_ticks": 0, "cooldown_ticks": 0,
-		"modifiers": {"wall_armor_bonus": 0.2, "archer_fire_rate_bonus": 0.1},
+		"modifiers": {"recruitment_cost_reduction": 0.25},
 		"requires_tech": "unit_unlocks",
-		"description": "Wall armor +20%, Archers fire 10% faster. GDD §7.3.3.",
+		"description": "Your people answer the call to arms — units cost 25% less gold to recruit. GDD §7.3.3.",
 	},
 	"siege_repairs": {
 		"name": "Siege Repairs",
@@ -106,9 +106,9 @@ const EDICTS: Dictionary = {
 		"category": PolicyCategory.MILITARY, "type": EdictType.PASSIVE,
 		"cost_points": 5,
 		"duration_ticks": 0, "cooldown_ticks": 0,
-		"modifiers": {"training_time_multiplier": 0.0, "training_gold_cost_bonus": 0.5},
+		"modifiers": {"army_speed_multiplier": 1.5},
 		"requires_tech": "training_speed",
-		"description": "Barracks train units instantly but at 50% extra gold per unit. GDD §7.3.5.",
+		"description": "Drilled troops respond to orders faster — army movement speed ×1.5. GDD §7.3.5.",
 	},
 
 	# ── §7.4 Logistics Policies ───────────────────────────────────────────
@@ -154,9 +154,9 @@ const EDICTS: Dictionary = {
 		"category": PolicyCategory.LOGISTICS, "type": EdictType.PASSIVE,
 		"cost_points": 4,
 		"duration_ticks": 0, "cooldown_ticks": 0,
-		"modifiers": {"shire_radius_bonus": 0.2},
+		"modifiers": {"market_sell_price_bonus": 0.2},
 		"requires_tech": "diplomacy",
-		"description": "Shire influence radius +20%. Claims neutral nodes faster. GDD §7.4.5.",
+		"description": "Wider trade routes attract better buyers — sell prices +20%. GDD §7.4.5.",
 	},
 
 	# ── Additional Edicts (filling the GDD §7 "20 Edicts" count) ──────────

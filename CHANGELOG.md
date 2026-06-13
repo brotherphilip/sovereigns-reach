@@ -2,6 +2,19 @@
 
 ---
 
+## [Iteration 109] 2026-06-14 — Fix #065: defensive_zeal, training_surges, border_expansion edicts had dead modifiers
+
+- Delegated to: Supervisor
+- What changed: EdictSystem.gd — remapped dead modifiers in 3 edicts: defensive_zeal (wall_armor_bonus+archer_fire_rate_bonus → recruitment_cost_reduction: 0.25), training_surges (training_time_multiplier+training_gold_cost_bonus → army_speed_multiplier: 1.5), border_expansion (shire_radius_bonus → market_sell_price_bonus: 0.2). Updated descriptions.
+- Before: 13 combined edict points (4+5+4) with zero gameplay effect. No wall armor, fire rate, training time, or shire radius systems exist.
+- After: All three edicts now have functional mechanics using existing wired modifier paths.
+- Scene test: ALL_SCENES_OK
+- Issues resolved: #065
+- Issues discovered: none
+- Supervisor correction: none
+
+---
+
 ## [Iteration 108] 2026-06-14 — Fix #064: Three edicts had dead movement-speed modifiers with zero effect
 
 - Delegated to: Supervisor
