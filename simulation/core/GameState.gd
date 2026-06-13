@@ -216,6 +216,11 @@ func _tick_player_economy(player: Dictionary, tick: int) -> void:
 			continue
 		var changes: Dictionary = ResourceTick.tick_building(building, player, tick)
 		if not changes.is_empty():
+			# Apply iron_mining_bonus from capital level (GDD §7.5 level 3 Grand Forge)
+			if building.get("type", "") == "iron_mine" and changes.has("iron"):
+				var iron_bonus: float = _get_player_capital_buff(player).get("iron_mining_bonus", 0.0)
+				if iron_bonus > 0.0:
+					changes["iron"] = int(ceil(float(changes["iron"]) * (1.0 + iron_bonus)))
 			ResourceTick.apply_changes(player, changes)
 
 	# Fire damage tick — applies each game-tick for burning buildings
@@ -321,6 +326,13 @@ func _tick_player_economy(player: Dictionary, tick: int) -> void:
 		EventBus.edict_expired.emit(player.get("id", 0), eid)
 
 # _collect_taxes removed — logic migrated to TaxSystem.tick() (Phase 4)
+
+func _get_player_capital_buff(player: Dictionary) -> Dictionary:
+	var shire_id: int = player.get("shire_id", -1)
+	for shire in world.get("shires", []):
+		if shire.get("id", -1) == shire_id:
+			return CapitalSystem.get_capital_buffs(shire)
+	return {}
 
 func _tick_player_unit_movement(player: Dictionary, tick: int) -> void:
 	const TICKS_PER_DAY: int = SimulationClock.TICKS_PER_GAME_DAY

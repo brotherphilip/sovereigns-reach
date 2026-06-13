@@ -2,6 +2,19 @@
 
 ---
 
+## [Iteration 95] 2026-06-14 — Fix #051: capital iron_mining_bonus never applied to iron mine production
+
+- Delegated to: Supervisor
+- What changed: GameState._tick_player_economy() — after tick_building(), if building is iron_mine and player's capital level 3+ gives iron_mining_bonus, multiplies iron output by (1 + bonus). Added _get_player_capital_buff() helper.
+- Before: capital level 3 Grand Forge gave +15% iron mining but no code consumed it.
+- After: iron mines produce 15% more iron once the player's shire reaches capital level 3.
+- Scene test: ALL_SCENES_OK
+- Issues resolved: #051
+- Issues discovered: none (other capital buffs — edict_tier_cap, ai_warning_bonus, border_radius_bonus — need non-existent mechanics)
+- Supervisor correction: none
+
+---
+
 ## [Iteration 94] 2026-06-14 — Fix #050: RNGs not re-seeded after deserialize — save/load breaks random event seeds
 
 - Delegated to: Supervisor
