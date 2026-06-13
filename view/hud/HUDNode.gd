@@ -10,6 +10,7 @@ const EdictPanelController = preload("res://view/hud/EdictPanelController.gd")
 const BuildingRegistry = preload("res://simulation/buildings/BuildingRegistry.gd")
 const TechTree = preload("res://simulation/tech/TechTree.gd")
 const EdictSystem = preload("res://simulation/edicts/EdictSystem.gd")
+const NotificationFeed = preload("res://view/hud/NotificationFeed.gd")
 
 signal build_requested(building_type: String)
 signal tech_research_requested(tech_id: String)
@@ -32,7 +33,7 @@ var _bottom_bar: Panel = null
 var _selection_panel: Panel = null
 var _tech_panel: Panel = null
 var _edict_panel: Panel = null
-var _notification_label: Label = null
+var _notification_feed: NotificationFeed = null
 
 # Resource labels
 var _gold_label: Label = null
@@ -114,15 +115,11 @@ func _build_all_panels() -> void:
 	_edict_panel.visible = false
 	_build_edict_panel()
 
-	# Floating notification
-	_notification_label = Label.new()
-	_notification_label.position = Vector2(vp.x * 0.5 - 200, vp.y * 0.4)
-	_notification_label.size = Vector2(400, 40)
-	_notification_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_notification_label.add_theme_color_override("font_color", Color.YELLOW)
-	_notification_label.add_theme_font_size_override("font_size", 16)
-	_notification_label.visible = false
-	add_child(_notification_label)
+	# Stacking notification feed (replaces the old single-label notification)
+	_notification_feed = NotificationFeed.new()
+	_notification_feed.position = Vector2(vp.x * 0.5 - 200, 44)
+	_notification_feed.size = Vector2(400, 0)
+	add_child(_notification_feed)
 
 func _make_panel(rect: Rect2) -> Panel:
 	var p := Panel.new()
@@ -618,12 +615,8 @@ func _toggle_edict_panel() -> void:
 # ── Notification system ───────────────────────────────────────────────────────
 
 func show_notification(text: String, duration: float = 3.0) -> void:
-	if _notification_label == null: return
-	_notification_label.text = text
-	_notification_label.visible = true
-	get_tree().create_timer(duration).timeout.connect(
-		func(): if is_instance_valid(_notification_label): _notification_label.visible = false
-	)
+	if _notification_feed == null: return
+	_notification_feed.push(text, duration)
 
 func set_build_mode_display(building_type: String) -> void:
 	if _build_mode_label:

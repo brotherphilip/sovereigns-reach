@@ -134,6 +134,7 @@ func _connect_signals() -> void:
 
 	# EventBus → HUD notifications
 	EventBus.weather_changed.connect(func(name, _d): _hud.show_notification("Weather: " + name, 4.0))
+	EventBus.popularity_changed.connect(func(_pid, _old, nv): if nv < 20.0: _hud.show_notification("⚠ Popularity critical — desertion risk!", 5.0))
 	EventBus.building_placement_failed.connect(func(_p, _b, _gx, _gy, reason): _hud.show_notification(reason, 3.0))
 	EventBus.ai_siege_assembling.connect(func(fid, _tpid, eta): _hud.show_notification("⚠ AI faction %d assembling siege! ETA: %d ticks" % [fid, eta], 6.0))
 	EventBus.unit_killed.connect(_on_unit_killed)
