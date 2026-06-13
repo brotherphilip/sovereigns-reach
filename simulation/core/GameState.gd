@@ -242,6 +242,14 @@ func _tick_player_economy(player: Dictionary, tick: int) -> void:
 		var disease_events: Array = DiseaseSystem.tick(player, _disease_rng, tick)
 		events.append_array(disease_events)
 
+		# Siege morale penalty — if any AI faction is actively besieging this player
+		var pid: int = player.get("id", -1)
+		for faction in ai_factions:
+			if faction is Dictionary and not faction.get("siege_assembly", {}).is_empty():
+				if faction["siege_assembly"].get("target_player_id", -1) == pid:
+					events.append("active_siege")
+					break
+
 		# Fire ignition from weather (DROUGHT / STORM have fire_risk > 0)
 		var fire_risk: float = weather.get("effects", {}).get("fire_risk", 0.0)
 		if fire_risk > 0.0:

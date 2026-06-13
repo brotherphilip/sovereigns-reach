@@ -2,6 +2,18 @@
 
 ---
 
+## [Iteration 82] 2026-06-14 — Fix #038: siege has no morale penalty — active_siege event never wired
+
+- Delegated to: Supervisor
+- What changed: GameState._tick_player_economy() day-boundary block — added loop over ai_factions to check if any faction's siege_assembly.target_player_id matches the current player. If yes, appends "active_siege" to events array, which PopularityEngine translates to −12/day.
+- Before: sieges had zero morale impact on the defender despite GDD §3.5 specifying −12/day during active siege.
+- Scene test: ALL_SCENES_OK
+- Issues resolved: #038
+- Issues discovered: none (also identified "ai_tribute_refused" and "wedding_event" as unwired — both too low-impact to fix as isolated changes)
+- Supervisor correction: none
+
+---
+
 ## [Iteration 81] 2026-06-14 — Fix #037: weather popularity event mismatches (STORM too harsh, RAIN ignored)
 
 - Delegated to: Supervisor

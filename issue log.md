@@ -3,6 +3,10 @@
 <!-- Format: ## [ID] Title | Severity: Blocker/High/Medium/Low | Status: Open/In Progress/Resolved/Byproduct -->
 <!-- Severities: Blocker=crashes/data loss, High=broken feature, Medium=wrong behavior, Low=polish/text -->
 
+## [038] Active siege has no morale penalty — "active_siege" event never appended | Severity: Low | Status: Resolved
+PopularityEngine.EVENT_POPULARITY_DELTA defines "active_siege": −12, intended to reduce morale while a siege is assembling (GDD §3.5). However, nothing in GameState._tick_player_economy() ever appended "active_siege" to the events array. AI siege state lives in faction["siege_assembly"], which is set when an AI faction begins assembling against a player. The event was entirely unwired: sieges had zero morale impact on the player despite the GDD spec.
+Resolution: Added siege check to the day-boundary events block in GameState._tick_player_economy() — iterates ai_factions, and if any faction's siege_assembly.target_player_id matches the current player's id, appends "active_siege" to events. Scene test: ALL_SCENES_OK.
+
 ## [037] Weather popularity events wrong — STORM maps to "blizzard" (−5 vs intended −2), RAIN has no event (0 vs intended −1) | Severity: Low | Status: Resolved
 GameState._tick_player_economy() builds a weather events Array: when weather_pop_delta != 0, it matches weather["current"] to an event string and appends to events[]. The match had SNOW→"blizzard" (−5), DROUGHT→"drought" (−3), STORM→"blizzard" (−5). But WeatherSystem.WEATHER_EFFECTS defines STORM popularity_delta=−2 (not −5). Additionally RAIN has popularity_delta=−1 but no match case, so rain weather always contributes 0 to popularity instead of −1/day. During storms (which can persist 1-3 days and transition at 20% from RAIN), popularity fell 2.5× faster than designed. Rain (common weather) had no popularity effect at all.
 Resolution: Changed STORM match case to append "storm" (not "blizzard"). Added RAIN match case appending "rain". Added "storm": −2 and "rain": −1 to PopularityEngine.EVENT_POPULARITY_DELTA. Scene test: ALL_SCENES_OK.
