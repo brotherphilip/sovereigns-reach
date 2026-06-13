@@ -3,6 +3,14 @@
 <!-- Format: ## [ID] Title | Severity: Blocker/High/Medium/Low | Status: Open/In Progress/Resolved/Byproduct -->
 <!-- Severities: Blocker=crashes/data loss, High=broken feature, Medium=wrong behavior, Low=polish/text -->
 
+## [028] CityViewScene._build_scene() omits set_building_layer() call — build ghost never shown | Severity: Medium | Status: Resolved
+CityViewScene._build_scene() calls `_input_handler.setup(_iso_grid, _camera, _unit_layer)` but never calls `_input_handler.set_building_layer(_bld_layer)`. GameBootstrap calls both. PlayerInputHandler._update_ghost() returns early when `_bld_layer == null` (guard at line 160), so the hover ghost for build placement is never rendered in CityViewScene. Players can still click to place buildings (commands still enqueue) but get no visual preview of placement validity or position.
+Resolution: Added `_input_handler.set_building_layer(_bld_layer)` in CityViewScene._build_scene() immediately after setup(), matching GameBootstrap. Build ghost now renders in CityViewScene.
+
+## [027] CityViewScene._do_save() writes to "save_slot_1" — not a valid user:// path, saves always fail | Severity: Medium | Status: Resolved
+CityViewScene._do_save() passes the bare string "save_slot_1" to SaveManager.save() as the file path. SaveManager.save() calls FileAccess.open(file_path, FileAccess.WRITE) — without a "user://" prefix, FileAccess cannot create the file on any platform and returns null. SaveManager.save() returns false and the player sees "Save failed!" on every save attempt. GameBootstrap correctly uses SaveManager.DEFAULT_SAVE_PATH ("user://sovereign_save.json") for saves.
+Resolution: Changed _do_save() to use SM.DEFAULT_SAVE_PATH ("user://sovereign_save.json") for both save() and the save_completed emit. Also added meta dict (game_day, shire_count, difficulty) to match GameBootstrap's save format. Saves now succeed and are consistent with GameBootstrap saves.
+
 ## [026] Population count never displayed in HUD — "Population:" label in right panel is an orphan stub | Severity: Low | Status: Resolved
 HUDNode._build_right_panel() adds static label text "Population:" at y=222 via `_add_label()` but discards the return value — no reference stored, never updated in `_refresh_right_panel()`. The player's population count is shown nowhere in the HUD. The top bar shows gold/wood/stone/iron/food/ale/day/weather/prestige but has no population figure. The right panel's "Population:" is a dead-end label with no value.
 Resolution: Added `_pop_count_label` member var to HUDNode. `_build_right_panel()` now stores the label reference (`_pop_count_label = _add_label(...)`). `_refresh_right_panel()` now updates it each refresh cycle as "Pop: N" from `player["population"]`. Population count is now visible in the right panel.

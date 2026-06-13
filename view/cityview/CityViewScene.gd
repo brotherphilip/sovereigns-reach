@@ -123,6 +123,7 @@ func _build_scene() -> void:
 	_input_handler.name = "InputHandler"
 	add_child(_input_handler)
 	_input_handler.setup(_iso_grid, _camera, _unit_layer)
+	_input_handler.set_building_layer(_bld_layer)
 
 	# "World Map" return button (added to a small persistent overlay)
 	_add_world_map_button()
@@ -356,10 +357,18 @@ func _auto_assign_workers() -> void:
 
 func _do_save() -> void:
 	const SM = preload("res://simulation/persistence/SaveManager.gd")
-	var ok: bool = SM.save(GameState.serialize(), "save_slot_1")
+	const DiffSystem = preload("res://simulation/core/DifficultySystem.gd")
+	var state: Dictionary = GameState.serialize()
+	var p: Dictionary = GameState.players[0] if GameState.players.size() > 0 else {}
+	var meta: Dictionary = {
+		"game_day": SimulationClock.game_day(),
+		"shire_count": p.get("shire_ids", []).size(),
+		"difficulty": DiffSystem.level_name(DiffSystem.current),
+	}
+	var ok: bool = SM.save(state, SM.DEFAULT_SAVE_PATH, meta)
 	if ok:
 		_hud.show_notification("Game saved!", 2.0)
-		EventBus.save_completed.emit("save_slot_1")
+		EventBus.save_completed.emit(SM.DEFAULT_SAVE_PATH)
 	else:
 		_hud.show_notification("Save failed!", 2.0)
 

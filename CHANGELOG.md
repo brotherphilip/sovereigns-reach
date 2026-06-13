@@ -2,6 +2,16 @@
 
 ---
 
+## [Iteration 64] 2026-06-14 — Fix #027 #028: CityViewScene save path invalid + build ghost missing
+
+- Delegated to: Supervisor (Omniscience unavailable — Ollama HTTP 500)
+- What changed: CityViewScene.gd — (1) `_do_save()` now saves to `SM.DEFAULT_SAVE_PATH` ("user://sovereign_save.json") instead of bare `"save_slot_1"` which was not a valid writable path on any platform; also added meta dict (game_day, shire_count, difficulty) matching GameBootstrap. (2) `_build_scene()` now calls `_input_handler.set_building_layer(_bld_layer)` after setup(), same as GameBootstrap; without this, `PlayerInputHandler._bld_layer` was null, causing `_update_ghost()` to return early — build placement ghost preview was never shown.
+- Issues resolved: #027 (saves always fail in CityViewScene), #028 (build ghost not shown in CityViewScene)
+- Issues discovered: none
+- Supervisor correction: none
+
+---
+
 ## [Iteration 63] 2026-06-14 — Fix #026: Population count never shown in HUD — orphan label stub
 
 - Delegated to: Supervisor (Omniscience unavailable — Ollama HTTP 500)
