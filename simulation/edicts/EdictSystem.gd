@@ -27,9 +27,9 @@ const EDICTS: Dictionary = {
 		"category": PolicyCategory.ECONOMY, "type": EdictType.PASSIVE,
 		"cost_points": 3,
 		"duration_ticks": 0, "cooldown_ticks": 0,
-		"modifiers": {"cart_speed_bonus": 0.3},
+		"modifiers": {"trade_income_bonus": 0.3},
 		"requires_tech": "royal_edicts",
-		"description": "Trade carts move 30% faster. Applies to Iron and Weapons. GDD §7.2.2.",
+		"description": "Trading posts generate 30% more gold. GDD §7.2.2.",
 	},
 	"taxation_bumps": {
 		"name": "Taxation Bumps",
@@ -117,9 +117,9 @@ const EDICTS: Dictionary = {
 		"category": PolicyCategory.LOGISTICS, "type": EdictType.PASSIVE,
 		"cost_points": 2,
 		"duration_ticks": 0, "cooldown_ticks": 0,
-		"modifiers": {"cart_speed_bonus": 0.2},
+		"modifiers": {"trade_income_bonus": 0.2},
 		"requires_tech": "transport_logistics",
-		"description": "Trade carts move 20% faster. Stacks with Iron Tariffs. GDD §7.4.1.",
+		"description": "Trading posts generate 20% more gold. Stacks with Iron Tariffs. GDD §7.4.1.",
 	},
 	"storage_expansions": {
 		"name": "Storage Expansions",
@@ -136,9 +136,9 @@ const EDICTS: Dictionary = {
 		"cost_points": 4,
 		"duration_ticks": TICKS_PER_GAME_DAY * 1,   # 1 game-day (≈ 6 hours proxy)
 		"cooldown_ticks": TICKS_PER_GAME_DAY * 5,
-		"modifiers": {"peasant_walk_speed_bonus": 0.2},
+		"modifiers": {"food_production_bonus": 0.2},
 		"requires_tech": "transport_logistics",
-		"description": "Peasants walk 20% faster for 1 day. Boosts all production. GDD §7.4.3.",
+		"description": "Peasants work the fields harder for 1 day — food production +20%. GDD §7.4.3.",
 	},
 	"weather_resistance": {
 		"name": "Weather Resistance",

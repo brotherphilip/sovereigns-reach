@@ -2,6 +2,19 @@
 
 ---
 
+## [Iteration 108] 2026-06-14 — Fix #064: Three edicts had dead movement-speed modifiers with zero effect
+
+- Delegated to: Supervisor
+- What changed: EdictSystem.gd — remapped dead cart_speed_bonus (iron_tariffs, cart_speed) → trade_income_bonus; remapped peasant_walk_speed_bonus (worker_speed) → food_production_bonus. Updated descriptions. ResourceTick.gd — trading_post gold bonus now stacks TechTree + EdictSystem trade_income_bonus (additive).
+- Before: iron_tariffs (3 pts), cart_speed (2 pts), worker_speed (4 pts) — all zero gameplay effect. MFA simulation has no physical carts/peasants.
+- After: Iron Tariffs +30% and Cart Speed +20% trading_post gold (stackable); Worker Speed +20% food production for 1 day.
+- Scene test: ALL_SCENES_OK
+- Issues resolved: #064
+- Issues discovered: none
+- Supervisor correction: none
+
+---
+
 ## [Iteration 107] 2026-06-14 — Fix #063: Storage Expansions edict description overstates effect
 
 - Delegated to: Supervisor
