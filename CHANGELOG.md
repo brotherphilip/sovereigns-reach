@@ -2,6 +2,16 @@
 
 ---
 
+## [Iteration 65] 2026-06-14 — Fix #029: MacroViewController shows player color for AI-captured shires
+
+- Delegated to: Supervisor (Omniscience unavailable — Ollama HTTP 500)
+- What changed: MacroViewController.get_shire_color() rewritten. Previous logic checked `owner_id < 0` for AI factions (dead code — AI IDs are non-negative), then returned SHIRE_COLORS[owner_id] for positive IDs — showing player 0's blue for bandit king (id=0) and player 1's green for ashen barony (id=1). New logic: returns NEUTRAL_COLOR for negative owner, then scans ai_factions for a match first, then falls back to SHIRE_COLORS for players. Removed dead `owner_id in fac["shire_ids"]` inner check.
+- Issues resolved: #029 (AI-captured shires show wrong color)
+- Issues discovered: none
+- Supervisor correction: none
+
+---
+
 ## [Iteration 64] 2026-06-14 — Fix #027 #028: CityViewScene save path invalid + build ghost missing
 
 - Delegated to: Supervisor (Omniscience unavailable — Ollama HTTP 500)

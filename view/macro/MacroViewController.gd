@@ -50,14 +50,13 @@ static func get_shire_render_list(world: Dictionary, players: Array,
 # Returns the hex color string for a shire owned by `owner_id`.
 static func get_shire_color(owner_id: int, players: Array, ai_factions: Array) -> String:
 	if owner_id < 0:
-		# Check if any AI faction owns this shire
-		for fac in ai_factions:
-			if fac is Dictionary and owner_id in fac.get("shire_ids", []):
-				return AI_COLORS.get(fac.get("archetype", ""), NEUTRAL_COLOR)
 		return NEUTRAL_COLOR
-	if owner_id < SHIRE_COLORS.size():
-		return SHIRE_COLORS[owner_id]
-	return NEUTRAL_COLOR
+	# AI faction IDs start at 0 (same namespace as player IDs) — check factions first.
+	for fac in ai_factions:
+		if fac is Dictionary and fac.get("id", -1) == owner_id:
+			return AI_COLORS.get(fac.get("archetype", ""), NEUTRAL_COLOR)
+	# Not an AI faction — treat as player id.
+	return SHIRE_COLORS[owner_id] if owner_id < SHIRE_COLORS.size() else NEUTRAL_COLOR
 
 # ── Army banners ──────────────────────────────────────────────────────────────
 
