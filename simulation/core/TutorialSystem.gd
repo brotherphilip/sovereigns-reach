@@ -89,9 +89,9 @@ func _on_tick(tick: int) -> void:
 	var active_edict_ids: Array = []
 	for ae in p.get("active_edicts", []):
 		if ae is Dictionary: active_edict_ids.append(ae.get("id", ""))
-	if pop < 35.0 and "feast" not in active_edict_ids:
-		tutorial_hint.emit("Popularity is dangerously low! Consider the Feast or Tax Holiday edict to recover fast.")
+	if pop < 35.0 and "festival_decree" not in active_edict_ids:
+		tutorial_hint.emit("Popularity is dangerously low! The Festival Decree edict gives an instant +8 popularity boost.")
 		_last_edict_hint_tick = tick
-	elif diseased and "sanitation_drive" not in active_edict_ids:
-		tutorial_hint.emit("Disease is spreading! The Sanitation Drive edict can slow the outbreak.")
+	elif diseased:
+		tutorial_hint.emit("Disease is spreading! Build more Apothecaries to increase coverage and stop the outbreak.")
 		_last_edict_hint_tick = tick

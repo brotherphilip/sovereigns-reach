@@ -2,6 +2,19 @@
 
 ---
 
+## [Iteration 110] 2026-06-14 — Fix #066: TutorialSystem hints referenced non-existent edicts
+
+- Delegated to: Supervisor
+- What changed: TutorialSystem._on_tick() — low-popularity hint now references "festival_decree" (exists, checks active_edict_ids correctly); disease hint now says "Build more Apothecaries" instead of referencing phantom "sanitation_drive" edict.
+- Before: Players with low popularity saw "Consider the Feast or Tax Holiday edict"; players with disease saw "Sanitation Drive edict" — neither edict exists. Players who followed the advice found nothing in the edict panel.
+- After: Tutorial advice matches available game mechanics.
+- Scene test: ALL_SCENES_OK
+- Issues resolved: #066
+- Issues discovered: none
+- Supervisor correction: none
+
+---
+
 ## [Iteration 109] 2026-06-14 — Fix #065: defensive_zeal, training_surges, border_expansion edicts had dead modifiers
 
 - Delegated to: Supervisor

@@ -3,6 +3,10 @@
 <!-- Format: ## [ID] Title | Severity: Blocker/High/Medium/Low | Status: Open/In Progress/Resolved/Byproduct -->
 <!-- Severities: Blocker=crashes/data loss, High=broken feature, Medium=wrong behavior, Low=polish/text -->
 
+## [066] TutorialSystem contextual hints reference non-existent edicts | Severity: Medium | Status: Resolved
+TutorialSystem._on_tick() showed two contextual hints: (1) when popularity < 35: "Consider the Feast or Tax Holiday edict" — neither "feast" nor "tax_holiday" exists in EdictSystem.EDICTS. (2) when disease_active: "The Sanitation Drive edict can slow the outbreak" — "sanitation_drive" doesn't exist. Players receiving these hints would open the edict panel and find nothing. The popularity check also tested `"feast" not in active_edict_ids` which would never match.
+Resolution: Changed low-popularity hint to reference "festival_decree" (which exists, gives +8 popularity via instant_event). Changed disease hint to recommend building Apothecaries (the actual game mechanic for curing disease — no edict for disease exists). Scene test: ALL_SCENES_OK.
+
 ## [065] Three more edicts had only dead modifiers — defensive_zeal, training_surges, border_expansion | Severity: Medium | Status: Resolved
 `defensive_zeal` (4 pts): modifiers `wall_armor_bonus: 0.2, archer_fire_rate_bonus: 0.1` — no wall armor or fire rate system exists. `training_surges` (5 pts): modifiers `training_time_multiplier: 0.0, training_gold_cost_bonus: 0.5` — recruitment is instant with no training queue. `border_expansion` (4 pts): modifier `shire_radius_bonus: 0.2` — shire radii are static. 13 combined edict points with zero gameplay effect.
 Resolution: Remapped dead modifiers to wired equivalents. `defensive_zeal` → `recruitment_cost_reduction: 0.25` ("units cost 25% less gold"). `training_surges` → `army_speed_multiplier: 1.5` ("army movement ×1.5"). `border_expansion` → `market_sell_price_bonus: 0.2` ("sell prices +20%"). Scene test: ALL_SCENES_OK.
