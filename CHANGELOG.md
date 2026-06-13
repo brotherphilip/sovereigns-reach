@@ -2,6 +2,19 @@
 
 ---
 
+## [Iteration 103] 2026-06-14 — Fix #059: weather farm_yield_mult and food_drain effects never applied
+
+- Delegated to: Supervisor
+- What changed: _tick_player_economy() building loop — for farm buildings, multiply positive output changes by weather.effects.farm_yield_mult after ResourceTick returns them (drought/snow: 0× crop yield; storm: 0.5×; rain: 1.1×). Day-boundary block — after standard food consumption, apply weather food_drain × population as extra food drain (snow: +2 food/peasant/day; drought/storm: +0.5).
+- Before: drought and snow had no effect on farm production; cold weather didn't increase food demand. GDD §1.1.3 "Snow drains food" was a no-op.
+- After: drought/snow suppress all farm output to 0; rain gives +10% yield; severe weather consumes extra food.
+- Scene test: ALL_SCENES_OK
+- Issues resolved: #059
+- Issues discovered: none
+- Supervisor correction: none
+
+---
+
 ## [Iteration 102] 2026-06-14 — Fix #058: per-building fire_risk magnitude dead in ignition probability calculation
 
 - Delegated to: Supervisor

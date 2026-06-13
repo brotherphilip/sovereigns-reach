@@ -221,6 +221,15 @@ func _tick_player_economy(player: Dictionary, tick: int) -> void:
 				var iron_bonus: float = _get_player_capital_buff(player).get("iron_mining_bonus", 0.0)
 				if iron_bonus > 0.0:
 					changes["iron"] = int(ceil(float(changes["iron"]) * (1.0 + iron_bonus)))
+			# Apply weather farm_yield_mult to raw crop and animal farm outputs (GDD §1.1.3).
+			# Drought and snow suppress production to 0; rain gives +10% bonus.
+			const FARM_TYPES: Array = ["apple_orchard", "wheat_farm", "hops_farm", "pig_farm", "dairy_farm"]
+			if building.get("type", "") in FARM_TYPES:
+				var farm_mult: float = weather.get("effects", {}).get("farm_yield_mult", 1.0)
+				if farm_mult != 1.0:
+					for res in changes.keys():
+						if changes[res] > 0:
+							changes[res] = int(float(changes[res]) * farm_mult)
 			ResourceTick.apply_changes(player, changes)
 
 	# Fire damage tick — applies each game-tick for burning buildings
@@ -295,6 +304,24 @@ func _tick_player_economy(player: Dictionary, tick: int) -> void:
 		var food_changes: Dictionary = ResourceTick.tick_food_consumption(player, tick)
 		if not food_changes.is_empty():
 			ResourceTick.apply_changes(player, food_changes)
+
+		# Extra food drain from severe weather (GDD §1.1.3 — snow/storm/drought increase demand).
+		# food_drain is an additional consumption multiplier on top of base daily demand.
+		var food_drain: float = weather.get("effects", {}).get("food_drain", 0.0)
+		if food_drain > 0.0:
+			var population: int = player.get("population", 0)
+			var extra: int = maxi(0, int(float(population) * food_drain))
+			if extra > 0:
+				var food_dict: Dictionary = player.get("food", {})
+				for food_type in ["bread", "meat", "cheese", "apples"]:
+					if extra <= 0:
+						break
+					var available: int = food_dict.get(food_type, 0)
+					if available <= 0:
+						continue
+					var consumed: int = mini(available, extra)
+					food_dict[food_type] = available - consumed
+					extra -= consumed
 
 		# Phase 4: FoodSystem granary cap enforcement
 		FoodSystem.apply_granary_cap(player)
