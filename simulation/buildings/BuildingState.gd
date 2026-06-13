@@ -59,10 +59,11 @@ static func worker_efficiency(building: Dictionary, keep_x: int, keep_y: int) ->
 	var penalty: float = maxf(0.0, dist - 10.0) * 0.01
 	return clampf(1.0 - penalty, 0.1, 1.0)
 
-# Deals damage to a building. Returns true if it was destroyed.
+# Deals damage to a building. Returns true only on the tick it is first destroyed.
 static func take_damage(building: Dictionary, amount: int) -> bool:
+	var was_alive: bool = building.get("hp", 0) > 0
 	building["hp"] = maxi(0, building["hp"] - amount)
-	if building["hp"] == 0:
+	if was_alive and building["hp"] == 0:
 		building["is_active"] = false
 		return true
 	return false

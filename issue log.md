@@ -3,6 +3,10 @@
 <!-- Format: ## [ID] Title | Severity: Blocker/High/Medium/Low | Status: Open/In Progress/Resolved/Byproduct -->
 <!-- Severities: Blocker=crashes/data loss, High=broken feature, Medium=wrong behavior, Low=polish/text -->
 
+## [072] BuildingState.take_damage returns true every tick after hp reaches 0 — burning buildings drain prestige and spam events indefinitely | Severity: High | Status: Resolved
+`take_damage()` checked `building["hp"] == 0` after deducting damage. Once hp reached 0, every subsequent call (`maxi(0, 0 - amount) = 0`) also satisfied `hp == 0`, returning true indefinitely. Fire tick called `take_damage()` every simulation tick (up to 240×/day). Effect: burning buildings called `PrestigeSystem.apply_defeat_loss()` (-50 prestige per call) and emitted `EventBus.building_destroyed` every tick after destruction — up to 12,000 prestige lost per game-day per destroyed building, plus a flood of "Building destroyed" notifications in the HUD.
+Resolution: Added `was_alive: bool = building.get("hp", 0) > 0` guard; `take_damage` now returns `true` only when transitioning from hp > 0 → hp = 0 (first kill). Subsequent calls with hp already 0 return false, stopping repeated prestige loss and event spam. Scene test: ALL_SCENES_OK.
+
 ## [071] TechTree armor_forging.unlocks_units references "armored_archer" — unit doesn't exist in UnitRegistry | Severity: Medium | Status: Resolved
 `armor_forging` tech (300 prestige) defines `unlocks_units: ["armored_archer", "swordsman"]`. No "armored_archer" unit exists in UnitRegistry (Phase 6 stub never implemented). The TechTree panel displays "Unlocks: armored_archer, swordsman" when hovering over armor_forging, promising a unit type that cannot be recruited.
 Resolution: Removed `"armored_archer"` from `armor_forging.unlocks_units` — now just `["swordsman"]`. Updated description to reference "armored heavy infantry" generically. Scene test: ALL_SCENES_OK.

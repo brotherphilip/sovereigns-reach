@@ -2,6 +2,19 @@
 
 ---
 
+## [Iteration 117] 2026-06-14 — Fix #072: BuildingState.take_damage fired destroy event every tick after hp=0
+
+- Delegated to: Supervisor
+- What changed: BuildingState.gd — added `was_alive` guard to `take_damage()`. Now returns `true` only on first kill (hp > 0 → 0 transition); returns `false` if hp was already 0.
+- Before: Any building at 0 HP (burned or siege-destroyed) would emit `building_destroyed` and call `apply_defeat_loss` (-50 prestige) on every subsequent simulation tick. Fire buildings burning in place: up to 12,000 prestige drained per game-day, plus HUD notification spam.
+- After: Destruction events fire exactly once per building, on the tick it first reaches 0 HP.
+- Scene test: ALL_SCENES_OK
+- Issues resolved: #072
+- Issues discovered: none
+- Supervisor correction: none
+
+---
+
 ## [Iteration 116] 2026-06-14 — Fix #071: TechTree armor_forging referenced non-existent "armored_archer" unit
 
 - Delegated to: Supervisor
