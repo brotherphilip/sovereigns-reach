@@ -39,7 +39,7 @@ static func get_shire_render_list(world: Dictionary, players: Array,
 		result.append({
 			"id": shire.get("id", -1),
 			"owner_id": owner,
-			"capital_level": shire.get("level", 0),
+			"capital_level": shire.get("capital_level", 0),
 			"color": get_shire_color(owner, players, ai_factions),
 			"name": shire.get("name", "Shire"),
 			"capital_x": shire.get("capital_x", 0),
@@ -130,6 +130,8 @@ static func get_siege_tent_data(ai_factions: Array) -> Array:
 			"target_player_id": asm.get("target_player_id", -1),
 			"target_x": asm.get("target_x", 0),
 			"target_y": asm.get("target_y", 0),
+			"capital_x": fac.get("capital_x", 0),
+			"capital_y": fac.get("capital_y", 0),
 			"progress": progress,
 			"eta_label": "%d days" % days_left,
 		})

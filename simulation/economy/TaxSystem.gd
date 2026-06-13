@@ -6,6 +6,7 @@ extends RefCounted
 # Gold collected per peasant per day per tax level (magnitude)
 const GOLD_PER_PEASANT_LEVEL: float = 0.5
 const DifficultySystem = preload("res://simulation/core/DifficultySystem.gd")
+const EdictSystem      = preload("res://simulation/edicts/EdictSystem.gd")
 
 # Returns the gold delta for one game-day.
 # Positive = gold collected; negative = bribe paid.
@@ -22,6 +23,12 @@ static func calculate_daily_gold(player: Dictionary, world: Dictionary) -> int:
 	# Apply shire tax rate modifier if player is in a shire
 	var modifier: float = _get_shire_tax_modifier(player, world)
 	base_delta = int(float(base_delta) * (1.0 + modifier))
+
+	# Apply edict tax multiplier (e.g. tax_levy_multiplier doubles tax collected)
+	var edict_mods: Dictionary = EdictSystem.get_active_modifiers(player)
+	var edict_tax_mult: float = edict_mods.get("tax_multiplier", 1.0)
+	if edict_tax_mult != 1.0:
+		base_delta = int(float(base_delta) * edict_tax_mult)
 
 	if tax_rate > 0:
 		return int(float(base_delta) * DifficultySystem.get_mod("tax_income"))

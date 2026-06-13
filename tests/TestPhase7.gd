@@ -246,7 +246,7 @@ func _test_building_renderer() -> void:
 	# Use wheat_farm (category FOOD, has produces)
 	var farm_empty: Dictionary = {
 		"type": "wheat_farm", "is_operational": false, "workers": 0,
-		"on_fire": false, "hp": 40, "max_hp": 40, "grid_x": 5, "grid_y": 5,
+		"is_on_fire": false, "hp": 40, "max_hp": 40, "grid_x": 5, "grid_y": 5,
 	}
 	var vs_empty: Dictionary = BuildingRenderer.get_visual_state(farm_empty)
 	ok("empty wheat_farm state=empty", vs_empty.get("state") == "empty")
@@ -256,7 +256,7 @@ func _test_building_renderer() -> void:
 	# working wheat_farm
 	var farm_working: Dictionary = {
 		"type": "wheat_farm", "is_operational": true, "workers": 2,
-		"on_fire": false, "hp": 40, "max_hp": 40, "grid_x": 5, "grid_y": 5,
+		"is_on_fire": false, "hp": 40, "max_hp": 40, "grid_x": 5, "grid_y": 5,
 	}
 	var vs_work: Dictionary = BuildingRenderer.get_visual_state(farm_working)
 	ok("working wheat_farm state=working", vs_work.get("state") == "working")
@@ -265,7 +265,7 @@ func _test_building_renderer() -> void:
 	# on fire
 	var farm_fire: Dictionary = {
 		"type": "wheat_farm", "is_operational": true, "workers": 2,
-		"on_fire": true, "hp": 30, "max_hp": 40, "grid_x": 5, "grid_y": 5,
+		"is_on_fire": true, "hp": 30, "max_hp": 40, "grid_x": 5, "grid_y": 5,
 	}
 	var vs_fire: Dictionary = BuildingRenderer.get_visual_state(farm_fire)
 	ok("burning wheat_farm state=fire", vs_fire.get("state") == "fire")
@@ -394,7 +394,7 @@ func _test_macro_view_controller() -> void:
 	# get_shire_render_list with one shire
 	var world: Dictionary = {
 		"shires": [
-			{"id": 1, "owner_id": 0, "level": 2, "name": "Greenfield",
+			{"id": 1, "owner_id": 0, "capital_level": 2, "name": "Greenfield",
 			 "capital_x": 10, "capital_y": 10},
 		]
 	}

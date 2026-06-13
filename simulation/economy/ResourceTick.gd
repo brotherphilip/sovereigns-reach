@@ -1,4 +1,5 @@
 extends RefCounted
+const EdictSystem = preload("res://simulation/edicts/EdictSystem.gd")
 # Handles per-tick resource production and consumption for all buildings.
 # Called from GameState.simulate_tick() once per simulation tick.
 # GDD §5.2–5.4 (Building Roster), §4.2–4.4 (Tech Tree production bonuses).
@@ -98,11 +99,15 @@ static func tick_building(building: Dictionary, player: Dictionary, current_tick
 
 	# Produce outputs, scaled by worker count and terrain yield for farms
 	var outputs: Dictionary = PRODUCTION_OUTPUTS.get(btype, {})
+	var edict_mods: Dictionary = EdictSystem.get_active_modifiers(player)
+	var food_bonus: float = edict_mods.get("food_production_bonus", 0.0)
 	for res in outputs:
 		var amount: int = outputs[res] * workers
 		if btype in ["apple_orchard", "wheat_farm", "hops_farm"]:
 			var yield_mult: float = building.get("terrain_yield", 1.0)
 			amount = int(ceil(amount * yield_mult))
+		if food_bonus > 0.0 and res in ["apples", "meat", "cheese", "wheat", "hops", "flour", "bread"]:
+			amount = int(ceil(float(amount) * (1.0 + food_bonus)))
 		if changes.has(res):
 			changes[res] += amount
 		else:
@@ -123,6 +128,8 @@ static func tick_food_consumption(player: Dictionary, current_tick: int) -> Dict
 	var ration: int = player.get("food_ration", 2)
 	var mult: float = RATION_CONSUMPTION_MULTIPLIERS.get(ration, 1.0)
 	var daily_demand: float = population * FOOD_CONSUMPTION_PER_PEASANT_PER_DAY * mult
+	var _consumption_mods: Dictionary = EdictSystem.get_active_modifiers(player)
+	daily_demand *= maxf(0.0, 1.0 - _consumption_mods.get("food_consumption_reduction", 0.0))
 
 	var changes: Dictionary = {}
 	var food: Dictionary = player.get("food", {})

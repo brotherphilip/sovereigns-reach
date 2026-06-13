@@ -1,4 +1,5 @@
 extends RefCounted
+const EdictSystem = preload("res://simulation/edicts/EdictSystem.gd")
 # GDD §5.1.3 — Market
 # Handles BUY_RESOURCE and SELL_RESOURCE commands.
 # Prices are stored in world["market_prices"] and fluctuate over time.
@@ -39,11 +40,21 @@ static func tick_prices(world: Dictionary, rng: RandomNumberGenerator, tick: int
 	if tick == 0 or tick % 2400 != 0:  # Every 10 game-days
 		return
 	var prices: Dictionary = world.get("market_prices", {})
+	var history: Dictionary = world.get("market_price_history", {})
 	for resource in BASE_PRICES:
+		var cur: int = prices.get(resource, BASE_PRICES[resource])
+		if not history.has(resource):
+			history[resource] = []
+		var arr: Array = history[resource]
+		arr.append(cur)
+		if arr.size() > 5:
+			arr = arr.slice(arr.size() - 5)
+		history[resource] = arr
 		var base: int = BASE_PRICES[resource]
 		var variance: float = rng.randf_range(-PRICE_VARIANCE, PRICE_VARIANCE)
 		prices[resource] = maxi(1, int(float(base) * (1.0 + variance)))
 	world["market_prices"] = prices
+	world["market_price_history"] = history
 
 # Returns current buy price (player pays this; buying costs slightly more)
 static func get_buy_price(resource: String, world: Dictionary) -> int:
@@ -54,6 +65,14 @@ static func get_buy_price(resource: String, world: Dictionary) -> int:
 static func get_sell_price(resource: String, world: Dictionary) -> int:
 	return world.get("market_prices", {}).get(resource, BASE_PRICES.get(resource, 5))
 
+# Returns true if the player is embargoed by any AI faction (prices rise).
+static func is_embargoed(player: Dictionary) -> bool:
+	for f in GameState.ai_factions:
+		if f is Dictionary and f.get("is_alive", false):
+			if player.get("id", 0) in f.get("embargoed_players", []):
+				return true
+	return false
+
 # Executes a BUY_RESOURCE transaction. Returns dict with "ok", "message", "cost".
 # Requires player to have gold and a market building.
 static func buy(player: Dictionary, resource: String, quantity: int, world: Dictionary) -> Dictionary:
@@ -63,6 +82,8 @@ static func buy(player: Dictionary, resource: String, quantity: int, world: Dict
 		return {"ok": false, "message": "No market building"}
 
 	var unit_price: int = get_buy_price(resource, world)
+	if is_embargoed(player):
+		unit_price = ceili(float(unit_price) * 1.40)
 	var total_cost: int = unit_price * quantity
 	if player.get("gold", 0) < total_cost:
 		return {"ok": false, "message": "Insufficient gold (need %d)" % total_cost}
@@ -83,6 +104,10 @@ static func sell(player: Dictionary, resource: String, quantity: int, world: Dic
 		return {"ok": false, "message": "Not enough %s (have %d)" % [resource, available]}
 
 	var unit_price: int = get_sell_price(resource, world)
+	var sell_mods: Dictionary = EdictSystem.get_active_modifiers(player)
+	var sell_bonus: float = sell_mods.get("market_sell_price_bonus", 0.0)
+	if sell_bonus > 0.0:
+		unit_price = ceili(float(unit_price) * (1.0 + sell_bonus))
 	var earned: int = unit_price * quantity
 	_deduct_resource(player, resource, quantity)
 	player["gold"] = player.get("gold", 0) + earned

@@ -32,6 +32,7 @@ const MerchantPrince   = preload("res://simulation/ai/MerchantPrince.gd")
 const Ironhand         = preload("res://simulation/ai/Ironhand.gd")
 const AshenBarony      = preload("res://simulation/ai/AshenBarony.gd")
 const CombatSystem     = preload("res://simulation/combat/CombatSystem.gd")
+const MilestoneSystem  = preload("res://simulation/core/MilestoneSystem.gd")
 # All fields are plain Dictionary/Array/int/float/bool — JSON-serializable.
 # Never stores Godot objects (Vector2, Node, etc.) to ensure network/save readiness.
 # The View layer reads from here; it never writes here directly.
@@ -48,6 +49,7 @@ var milestones: Dictionary = {}
 # Non-serialized runtime instances (reconstructed from world dict on deserialize)
 var _weather_rng: RandomNumberGenerator = null
 var _disease_rng: RandomNumberGenerator = null
+var _fire_rng: RandomNumberGenerator = null
 var _grid: Object = null       # WorldGrid instance
 var _shire_map: Object = null  # ShireMap instance
 var _next_building_id: int = 1
@@ -70,6 +72,8 @@ func _init_default_state() -> void:
 	_weather_rng.seed = server_config["map_seed"]
 	_disease_rng = RandomNumberGenerator.new()
 	_disease_rng.seed = server_config["map_seed"] ^ 0xDEADBEEF
+	_fire_rng = RandomNumberGenerator.new()
+	_fire_rng.seed = server_config["map_seed"] ^ 0xCAFEBABE
 	weather = WeatherSystem.make_state()
 	milestones = {}
 	_next_building_id = 1
@@ -78,6 +82,8 @@ func _init_default_state() -> void:
 func setup_world(seed_value: int = 12345, shire_count: int = 8) -> void:
 	server_config["map_seed"] = seed_value
 	_weather_rng.seed = seed_value
+	_disease_rng.seed = seed_value ^ 0xDEADBEEF
+	_fire_rng.seed = seed_value ^ 0xCAFEBABE
 
 	_grid = WorldGrid.new(server_config["map_width"], server_config["map_height"])
 	_grid.generate(seed_value, shire_count)
@@ -184,6 +190,14 @@ func _tick_player_economy(player: Dictionary, tick: int) -> void:
 		if not changes.is_empty():
 			ResourceTick.apply_changes(player, changes)
 
+	# Fire damage tick — applies each game-tick for burning buildings
+	for building in player.get("buildings", []):
+		if not building is Dictionary:
+			continue
+		if BuildingState.tick_fire(building):
+			PrestigeSystem.apply_defeat_loss(player)
+			EventBus.building_destroyed.emit(player.get("id", 0), building.get("id", -1), "fire")
+
 	# Phase 4: update live coverage values every tick (needed by PopularityEngine)
 	AleSystem.tick(player, tick)    # updates inn_coverage, consumes ale at day boundaries
 	ReligionSystem.tick(player)     # updates religion_coverage
@@ -203,6 +217,20 @@ func _tick_player_economy(player: Dictionary, tick: int) -> void:
 		var disease_events: Array = DiseaseSystem.tick(player, _disease_rng, tick)
 		events.append_array(disease_events)
 
+		# Fire ignition from weather (DROUGHT / STORM have fire_risk > 0)
+		var fire_risk: float = weather.get("effects", {}).get("fire_risk", 0.0)
+		if fire_risk > 0.0:
+			var _fire_edict_mods: Dictionary = EdictSystem.get_active_modifiers(player)
+			fire_risk = maxf(0.0, fire_risk * (1.0 - _fire_edict_mods.get("fire_risk_reduction", 0.0)))
+		if fire_risk > 0.0:
+			for building in player.get("buildings", []):
+				if not building is Dictionary or not building.get("is_active", true):
+					continue
+				if building.get("is_on_fire", false):
+					continue
+				if _fire_rng.randf() < fire_risk:
+					BuildingState.ignite(building)
+
 		# Phase 2 food consumption (ResourceTick handles production quantities)
 		var food_changes: Dictionary = ResourceTick.tick_food_consumption(player, tick)
 		if not food_changes.is_empty():
@@ -210,6 +238,9 @@ func _tick_player_economy(player: Dictionary, tick: int) -> void:
 
 		# Phase 4: FoodSystem granary cap enforcement
 		FoodSystem.apply_granary_cap(player)
+
+		# Update starvation flag — PrestigeSystem halts prestige if starving
+		player["is_starving"] = FoodSystem.get_total_food(player) <= 0 and player.get("population", 0) > 0
 
 		# Phase 4: TaxSystem (replaces GameState._collect_taxes)
 		var tax_result: Dictionary = TaxSystem.tick(player, world, tick)
@@ -231,8 +262,20 @@ func _tick_player_economy(player: Dictionary, tick: int) -> void:
 		if not prestige_result.is_empty():
 			EventBus.prestige_changed.emit(player["id"], prestige_result["old_prestige"], prestige_result["new_prestige"])
 
+		# Edict points regeneration (GDD §7.1.2): +2/day, cap rises with prestige
+		var ep_cap: int = mini(20, 10 + int(player.get("prestige", 0.0)) / 100)
+		if player.get("edict_points", 0) < ep_cap:
+			player["edict_points"] = mini(ep_cap, player.get("edict_points", 0) + 2)
+
+		# Milestones (GDD §1.4.3): check once per day, emit per newly earned
+		var new_milestones: Array = MilestoneSystem.check(player, world, milestones, player.get("active_edicts", []))
+		for ms_id in new_milestones:
+			EventBus.milestone_earned.emit(player["id"], ms_id, MilestoneSystem.PRESTIGE_BONUS)
+
 	# Phase 5: Edict expiration (every tick, not just day boundary)
-	EdictSystem.tick(player, tick)
+	var expired_edicts: Array = EdictSystem.tick(player, tick)
+	for eid in expired_edicts:
+		EventBus.edict_expired.emit(player.get("id", 0), eid)
 
 # _collect_taxes removed — logic migrated to TaxSystem.tick() (Phase 4)
 
@@ -319,6 +362,37 @@ func simulate_tick(tick: int) -> void:
 					ai_events = AshenBarony.tick(faction, players, world, tick)
 			for ev in ai_events:
 				EventBus.command_processed.emit({"type": "ai_event", "event": ev}, true)
+				if ev == "siege_assembled":
+					var target_pid: int = faction.get("last_siege_player_id", -1)
+					if target_pid >= 0 and target_pid < players.size():
+						var tgt: Dictionary = players[target_pid]
+						# Shire capture: take one shire from the defender
+						var tgt_shires: Array = tgt.get("shire_ids", [])
+						if not tgt_shires.is_empty():
+							var captured_id: int = tgt_shires[0]
+							tgt_shires.remove_at(0)
+							tgt["shire_ids"] = tgt_shires
+							for shire in world.get("shires", []):
+								if shire.get("id", -1) == captured_id:
+									var old_owner: int = shire.get("owner_id", -1)
+									shire["owner_id"] = faction.get("id", -1)
+									EventBus.shire_ownership_changed.emit(captured_id, old_owner, faction.get("id", -1))
+									break
+						# Siege damage: deal 150 HP to the village hall (defeat = 3-4 sieges)
+						for bld in tgt.get("buildings", []):
+							if not bld is Dictionary:
+								continue
+							if bld.get("type", "") in ["village_hall", "keep"]:
+								if BuildingState.take_damage(bld, 150):
+									PrestigeSystem.apply_defeat_loss(tgt)
+									EventBus.building_destroyed.emit(tgt.get("id", 0), bld.get("id", -1), "siege")
+								break
+				if ev in ["bandit_raid_started", "ironhand_siege_started", "ashen_siege_started", "merchant_siege_started"]:
+					var asm: Dictionary = faction.get("siege_assembly", {})
+					EventBus.ai_siege_assembling.emit(
+						faction.get("id", -1),
+						asm.get("target_player_id", -1),
+						AIFaction.SIEGE_ASSEMBLY_TICKS)
 				if ev == "ashen_tribute_demanded":
 					var pending: Array = AIFaction.get_pending_demands(faction, 0)
 					var demands_map: Dictionary = {}
@@ -328,9 +402,54 @@ func simulate_tick(tick: int) -> void:
 						"player_id": 0,
 						"faction_id": faction.get("id", -1),
 						"faction_name": faction.get("name", "A rival lord"),
+						"archetype": faction.get("archetype", ""),
+						"threat_level": faction.get("threat_level", 0.0),
 						"demands": demands_map,
 						"deadline_tick": pending[0].get("deadline_tick", 0) if pending.size() > 0 else 0,
 					})
+
+			# Mid-siege combat: one battle round per game-day while siege is assembling.
+			# Resolves CombatSystem for the first time; emits unit_killed per casualty.
+			var siege_asm: Dictionary = faction.get("siege_assembly", {})
+			if not siege_asm.is_empty():
+				var s_pid: int = siege_asm.get("target_player_id", -1)
+				if s_pid >= 0 and s_pid < players.size():
+					var defender_p: Dictionary = players[s_pid]
+					var atk_before: Array = []
+					for u in faction.get("units", []):
+						if u is Dictionary and u.get("is_alive", false):
+							atk_before.append(u.get("id", -1))
+					var def_before: Array = []
+					for u in defender_p.get("units", []):
+						if u is Dictionary and u.get("is_alive", false):
+							def_before.append(u.get("id", -1))
+					if not atk_before.is_empty() and not def_before.is_empty():
+						var combat_rng := RandomNumberGenerator.new()
+						combat_rng.seed = tick ^ (faction.get("id", 0) * 7919)
+						CombatSystem.resolve_combat(
+							faction.get("units", []), defender_p.get("units", []), combat_rng)
+						for u in faction.get("units", []):
+							if u is Dictionary and not u.get("is_alive", false) and u.get("id", -1) in atk_before:
+								EventBus.unit_killed.emit(u.get("id", -1), defender_p.get("id", 0), "combat")
+						for u in defender_p.get("units", []):
+							if u is Dictionary and not u.get("is_alive", false) and u.get("id", -1) in def_before:
+								EventBus.unit_killed.emit(u.get("id", -1), faction.get("id", -1), "combat")
+
+		# Defeat check: faction is_alive → false when all recruited units are dead
+		for faction in ai_factions:
+			if not (faction is Dictionary and faction.get("is_alive", false)):
+				continue
+			var units: Array = faction.get("units", [])
+			if units.is_empty():
+				continue  # not yet recruited — not a defeat
+			var any_alive: bool = false
+			for u in units:
+				if u is Dictionary and u.get("is_alive", false):
+					any_alive = true
+					break
+			if not any_alive:
+				faction["is_alive"] = false
+				EventBus.ai_faction_defeated.emit(faction.get("id", -1))
 
 # --- Command handlers ---
 
@@ -519,6 +638,9 @@ func _cmd_donate_to_capital(cmd: Dictionary) -> bool:
 	for shire in world.get("shires", []):
 		if shire.get("id", -1) == shire_id:
 			CapitalSystem.record_donation(player, shire, resource, amount)
+			# Auto-upgrade capital when cumulative donations meet the threshold
+			if CapitalSystem.can_upgrade(shire, world)["ok"]:
+				CapitalSystem.upgrade(shire, world)
 			return true
 	return false
 
@@ -537,8 +659,15 @@ func _cmd_activate_edict(cmd: Dictionary) -> bool:
 		if mods.has("summon_peasants"):
 			players[pid]["population"] = players[pid].get("population", 0) + mods["summon_peasants"]
 			players[pid]["popularity"] = maxf(0.0, players[pid].get("popularity", 50.0) + mods.get("popularity_delta", 0))
+		elif mods.has("popularity_delta"):
+			players[pid]["popularity"] = maxf(0.0, players[pid].get("popularity", 50.0) + mods["popularity_delta"])
 		if mods.has("instant_gold_bonus"):
 			players[pid]["gold"] = players[pid].get("gold", 0) + mods["instant_gold_bonus"]
+		if mods.has("wall_repair_amount"):
+			var repair_amt: int = mods["wall_repair_amount"]
+			for bld in players[pid].get("buildings", []):
+				if bld is Dictionary:
+					BuildingState.repair(bld, repair_amt)
 		var dur: int = EdictSystem.lookup(edict_id).get("duration_ticks", 0)
 		EventBus.edict_activated.emit(pid, edict_id, dur)
 	return result.get("ok", false)
