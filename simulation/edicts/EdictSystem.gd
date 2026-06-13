@@ -128,7 +128,7 @@ const EDICTS: Dictionary = {
 		"duration_ticks": 0, "cooldown_ticks": 0,
 		"modifiers": {"storage_capacity_bonus": 0.2, "granary_capacity_bonus": 0.2},
 		"requires_tech": "storage_capacity",
-		"description": "All stockpiles and granaries hold 20% more. GDD §7.4.2.",
+		"description": "Granaries hold 20% more food. GDD §7.4.2.",
 	},
 	"worker_speed": {
 		"name": "Worker Speed",

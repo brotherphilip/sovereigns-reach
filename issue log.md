@@ -3,6 +3,10 @@
 <!-- Format: ## [ID] Title | Severity: Blocker/High/Medium/Low | Status: Open/In Progress/Resolved/Byproduct -->
 <!-- Severities: Blocker=crashes/data loss, High=broken feature, Medium=wrong behavior, Low=polish/text -->
 
+## [063] Storage Expansions edict description misleads — storage_capacity_bonus modifier dead, no stockpile cap system exists | Severity: Low | Status: Resolved
+EdictSystem "storage_expansions" edict defines two modifiers: `granary_capacity_bonus: 0.2` (wired via FoodSystem.get_granary_capacity() since #055) and `storage_capacity_bonus: 0.2`. The description read "All stockpiles and granaries hold 20% more." No raw resource cap system exists (BuildingRegistry defines storage_capacity on warehouses; BuildingState stores storage_max; but no code ever sums warehouse capacity or enforces a cap on wood/stone/iron). Players spend 3 edict points expecting both stockpile and granary expansion but only granaries respond.
+Resolution: Updated edict description to "Granaries hold 20% more food." — accurately reflects the single working effect. The storage_capacity_bonus modifier is left in place (inert until a stockpile cap system is added). Scene test: ALL_SCENES_OK.
+
 ## [062] AleSystem.tick() return value discarded — ale shortage never reduces popularity | Severity: Medium | Status: Resolved
 `AleSystem.tick()` returns `{"ale_consumed", "ale_shortage"}` on day boundaries; `GameState._tick_player_economy()` called it as a void statement, discarding the result. `inn_coverage` was set by the ale tick (based on physical inn count) but the shortage had no effect. If a player ran out of ale stock while keeping ale_ration=2 (normal), `_ale_score()` in PopularityEngine still returned `ALE_RATION_POPULARITY[2] * coverage = 5 * coverage` as if ale was flowing. Running out of ale had zero popularity consequence beyond ale stock showing 0.
 Resolution: Captured the return dict; when `ale_shortage > 0`, scale `player["inn_coverage"]` by `ale_consumed / (ale_consumed + ale_shortage)` before PopularityEngine.apply_tick() reads it. Scene test: ALL_SCENES_OK.

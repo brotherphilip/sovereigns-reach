@@ -2,6 +2,19 @@
 
 ---
 
+## [Iteration 107] 2026-06-14 — Fix #063: Storage Expansions edict description overstates effect
+
+- Delegated to: Supervisor
+- What changed: EdictSystem.gd — updated "storage_expansions" description from "All stockpiles and granaries hold 20% more" to "Granaries hold 20% more food." Only granary_capacity_bonus is wired (FoodSystem); storage_capacity_bonus has no raw resource cap system to hook into.
+- Before: Players spending 3 edict points read "All stockpiles and granaries" but only granaries responded. The stockpile claim was undeliverable with current code.
+- After: Description accurately states what the edict does.
+- Scene test: ALL_SCENES_OK
+- Issues resolved: #063
+- Issues discovered: none
+- Supervisor correction: none
+
+---
+
 ## [Iteration 106] 2026-06-14 — Fix #062: AleSystem.tick() return discarded — ale shortage had no popularity consequence
 
 - Delegated to: Supervisor
