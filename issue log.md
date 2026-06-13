@@ -3,6 +3,10 @@
 <!-- Format: ## [ID] Title | Severity: Blocker/High/Medium/Low | Status: Open/In Progress/Resolved/Byproduct -->
 <!-- Severities: Blocker=crashes/data loss, High=broken feature, Medium=wrong behavior, Low=polish/text -->
 
+## [030] MacroMapView shire capture flash never fires — wrong dict key "shire_id" vs "id" | Severity: Low | Status: Resolved
+MacroMapView._draw_shires() checks `shire.get("shire_id", -1)` when comparing against the flash dict's shire_id. But MacroViewController.get_shire_render_list() returns dicts with key `"id"` (not `"shire_id"`). The result is -1 for every shire, so the comparison `fl["shire_id"] == -1` is always false. The white arc flash animation on shire ownership change (wired via EventBus.shire_ownership_changed) was never visible.
+Resolution: Changed `shire.get("shire_id", -1)` to `shire.get("id", -1)` in the flash inner loop. Shire capture now shows the white arc flash animation as intended.
+
 ## [029] MacroViewController.get_shire_color() shows player color for AI-captured shires | Severity: Low | Status: Resolved
 GameState.add_ai_faction() assigns IDs starting from 0 (fid = ai_factions.size()). So bandit king gets id=0, ashen barony gets id=1. When an AI faction captures a shire, `shire["owner_id"]` is set to the faction's id (0 or 1). MacroViewController.get_shire_color() handles `owner_id < 0` (neutral) and then falls through to `SHIRE_COLORS[owner_id]` — returning player 0's blue color for bandit king (id=0) and player 1's green for ashen barony (id=1). The AI_COLORS dictionary ("bandit_king": brown, "ashen_barony": purple) was never reachable for AI-captured shires because the owner_id-is-negative check (which guarded AI color lookup) could never match non-negative AI faction IDs.
 Resolution: Rewrote get_shire_color() to check ai_factions first (matching by faction id), then fall back to SHIRE_COLORS for players. This correctly shows archetype colors (brown for bandit king, purple for ashen barony) on AI-captured shires. Also removed the dead `owner_id in fac["shire_ids"]` check that could never match (shire IDs are non-negative; that check was run only when owner_id < 0).

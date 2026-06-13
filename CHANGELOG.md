@@ -2,6 +2,16 @@
 
 ---
 
+## [Iteration 66] 2026-06-14 — Fix #030: MacroMapView shire flash animation never fires — wrong dict key
+
+- Delegated to: Supervisor (Omniscience unavailable — Ollama HTTP 500)
+- What changed: MacroMapView._draw_shires() line 79: changed `shire.get("shire_id", -1)` to `shire.get("id", -1)`. The render dict from MacroViewController.get_shire_render_list() uses key "id", not "shire_id" — so every comparison returned -1 and the flash condition was never true.
+- Issues resolved: #030 (shire capture flash never shown)
+- Issues discovered: none
+- Supervisor correction: none
+
+---
+
 ## [Iteration 65] 2026-06-14 — Fix #029: MacroViewController shows player color for AI-captured shires
 
 - Delegated to: Supervisor (Omniscience unavailable — Ollama HTTP 500)
