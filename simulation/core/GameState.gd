@@ -183,6 +183,11 @@ func _make_player(player_id: int, player_name: String, start_x: int, start_y: in
 		"faith_cap": 0.0,
 		"blessing_until": 0,
 
+		# Public health (GDD §3.5.3) — sanitation-driven score; disease carries severity
+		"health": 100.0,
+		"disease_active": false,
+		"disease_severity": 0.0,
+
 		# Vision
 		"fog_of_war": {},        # "x,y" -> true for revealed tiles
 
@@ -313,7 +318,7 @@ func _tick_player_economy(player: Dictionary, tick: int) -> void:
 				WeatherSystem.WeatherType.RAIN:    events.append("rain")
 
 		# Phase 4: disease events
-		var disease_events: Array = DiseaseSystem.tick(player, _disease_rng, tick)
+		var disease_events: Array = DiseaseSystem.tick(player, _disease_rng, tick, weather)
 		events.append_array(disease_events)
 
 		# Siege morale penalty — if any AI faction is actively besieging this player

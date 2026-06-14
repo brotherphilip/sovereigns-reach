@@ -185,6 +185,14 @@ Calculation: P=ΔF+ΔA+ΔR−T±E
 3.5.1 Active Sieges: (1) Being attacked drops popularity. (2) Simulates peasant fear. (3) Requires morale buffers to survive. (4) Ends when siege ends. (5) Can cause mid-battle desertion.
 3.5.2 Royal Edicts: (1) Edicts modify popularity. (2) Levy summons reduce it heavily. (3) Festivals boost it temporarily. (4) Agrarian subsidies offset food loss. (5) Tooltips explain math changes.
 3.5.3 Disease Outbreaks: (1) Strikes crowded housing. (2) Plummets popularity. (3) Kills peasants over time. (4) Cured by Apothecaries. (5) Spreads if unmanaged.
+
+3.5.3.IMPL Implemented (DiseaseSystem.gd / GameState / HUD):
+- Public Health: a 0–100 score, base 40 + 60×sanitation, −15 in snow, −15 when food variety < 2. Sanitation = apothecary coverage + ½×well coverage (each covers ~6 hovels; apothecaries need a worker, wells do not). Stored in player.health.
+- New building `Well` (Civic, cheap, unstaffed) — a passive sanitation source alongside the Apothecary (active cure).
+- Outbreak: only when crowded (≥5 hovels) and sanitation < 0.5; daily chance = 0.12 × (1 − health/100), so healthier realms are far safer.
+- Severity model: disease is graded 0–100, not binary. It spreads +15/day×(1−sanitation) and is cured −30/day×apothecary coverage; deaths/day = ceil(pop × severity% × 0.04) (so severe plagues kill faster) and it ends when severity hits 0. player.disease_active mirrors severity>0; the −10 "disease_outbreak" popularity event fires while active.
+- HUD shows Health, flipping to a red "Plague! n%" severity readout during an outbreak.
+
 3.5.4 AI Demands: (1) AI sends envoys for tribute. (2) Refusing drops popularity slightly. (3) Accepting costs resources. (4) Triggers embargoes. (5) Precedes military action.
 3.5.5 Weather Penalties: (1) Blizzards drop popularity. (2) Heat waves drop popularity. (3) Forces ration increases to compensate. (4) Adds unpredictability. (5) Requires stockpiled reserves.  
 4. The Tech Tree
@@ -415,6 +423,14 @@ Calculation: P=ΔF+ΔA+ΔR−T±E
 3.5.1 Active Sieges: (1) Being attacked drops popularity. (2) Simulates peasant fear. (3) Requires morale buffers to survive. (4) Ends when siege ends. (5) Can cause mid-battle desertion.
 3.5.2 Royal Edicts: (1) Edicts modify popularity. (2) Levy summons reduce it heavily. (3) Festivals boost it temporarily. (4) Agrarian subsidies offset food loss. (5) Tooltips explain math changes.
 3.5.3 Disease Outbreaks: (1) Strikes crowded housing. (2) Plummets popularity. (3) Kills peasants over time. (4) Cured by Apothecaries. (5) Spreads if unmanaged.
+
+3.5.3.IMPL Implemented (DiseaseSystem.gd / GameState / HUD):
+- Public Health: a 0–100 score, base 40 + 60×sanitation, −15 in snow, −15 when food variety < 2. Sanitation = apothecary coverage + ½×well coverage (each covers ~6 hovels; apothecaries need a worker, wells do not). Stored in player.health.
+- New building `Well` (Civic, cheap, unstaffed) — a passive sanitation source alongside the Apothecary (active cure).
+- Outbreak: only when crowded (≥5 hovels) and sanitation < 0.5; daily chance = 0.12 × (1 − health/100), so healthier realms are far safer.
+- Severity model: disease is graded 0–100, not binary. It spreads +15/day×(1−sanitation) and is cured −30/day×apothecary coverage; deaths/day = ceil(pop × severity% × 0.04) (so severe plagues kill faster) and it ends when severity hits 0. player.disease_active mirrors severity>0; the −10 "disease_outbreak" popularity event fires while active.
+- HUD shows Health, flipping to a red "Plague! n%" severity readout during an outbreak.
+
 3.5.4 AI Demands: (1) AI sends envoys for tribute. (2) Refusing drops popularity slightly. (3) Accepting costs resources. (4) Triggers embargoes. (5) Precedes military action.
 3.5.5 Weather Penalties: (1) Blizzards drop popularity. (2) Heat waves drop popularity. (3) Forces ration increases to compensate. (4) Adds unpredictability. (5) Requires stockpiled reserves.  
 4. The Tech Tree

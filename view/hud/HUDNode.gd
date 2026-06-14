@@ -50,6 +50,7 @@ var _day_label: Label = null
 var _weather_label: Label = null
 var _prestige_label: Label = null
 var _faith_label: Label = null
+var _health_label: Label = null
 
 # Right panel controls
 var _pop_bar: ProgressBar = null
@@ -242,7 +243,8 @@ func _build_top_bar(vp: Vector2) -> void:
 	_day_label     = _add_label(_top_bar, "Day 0",       Vector2(x, 8), 13, Color.LIGHT_YELLOW); x += 90
 	_weather_label = _add_label(_top_bar, "Clear",       Vector2(x, 8), 12, Color.LIGHT_CYAN); x += 160
 	_prestige_label = _add_label(_top_bar, "Prestige: 0", Vector2(x, 8), 12, Color(0.95, 0.8, 0.3)); x += 130
-	_faith_label = _add_label(_top_bar, "Faith: 0", Vector2(x, 8), 12, Color(0.75, 0.85, 1.0))
+	_faith_label = _add_label(_top_bar, "Faith: 0", Vector2(x, 8), 12, Color(0.75, 0.85, 1.0)); x += 130
+	_health_label = _add_label(_top_bar, "Health: 100", Vector2(x, 8), 12, Color(0.6, 0.9, 0.6))
 
 func _refresh_top_bar() -> void:
 	if GameState.players.size() == 0:
@@ -271,6 +273,17 @@ func _refresh_top_bar() -> void:
 			"  ✝" if _blessed else ""]
 		_faith_label.modulate = Color(1.0, 0.95, 0.5) if _blessed else Color.WHITE
 		_faith_label.tooltip_text = "Faith from churches, cathedrals and monks. At %d Faith a Blessing fires: +6 popularity and 3 days of fire protection." % int(ReligionSystem.BLESSING_THRESHOLD)
+	if _health_label != null:
+		var _hp: int = int(p.get("health", 100.0))
+		var _diseased: bool = p.get("disease_active", false)
+		if _diseased:
+			_health_label.text = "Plague! %d%%" % int(p.get("disease_severity", 0.0))
+			_health_label.modulate = Color(0.9, 0.4, 0.4)
+			_health_label.tooltip_text = "A plague rages (severity %d/100). Apothecaries cure it; wells and food variety raise health to prevent outbreaks." % int(p.get("disease_severity", 0.0))
+		else:
+			_health_label.text = "Health: %d" % _hp
+			_health_label.modulate = Color(0.6, 0.9, 0.6) if _hp >= 60 else Color(0.95, 0.85, 0.4)
+			_health_label.tooltip_text = "Public health %d/100 from sanitation (apothecaries + wells), food variety and weather. Low health risks plague." % _hp
 	var _crit: Array   = HUDController.get_critical_resources(p)
 	var _alert: Color  = Color(1.0, 0.28, 0.28)
 	var _norm: Color   = Color.WHITE

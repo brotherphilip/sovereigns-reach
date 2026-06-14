@@ -45,6 +45,9 @@ static func get_hud_data(player: Dictionary, weather: Dictionary, current_tick: 
 		"faith": player.get("faith", 0.0),
 		"faith_cap": player.get("faith_cap", 0.0),
 		"blessing_active": int(player.get("blessing_until", 0)) > current_tick,
+		"health": player.get("health", 100.0),
+		"disease_active": player.get("disease_active", false),
+		"disease_severity": player.get("disease_severity", 0.0),
 	}
 
 # Returns the popularity tier string from a popularity float.

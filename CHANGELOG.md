@@ -2,6 +2,17 @@
 
 ---
 
+## [Iteration 158] 2026-06-14 — Public Health & Disease system fleshed out
+
+- Mode: feature development (`/loop` system-flesh-out).
+- System: Disease (§3.5.3) — was binary (disease_active on/off, flat 2 deaths/day, cured at 80% apothecary coverage).
+- New Health model (DiseaseSystem.gd): 0–100 public-health score = 40 + 60×sanitation − winter − malnutrition. Sanitation = apothecary coverage + ½ well coverage.
+- New building `Well` (Civic, cheap, unstaffed) — passive sanitation; auto-appears in the data-driven build menu.
+- Graded disease: severity 0–100 that spreads (+15/day×(1−sanitation)), is cured (−30/day×apothecary), kills ceil(pop×severity%×0.04)/day, and ends at severity 0. Outbreak chance now scales with (1−health). disease_active mirrors severity>0 (back-compat for TutorialSystem/HUD).
+- Wiring: GameState passes weather to the disease tick + new player fields (health/disease_severity); HUDController exposes health/disease_severity; HUDNode top bar shows "Health: n" / red "Plague! n%".
+- Docs: GDD §3.5.3.IMPL (both copies); loop state.
+- Tests: new tests/TestPhase12.gd (23 assertions). Legacy Phase 4 disease tests still pass (tick signature kept back-compatible). Full suite green.
+
 ## [Iteration 157] 2026-06-14 — Faith & Religion system fully fleshed out + minimap runtime fix
 
 - Mode: feature development (supervisor direct; `/loop` system-flesh-out directive).

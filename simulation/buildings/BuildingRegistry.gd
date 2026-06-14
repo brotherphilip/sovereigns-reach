@@ -71,6 +71,16 @@ const BUILDINGS: Dictionary = {
 		"coverage_radius": 0,
 		"description": "Allows resource trading. Cart spawns here.",
 	},
+	"well": {
+		"name": "Well", "category": Category.CIVIC,
+		"width": 1, "height": 1,
+		"cost": {"wood": 6, "stone": 4},
+		"max_workers": 0, "worker_slots": 0,
+		"terrain_req": TERRAIN_ANY, "fire_risk": 0.0, "hp": 80,
+		"requires_tech": [], "produces": {}, "consumes": {},
+		"coverage_radius": 8,
+		"description": "Clean water raises sanitation, lowering disease risk. Cheap, needs no staff. GDD §3.5.3.",
+	},
 	"apothecary": {
 		"name": "Apothecary", "category": Category.CIVIC,
 		"width": 1, "height": 1,
