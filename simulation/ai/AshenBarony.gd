@@ -8,6 +8,7 @@ extends RefCounted
 
 const AIFaction    = preload("res://simulation/ai/AIFaction.gd")
 const UnitRegistry = preload("res://simulation/units/UnitRegistry.gd")
+const CombatSystem = preload("res://simulation/combat/CombatSystem.gd")
 
 const CAPITAL_NAME: String = "Highwatch"
 const DEMAND_RESOURCE_1: String = "ale"
@@ -50,6 +51,17 @@ static func tick(faction: Dictionary, players: Array, _world: Dictionary, tick: 
 
 	if tick > 0 and tick % AIFaction.TICKS_PER_DAY == 0:
 		var day: int = faction.get("days_alive", 0)
+
+		# S15: a player who fields a stronger army than the barony interdicts its
+		# logging routes, cutting the supply lines (stops the repair/wood bonus).
+		if faction.get("supply_lines_active", false):
+			var barony_power: int = CombatSystem.get_army_value(faction.get("units", []))
+			for p in players:
+				if p is Dictionary and p.get("is_alive", false):
+					if CombatSystem.get_army_value(p.get("units", [])) > barony_power and barony_power > 0:
+						cut_supply_lines(faction)
+						events.append("ashen_supply_cut")
+						break
 
 		# Supply line income bonus (GDD §8.4.4)
 		if faction.get("supply_lines_active", false):

@@ -14,7 +14,10 @@ const ShireMap      = preload("res://simulation/world/ShireMap.gd")
 const PlacementValidator = preload("res://simulation/buildings/PlacementValidator.gd")
 const MilestoneSystem = preload("res://simulation/core/MilestoneSystem.gd")
 const SaveManager   = preload("res://simulation/persistence/SaveManager.gd")
+const AshenBarony   = preload("res://simulation/ai/AshenBarony.gd")
+const EdictSystem   = preload("res://simulation/edicts/EdictSystem.gd")
 
+const CT_ACTIVATE_EDICT     = 16
 const CT_DIPLOMACY_RESPONSE = 26
 
 const CT_RECRUIT_UNIT       = 11
@@ -344,3 +347,38 @@ func _test_keep_diplomacy_save() -> void:
 	ok("v1 migration backfills units array", loaded["players"][0].has("units"))
 	ok("v1 migration backfills armory", loaded["players"][0].has("armory"))
 	ok("v1 migration backfills ai_factions", loaded.has("ai_factions"))
+
+	# S15: a stronger player army interdicts the Ashen Barony's supply lines.
+	var barony: Dictionary = AshenBarony.make(0, 100, 100)
+	barony["is_alive"] = true
+	barony["units"] = [UnitState.create("armed_peasant", 0, 100, 100, 1)]  # weak army
+	barony["supply_lines_active"] = true
+	var strong_player: Dictionary = {
+		"id": 0, "is_alive": true, "keep_x": 50, "keep_y": 50,
+		"units": [
+			UnitState.create("swordsman", 0, 50, 50, 2),
+			UnitState.create("swordsman", 0, 51, 50, 3),
+		],
+	}
+	var sup_events: Array = AshenBarony.tick(barony, [strong_player], {}, 240)
+	ok("stronger player cuts Ashen supply lines", not AshenBarony.has_supply_lines(barony))
+	ok("ashen_supply_cut event emitted", "ashen_supply_cut" in sup_events)
+
+	# S14: high-tier edicts (levy_summons, tier 3) are gated behind a developed
+	# shire capital's edict_tier_cap.
+	var pe: Dictionary = _fresh_player(60)
+	pe["tech_unlocks"] = ["army_logistics"]
+	pe["edict_points"] = 20
+	pe["popularity"] = 80.0
+	pe["shire_id"] = 0
+	# levy_summons (tier 3) applies a -50 popularity cost on activation — used here
+	# as the proxy for "did the edict fire?".
+	_gs.world["shires"] = [{"id": 0, "capital_level": 1, "capital_donations": {}}]
+	_cq.enqueue(CT_ACTIVATE_EDICT, {"edict_id": "levy_summons"}, 0)
+	_sc._advance_tick()
+	ok("tier-3 edict blocked at level-1 capital", pe["popularity"] == 80.0)
+	# Upgrade the capital — edict_tier_cap rises, unlocking the edict.
+	_gs.world["shires"][0]["capital_level"] = 2
+	_cq.enqueue(CT_ACTIVATE_EDICT, {"edict_id": "levy_summons"}, 0)
+	_sc._advance_tick()
+	ok("tier-3 edict allowed at level-2 capital", pe["popularity"] < 80.0)

@@ -1006,11 +1006,30 @@ func _cmd_donate_to_capital(cmd: Dictionary) -> bool:
 		EventBus.gold_changed.emit(pid, old_gold, player.get("gold", 0))
 	return true
 
+# S14: every player may enact edicts up to BASE_EDICT_TIER; a developed shire
+# capital (edict_tier_cap buff) unlocks the higher tiers. Edict tier derives
+# from its cost_points.
+const BASE_EDICT_TIER: int = 2
+
+func _edict_tier_for(cost_points: int) -> int:
+	if cost_points <= 2:
+		return 1
+	if cost_points <= 4:
+		return 2
+	if cost_points <= 6:
+		return 3
+	return 4
+
 func _cmd_activate_edict(cmd: Dictionary) -> bool:
 	var pid: int = cmd["player_id"]
 	if not _valid_player(pid):
 		return false
 	var edict_id: String = cmd["payload"].get("edict_id", "")
+	# S14: enforce the capital's edict tier cap before spending points.
+	var _edict_tier: int = _edict_tier_for(EdictSystem.lookup(edict_id).get("cost_points", 0))
+	var _max_tier: int = BASE_EDICT_TIER + int(_get_player_capital_buff(players[pid]).get("edict_tier_cap", 0))
+	if _edict_tier > _max_tier:
+		return false
 	var result: Dictionary = EdictSystem.activate(players[pid], edict_id, SimulationClock.current_tick)
 	if result.get("ok", false):
 		# Handle instant effects
