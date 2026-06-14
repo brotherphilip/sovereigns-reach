@@ -109,6 +109,8 @@ func _build_scene() -> void:
 	_hud.layer = 10
 	add_child(_hud)
 
+	_add_minimap()
+
 	_macro_view = CanvasLayer.new()
 	_macro_view.name  = "MacroView"
 	_macro_view.layer = 5
@@ -128,14 +130,25 @@ func _build_scene() -> void:
 	# "World Map" return button (added to a small persistent overlay)
 	_add_world_map_button()
 
+func _add_minimap() -> void:
+	var overlay := CanvasLayer.new()
+	overlay.name  = "MinimapLayer"
+	overlay.layer = 9
+	add_child(overlay)
+	var minimap := preload("res://view/micro/Minimap.gd").new()
+	minimap.name = "Minimap"
+	minimap.position = Vector2(4, 4)
+	minimap.set_camera(_camera)
+	overlay.add_child(minimap)
+
 func _add_world_map_button() -> void:
 	var overlay := CanvasLayer.new()
 	overlay.name  = "WorldMapOverlay"
-	overlay.layer = 9
+	overlay.layer = 8
 	add_child(overlay)
 	var btn := Button.new()
 	btn.text     = "World Map"
-	btn.position = Vector2(4, 4)
+	btn.position = Vector2(4, 200)
 	btn.size     = Vector2(90, 28)
 	btn.add_theme_font_size_override("font_size", 11)
 	btn.pressed.connect(_on_return_to_world_map)
