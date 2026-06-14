@@ -5,6 +5,7 @@ extends RefCounted
 
 const BuildingRegistry = preload("res://simulation/buildings/BuildingRegistry.gd")
 const WorldGrid        = preload("res://simulation/world/WorldGrid.gd")
+const CapitalSystem    = preload("res://simulation/world/CapitalSystem.gd")
 
 enum ValidationResult {
 	OK              = 0,
@@ -90,6 +91,9 @@ static func validate(
 			var cap_x: int = shire.get("capital_x", grid_x)
 			var cap_y: int = shire.get("capital_y", grid_y)
 			var radius: int = shire.get("influence_radius", 999)
+			var border_bonus: float = CapitalSystem.get_capital_buffs(shire).get("border_radius_bonus", 0.0)
+			if border_bonus > 0.0:
+				radius = int(ceil(float(radius) * (1.0 + border_bonus)))
 			var dx: int = grid_x - cap_x
 			var dy: int = grid_y - cap_y
 			if dx * dx + dy * dy > radius * radius:

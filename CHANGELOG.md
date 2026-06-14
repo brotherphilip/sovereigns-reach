@@ -2,6 +2,12 @@
 
 ---
 
+## [Iteration 132] 2026-06-14 — Fix #087: border_radius_bonus from level 5 capital upgrade never applied in PlacementValidator
+
+- What changed: PlacementValidator preloads CapitalSystem and reads `border_radius_bonus` from the shire's capital buffs. The base influence_radius (30) is scaled by `int(ceil(radius * (1.0 + bonus)))` before the distance check. Level 5 capital: 30 → 36 tile build zone.
+- Scene test: ALL_SCENES_OK
+- Issues resolved: #087
+
 ## [Iteration 131] 2026-06-14 — Fix #086: scout_vision_radius from scouting_vision tech never applied to scout unit fog reveal
 
 - What changed: VisibilitySystem.recompute() now preloads TechTree and reads `scout_vision_radius` from the player's tech modifiers. Scout units use `UNIT_VISION + scout_bonus` (9 tiles) when the player has scouting_vision researched; other units still use UNIT_VISION = 4.
