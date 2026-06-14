@@ -419,30 +419,114 @@ func _tick_player_unit_movement(player: Dictionary, tick: int) -> void:
 	for unit in player.get("units", []):
 		if not (unit is Dictionary and unit.get("is_alive", false)):
 			continue
-		if unit.get("order", "") != UnitState.ORDER_MOVE:
+		match unit.get("order", ""):
+			UnitState.ORDER_MOVE:
+				_tick_unit_move(player, unit, tick, TICKS_PER_DAY)
+			UnitState.ORDER_ATTACK:
+				_tick_unit_attack(player, unit, tick, TICKS_PER_DAY)
+			UnitState.ORDER_TRAINING:
+				_tick_unit_training(player, unit)
+
+# S2: advance a unit's barracks training. Required time scales down with the
+# training_rate_bonus tech modifier (GDD §7.3 / training_speed tech). On
+# completion the unit graduates to IDLE and becomes deployable.
+func _tick_unit_training(player: Dictionary, unit: Dictionary) -> void:
+	var base_ticks: int = UnitRegistry.lookup(unit.get("type", "")).get("train_ticks", 0)
+	var rate_bonus: float = TechTree.get_all_modifiers(player).get("training_rate_bonus", 0.0)
+	var required: int = maxi(0, int(round(float(base_ticks) / (1.0 + maxf(0.0, rate_bonus)))))
+	unit["ticks_in_training"] = unit.get("ticks_in_training", 0) + 1
+	if unit["ticks_in_training"] >= required:
+		unit["ticks_in_training"] = 0
+		unit["order"] = UnitState.ORDER_IDLE
+		EventBus.unit_spawned.emit(unit)
+
+# How many ticks elapse between single-tile steps for this unit, given speed
+# modifiers (edicts, tech, weather). Lower = faster. Shared by move + attack-move.
+func _unit_step_ticks(player: Dictionary, unit: Dictionary, ticks_per_day: int) -> int:
+	var speed: int = UnitRegistry.lookup(unit.get("type", "")).get("speed", 3)
+	var army_speed_mult: float = EdictSystem.get_active_modifiers(player).get("army_speed_multiplier", 1.0)
+	var tech_speed_bonus: float = TechTree.get_all_modifiers(player).get("army_move_speed_bonus", 0.0)
+	var weather_penalty: float = weather.get("effects", {}).get("movement_penalty", 1.0)
+	# Mud Roads edict (rain_movement_penalty: 0.0) negates rain movement penalty
+	if weather.get("current", -1) == WeatherSystem.WeatherType.RAIN:
+		if EdictSystem.get_active_modifiers(player).get("rain_movement_penalty", 1.0) <= 0.0:
+			weather_penalty = 1.0
+	var effective_speed: float = float(maxi(1, speed)) * (1.0 + tech_speed_bonus) * maxf(0.1, army_speed_mult) * maxf(0.1, weather_penalty)
+	return maxi(1, int(float(ticks_per_day) / effective_speed))
+
+func _tick_unit_move(player: Dictionary, unit: Dictionary, tick: int, ticks_per_day: int) -> void:
+	var path: Array = unit.get("move_path", [])
+	if path.is_empty():
+		unit["order"] = UnitState.ORDER_IDLE
+		return
+	if tick % _unit_step_ticks(player, unit, ticks_per_day) != 0:
+		return
+	unit["pos_x"] = path[0][0]
+	unit["pos_y"] = path[0][1]
+	path.remove_at(0)
+	unit["move_path"] = path
+	if path.is_empty():
+		unit["order"] = UnitState.ORDER_IDLE
+
+# S1: ORDER_ATTACK execution. The unit chases its target_id; once within weapon
+# range it strikes on a fixed cadence, and the target retaliates. Resolves to
+# IDLE when the target dies or can no longer be found.
+func _tick_unit_attack(player: Dictionary, unit: Dictionary, tick: int, ticks_per_day: int) -> void:
+	var target: Dictionary = _find_enemy_unit_by_id(player.get("id", -1), unit.get("target_id", -1))
+	if target.is_empty() or not target.get("is_alive", false):
+		unit["order"] = UnitState.ORDER_IDLE
+		unit["target_id"] = -1
+		return
+	var tx: int = target.get("pos_x", unit.get("pos_x", 0))
+	var ty: int = target.get("pos_y", unit.get("pos_y", 0))
+	unit["target_x"] = tx
+	unit["target_y"] = ty
+	# Chebyshev distance (8-directional grid). Melee (range 0) engages adjacent.
+	var dist: int = maxi(absi(tx - unit.get("pos_x", 0)), absi(ty - unit.get("pos_y", 0)))
+	var engage_dist: int = maxi(1, unit.get("range", 0))
+	if dist > engage_dist:
+		# Out of range: step toward the target's live position.
+		if tick % _unit_step_ticks(player, unit, ticks_per_day) != 0 or _grid == null:
+			return
+		var path: Array = Pathfinder.find_path(_grid, unit.get("pos_x", 0), unit.get("pos_y", 0), tx, ty)
+		if not path.is_empty():
+			unit["pos_x"] = path[0][0]
+			unit["pos_y"] = path[0][1]
+		return
+	# In range: strike on a steady cadence (~8 strikes per game-day).
+	if tick % maxi(1, ticks_per_day / 8) != 0:
+		return
+	var result: Dictionary = CombatSystem.calculate_damage(unit, target)
+	if result.get("killed", false):
+		EventBus.unit_killed.emit(target.get("id", -1), player.get("id", 0), "combat")
+		player["total_kills"] = player.get("total_kills", 0) + 1
+		unit["order"] = UnitState.ORDER_IDLE
+		unit["target_id"] = -1
+		return
+	# Surviving target retaliates against the attacker.
+	if target.get("attack", 0) > 0:
+		var retal: Dictionary = CombatSystem.calculate_damage(target, unit)
+		if retal.get("killed", false):
+			EventBus.unit_killed.emit(unit.get("id", -1), target.get("owner_id", -1), "combat")
+
+# Finds a living enemy unit by id across AI factions and rival players.
+# Unit dicts are returned by reference so callers mutate the live state.
+func _find_enemy_unit_by_id(attacker_pid: int, target_id: int) -> Dictionary:
+	if target_id < 0:
+		return {}
+	for faction in ai_factions:
+		if not (faction is Dictionary and faction.get("is_alive", false)):
 			continue
-		var path: Array = unit.get("move_path", [])
-		if path.is_empty():
-			unit["order"] = UnitState.ORDER_IDLE
+		for u in faction.get("units", []):
+			if u is Dictionary and u.get("id", -1) == target_id and u.get("is_alive", false):
+				return u
+	for p in players:
+		if not (p is Dictionary) or p.get("id", -1) == attacker_pid:
 			continue
-		var speed: int = UnitRegistry.lookup(unit.get("type", "")).get("speed", 3)
-		var army_speed_mult: float = EdictSystem.get_active_modifiers(player).get("army_speed_multiplier", 1.0)
-		var tech_speed_bonus: float = TechTree.get_all_modifiers(player).get("army_move_speed_bonus", 0.0)
-		var weather_penalty: float = weather.get("effects", {}).get("movement_penalty", 1.0)
-		# Mud Roads edict (rain_movement_penalty: 0.0) negates rain movement penalty
-		if weather.get("current", -1) == WeatherSystem.WeatherType.RAIN:
-			if EdictSystem.get_active_modifiers(player).get("rain_movement_penalty", 1.0) <= 0.0:
-				weather_penalty = 1.0
-		var effective_speed: float = float(maxi(1, speed)) * (1.0 + tech_speed_bonus) * maxf(0.1, army_speed_mult) * maxf(0.1, weather_penalty)
-		var step_ticks: int = maxi(1, int(float(TICKS_PER_DAY) / effective_speed))
-		if tick % step_ticks != 0:
-			continue
-		unit["pos_x"] = path[0][0]
-		unit["pos_y"] = path[0][1]
-		path.remove_at(0)
-		unit["move_path"] = path
-		if path.is_empty():
-			unit["order"] = UnitState.ORDER_IDLE
+		for u in p.get("units", []):
+			if u is Dictionary and u.get("id", -1) == target_id and u.get("is_alive", false):
+				return u
+	return {}
 
 # --- Command dispatch ---
 # apply_command is called by SimulationClock._advance_tick() for every
@@ -591,15 +675,19 @@ func simulate_tick(tick: int) -> void:
 					for u in faction.get("units", []):
 						if u is Dictionary and u.get("is_alive", false):
 							atk_before.append(u.get("id", -1))
+					# Only deployable (trained) defenders take the field; units still
+					# in the barracks queue do not fight. See audit item S2.
+					var defender_active: Array = []
 					var def_before: Array = []
 					for u in defender_p.get("units", []):
-						if u is Dictionary and u.get("is_alive", false):
+						if u is Dictionary and UnitState.is_deployable(u):
+							defender_active.append(u)
 							def_before.append(u.get("id", -1))
 					if not atk_before.is_empty() and not def_before.is_empty():
 						var combat_rng := RandomNumberGenerator.new()
 						combat_rng.seed = tick ^ (faction.get("id", 0) * 7919)
 						CombatSystem.resolve_combat(
-							faction.get("units", []), defender_p.get("units", []), combat_rng)
+							faction.get("units", []), defender_active, combat_rng)
 						for u in faction.get("units", []):
 							if u is Dictionary and not u.get("is_alive", false) and u.get("id", -1) in atk_before:
 								EventBus.unit_killed.emit(u.get("id", -1), defender_p.get("id", 0), "combat")
@@ -938,6 +1026,12 @@ func _cmd_recruit_unit(cmd: Dictionary) -> bool:
 	var _armor_bonus: float = TechTree.get_all_modifiers(player).get("unit_armor_rating", 0.0)
 	if _armor_bonus > 0.0 and unit.has("defense"):
 		unit["defense"] = unit["defense"] + int(float(unit["defense"]) * _armor_bonus)
+	# S2: units with a training time enter the barracks queue (ORDER_TRAINING) and
+	# only become deployable once trained. Units with train_ticks==0 (e.g. peasants)
+	# are available immediately.
+	if defn.get("train_ticks", 0) > 0:
+		unit["order"] = UnitState.ORDER_TRAINING
+		unit["ticks_in_training"] = 0
 	player["units"].append(unit)
 	return true
 

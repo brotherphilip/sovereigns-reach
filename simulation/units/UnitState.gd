@@ -68,6 +68,11 @@ static func is_ranged(unit: Dictionary) -> bool:
 static func is_valid(unit: Dictionary) -> bool:
 	return unit.has("id") and unit.has("type") and unit.has("hp") and unit.has("is_alive")
 
+# Returns true if the unit is alive and finished training — i.e. it can move,
+# fight, and be ordered around. Units still in the barracks queue are excluded.
+static func is_deployable(unit: Dictionary) -> bool:
+	return unit.get("is_alive", false) and unit.get("order", "") != ORDER_TRAINING
+
 # Set a movement order, clearing any prior target_id.
 static func issue_move_order(unit: Dictionary, tx: int, ty: int) -> void:
 	unit["order"] = ORDER_MOVE
