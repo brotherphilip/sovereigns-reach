@@ -2,6 +2,22 @@
 
 ---
 
+## [Iteration 164] 2026-06-14 — Map backdrop + remaster status review
+
+- Reviewed the named remaster targets on Xvfb: main menu (gold-framed, styled
+  buttons, no clipping), HUD panels/buttons (warm gold-trim rounded), terrain
+  (clean flat tiles, lush varied generation), buildings (per-type toppers), units
+  (type silhouettes), world map (parchment, faction territories, castle icons,
+  roads, info panel), build menu (cost/tech/affordability + tooltips) — all in
+  good shape. The remaster's explicit targets are substantially complete.
+- Polish: set a deep slate default_clear_color so the area beyond the map reads as
+  an intentional backdrop instead of flat default grey.
+- Verified on isolated Xvfb; full suite green.
+- Recommendation recorded: the visual remaster has reached diminishing returns
+  within the flat-iso/GL-Compatibility constraints; the highest remaining visual
+  jump (edge AA) needs a Forward+/Vulkan renderer switch (a user decision).
+  Suggest the loop pivot toward gameplay ease-and-fun next.
+
 ## [Iteration 163] 2026-06-14 — Fix "cells jumping" while panning (flat terrain)
 
 - User report: camera "jumps between cells" while panning. Diagnosed empirically:
