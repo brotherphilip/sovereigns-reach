@@ -3,6 +3,10 @@
 <!-- Format: ## [ID] Title | Severity: Blocker/High/Medium/Low | Status: Open/In Progress/Resolved/Byproduct -->
 <!-- Severities: Blocker=crashes/data loss, High=broken feature, Medium=wrong behavior, Low=polish/text -->
 
+## [077] WorkerSystem.levy_peasants() never called — levy creates units but doesn't pull workers from fields | Severity: Medium | Status: Resolved
+`WorkerSystem.levy_peasants()` is documented for "GDD §7.3.2 — Levy Summons edict" and is designed to pull workers from building assignments when a levy fires. After fix #076, `summon_peasants` handler creates 50 `armed_peasant` units but never calls `levy_peasants()`. Result: fields keep all workers after the levy — no economic tradeoff. Buildings produce at full capacity while the army suddenly has 50 extra soldiers, making the edict's -50 popularity its only real cost.
+Resolution: Added `WorkerSystem.levy_peasants(_sp_count, players[pid])` call before unit creation in the `summon_peasants` handler. Workers are now pulled from building assignments first (up to 50), then 50 units are created. Farms lose workers → reduced output, correctly reflecting the economic cost of conscription. Scene test: ALL_SCENES_OK.
+
 ## [076] levy_summons edict adds population instead of creating armed_peasant units | Severity: High | Status: Resolved
 `levy_summons` edict (6 pts, "Instantly summons 50 Armed Peasants", -50 popularity, 48-day cooldown) fires the `summon_peasants: 50` modifier. GameState activation handler incremented `player["population"]` by 50 instead of creating actual unit dictionaries. Population tracks workers, not military units — adding 50 workers gives no combat power. `armed_peasant` is a valid unit type in UnitRegistry. The edict's steep cost (6 pts + −50 popularity + 48-day cooldown) makes sense only for 50 combat-ready units, not 50 extra farmers.
 Resolution: `summon_peasants` handler now creates 50 `UnitState.create("armed_peasant", ...)` dictionaries using `_next_unit_id` (incremented per unit) and appends them to `players[pid]["units"]`. Popularity delta still applied. Scene test: ALL_SCENES_OK.

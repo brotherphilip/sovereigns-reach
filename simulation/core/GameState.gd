@@ -796,6 +796,7 @@ func _cmd_activate_edict(cmd: Dictionary) -> bool:
 			var _sp_count: int = mods["summon_peasants"]
 			var _sp_kx: int = players[pid].get("keep_x", 0)
 			var _sp_ky: int = players[pid].get("keep_y", 0)
+			WorkerSystem.levy_peasants(_sp_count, players[pid])
 			for _sp_i in range(_sp_count):
 				var _sp_uid: int = _next_unit_id
 				_next_unit_id += 1

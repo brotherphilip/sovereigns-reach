@@ -2,6 +2,19 @@
 
 ---
 
+## [Iteration 122] 2026-06-14 — Fix #077: levy_summons doesn't pull workers from buildings
+
+- Delegated to: Supervisor
+- What changed: GameState.gd — added `WorkerSystem.levy_peasants(_sp_count, players[pid])` call immediately before the unit-creation loop in the `summon_peasants` handler.
+- Before: 50 armed_peasant units spawned but all field workers remained assigned — farms kept running at full capacity, making the edict's cost purely the -50 popularity hit.
+- After: `levy_peasants()` pulls up to 50 workers out of their building assignments before creating the units. Buildings lose workers → reduced production on the next resource tick. The edict now carries a real economic tradeoff.
+- Scene test: ALL_SCENES_OK
+- Issues resolved: #077
+- Issues discovered: none
+- Supervisor correction: none
+
+---
+
 ## [Iteration 121] 2026-06-14 — Fix #076: levy_summons edict created workers instead of armed_peasant units
 
 - Delegated to: Supervisor
