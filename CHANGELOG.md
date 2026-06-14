@@ -2,6 +2,22 @@
 
 ---
 
+## [Iteration 162] 2026-06-14 — Bespoke building models + unit-type silhouettes
+
+- Mode: visual remaster (loop).
+- Buildings (BuildingLayer): added _draw_building_topper — each type now has a
+  distinctive feature on the base massing: church/cathedral cross, village-hall/
+  keep flag (taller for keep), barracks/siege banner, granary/stockpile silo cap,
+  well water-opening, market/trading-post striped awning, farm furrow lines,
+  wall/tower crenellation merlons, harvesting chimney. Reads at a glance.
+- Units (UnitLayer): per-type silhouette accessories — archer/crossbow bow, sword
+  for swordsman/militia, long pike for pikeman/halberdier, gold plume for the
+  captain, wheel for siege engines.
+- Menu panel clipping was already resolved by the earlier auto-sizing pass.
+- Verified on isolated Xvfb (a city populated with 8 building types + 5 unit types
+  renders distinctly, no errors); full suite green.
+- Follow-ups: world-map screen polish, riverbanks/roads, biome grass tints.
+
 ## [Iteration 161] 2026-06-14 — Lusher, more varied world (toward reference map look)
 
 - Mode: visual+gameplay remaster (user reference image: varied forests, solid

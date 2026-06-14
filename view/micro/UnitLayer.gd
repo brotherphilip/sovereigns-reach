@@ -162,6 +162,23 @@ func _draw_unit(unit: Dictionary, is_enemy: bool) -> void:
 	draw_circle(head_c, r * 0.5, fill.lightened(0.18))
 	draw_arc(head_c, r * 0.5, 0, TAU, 10, Color(0.0, 0.0, 0.0, 0.40), 0.8)
 
+	# Per-type silhouette accessory so unit types read at a glance.
+	var hx: float = cx + r * 0.95
+	match unit.get("type", ""):
+		"archer", "crossbowman":
+			draw_arc(Vector2(hx, cy - body_h * 0.5), r * 0.95, -PI * 0.5, PI * 0.5, 8, Color(0.52, 0.36, 0.18), 1.3)
+		"swordsman", "militia":
+			draw_line(Vector2(hx, cy), Vector2(hx, cy - body_h - r * 0.9), Color(0.86, 0.86, 0.92), 1.6)
+			draw_line(Vector2(hx - 2.5, cy - body_h * 0.7), Vector2(hx + 2.5, cy - body_h * 0.7), Color(0.6, 0.5, 0.3), 1.2)
+		"pikeman", "halberdier":
+			draw_line(Vector2(hx, cy + 2.0), Vector2(hx, cy - body_h - r * 2.2), Color(0.55, 0.40, 0.20), 1.4)
+		"captain":
+			draw_colored_polygon(PackedVector2Array([
+				head_c + Vector2(0, -r * 0.5), head_c + Vector2(r * 1.0, -r * 0.95), head_c + Vector2(0, -r * 1.15),
+			]), Color(0.96, 0.80, 0.22))
+		"battering_ram", "catapult", "trebuchet", "siege_tower", "mantlet":
+			draw_circle(Vector2(cx, cy + r * 0.3), r * 0.5, Color(0.30, 0.25, 0.18))
+
 	# HP bar above unit
 	var hp: int     = unit.get("hp", 1)
 	var max_hp: int = unit.get("max_hp", 1)

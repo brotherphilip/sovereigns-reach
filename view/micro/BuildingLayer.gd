@@ -182,16 +182,9 @@ func _draw_building(b: Dictionary, is_enemy: bool) -> void:
 	draw_polyline(PackedVector2Array([top_up, ridge_apex, right_up]),
 		Color.BLACK.lightened(0.8), 0.5)
 
-	# ── Category extras ───────────────────────────────────────────────────────
-	if cat == 4 or cat == 3:  # DEFENSE / MILITARY — battlements along front roof edge
-		var steps: int = mini(3, w + h)
-		for i in range(steps):
-			var t: float = (float(i) + 0.5) / float(steps)
-			var mp: Vector2 = left_up.lerp(bot_up, t)
-			draw_rect(Rect2(mp.x - 3.0, mp.y - 5.0, 6.0, 5.0), base_color.lightened(0.3))
-	elif cat == 0:  # CIVIC — circular window on right wall face
-		var win_c: Vector2 = (top + right + top_up + right_up) * 0.25
-		draw_arc(win_c, 4.0, 0.0, TAU, 8, Color.WHITE.darkened(0.4), 1.2)
+	# ── Per-type distinctive features ──────────────────────────────────────────
+	_draw_building_topper(btype, cat, w, h, base_color,
+		top, right, bot, left, top_up, right_up, bot_up, left_up, ridge_apex, center)
 
 	# ── Outline ───────────────────────────────────────────────────────────────
 	draw_polyline(PackedVector2Array([top, right, bot, left, top]),
@@ -235,6 +228,54 @@ func _draw_building(b: Dictionary, is_enemy: bool) -> void:
 		draw_circle(fire_c + Vector2(sin(t * 5.1) * 2.0, 0), 7.5 * f2, Color(1.0, 0.42, 0.0, 0.85))
 		draw_circle(fire_c + Vector2(sin(t * 8.7) * 1.5, -2.5 * f1), 4.5 * f2, Color(1.0, 0.78, 0.1, 0.90))
 		draw_circle(fire_c + Vector2(sin(t * 13.1) * 1.0, -5.0 * f2), 2.2 * f1, Color(1.0, 1.0, 0.65, 0.80))
+
+# Distinctive per-building-type features drawn on top of the base massing, so
+# each building type reads at a glance (church cross, keep flag, farm furrows…).
+func _draw_building_topper(btype: String, cat: int, w: int, h: int, base_color: Color,
+		top: Vector2, right: Vector2, bot: Vector2, left: Vector2,
+		top_up: Vector2, right_up: Vector2, bot_up: Vector2, left_up: Vector2,
+		ridge_apex: Vector2, center: Vector2) -> void:
+	match btype:
+		"church", "cathedral":
+			var c: Vector2 = ridge_apex + Vector2(0, -4.0)
+			draw_line(c, c + Vector2(0, -13.0), Color(0.96, 0.92, 0.62), 2.0)
+			draw_line(c + Vector2(-4.0, -8.0), c + Vector2(4.0, -8.0), Color(0.96, 0.92, 0.62), 2.0)
+		"village_hall", "keep":
+			var ph: float = 17.0 if btype == "keep" else 12.0
+			draw_line(ridge_apex, ridge_apex + Vector2(0, -ph), Color(0.42, 0.32, 0.20), 1.5)
+			var fb: Vector2 = ridge_apex + Vector2(0, -ph)
+			draw_colored_polygon(PackedVector2Array([fb, fb + Vector2(13.0, 4.0), fb + Vector2(0, 8.0)]),
+				Color(0.78, 0.18, 0.18))
+		"barracks", "siege_workshop":
+			var bn: Vector2 = (top_up + right_up) * 0.5
+			draw_rect(Rect2(bn.x - 3.0, bn.y - 2.0, 6.0, 14.0), Color(0.70, 0.18, 0.18))
+			draw_colored_polygon(PackedVector2Array([
+				Vector2(bn.x - 3.0, bn.y + 12.0), Vector2(bn.x + 3.0, bn.y + 12.0), Vector2(bn.x, bn.y + 16.0),
+			]), Color(0.70, 0.18, 0.18))
+		"granary", "stockpile":
+			draw_circle(ridge_apex + Vector2(0, 2.0), 6.0, base_color.lightened(0.25))
+			draw_arc(ridge_apex + Vector2(0, 2.0), 6.0, PI, TAU, 8, Color(0, 0, 0, 0.3), 1.0)
+		"well":
+			draw_circle(center, 5.0, Color(0.10, 0.20, 0.32))
+			draw_arc(center + Vector2(0, -8.0), 7.0, PI, TAU, 8, Color(0.42, 0.32, 0.20), 2.0)
+		"market", "trading_post":
+			for i in range(4):
+				var a: Vector2 = left_up.lerp(bot_up, float(i) / 4.0)
+				var b: Vector2 = left_up.lerp(bot_up, float(i + 1) / 4.0)
+				var col: Color = Color(0.86, 0.82, 0.76) if i % 2 == 0 else Color(0.76, 0.26, 0.20)
+				draw_colored_polygon(PackedVector2Array([a, b, b + Vector2(0, 5.0), a + Vector2(0, 5.0)]), col)
+		"apple_orchard", "wheat_farm", "hops_farm", "pig_farm", "dairy_farm", "mill", "bakery", "brewery", "inn":
+			for i in range(1, 4):
+				var t: float = float(i) / 4.0
+				draw_line(top_up.lerp(left_up, t), right_up.lerp(bot_up, t), base_color.darkened(0.22), 0.8)
+		_:
+			if cat == 4 or cat == 3:  # walls / towers / military — crenellation merlons
+				var steps: int = mini(4, w + h + 1)
+				for i in range(steps):
+					var mp: Vector2 = left_up.lerp(bot_up, (float(i) + 0.5) / float(steps))
+					draw_rect(Rect2(mp.x - 3.0, mp.y - 5.0, 6.0, 5.0), base_color.lightened(0.3))
+			elif cat == 1:  # harvesting — a small chimney/marker
+				draw_rect(Rect2(ridge_apex.x - 2.0, ridge_apex.y - 6.0, 4.0, 8.0), Color(0.30, 0.25, 0.20))
 
 func _draw_ghost() -> void:
 	var pulse: float = 0.45 + 0.20 * sin(Time.get_ticks_msec() * 0.006)
