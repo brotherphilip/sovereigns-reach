@@ -428,6 +428,9 @@ func _test_gamestate_integration() -> void:
 	# A real grid is required so pathfinding produces a non-empty path; without
 	# one the movement tick would immediately clear the order back to IDLE.
 	_gs._grid = WorldGrid.new(120, 120)  # all-grass, fully passable
+	# The recruit above starts in the barracks training queue; graduate it so it
+	# is deployable and can accept a move order.
+	p["units"][0]["order"] = UnitState.ORDER_IDLE
 	var uid: int = p["units"][0].get("id", -1)
 	_cq.enqueue(CT_ISSUE_MOVE_ORDER, {"unit_id": uid, "target_x": 99, "target_y": 99}, 0)
 	_sc._advance_tick()

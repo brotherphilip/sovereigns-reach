@@ -568,8 +568,10 @@ func _tick_unit_attack(player: Dictionary, unit: Dictionary, tick: int, ticks_pe
 		unit["order"] = UnitState.ORDER_IDLE
 		unit["target_id"] = -1
 		return
-	# Surviving target retaliates against the attacker.
-	if target.get("attack", 0) > 0:
+	# Surviving target retaliates — but only if the attacker is within ITS reach.
+	# This lets ranged units (e.g. archers) safely strike melee targets from afar.
+	var target_reach: int = maxi(1, target.get("range", 0))
+	if target.get("attack", 0) > 0 and dist <= target_reach:
 		var retal: Dictionary = CombatSystem.calculate_damage(target, unit)
 		if retal.get("killed", false):
 			EventBus.unit_killed.emit(unit.get("id", -1), target.get("owner_id", -1), "combat")
@@ -1155,6 +1157,8 @@ func _cmd_issue_move_order(cmd: Dictionary) -> bool:
 	var ty: int  = cmd["payload"].get("target_y", 0)
 	for unit in players[pid].get("units", []):
 		if unit is Dictionary and unit.get("id", -1) == uid:
+			if not UnitState.is_deployable(unit):
+				return false  # units still in the barracks queue can't take orders
 			UnitState.issue_move_order(unit, tx, ty)
 			if _grid != null:
 				unit["move_path"] = Pathfinder.find_path(
@@ -1174,6 +1178,8 @@ func _cmd_issue_attack_order(cmd: Dictionary) -> bool:
 	var target_id: int = cmd["payload"].get("target_id", -1)
 	for unit in players[pid].get("units", []):
 		if unit is Dictionary and unit.get("id", -1) == uid:
+			if not UnitState.is_deployable(unit):
+				return false  # units still in the barracks queue can't take orders
 			UnitState.issue_attack_order(unit, tx, ty, target_id)
 			return true
 	return false

@@ -111,6 +111,24 @@ func _test_attack_orders() -> void:
 	_gs._tick_player_unit_movement(p2, 80)
 	ok("out-of-range attacker steps toward target", int(p2["units"][0]["pos_x"]) > start_x)
 
+	# Kiting: a ranged attacker (archer, range 8) strikes a melee target from
+	# distance and takes no retaliation.
+	var p3: Dictionary = _fresh_player(60)
+	var fid3: int = _gs.add_ai_faction(AIFaction.ARCHETYPE_BANDIT, 55, 50)
+	var faction3: Dictionary = _gs.ai_factions[fid3]
+	faction3["units"] = [UnitState.create("armed_peasant", fid3, 55, 50, 9003)]
+	var archer: Dictionary = UnitState.create("archer", 0, 50, 50, 1)
+	archer["order"] = UnitState.ORDER_ATTACK
+	archer["target_id"] = 9003
+	archer["target_x"] = 55
+	archer["target_y"] = 50
+	p3["units"] = [archer]
+	var archer_hp_before: int = archer["hp"]
+	for i in range(120):
+		_gs._tick_player_unit_movement(p3, i + 1)
+	ok("ranged attacker kills melee target", not faction3["units"][0].get("is_alive", true))
+	ok("ranged attacker takes no melee retaliation", int(p3["units"][0]["hp"]) == archer_hp_before)
+
 # ─── S2: Training queue ───────────────────────────────────────────────────────
 
 func _give_barracks(p: Dictionary) -> void:
@@ -128,6 +146,12 @@ func _test_training_queue() -> void:
 	ok("recruited unit added to army", p.get("units", []).size() == 1)
 	ok("recruited unit is in training", p["units"][0].get("order") == UnitState.ORDER_TRAINING)
 	ok("training unit is not deployable", not UnitState.is_deployable(p["units"][0]))
+
+	# A training unit cannot be ordered (would otherwise skip the queue).
+	var tuid: int = p["units"][0].get("id", -1)
+	_cq.enqueue(12, {"unit_id": tuid, "target_x": 55, "target_y": 55}, 0)  # ISSUE_MOVE_ORDER
+	_sc._advance_tick()
+	ok("training unit rejects move orders", p["units"][0].get("order") == UnitState.ORDER_TRAINING)
 
 	# After train_ticks (60) the unit graduates to IDLE and becomes deployable.
 	for _i in range(60):
