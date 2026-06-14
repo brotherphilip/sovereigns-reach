@@ -18,6 +18,7 @@ const WorkerSystem     = preload("res://simulation/player/WorkerSystem.gd")
 const WorldGrid        = preload("res://simulation/world/WorldGrid.gd")
 const ShireMap         = preload("res://simulation/world/ShireMap.gd")
 const WildlifeSystem   = preload("res://simulation/world/WildlifeSystem.gd")
+const CitizenSystem    = preload("res://simulation/world/CitizenSystem.gd")
 # Phase 5
 const TechTree         = preload("res://simulation/tech/TechTree.gd")
 const PrestigeSystem   = preload("res://simulation/tech/PrestigeSystem.gd")
@@ -67,6 +68,11 @@ var _wildlife_rng: RandomNumberGenerator = null
 # while the player is tracking one. Vector2.INF = no cursor threat.
 var wildlife_cursor_threat: Vector2 = Vector2.INF
 
+# Citizens (animated villager pawns; player 0 only).
+var citizens: Array = []
+var _next_citizen_id: int = 1
+var _citizen_rng: RandomNumberGenerator = null
+
 func _ready() -> void:
 	_init_default_state()
 
@@ -92,6 +98,10 @@ func _init_default_state() -> void:
 	_wildlife_rng.seed = server_config["map_seed"] ^ 0x0DEE12
 	wildlife = []
 	_next_animal_id = 1
+	_citizen_rng = RandomNumberGenerator.new()
+	_citizen_rng.seed = server_config["map_seed"] ^ 0xC1721E
+	citizens = []
+	_next_citizen_id = 1
 	weather = WeatherSystem.make_state()
 	milestones = {}
 	_next_building_id = 1
@@ -169,6 +179,15 @@ func initialize_player(player_id: int, player_name: String, start_x: int, start_
 		players.append({})
 	players[player_id] = _make_player(player_id, player_name, start_x, start_y)
 	_assign_starting_shire(player_id, start_x, start_y)
+	# Spawn a handful of animated villager pawns around the player's keep.
+	if player_id == 0:
+		if _citizen_rng == null:
+			_citizen_rng = RandomNumberGenerator.new()
+			_citizen_rng.seed = server_config.get("map_seed", 12345) ^ 0xC1721E
+		citizens = []
+		_next_citizen_id = 1
+		_next_citizen_id = CitizenSystem.spawn(
+			citizens, 8, float(start_x), float(start_y), _citizen_rng, _next_citizen_id)
 
 func _assign_starting_shire(player_id: int, start_x: int, start_y: int) -> void:
 	var best_id: int   = -1
@@ -747,6 +766,10 @@ func simulate_tick(tick: int) -> void:
 		_next_animal_id = WildlifeSystem.tick(
 			wildlife, _gather_wildlife_threats(), _grid, _wildlife_rng, tick, _next_animal_id)
 
+	# Villager pawns wander and build placed structures (player 0).
+	if not citizens.is_empty() and not players.is_empty():
+		CitizenSystem.tick(citizens, players[0].get("buildings", []), _citizen_rng, tick)
+
 	# Phase 6: tick AI factions each game-day
 	if tick > 0 and tick % SimulationClock.TICKS_PER_GAME_DAY == 0:
 		VisibilitySystem.recompute(self)
@@ -940,6 +963,9 @@ func _cmd_place_building(cmd: Dictionary) -> bool:
 			for dx in range(w):
 				_grid.set_building_at(gx + dx, gy + dy, bid)
 
+	# Mark it under construction so a builder pawn walks over and raises it
+	# (cosmetic build timer; the structure is otherwise usable immediately).
+	building["construction_until"] = SimulationClock.current_tick + CitizenSystem.BUILD_TIME
 	player["buildings"].append(building)
 	EventBus.building_placed.emit(pid, btype, gx, gy, bid)
 	return true
@@ -1387,6 +1413,8 @@ func serialize() -> Dictionary:
 		"next_unit_id": _next_unit_id,
 		"wildlife": wildlife.duplicate(true),
 		"next_animal_id": _next_animal_id,
+		"citizens": citizens.duplicate(true),
+		"next_citizen_id": _next_citizen_id,
 	}
 
 func deserialize(data: Dictionary) -> void:
@@ -1401,6 +1429,8 @@ func deserialize(data: Dictionary) -> void:
 	_next_unit_id = data.get("next_unit_id", 1)
 	wildlife = data.get("wildlife", [])
 	_next_animal_id = data.get("next_animal_id", 1)
+	citizens = data.get("citizens", [])
+	_next_citizen_id = data.get("next_citizen_id", 1)
 	# Re-seed RNGs from the loaded map_seed so random events use the correct seed
 	var loaded_seed: int = server_config.get("map_seed", 12345)
 	_weather_rng.seed = loaded_seed
@@ -1410,6 +1440,9 @@ func deserialize(data: Dictionary) -> void:
 	if _wildlife_rng == null:
 		_wildlife_rng = RandomNumberGenerator.new()
 	_wildlife_rng.seed = loaded_seed ^ 0x0DEE12
+	if _citizen_rng == null:
+		_citizen_rng = RandomNumberGenerator.new()
+	_citizen_rng.seed = loaded_seed ^ 0xC1721E
 	if data.has("clock"):
 		SimulationClock.deserialize(data["clock"])
 

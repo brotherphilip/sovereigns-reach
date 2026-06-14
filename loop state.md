@@ -15,7 +15,7 @@ last_issue_fixed: minimap-draw_circle (Godot3 API in view/micro/Minimap.gd)
 active_phase: complete
 phase_plan_exists: true
 last_iteration: 2026-06-14
-iteration_count: 167
+iteration_count: 168
 next_directive: continue — alternate playthrough QA and system flesh-out; keep amending for ease & fun
 last_issue_fixed: 106
 omni_fail_streak: 0

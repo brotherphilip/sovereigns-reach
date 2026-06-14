@@ -2,6 +2,29 @@
 
 ---
 
+## [Iteration 168] 2026-06-14 — Citizens: animated villagers + builders that walk to construct
+
+- New feature (user request): animated villager pawns with states; builders walk
+  to a newly placed building and construct it.
+- Simulation (CitizenSystem.gd): serializable citizen pawns near the keep, advanced
+  deterministically each tick. States: idle / wander / walk / build / work with an
+  animation-driving state machine. When a building is placed it is flagged
+  under-construction (construction_until); an idle citizen becomes a BUILDER, walks
+  to the site, hammers until the build timer elapses, then reverts to a peasant and
+  ambles home. 8 pawns spawn for player 0; serialized with GameState.
+- View (CitizenLayer.gd): procedural little people whose animation matches state —
+  walking gait (walk/wander), standing (idle/work), raised-mallet hammering (build);
+  builders carry a tool; facing flips with movement.
+- Construction visual (BuildingLayer): scaffolding (corner poles + beam) overlays a
+  building while under construction, clearing when done.
+- Units (UnitLayer): soldiers now have swinging legs while moving/charging (on top
+  of the existing per-type weapon silhouettes).
+- Tests: tests/TestPhase14.gd (11 assertions — spawn, idle↔wander, builder dispatch/
+  walk/build, completion, walk movement). Verified on Xvfb: 8 villagers render and
+  animate; placing a building dispatches a builder + scaffolding. Full suite green.
+- Follow-up (noted): unit type-change by walking to the relevant building (e.g.
+  peasant → soldier at the barracks) — the next planned slice.
+
 ## [Iteration 167] 2026-06-14 — Wildlife: roaming, breeding deer herds
 
 - New feature (user request): animal herds that spawn, roam, breed, herd together,

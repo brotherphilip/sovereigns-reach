@@ -26,6 +26,7 @@ var _decor_layer:   Node2D      = null
 var _bld_layer:     Node2D      = null
 var _unit_layer:    Node2D      = null
 var _animal_layer:  Node2D      = null
+var _citizen_layer: Node2D      = null
 var _hud:           CanvasLayer = null
 var _macro_view:    CanvasLayer = null
 var _input_handler: Node        = null
@@ -108,6 +109,10 @@ func _build_scene() -> void:
 	_animal_layer = preload("res://view/micro/AnimalLayer.gd").new()
 	_animal_layer.name = "AnimalLayer"
 	_world_root.add_child(_animal_layer)
+
+	_citizen_layer = preload("res://view/micro/CitizenLayer.gd").new()
+	_citizen_layer.name = "CitizenLayer"
+	_world_root.add_child(_citizen_layer)
 
 	_hud = preload("res://view/hud/HUDNode.gd").new()
 	_hud.name  = "HUD"

@@ -623,3 +623,9 @@ Calculation: P=ΔF+ΔA+ΔR−T±E
 9.1 Deer Herds: (1) Herds of deer spawn on open grass/valley at world setup. (2) Serializable, deterministic from a seeded RNG. (3) They roam slowly and stay grouped (boids-lite cohesion + separation). (4) Breed slowly up to a per-herd cap. (5) Terrain-aware — won't enter water/rock/mountain.
 9.2 State Machine: (1) roam — walking gait. (2) feed — head-down grazing. (3) brood — folded resting. (4) run — fast bounding flight. (5) Animation always matches the active state; facing flips with movement.
 9.3 Threat Response: (1) Deer detect deployed units of any side within ~9 tiles. (2) They flee directly away and regroup once safe. (3) For testing, clicking a deer makes the camera follow it. (4) While tracked, the cursor itself scares the herd. (5) Manual pan or clicking elsewhere ends tracking.
+
+10 Citizens & Builders (implemented — CitizenSystem.gd / CitizenLayer.gd)
+
+10.1 Villager Pawns: (1) Animated little people spawn around the keep. (2) Serializable, deterministic per tick. (3) States: idle, wander, walk, build, work. (4) Animation matches state (gait / standing / hammering). (5) Facing flips with movement.
+10.2 Builders: (1) Placing a building flags it under construction (construction_until + scaffolding). (2) An idle villager becomes a builder. (3) Walks to the site and hammers until the build timer elapses. (4) Reverts to a peasant and ambles home when done. (5) One builder per site.
+10.3 Roadmap: unit type-change by walking to the relevant building (peasant → soldier at the barracks) and transforming on arrival.

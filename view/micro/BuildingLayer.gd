@@ -21,6 +21,7 @@ var _buildings:       Array = []
 var _enemy_buildings: Array = []
 var _structure_dirty: bool = true
 var _has_fire:        bool = false
+var _tick:            int = 0
 
 # Ghost preview state (build-mode cursor)
 var _ghost_type:  String = ""
@@ -49,6 +50,7 @@ func _process(_delta: float) -> void:
 		queue_redraw()
 
 func _on_tick(tick: int) -> void:
+	_tick = tick
 	# Rebuild the lists only on structure change or daily (fog refresh); the per-tick
 	# queue_redraw still repaints live visual state (fire / HP / construction).
 	if _structure_dirty or tick % 240 == 0:
@@ -185,6 +187,17 @@ func _draw_building(b: Dictionary, is_enemy: bool) -> void:
 	# ── Per-type distinctive features ──────────────────────────────────────────
 	_draw_building_topper(btype, cat, w, h, base_color,
 		top, right, bot, left, top_up, right_up, bot_up, left_up, ridge_apex, center)
+
+	# ── Under-construction scaffolding ─────────────────────────────────────────
+	if int(b.get("construction_until", 0)) > _tick:
+		var wood := Color(0.62, 0.45, 0.24, 0.9)
+		for corner in [top, right, bot, left]:
+			draw_line(corner, corner + Vector2(0, -wall_height - 4.0), wood, 1.3)
+		var bandy: float = -wall_height * 0.6
+		draw_line(top + Vector2(0, bandy), right + Vector2(0, bandy), wood, 1.0)
+		draw_line(right + Vector2(0, bandy), bot + Vector2(0, bandy), wood, 1.0)
+		draw_line(bot + Vector2(0, bandy), left + Vector2(0, bandy), wood, 1.0)
+		draw_line(left + Vector2(0, bandy), top + Vector2(0, bandy), wood, 1.0)
 
 	# ── Outline ───────────────────────────────────────────────────────────────
 	draw_polyline(PackedVector2Array([top, right, bot, left, top]),

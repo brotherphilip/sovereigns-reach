@@ -151,6 +151,11 @@ func _draw_unit(unit: Dictionary, is_enemy: bool) -> void:
 	var r: float = UNIT_RADIUS
 	var body_h: float = r * 1.7
 	draw_circle(Vector2(cx, cy + r * 0.35), r * 0.85, Color(0.0, 0.0, 0.0, 0.20))  # ground shadow
+	# Walking legs — swing while the unit is moving/charging.
+	var ord: String = unit.get("order", "")
+	var gait: float = sin(Time.get_ticks_msec() * 0.011) if (ord == "move" or ord == "attack") else 0.0
+	draw_line(Vector2(cx, cy - r * 0.1), Vector2(cx - r * 0.3 + gait * r * 0.45, cy + r * 0.45), fill.darkened(0.35), 1.8)
+	draw_line(Vector2(cx, cy - r * 0.1), Vector2(cx + r * 0.3 - gait * r * 0.45, cy + r * 0.45), fill.darkened(0.35), 1.8)
 	var torso := PackedVector2Array([
 		Vector2(cx - r * 0.55, cy),       Vector2(cx + r * 0.55, cy),
 		Vector2(cx + r * 0.70, cy - body_h), Vector2(cx - r * 0.70, cy - body_h),
