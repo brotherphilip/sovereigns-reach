@@ -2,6 +2,12 @@
 
 ---
 
+## [Iteration 143] 2026-06-14 — Fix #098: Taxation Bumps edict doubles bribe cost when tax_rate < 0
+
+- What changed: TaxSystem.calculate_daily_gold() applied edict_tax_mult before the `if tax_rate > 0` branch, causing "Taxation Bumps" (tax_multiplier=2.0) to double the gold spent on bribes when tax_rate was negative. Moved edict multiplier application inside the positive-tax branch only. Bribe path is unchanged.
+- Scene test: ALL_SCENES_OK
+- Issues resolved: #098
+
 ## [Iteration 142] 2026-06-14 — Fix #097: ale stock prevents starvation detection in FoodSystem and PopularityEngine
 
 - What changed: FoodSystem.get_total_food() now sums only FOOD_CONSUMPTION_ORDER types (apples/bread/cheese/meat), excluding ale. PopularityEngine._food_score() starvation check now iterates FOOD_VARIETY_BONUS keys instead of food.values(). Previously, stockpiled ale (stored in player["food"]["ale"]) kept get_total_food() > 0 and suppressed the -20 popularity starvation penalty indefinitely — despite no actual food being available. Both fixes now consistently exclude ale from the food total.
