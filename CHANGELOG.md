@@ -2,6 +2,12 @@
 
 ---
 
+## [Iteration 134] 2026-06-14 — Fix #089: food consumption order inverted — best food eaten first
+
+- What changed: ResourceTick.tick_food_consumption() and GameState weather extra-drain both changed from ["bread","meat","cheese","apples"] to ["apples","bread","cheese","meat"], matching FoodSystem.FOOD_CONSUMPTION_ORDER and GDD §3.1.2 (cheapest first). Bread/meat now preserved longer; raw apples consumed first.
+- Scene test: ALL_SCENES_OK
+- Issues resolved: #089
+
 ## [Iteration 133] 2026-06-14 — Fix #088: hops_farm excluded from first_farm milestone check
 
 - What changed: MilestoneSystem.check() first_farm condition now includes "hops_farm" alongside wheat_farm, pig_farm, dairy_farm. Players who build a hops_farm first (after crop_tiers research) now earn the milestone and its +50 prestige bonus.
