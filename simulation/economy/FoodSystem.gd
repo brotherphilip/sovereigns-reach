@@ -22,8 +22,9 @@ const FOOD_CONSUMPTION_ORDER: Array = ["apples", "bread", "cheese", "meat"]
 # Returns the total food units a player has across all food types
 static func get_total_food(player: Dictionary) -> int:
 	var total: int = 0
-	for v in player.get("food", {}).values():
-		total += maxi(0, v)
+	var food: Dictionary = player.get("food", {})
+	for ftype in FOOD_CONSUMPTION_ORDER:
+		total += maxi(0, food.get(ftype, 0))
 	return total
 
 # Returns the player's total granary storage capacity (sum across all granary buildings)

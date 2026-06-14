@@ -86,10 +86,10 @@ static func _food_score(player: Dictionary) -> float:
 		if food.get(food_type, 0) > 0:
 			variety_bonus += FOOD_VARIETY_BONUS[food_type]
 
-	# Starvation override — if no food AT ALL, ignore ration level
+	# Starvation override — if no actual food (ale excluded), ignore ration level
 	var total_food: int = 0
-	for f in food.values():
-		total_food += f
+	for food_type in FOOD_VARIETY_BONUS:
+		total_food += food.get(food_type, 0)
 	if total_food <= 0:
 		return -20.0  # Hard starvation penalty
 
