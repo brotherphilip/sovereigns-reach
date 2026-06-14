@@ -30,8 +30,8 @@ static func calculate_daily_prestige(player: Dictionary, world: Dictionary) -> f
 	# Food variety bonus (GDD §4.1.1)
 	var food: Dictionary = player.get("food", {})
 	var variety: int = 0
-	for v in food.values():
-		if v > 0:
+	for ftype in ["apples", "bread", "cheese", "meat"]:
+		if food.get(ftype, 0) > 0:
 			variety += 1
 	base += float(variety) * FOOD_VARIETY_BONUS
 
