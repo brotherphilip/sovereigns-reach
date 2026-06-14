@@ -6,6 +6,7 @@ extends RefCounted
 # Food drain multipliers per ration level (units of food consumed per peasant per day)
 const DifficultySystem = preload("res://simulation/core/DifficultySystem.gd")
 const TechTree         = preload("res://simulation/tech/TechTree.gd")
+const EdictSystem      = preload("res://simulation/edicts/EdictSystem.gd")
 
 const FOOD_DRAIN_PER_PEASANT: Dictionary = {
 	0: 0.0,    # No rations — starvation risk (zero drain because no food issued)
@@ -35,7 +36,7 @@ static func get_granary_capacity(player: Dictionary) -> int:
 			cap += building.get("storage_max", 0)
 	if cap == 0:
 		cap = 200  # default capacity even without a granary
-	var granary_bonus: float = TechTree.get_all_modifiers(player).get("granary_capacity_bonus", 0.0)
+	var granary_bonus: float = TechTree.get_all_modifiers(player).get("granary_capacity_bonus", 0.0) + EdictSystem.get_active_modifiers(player).get("granary_capacity_bonus", 0.0)
 	if granary_bonus > 0.0:
 		cap = int(ceil(float(cap) * (1.0 + granary_bonus)))
 	return cap

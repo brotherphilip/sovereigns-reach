@@ -3,6 +3,10 @@
 <!-- Format: ## [ID] Title | Severity: Blocker/High/Medium/Low | Status: Open/In Progress/Resolved/Byproduct -->
 <!-- Severities: Blocker=crashes/data loss, High=broken feature, Medium=wrong behavior, Low=polish/text -->
 
+## [075] storage_expansions edict granary_capacity_bonus never read from EdictSystem — edict is completely inert | Severity: Medium | Status: Resolved
+`storage_expansions` edict (3 pts, passive, "Granaries hold 20% more food") defines `{"storage_capacity_bonus": 0.2, "granary_capacity_bonus": 0.2}`. `FoodSystem.get_granary_capacity()` reads `granary_capacity_bonus` only from `TechTree.get_all_modifiers(player)` — never from `EdictSystem.get_active_modifiers()`. Players spending 3 edict points saw zero change in granary cap. `storage_capacity_bonus` has no consumer anywhere.
+Resolution: Added `EdictSystem` preload to `FoodSystem.gd`; `get_granary_capacity()` now accumulates `granary_capacity_bonus` additively from both TechTree and EdictSystem. `storage_capacity_bonus` is not consumed anywhere (dead design artifact) but is harmless. Scene test: ALL_SCENES_OK.
+
 ## [074] siege_repairs edict repaired ALL buildings instead of only walls | Severity: Low | Status: Resolved
 `siege_repairs` edict (5 pts, "Instantly heals all stone walls") had `wall_repair_amount: 500`. The GameState activation handler looped over ALL player buildings and called `BuildingState.repair()` on each. This repaired farms, hovels, mills, and other non-defensive buildings — including fire-damaged structures that the edict is not designed to repair. The edict description says "stone walls."
 Resolution: Added `BuildingRegistry.Category.DEFENSE` check — wall_repair_amount now only repairs buildings in the DEFENSE category (wooden_palisade, stone_wall, gatehouse, lookout_tower, great_tower, watchtower). Scene test: ALL_SCENES_OK.

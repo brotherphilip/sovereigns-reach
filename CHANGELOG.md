@@ -2,6 +2,19 @@
 
 ---
 
+## [Iteration 120] 2026-06-14 — Fix #075: storage_expansions edict granary bonus never applied
+
+- Delegated to: Supervisor
+- What changed: FoodSystem.gd — added EdictSystem preload; `get_granary_capacity()` now also reads `granary_capacity_bonus` from `EdictSystem.get_active_modifiers(player)` and stacks additively with the TechTree bonus.
+- Before: `storage_expansions` edict (`granary_capacity_bonus: 0.2`) was silently ignored — FoodSystem only read that key from TechTree. Spending 3 edict points had zero effect on granary capacity.
+- After: Edict bonus stacks with TechTree bonus in `get_granary_capacity()`. A player with `storage_expansions` active now correctly gets +20% granary capacity (or +40% if Granary Expansion tech is also researched).
+- Scene test: ALL_SCENES_OK
+- Issues resolved: #075
+- Issues discovered: none
+- Supervisor correction: none
+
+---
+
 ## [Iteration 119] 2026-06-14 — Fix #074: siege_repairs repaired all buildings instead of only walls
 
 - Delegated to: Supervisor
