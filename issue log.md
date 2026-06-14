@@ -3,6 +3,10 @@
 <!-- Format: ## [ID] Title | Severity: Blocker/High/Medium/Low | Status: Open/In Progress/Resolved/Byproduct -->
 <!-- Severities: Blocker=crashes/data loss, High=broken feature, Medium=wrong behavior, Low=polish/text -->
 
+## [081] MacroViewController.get_shire_color checks AI factions before players — player's starting shire shows as BanditKing brown | Severity: Medium | Status: Resolved
+`get_shire_color(owner_id, ...)` iterates AI factions first. Both Player 0 and BanditKing faction have ID 0. Player 0's starting shire (owner_id=0) matched BanditKing (fac.id=0) before checking players, displaying BanditKing's brown color on a player-controlled shire. All later AI captures (owner_id=1 for Ironhand, etc.) had similar potential collisions with player IDs.
+Resolution: Added `owner_is_player: bool` field to shire dicts, set to `true` when a player claims the shire and `false` when an AI captures it. `get_shire_color()` takes `owner_is_player` parameter and short-circuits to player color immediately when true, then falls through to AI check otherwise. `get_shire_render_list()` passes `shire.get("owner_is_player", false)`. Scene test: ALL_SCENES_OK.
+
 ## [080] WorkerSystem.assign_workers computes available before freeing current slot — reducing workers always floors to 0 when pool is full | Severity: Medium | Status: Resolved
 `WorkerSystem.assign_workers(building, count, player)` called `_available_workers(player)` before zeroing the building's current workers. `_available_workers` sums all assigned workers including this building's. With full assignment, `available = 0`, so `to_assign = mini(count, min(max_w, 0)) = 0`. Clicking the "2" button on a 3-worker building with a full pool sets it to 0 instead of 2. The HUD creates per-slot buttons (0 through max_w) so any non-zero reduction would silently zero the building.
 Resolution: Captured `old_count` first, then used `_available_workers(player) + old_count` — treats the building's current workers as already freed before computing the new assignment. Now reducing from 3 to 2 correctly yields 2. Scene test: ALL_SCENES_OK.

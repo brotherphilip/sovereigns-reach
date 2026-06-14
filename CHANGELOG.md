@@ -2,6 +2,19 @@
 
 ---
 
+## [Iteration 126] 2026-06-14 — Fix #081: player's shire shows as BanditKing brown on macro map
+
+- Delegated to: Supervisor
+- What changed: GameState.gd adds `owner_is_player: true/false` when setting `shire["owner_id"]`. MacroViewController.get_shire_color() takes a new `owner_is_player` param and short-circuits to player color when true, falling through to AI faction check otherwise. get_shire_render_list() passes the field.
+- Before: Both Player 0 and BanditKing have id=0. The faction loop ran before player lookup, so player 0's shire always showed as BanditKing brown from the first frame of the macro map.
+- After: Player-owned shires correctly show the player's light-blue, AI-captured shires show the faction color. No ID collision.
+- Scene test: ALL_SCENES_OK
+- Issues resolved: #081
+- Issues discovered: none
+- Supervisor correction: none
+
+---
+
 ## [Iteration 125] 2026-06-14 — Fix #080: assign_workers floors to 0 when reducing from a full worker pool
 
 - Delegated to: Supervisor

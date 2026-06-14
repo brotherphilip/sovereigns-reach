@@ -127,6 +127,7 @@ func _assign_starting_shire(player_id: int, start_x: int, start_y: int) -> void:
 	for shire in world.get("shires", []):
 		if shire is Dictionary and shire.get("id", -1) == best_id:
 			shire["owner_id"] = player_id
+			shire["owner_is_player"] = true
 			break
 
 func _make_player(player_id: int, player_name: String, start_x: int, start_y: int) -> Dictionary:
@@ -514,6 +515,7 @@ func simulate_tick(tick: int) -> void:
 								if shire.get("id", -1) == captured_id:
 									var old_owner: int = shire.get("owner_id", -1)
 									shire["owner_id"] = faction.get("id", -1)
+									shire["owner_is_player"] = false
 									EventBus.shire_ownership_changed.emit(captured_id, old_owner, faction.get("id", -1))
 									break
 						# Siege damage: deal 150 HP to the village hall (defeat = 3-4 sieges)
