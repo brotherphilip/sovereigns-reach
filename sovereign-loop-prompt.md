@@ -74,9 +74,12 @@ OMNISCIENCE PERFORMANCE LOG (update loop state.md after each call):
     drift     : produced a conversational summary, marketing/"pitch" text, a feature
                 wish-list, or a trailing "would you like me to…" offer instead of doing
                 the task — or substituted a document summary for a requested audit.
-                → Patch build_system_prompt(): strengthen the NO CONVERSATIONAL DRIFT rule
-                  and the mode clause that applies (e.g. AUDIT/REPORT MODE) so the model
-                  cannot resolve a rule-conflict by drifting.
+                → LESSON (iter 154-155): prompt-TEXT clauses alone do NOT stop a 30B model
+                  from drifting — it will ignore them and even make out-of-scope edits.
+                  Use STRUCTURAL enforcement: withhold the relevant tools (AUDIT_SCHEMAS
+                  has no write tools), force a text-only answer after a tool budget, and
+                  validate the output (_audit_output_ok) with a re-prompt that rejects
+                  drift. Prefer code-level guardrails over more system-prompt prose.
     other     : any failure that does not fit the types above.
                 → Diagnose the ROOT cause, then add a NEW named failure type to this list
                   (this file) AND patch omniscience-cli.py to prevent the whole class.

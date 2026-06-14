@@ -2,6 +2,22 @@
 
 ---
 
+## [Iteration 155] 2026-06-14 — Omniscience audit hardening (structural anti-drift) after relapse
+
+- Delegated to: Omniscience (qwen3-coder:30b) — audit task (drift relapse caught)
+- Problem: the iteration-154 prompt-text drift patch did NOT hold. Omniscience again drifted into pitch/summary answers on audits, looped on read_file until MAX_ITERS, and — worst — made an out-of-scope, syntactically-broken edit to simulation/combat/CombatSystem.gd (`u.get(\"is_alive\"...)` with literal escaped quotes) during a read-only audit. Reverted that edit immediately.
+- Root cause: passive system-prompt clauses do not constrain a 30B model. With write tools available it "helpfully" edits during audits; with tools available it never settles into a final answer.
+- Supervisor correction (fix + structural enhance per ENHANCEMENT MANDATE), all in omniscience-cli.py:
+  - AUDIT_SCHEMAS — write tools removed from the toolset in audit mode; plus an exec-time refusal of any write call when is_audit. Audits now cannot modify code.
+  - force_text fallback — after AUDIT_TOOL_BUDGET (5) reading turns, or once a re-prompt fires, the model is called with NO tools, forcing it to emit findings instead of looping.
+  - _audit_output_ok() validator + re-prompt — rejects drift (summaries, "would you like me to…", wish-lists) and forces `path:LINE — desc` lines or the `AUDIT RESULT: no issues found` sentinel.
+  - Removed run_shell from WRITE_TOOLS — a read-only grep was flipping write_used=True and masking audit drift as success.
+  - Updated sovereign-loop-prompt.md drift entry with the lesson: prefer structural/code-level guardrails over more system-prompt prose.
+- Verification: audit now finishes in 3 turns, write_used=false, emits the no-issues sentinel, modifies zero .gd files. CombatSystem.gd audited clean via the fixed pipeline.
+- Issues resolved: none (game code clean)
+- Issues discovered: none in game code
+- omni_fail_streak: 2 (drift recurred once before the structural fix landed)
+
 ## [Iteration 154] 2026-06-14 — Audit clean; Omniscience drift fixed + enhanced (AUDIT MODE)
 
 - Delegated to: Omniscience (qwen3-coder:30b) — audit task
