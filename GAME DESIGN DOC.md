@@ -617,3 +617,9 @@ Calculation: P=ΔF+ΔA+ΔR−T±E
 8.5.3 Espionage Scouting: (1) Scouting reveals AI blueprints. (2) Shows wall layouts. (3) Identifies weak points. (4) Vital before declaring war. (5) Prepares the co-op team.
 8.5.4 Coordinated Sieges: (1) Persistent world requires 12 hours to setup. (2) Players time battles for weekends. (3) Multiple players attack one castle. (4) Focus catapult fire on breaches. (5) Target the Keep directly.
 8.5.5 Vassalization: (1) Capturing a Capital ends the faction. (2) Vassalizes remaining farming villages. (3) Routes daily tithes to players. (4) Flips region colors. (5) Eliminates the AI completely.
+
+9 Wildlife (implemented — WildlifeSystem.gd / AnimalLayer.gd)
+
+9.1 Deer Herds: (1) Herds of deer spawn on open grass/valley at world setup. (2) Serializable, deterministic from a seeded RNG. (3) They roam slowly and stay grouped (boids-lite cohesion + separation). (4) Breed slowly up to a per-herd cap. (5) Terrain-aware — won't enter water/rock/mountain.
+9.2 State Machine: (1) roam — walking gait. (2) feed — head-down grazing. (3) brood — folded resting. (4) run — fast bounding flight. (5) Animation always matches the active state; facing flips with movement.
+9.3 Threat Response: (1) Deer detect deployed units of any side within ~9 tiles. (2) They flee directly away and regroup once safe. (3) For testing, clicking a deer makes the camera follow it. (4) While tracked, the cursor itself scares the herd. (5) Manual pan or clicking elsewhere ends tracking.

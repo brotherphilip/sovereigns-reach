@@ -36,6 +36,11 @@ func setup(iso_grid: Node2D, camera: Camera2D, unit_layer: Node2D) -> void:
 	_camera       = camera
 	_unit_layer   = unit_layer
 
+var _animal_layer: Node2D = null
+
+func set_animal_layer(layer: Node2D) -> void:
+	_animal_layer = layer
+
 func set_building_layer(layer: Node2D) -> void:
 	_bld_layer = layer
 
@@ -94,6 +99,16 @@ func _try_select(grid_pos: Vector2i, world_pos: Vector2) -> void:
 		return
 	var player: Dictionary = GameState.players[0]
 
+	# Check wildlife first — clicking a deer starts camera tracking (test feature).
+	for a in GameState.wildlife:
+		if not (a is Dictionary and a.get("is_alive", false)):
+			continue
+		var asx: float = (a["x"] - a["y"]) * 32.0
+		var asy: float = (a["x"] + a["y"]) * 16.0
+		if world_pos.distance_to(Vector2(asx, asy)) < 18.0:
+			_select_animal(a)
+			return
+
 	# Check units first (closer to click center)
 	for unit in player.get("units", []):
 		if not unit is Dictionary or not unit.get("is_alive", false):
@@ -118,13 +133,33 @@ func _try_select(grid_pos: Vector2i, world_pos: Vector2) -> void:
 	# Nothing selected — deselect
 	_deselect()
 
+# Clicking a deer: follow it with the camera (and the cursor scares it).
+func _select_animal(a: Dictionary) -> void:
+	_selected_building_id = -1
+	_selected_unit_id = -1
+	if _unit_layer != null:
+		_unit_layer.set_selected(-1)
+	if _animal_layer != null:
+		_animal_layer.set_selected(a.get("id", -1))
+	if _camera != null and _camera.has_method("track_animal"):
+		_camera.track_animal(a.get("id", -1))
+	entity_selected.emit("animal", a)
+
+func _stop_tracking() -> void:
+	if _animal_layer != null:
+		_animal_layer.set_selected(-1)
+	if _camera != null and _camera.has_method("stop_tracking"):
+		_camera.stop_tracking()
+
 func _select_building(building: Dictionary) -> void:
+	_stop_tracking()
 	_selected_building_id = building.get("id", -1)
 	_selected_unit_id = -1
 	entity_selected.emit("building", building)
 	_update_cursor()
 
 func _select_unit(unit: Dictionary) -> void:
+	_stop_tracking()
 	_selected_unit_id = unit.get("id", -1)
 	_selected_building_id = -1
 	if _unit_layer != null:
@@ -133,6 +168,7 @@ func _select_unit(unit: Dictionary) -> void:
 	_update_cursor()
 
 func _deselect() -> void:
+	_stop_tracking()
 	_selected_building_id = -1
 	_selected_unit_id = -1
 	if _unit_layer != null:

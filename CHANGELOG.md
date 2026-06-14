@@ -2,6 +2,29 @@
 
 ---
 
+## [Iteration 167] 2026-06-14 — Wildlife: roaming, breeding deer herds
+
+- New feature (user request): animal herds that spawn, roam, breed, herd together,
+  detect threats and flee, with state-matched animation + click-to-track.
+- Simulation (WildlifeSystem.gd): deer are serializable dicts in GameState.wildlife,
+  advanced deterministically each tick from a seeded RNG. State machine —
+  roam / feed / brood / run. Herding via boids-lite cohesion + separation; slow
+  wander. Threat flight: deer flee deployed units of any side (and, while a deer is
+  being tracked, the cursor) within ~9 tiles. Slow breeding up to a herd cap;
+  terrain-aware movement (won't enter water/rock/mountain). 5 herds spawn on world
+  setup; serialized with the rest of GameState.
+- View (AnimalLayer.gd): procedural side-view deer whose animation matches its
+  state — walking gait (roam), head-down graze (feed), folded rest (brood), fast
+  bound (run); facing flips with movement; adults get antlers, fawns are smaller/
+  lighter.
+- Click-to-track (test feature): clicking a deer makes the camera follow it; while
+  tracking, the cursor scares the herd (GameState.wildlife_cursor_threat). Clicking
+  elsewhere or panning manually stops tracking.
+- Tests: new tests/TestPhase13.gd (15 assertions — spawn, flight, roam, cohesion,
+  terrain blocking, breeding cooldown/cap). Verified on isolated Xvfb: 26 deer
+  render in herds with mixed poses; cursor-flee → run + flee; camera follows to
+  within 8px. Full suite green.
+
 ## [Iteration 166] 2026-06-14 — Chunked terrain/decoration culling (fix lag at ALL zooms)
 
 - User report: lags even fully zoomed in. Root cause confirmed by measuring —

@@ -25,6 +25,7 @@ var _iso_grid:      Node2D      = null
 var _decor_layer:   Node2D      = null
 var _bld_layer:     Node2D      = null
 var _unit_layer:    Node2D      = null
+var _animal_layer:  Node2D      = null
 var _hud:           CanvasLayer = null
 var _macro_view:    CanvasLayer = null
 var _input_handler: Node        = null
@@ -104,6 +105,10 @@ func _build_scene() -> void:
 	_unit_layer.name = "UnitLayer"
 	_world_root.add_child(_unit_layer)
 
+	_animal_layer = preload("res://view/micro/AnimalLayer.gd").new()
+	_animal_layer.name = "AnimalLayer"
+	_world_root.add_child(_animal_layer)
+
 	_hud = preload("res://view/hud/HUDNode.gd").new()
 	_hud.name  = "HUD"
 	_hud.layer = 10
@@ -126,6 +131,7 @@ func _build_scene() -> void:
 	add_child(_input_handler)
 	_input_handler.setup(_iso_grid, _camera, _unit_layer)
 	_input_handler.set_building_layer(_bld_layer)
+	_input_handler.set_animal_layer(_animal_layer)
 
 	# "World Map" return button (added to a small persistent overlay)
 	_add_world_map_button()

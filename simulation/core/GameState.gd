@@ -17,6 +17,7 @@ const PlacementValidator = preload("res://simulation/buildings/PlacementValidato
 const WorkerSystem     = preload("res://simulation/player/WorkerSystem.gd")
 const WorldGrid        = preload("res://simulation/world/WorldGrid.gd")
 const ShireMap         = preload("res://simulation/world/ShireMap.gd")
+const WildlifeSystem   = preload("res://simulation/world/WildlifeSystem.gd")
 # Phase 5
 const TechTree         = preload("res://simulation/tech/TechTree.gd")
 const PrestigeSystem   = preload("res://simulation/tech/PrestigeSystem.gd")
@@ -58,6 +59,14 @@ var _shire_map: Object = null  # ShireMap instance
 var _next_building_id: int = 1
 var _next_unit_id: int = 1     # Phase 6: monotonically increasing unit id
 
+# Wildlife (deer herds) — serializable animal dicts roaming the world.
+var wildlife: Array = []
+var _next_animal_id: int = 1
+var _wildlife_rng: RandomNumberGenerator = null
+# Transient (not serialized): a cursor position (grid coords) the deer flee from
+# while the player is tracking one. Vector2.INF = no cursor threat.
+var wildlife_cursor_threat: Vector2 = Vector2.INF
+
 func _ready() -> void:
 	_init_default_state()
 
@@ -79,6 +88,10 @@ func _init_default_state() -> void:
 	_fire_rng.seed = server_config["map_seed"] ^ 0xCAFEBABE
 	_social_rng = RandomNumberGenerator.new()
 	_social_rng.seed = server_config["map_seed"] ^ 0xBEEF1234
+	_wildlife_rng = RandomNumberGenerator.new()
+	_wildlife_rng.seed = server_config["map_seed"] ^ 0x0DEE12
+	wildlife = []
+	_next_animal_id = 1
 	weather = WeatherSystem.make_state()
 	milestones = {}
 	_next_building_id = 1
@@ -102,6 +115,52 @@ func setup_world(seed_value: int = 12345, shire_count: int = 8) -> void:
 	world["grid"] = _grid.serialize()
 	world["shires"] = _shire_map.serialize().get("shires", [])
 	MarketSystem.initialize_prices(world)
+	_spawn_wildlife(seed_value)
+
+# Scatter a few deer herds across open grass/valley terrain.
+func _spawn_wildlife(seed_value: int) -> void:
+	_wildlife_rng.seed = seed_value ^ 0x0DEE12
+	wildlife = []
+	_next_animal_id = 1
+	var herds: int = 5
+	var w: int = server_config["map_width"]
+	var h: int = server_config["map_height"]
+	for herd_id in range(herds):
+		# Find an open spot for the herd centre.
+		var cx: float = 0.0
+		var cy: float = 0.0
+		for _attempt in range(20):
+			var tx: int = _wildlife_rng.randi_range(15, w - 15)
+			var ty: int = _wildlife_rng.randi_range(15, h - 15)
+			var t: int = _grid.get_terrain(tx, ty)
+			if t == WorldGrid.Terrain.GRASS or t == WorldGrid.Terrain.VALLEY:
+				cx = float(tx); cy = float(ty)
+				break
+		if cx == 0.0:
+			continue
+		var count: int = _wildlife_rng.randi_range(4, 6)
+		_next_animal_id = WildlifeSystem.spawn_herd(
+			wildlife, herd_id, cx, cy, count, _wildlife_rng, _next_animal_id)
+
+# Positions (grid coords) the deer treat as threats: deployed units of any side,
+# plus the tracked cursor (set by the view for testing).
+func _gather_wildlife_threats() -> Array:
+	var threats: Array = []
+	for p in players:
+		if not (p is Dictionary):
+			continue
+		for u in p.get("units", []):
+			if u is Dictionary and UnitState.is_deployable(u):
+				threats.append({"x": float(u.get("pos_x", 0)), "y": float(u.get("pos_y", 0))})
+	for f in ai_factions:
+		if not (f is Dictionary and f.get("is_alive", false)):
+			continue
+		for u in f.get("units", []):
+			if u is Dictionary and u.get("is_alive", false):
+				threats.append({"x": float(u.get("pos_x", 0)), "y": float(u.get("pos_y", 0))})
+	if wildlife_cursor_threat != Vector2.INF:
+		threats.append({"x": wildlife_cursor_threat.x, "y": wildlife_cursor_threat.y})
+	return threats
 
 # --- Player initialization ---
 
@@ -682,6 +741,11 @@ func simulate_tick(tick: int) -> void:
 			continue
 		_tick_player_economy(player, tick)
 		_tick_player_unit_movement(player, tick)
+
+	# Wildlife roams every tick (smooth) and flees nearby units / the tracked cursor.
+	if not wildlife.is_empty():
+		_next_animal_id = WildlifeSystem.tick(
+			wildlife, _gather_wildlife_threats(), _grid, _wildlife_rng, tick, _next_animal_id)
 
 	# Phase 6: tick AI factions each game-day
 	if tick > 0 and tick % SimulationClock.TICKS_PER_GAME_DAY == 0:
@@ -1321,6 +1385,8 @@ func serialize() -> Dictionary:
 		"clock": SimulationClock.serialize(),
 		"next_building_id": _next_building_id,
 		"next_unit_id": _next_unit_id,
+		"wildlife": wildlife.duplicate(true),
+		"next_animal_id": _next_animal_id,
 	}
 
 func deserialize(data: Dictionary) -> void:
@@ -1333,12 +1399,17 @@ func deserialize(data: Dictionary) -> void:
 	milestones = data.get("milestones", {})
 	_next_building_id = data.get("next_building_id", 1)
 	_next_unit_id = data.get("next_unit_id", 1)
+	wildlife = data.get("wildlife", [])
+	_next_animal_id = data.get("next_animal_id", 1)
 	# Re-seed RNGs from the loaded map_seed so random events use the correct seed
 	var loaded_seed: int = server_config.get("map_seed", 12345)
 	_weather_rng.seed = loaded_seed
 	_disease_rng.seed = loaded_seed ^ 0xDEADBEEF
 	_fire_rng.seed = loaded_seed ^ 0xCAFEBABE
 	_social_rng.seed = loaded_seed ^ 0xBEEF1234
+	if _wildlife_rng == null:
+		_wildlife_rng = RandomNumberGenerator.new()
+	_wildlife_rng.seed = loaded_seed ^ 0x0DEE12
 	if data.has("clock"):
 		SimulationClock.deserialize(data["clock"])
 
