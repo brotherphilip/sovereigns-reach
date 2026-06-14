@@ -2,6 +2,11 @@
 
 ---
 
+## [Iteration 153] 2026-06-14 — Audit pass: remaining simulation files all clean
+
+- What changed: No code changes. Completed audit of all remaining files: CapitalSystem.gd, WeatherSystem.gd (all effects — farm_yield_mult, food_drain, movement_penalty — confirmed consumed in GameState), VisibilitySystem.gd, BuildingRegistry.gd, CommandQueue.gd, DiplomacySystem.accept/refuse, all four AI archetypes (BanditKing, MerchantPrince, Ironhand, AshenBarony). TODO/FIXME grep: nothing found. Full codebase audited.
+- Issues resolved: none
+
 ## [Iteration 152] 2026-06-14 — Fix #106: CombatSystem.resolve_combat "kills" vs "killed" key mismatch breaks multi-unit combat
 
 - What changed: `CombatSystem.resolve_combat` checked `result.get("kills", false)` in two places (attacker kills defender, defender kills attacker). `UnitState.apply_damage` returns the key `"killed"`, not `"kills"`. The mismatch caused dead units to never be erased from the alive pool — `_pick_target` always selected the corpse (lowest HP ratio = 0), so all subsequent attackers wasted their strikes on it. Only one kill was possible per half-round regardless of army size. Fixed both occurrences to `result.get("killed", false)`.
