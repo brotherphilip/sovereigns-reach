@@ -244,7 +244,7 @@ func _tick_player_economy(player: Dictionary, tick: int) -> void:
 				if farm_mult != 1.0:
 					for res in changes.keys():
 						if changes[res] > 0:
-							changes[res] = int(float(changes[res]) * farm_mult)
+							changes[res] = int(ceil(float(changes[res]) * farm_mult))
 			# Apply shire biome bonuses (ShireMap biome traits, GDD §1.2.1).
 			if _biome_farm_bonus > 0.0 and btype in FARM_TYPES:
 				for res in changes.keys():

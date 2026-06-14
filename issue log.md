@@ -3,6 +3,10 @@
 <!-- Format: ## [ID] Title | Severity: Blocker/High/Medium/Low | Status: Open/In Progress/Resolved/Byproduct -->
 <!-- Severities: Blocker=crashes/data loss, High=broken feature, Medium=wrong behavior, Low=polish/text -->
 
+## [092] Weather farm_yield_mult applied with int() instead of ceil() — rain 10% bonus never reaches small outputs | Severity: Low | Status: Resolved
+GameState._tick_player_economy() building loop applies weather.effects.farm_yield_mult with `int(float(changes[res]) * farm_mult)`. For rain (farm_yield_mult=1.1): a wheat_farm producing 4 wheat/tick gives int(4 * 1.1) = int(4.4) = 4 — the rain bonus is silently lost. The biome bonus applied immediately after uses int(ceil(...)), creating an inconsistency where the same building gets 0% rain benefit but full 15% biome benefit. For drought/snow (mult=0.0) and storm (mult=0.5), ceil vs floor does not change the 0-production case but would give a +1 rounding advantage on suppressed outputs.
+Resolution: Changed `int(float(changes[res]) * farm_mult)` to `int(ceil(float(changes[res]) * farm_mult))` to match the pattern used by all other bonus multipliers in the same loop. Rain bonus now correctly yields 5 wheat instead of 4 for a 2-worker wheat farm. Scene test: ALL_SCENES_OK.
+
 ## [091] BuildingRenderer.get_hp_bar uses definition base HP instead of building max_hp — HP bar wrong for tech-boosted walls | Severity: Low | Status: Resolved
 BuildingRenderer.get_hp_bar() computes `hp / defn.get("hp", 100)` — dividing current HP by the base definition HP. After fix #084, walls placed with advanced_masonry research have building["max_hp"] = 325 (stone wall), not 250. A stone wall damaged to 200 HP shows 200/250 = 80% on the bar instead of the correct 200/325 = 62%. The bar appears less damaged than actual. Same issue for great towers (500→650 base).
 Resolution: Changed get_hp_bar() denominator from `defn.get("hp", 100)` to `building.get("max_hp", defn.get("hp", 100))` — uses the building's stored max_hp if present, falls back to definition for unmodified buildings. Scene test: ALL_SCENES_OK.
