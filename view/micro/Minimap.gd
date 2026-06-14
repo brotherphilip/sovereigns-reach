@@ -107,7 +107,7 @@ func _draw_buildings() -> void:
 			var px: float = MARGIN + gx * scale_x
 			var py: float = MARGIN + gy * scale_y
 			var col: Color = Color(0.2, 0.8, 0.2, 0.8)
-			draw_circle(px + scale_x * 0.5, py + scale_y * 0.5, 2.0, col)
+			draw_circle(Vector2(px + scale_x * 0.5, py + scale_y * 0.5), 2.0, col)
 
 	for faction in GameState.ai_factions:
 		if not faction is Dictionary: continue
@@ -119,7 +119,7 @@ func _draw_buildings() -> void:
 			var px: float = MARGIN + gx * scale_x
 			var py: float = MARGIN + gy * scale_y
 			var col: Color = Color(0.8, 0.2, 0.2, 0.8)
-			draw_circle(px + scale_x * 0.5, py + scale_y * 0.5, 2.0, col)
+			draw_circle(Vector2(px + scale_x * 0.5, py + scale_y * 0.5), 2.0, col)
 
 func _draw_units() -> void:
 	if GameState.players.is_empty(): return
@@ -136,7 +136,7 @@ func _draw_units() -> void:
 			var px: float = MARGIN + gx * scale_x
 			var py: float = MARGIN + gy * scale_y
 			var col: Color = Color(0.4, 1.0, 0.4, 0.9)
-			draw_circle(px + scale_x * 0.5, py + scale_y * 0.5, 1.5, col)
+			draw_circle(Vector2(px + scale_x * 0.5, py + scale_y * 0.5), 1.5, col)
 
 	for faction in GameState.ai_factions:
 		if not faction is Dictionary: continue
@@ -148,7 +148,7 @@ func _draw_units() -> void:
 			var px: float = MARGIN + gx * scale_x
 			var py: float = MARGIN + gy * scale_y
 			var col: Color = Color(1.0, 0.4, 0.4, 0.9)
-			draw_circle(px + scale_x * 0.5, py + scale_y * 0.5, 1.5, col)
+			draw_circle(Vector2(px + scale_x * 0.5, py + scale_y * 0.5), 1.5, col)
 
 func _draw_viewport_rect() -> void:
 	if _camera == null: return
