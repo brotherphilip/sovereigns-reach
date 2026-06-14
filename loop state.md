@@ -6,6 +6,7 @@ notes: FEATURE FLESH-OUT (iter 158) 2026-06-14 — Disease → Public Health & D
 
 notes: FEATURE FLESH-OUT (iter 157) 2026-06-14 — Religion/Faith system fully built out (was thinnest: coverage→popularity only, Monk did nothing). Added Faith economy (churches/cathedrals/monks accrue capped Faith scaled by staffing+coverage) + auto-Blessing (+6 popularity, 3-day −50% fire protection) in ReligionSystem.gd; wired GameState (faith/faith_cap/blessing_until + day-boundary tick + ignition protection), PopularityEngine (blessing event), EventBus (blessing_bestowed), HUDController (faith/faith_cap/blessing_active). Removed dead dup WorkerSystem.calculate_religion_coverage. GDD §3.3 updated (3.3.IMPL, both copies). New TestPhase11.gd (20 tests). Bug found+fixed by ACTUALLY RUNNING the game: view/micro/Minimap.gd used Godot-3 draw_circle(x,y,r,color) → failed to compile → broke entire city view at runtime (headless boot/unit tests never loaded it). Visually verified via isolated Xvfb (no host interference). Full suite green (703 assertions).
 
+standing_rule: END OF EVERY ITERATION — commit ALL work (git status must be clean), then run the LATEST COMMITTED build on isolated Xvfb and capture a screenshot as proof it works. HEAD must always be a verified, runnable build so the user never picks up a stale/broken version.
 mode: feature-flesh-out
 active_issue: none
 last_issue_fixed: minimap-draw_circle (Godot3 API in view/micro/Minimap.gd)
