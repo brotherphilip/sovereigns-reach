@@ -2,6 +2,22 @@
 
 ---
 
+## [Iteration 166] 2026-06-14 — Chunked terrain/decoration culling (fix lag at ALL zooms)
+
+- User report: lags even fully zoomed in. Root cause confirmed by measuring —
+  zoomed-IN was 205 ms/frame (worse than zoomed out). The draw-once terrain and
+  decorations were each ONE giant canvas item; Godot re-submits a canvas item's
+  entire command list (~40k tile polygons + thousands of decorations) to the GPU
+  every frame regardless of zoom — it does not cull within a single item.
+- Fix: split terrain and decorations into 16×16-tile chunk canvas items
+  (TerrainChunk.gd, DecorChunk.gd). The 2D renderer culls off-screen chunks, so
+  zoomed in only the handful of visible chunks are drawn. Each chunk paints once.
+- Measured (software renderer, panning): zoomed-IN 205 → 25 ms/frame (~8×),
+  zoomed-OUT 76 → 48 ms/frame. On a real GPU these become sub-millisecond.
+- Decoration LOD retained (whole layer hides below zoom 0.55). Terrain renders
+  seamlessly across chunk boundaries; decor.visible confirmed false@0.3/true@1.0.
+- Full suite green.
+
 ## [Iteration 165] 2026-06-14 — Zoom-out perf: decoration level-of-detail
 
 - User insight: lag is from "too much on screen" — correct. The iter-160 draw-once
