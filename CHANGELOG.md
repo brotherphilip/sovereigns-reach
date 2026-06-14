@@ -2,6 +2,12 @@
 
 ---
 
+## [Iteration 146] 2026-06-14 — Fix #101: PrestigeSystem food variety bonus counts ale as food type
+
+- What changed: PrestigeSystem.calculate_daily_prestige() now iterates only ["apples","bread","cheese","meat"] for the food variety prestige bonus, excluding ale. Previously iterating food.values() counted ale as a 5th food variety, granting +2 prestige/day whenever the player had ale stock from a brewery.
+- Scene test: ALL_SCENES_OK
+- Issues resolved: #101
+
 ## [Iteration 145] 2026-06-14 — Fix #100: HUD food bar inflated by ale stockpile
 
 - What changed: HUDController.get_total_food() now sums only ["apples","bread","cheese","meat"], matching FoodSystem.FOOD_CONSUMPTION_ORDER. Previously it iterated all player["food"] values including "ale", so the Food bar showed food + ale while the dedicated Ale bar also showed ale — double counting. Critical food alert also now fires correctly at zero real food.

@@ -3,6 +3,10 @@
 <!-- Format: ## [ID] Title | Severity: Blocker/High/Medium/Low | Status: Open/In Progress/Resolved/Byproduct -->
 <!-- Severities: Blocker=crashes/data loss, High=broken feature, Medium=wrong behavior, Low=polish/text -->
 
+## [101] PrestigeSystem food variety bonus counts ale as a food type — +2 prestige/day from ale stockpile | Severity: Low | Status: Resolved
+PrestigeSystem.calculate_daily_prestige() computes food variety by iterating all food.values() with `for v in food.values(): if v > 0: variety += 1`. This counts ale (stored in player["food"]["ale"]) as a distinct food type, awarding +FOOD_VARIETY_BONUS (2.0) prestige per day whenever ale is stocked. Ale is not a food — it's a popularity modifier via inn coverage. The variety bonus should apply only to apples/bread/cheese/meat per GDD §4.1.1.
+Resolution: Changed to explicit iteration over ["apples", "bread", "cheese", "meat"] using food.get(ftype, 0). Ale no longer contributes a +2 prestige/day variety bonus. Scene test: ALL_SCENES_OK.
+
 ## [100] HUDController.get_total_food includes ale in food total — HUD "Food" bar inflated by ale stockpile | Severity: Low | Status: Resolved
 HUDController.get_total_food() iterates all player["food"] dict keys including "ale". The HUD renders the result as the "Food" bar, and separately renders player["food"]["ale"] as the "Ale" bar. This double-counts ale: if apples=10, bread=5, ale=30, the Food bar shows 45 while the Ale bar shows 30. The critical food alert (`if get_total_food(player) < 30`) also fails to fire when ale > 30 but real food is zero — same root cause as #097.
 Resolution: Changed get_total_food() to explicitly sum only ["apples", "bread", "cheese", "meat"], matching FoodSystem.FOOD_CONSUMPTION_ORDER. Ale is now excluded. Scene test: ALL_SCENES_OK.
