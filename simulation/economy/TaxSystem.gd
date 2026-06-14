@@ -24,13 +24,12 @@ static func calculate_daily_gold(player: Dictionary, world: Dictionary) -> int:
 	var modifier: float = _get_shire_tax_modifier(player, world)
 	base_delta = int(float(base_delta) * (1.0 + modifier))
 
-	# Apply edict tax multiplier (e.g. tax_levy_multiplier doubles tax collected)
-	var edict_mods: Dictionary = EdictSystem.get_active_modifiers(player)
-	var edict_tax_mult: float = edict_mods.get("tax_multiplier", 1.0)
-	if edict_tax_mult != 1.0:
-		base_delta = int(float(base_delta) * edict_tax_mult)
-
 	if tax_rate > 0:
+		# Apply edict tax multiplier only to income, not bribes (GDD §7.2.3 "Doubles tax income")
+		var edict_mods: Dictionary = EdictSystem.get_active_modifiers(player)
+		var edict_tax_mult: float = edict_mods.get("tax_multiplier", 1.0)
+		if edict_tax_mult != 1.0:
+			base_delta = int(float(base_delta) * edict_tax_mult)
 		return int(float(base_delta) * DifficultySystem.get_mod("tax_income"))
 	return -base_delta
 
