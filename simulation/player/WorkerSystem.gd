@@ -14,9 +14,10 @@ static func assign_workers(building: Dictionary, count: int, player: Dictionary)
 	if max_w == 0:
 		return 0
 
-	var available: int = _available_workers(player)
-	var to_assign: int = mini(count, min(max_w, available))
 	var old_count: int = building.get("workers", 0)
+	# Include this building's current workers in available so reductions are computed correctly.
+	var available: int = _available_workers(player) + old_count
+	var to_assign: int = mini(count, min(max_w, available))
 	building["workers"] = to_assign
 	return to_assign - old_count  # Net change
 

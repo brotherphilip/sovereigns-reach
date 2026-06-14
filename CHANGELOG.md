@@ -2,6 +2,19 @@
 
 ---
 
+## [Iteration 125] 2026-06-14 — Fix #080: assign_workers floors to 0 when reducing from a full worker pool
+
+- Delegated to: Supervisor
+- What changed: WorkerSystem.gd — `assign_workers` now captures `old_count` first, then adds it back to `_available_workers()` before computing `to_assign`.
+- Before: `_available_workers()` summed all assigned workers including the current building's. With a full pool, `available = 0`, so ANY worker-slot button clicked on a building with workers set it to 0. A player clicking "2" on a 3-worker building got 0.
+- After: `available = _available_workers(player) + old_count` correctly treats the building's current workers as freed before computing the new assignment. Reducing a 3-worker building to 2 now correctly returns 2.
+- Scene test: ALL_SCENES_OK
+- Issues resolved: #080
+- Issues discovered: none
+- Supervisor correction: none
+
+---
+
 ## [Iteration 124] 2026-06-14 — Fix #079: donate_to_capital ignores gold donations
 
 - Delegated to: Supervisor

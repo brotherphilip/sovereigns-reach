@@ -3,6 +3,10 @@
 <!-- Format: ## [ID] Title | Severity: Blocker/High/Medium/Low | Status: Open/In Progress/Resolved/Byproduct -->
 <!-- Severities: Blocker=crashes/data loss, High=broken feature, Medium=wrong behavior, Low=polish/text -->
 
+## [080] WorkerSystem.assign_workers computes available before freeing current slot — reducing workers always floors to 0 when pool is full | Severity: Medium | Status: Resolved
+`WorkerSystem.assign_workers(building, count, player)` called `_available_workers(player)` before zeroing the building's current workers. `_available_workers` sums all assigned workers including this building's. With full assignment, `available = 0`, so `to_assign = mini(count, min(max_w, 0)) = 0`. Clicking the "2" button on a 3-worker building with a full pool sets it to 0 instead of 2. The HUD creates per-slot buttons (0 through max_w) so any non-zero reduction would silently zero the building.
+Resolution: Captured `old_count` first, then used `_available_workers(player) + old_count` — treats the building's current workers as already freed before computing the new assignment. Now reducing from 3 to 2 correctly yields 2. Scene test: ALL_SCENES_OK.
+
 ## [079] _cmd_donate_to_capital ignores gold — Level 4→5 capital upgrade permanently blocked | Severity: Medium | Status: Resolved
 `_cmd_donate_to_capital` reads donated resources from `player["resources"]` only. `CapitalSystem.UPGRADE_COSTS[4]` requires `{"stone": 2000, "wood": 800, "iron": 400, "gold": 500}`. Gold lives in `player["gold"]` (a top-level scalar), not in `player["resources"]`. Any donation attempt for "gold" returns `has = 0`, fails the `< amount` check, and returns false — silently blocking the Level 4→5 upgrade.
 Resolution: Added a gold branch in `_cmd_donate_to_capital`: when resource is "gold", checks and deducts from `player["gold"]` directly. All other resources continue to use `player["resources"]`. Scene test: ALL_SCENES_OK.
