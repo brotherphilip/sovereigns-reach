@@ -2,6 +2,23 @@
 
 ---
 
+## [Iteration 161] 2026-06-14 — Lusher, more varied world (toward reference map look)
+
+- Mode: visual+gameplay remaster (user reference image: varied forests, solid
+  mountains/rocks to route around, detailed branching rivers, more variety).
+- Generation (WorldGrid): rivers now meander, widen, fork tributaries, and a lake
+  basin is carved; forests are more numerous with varied density and organic
+  (distance-falloff) edges; new scattered rock outcrops. Still fully seeded/random.
+- Gameplay: MOUNTAIN and ROCK are now impassable solid masses (mask 0, cost 99) —
+  armies must route around them (the "walk around" requirement). RIVER already was.
+- Rendering (TerrainDecorationLayer): forests draw 1–3 varied trees per tile
+  (per-tile-hash size/hue/offset, rounded leafy canopies) for dense organic woods;
+  mountains render as solid shaded mounds (lit/shadow faces + snow) that merge into
+  massifs; rocks are solid grey boulders. Deterministic, drawn once (cached).
+- Verified on isolated Xvfb: map reads dramatically more varied/lush; full suite green.
+- Note: engine is flat-iso, so it approaches (not matches) the 3D reference; further
+  passes can add path/road rendering, riverbanks, and per-biome grass tints.
+
 ## [Iteration 160] 2026-06-14 — Visual remaster pass + zoom-out lag fix
 
 - Mode: feature/polish (`/loop` "full Repaint" directive).

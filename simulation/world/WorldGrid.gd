@@ -31,10 +31,10 @@ const PASSABLE_SIEGE: int   = 0b00001000  # siege engines (flat terrain only)
 const TERRAIN_PASSABILITY: Dictionary = {
 	Terrain.GRASS:    PASSABLE_FOOT | PASSABLE_CAVALRY | PASSABLE_CART | PASSABLE_SIEGE,
 	Terrain.FOREST:   PASSABLE_FOOT,
-	Terrain.MOUNTAIN: PASSABLE_FOOT,
+	Terrain.MOUNTAIN: 0,  # solid mass — armies must route around it
 	Terrain.RIVER:    0,
 	Terrain.MARSH:    PASSABLE_FOOT,
-	Terrain.ROCK:     PASSABLE_FOOT,
+	Terrain.ROCK:     0,  # solid boulders — block movement
 	Terrain.ORE_VEIN: PASSABLE_FOOT,
 	Terrain.VALLEY:   PASSABLE_FOOT | PASSABLE_CAVALRY | PASSABLE_CART | PASSABLE_SIEGE,
 	Terrain.COASTAL:  PASSABLE_FOOT | PASSABLE_CAVALRY | PASSABLE_CART,
@@ -46,10 +46,10 @@ const TERRAIN_PASSABILITY: Dictionary = {
 const TERRAIN_MOVE_COST: Dictionary = {
 	Terrain.GRASS:    1.0,
 	Terrain.FOREST:   2.5,
-	Terrain.MOUNTAIN: 3.0,
+	Terrain.MOUNTAIN: 99.0,  # impassable solid mass
 	Terrain.RIVER:    99.0,
 	Terrain.MARSH:    2.0,
-	Terrain.ROCK:     2.0,
+	Terrain.ROCK:     99.0,   # impassable boulders
 	Terrain.ORE_VEIN: 2.0,
 	Terrain.VALLEY:   1.0,
 	Terrain.COASTAL:  1.2,
@@ -218,24 +218,45 @@ func generate(seed_value: int, shire_count: int = 8) -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed_value
 
-	_place_rivers(rng)
 	_place_mountains(rng)
+	_place_rivers(rng)
 	_place_forests(rng)
+	_place_rocks(rng)
 	_place_resource_nodes(rng)
 	_place_valleys(rng)
 	_place_coastal(rng)
 
+# Meandering, widening rivers that spawn tributaries, plus a lake basin.
 func _place_rivers(rng: RandomNumberGenerator) -> void:
-	var river_count: int = rng.randi_range(2, 4)
-	for _i in range(river_count):
-		var start_x: int = rng.randi_range(0, width - 1)
-		var x: int = start_x
-		var y: int = 0
-		while y < height:
-			set_terrain(x, y, Terrain.RIVER)
-			var drift: int = rng.randi_range(-1, 1)
-			x = clampi(x + drift, 0, width - 1)
-			y += 1
+	var main_rivers: int = rng.randi_range(2, 3)
+	for _i in range(main_rivers):
+		_carve_river(rng, rng.randi_range(20, width - 20), 0, height + 10, true)
+	# A lake somewhere inland.
+	var lx: int = rng.randi_range(40, width - 40)
+	var ly: int = rng.randi_range(40, height - 40)
+	for tile in get_tiles_in_radius(lx, ly, rng.randi_range(5, 9)):
+		set_terrain(tile["x"], tile["y"], Terrain.RIVER)
+
+func _carve_river(rng: RandomNumberGenerator, sx: int, sy: int, length: int, allow_branch: bool) -> void:
+	var x: int = sx
+	var y: int = sy
+	for j in range(length):
+		if not in_bounds(x, y) or y >= height:
+			break
+		set_terrain(x, y, Terrain.RIVER)
+		# Widen the channel for a more detailed look.
+		if rng.randf() < 0.45:
+			set_terrain(clampi(x + 1, 0, width - 1), y, Terrain.RIVER)
+		if rng.randf() < 0.25:
+			set_terrain(clampi(x - 1, 0, width - 1), y, Terrain.RIVER)
+		# Meander.
+		x = clampi(x + rng.randi_range(-1, 1), 0, width - 1)
+		if rng.randf() < 0.30:
+			x = clampi(x + rng.randi_range(-1, 1), 0, width - 1)
+		y += 1
+		# Occasionally fork a tributary.
+		if allow_branch and j > 12 and rng.randf() < 0.045:
+			_carve_river(rng, x, y, rng.randi_range(15, 45), false)
 
 func _place_mountains(rng: RandomNumberGenerator) -> void:
 	var chains: int = rng.randi_range(2, 4)
@@ -258,15 +279,33 @@ func _place_mountains(rng: RandomNumberGenerator) -> void:
 			x = clampi(x, 0, width - 1)
 			y = clampi(y, 0, height - 1)
 
+# Many forest patches of varied size and density — dense cores, ragged edges.
 func _place_forests(rng: RandomNumberGenerator) -> void:
-	var patches: int = rng.randi_range(8, 15)
+	var patches: int = rng.randi_range(16, 26)
 	for _i in range(patches):
 		var cx: int = rng.randi_range(0, width - 1)
 		var cy: int = rng.randi_range(0, height - 1)
-		var radius: int = rng.randi_range(5, 15)
+		var radius: int = rng.randi_range(5, 18)
+		var density: float = rng.randf_range(0.55, 0.95)
 		for tile in get_tiles_in_radius(cx, cy, radius):
-			if get_terrain(tile["x"], tile["y"]) == Terrain.GRASS and rng.randf() < 0.7:
+			if get_terrain(tile["x"], tile["y"]) != Terrain.GRASS:
+				continue
+			# Denser near the core, sparser at the rim, for organic edges.
+			var dx: float = float(tile["x"] - cx)
+			var dy: float = float(tile["y"] - cy)
+			var edge: float = 1.0 - clampf(sqrt(dx * dx + dy * dy) / float(maxi(radius, 1)), 0.0, 1.0)
+			if rng.randf() < density * (0.4 + 0.6 * edge):
 				set_terrain(tile["x"], tile["y"], Terrain.FOREST)
+
+# Scattered solid rock outcrops (impassable) dotting the grassland.
+func _place_rocks(rng: RandomNumberGenerator) -> void:
+	var clumps: int = rng.randi_range(8, 16)
+	for _i in range(clumps):
+		var cx: int = rng.randi_range(8, width - 8)
+		var cy: int = rng.randi_range(8, height - 8)
+		for tile in get_tiles_in_radius(cx, cy, rng.randi_range(1, 3)):
+			if get_terrain(tile["x"], tile["y"]) == Terrain.GRASS and rng.randf() < 0.6:
+				set_terrain(tile["x"], tile["y"], Terrain.ROCK)
 
 func _place_resource_nodes(rng: RandomNumberGenerator) -> void:
 	# Iron ore veins on/near mountains
