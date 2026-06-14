@@ -5,6 +5,7 @@ extends RefCounted
 # visible — this is an economic builder, so fog only gates ENEMIES.
 
 const BuildingRegistry = preload("res://simulation/buildings/BuildingRegistry.gd")
+const TechTree         = preload("res://simulation/tech/TechTree.gd")
 
 const DEFAULT_BUILDING_VISION := 6
 const UNIT_VISION := 4
@@ -21,9 +22,13 @@ static func recompute(state) -> void:
 			if r <= 0:
 				r = DEFAULT_BUILDING_VISION
 			_mark_circle(state.visibility, b.get("grid_x", 0), b.get("grid_y", 0), r)
+	var scout_bonus: int = int(TechTree.get_all_modifiers(player).get("scout_vision_radius", 0))
 	for u in player.get("units", []):
 		if u is Dictionary:
-			_mark_circle(state.visibility, u.get("pos_x", 0), u.get("pos_y", 0), UNIT_VISION)
+			var vision: int = UNIT_VISION
+			if u.get("type", "") == "scout" and scout_bonus > 0:
+				vision += scout_bonus
+			_mark_circle(state.visibility, u.get("pos_x", 0), u.get("pos_y", 0), vision)
 
 static func _mark_circle(vis: Dictionary, cx: int, cy: int, r: int) -> void:
 	var r2: int = r * r

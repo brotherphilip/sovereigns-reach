@@ -3,6 +3,10 @@
 <!-- Format: ## [ID] Title | Severity: Blocker/High/Medium/Low | Status: Open/In Progress/Resolved/Byproduct -->
 <!-- Severities: Blocker=crashes/data loss, High=broken feature, Medium=wrong behavior, Low=polish/text -->
 
+## [086] TechTree scouting_vision scout_vision_radius never applied — scout units reveal the same 4-tile radius as any other unit | Severity: Low | Status: Resolved
+TechTree "scouting_vision" (100 prestige) grants `scout_vision_radius: 5` (scout vision radius +5 tiles). VisibilitySystem.recompute() used a hardcoded `UNIT_VISION = 4` constant for ALL units regardless of type. Scout units (unlocked by scouting_vision) did not reveal any more fog than an armed_peasant.
+Resolution: VisibilitySystem preloads TechTree and reads `scout_vision_radius` once per recompute(). Scout units use `UNIT_VISION + scout_bonus` (4 + 5 = 9 tiles) when the player has scouting_vision researched; all other units still use UNIT_VISION = 4. Scene test: ALL_SCENES_OK.
+
 ## [085] TechTree armor_forging unit_armor_rating never applied — recruited units have base defense despite 300-prestige armor research | Severity: Medium | Status: Resolved
 TechTree "armor_forging" (300 prestige) grants `unit_armor_rating: 0.25` (unit armor +25%). UnitState.apply_damage() subtracts the unit's `defense` stat from incoming damage, but `_cmd_recruit_unit()` never read TechTree modifiers when initializing unit stats. A swordsman always started with defense: 12 regardless of whether armor_forging was researched.
 Resolution: After `UnitState.create()` in `_cmd_recruit_unit`, applies `int(float(unit["defense"]) * unit_armor_rating)` as an additive defense bonus. Swordsman defense: 12 → 15 with armor_forging researched. Scene test: ALL_SCENES_OK.

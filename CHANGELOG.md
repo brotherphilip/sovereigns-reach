@@ -2,6 +2,12 @@
 
 ---
 
+## [Iteration 131] 2026-06-14 — Fix #086: scout_vision_radius from scouting_vision tech never applied to scout unit fog reveal
+
+- What changed: VisibilitySystem.recompute() now preloads TechTree and reads `scout_vision_radius` from the player's tech modifiers. Scout units use `UNIT_VISION + scout_bonus` (9 tiles) when the player has scouting_vision researched; other units still use UNIT_VISION = 4.
+- Scene test: ALL_SCENES_OK
+- Issues resolved: #086
+
 ## [Iteration 130] 2026-06-14 — Fix #085: unit_armor_rating from armor_forging never applied to recruited unit defense
 
 - What changed: `_cmd_recruit_unit()` now reads `TechTree.get_all_modifiers(player)["unit_armor_rating"]` after `UnitState.create()` and adds `int(base_defense * bonus)` to the unit's defense stat. Swordsman: defense 12 → 15; halberdier: 10 → 12 after armor_forging is researched.
