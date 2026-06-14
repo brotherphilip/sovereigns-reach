@@ -66,13 +66,10 @@ func _draw() -> void:
 			_draw_tile(gx, gy)
 
 func _draw_tile(gx: int, gy: int) -> void:
+	# Flat, uniform fill per terrain type — no per-tile variation (that created a
+	# visible grid that shimmered/"jumped between cells" while panning).
 	var terrain: int = GameState.get_terrain_at(gx, gy)
-	var base: Color = TERRAIN_COLORS[mini(terrain, TERRAIN_COLORS.size() - 1)]
-	# Subtle deterministic per-tile variation so large fields don't look flat.
-	var n: float = sin(float(gx) * 12.9898 + float(gy) * 78.233)
-	n = n - floor(n)                      # fract → 0..1
-	var shade: float = 0.97 + 0.06 * n    # ±3% brightness — subtle, less pan shimmer
-	var fill := Color(base.r * shade, base.g * shade, base.b * shade, 1.0)
+	var fill: Color = TERRAIN_COLORS[mini(terrain, TERRAIN_COLORS.size() - 1)]
 	var cx: float = (gx - gy) * HALF_W
 	var cy: float = (gx + gy) * HALF_H
 	draw_colored_polygon(PackedVector2Array([
