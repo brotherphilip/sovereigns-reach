@@ -193,6 +193,7 @@ func initialize_player(player_id: int, player_name: String, start_x: int, start_
 		_next_citizen_id = 1
 		_next_citizen_id = CitizenSystem.spawn(
 			citizens, 8, float(start_x), float(start_y), _citizen_rng, _next_citizen_id)
+		_snap_citizens_to_grass()
 
 func _assign_starting_shire(player_id: int, start_x: int, start_y: int) -> void:
 	var best_id: int   = -1
@@ -1213,6 +1214,42 @@ func _cmd_research_tech(cmd: Dictionary) -> bool:
 	var tech_id: String = cmd["payload"].get("tech_id", "")
 	var result: Dictionary = TechTree.research(players[pid], tech_id)
 	return result.get("ok", false)
+
+# Places each starting villager on a distinct empty grass/valley tile near the keep
+# (the random spawn offset can otherwise land them on water, forest or rock).
+func _snap_citizens_to_grass() -> void:
+	if _grid == null:
+		return
+	var used: Dictionary = {}
+	for c in citizens:
+		if not (c is Dictionary):
+			continue
+		var spot: Vector2i = _nearest_empty_grass(int(round(c["x"])), int(round(c["y"])), used)
+		c["x"] = float(spot.x); c["y"] = float(spot.y)
+		c["hx"] = float(spot.x); c["hy"] = float(spot.y)
+		c["tx"] = float(spot.x); c["ty"] = float(spot.y)
+		used["%d,%d" % [spot.x, spot.y]] = true
+
+# Spiral-search outward for the nearest in-bounds, unbuilt grass/valley tile not
+# already claimed by another villager.
+func _nearest_empty_grass(cx: int, cy: int, used: Dictionary) -> Vector2i:
+	for r in range(0, 14):
+		for dy in range(-r, r + 1):
+			for dx in range(-r, r + 1):
+				if maxi(absi(dx), absi(dy)) != r:
+					continue  # only the current ring
+				var x: int = cx + dx
+				var y: int = cy + dy
+				if not _grid.in_bounds(x, y):
+					continue
+				var key: String = "%d,%d" % [x, y]
+				if used.has(key):
+					continue
+				var t: int = _grid.get_terrain(x, y)
+				if (t == WorldGrid.Terrain.GRASS or t == WorldGrid.Terrain.VALLEY) \
+						and _grid.get_building_at(x, y) == 0:
+					return Vector2i(x, y)
+	return Vector2i(cx, cy)
 
 # Lights / moves the campfire to sit just in front of the player's built hall, and
 # re-homes the villagers in a ring around it the moment it first appears.

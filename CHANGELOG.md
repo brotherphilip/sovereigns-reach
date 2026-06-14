@@ -2,6 +2,28 @@
 
 ---
 
+## [Iteration 171] 2026-06-14 — Starting villagers spawn on grass + light river-flow shader
+
+User requests: (1) the starting citizens must spawn on empty grass tiles (the random
+offset could drop them on water/forest/rock); (2) add a river-flow shader on the
+water — extremely light on resources — flowing north→south following the river's bends.
+
+- Grass spawn (GameState): after spawning the 8 starting villagers, `_snap_citizens_to_grass()`
+  spiral-searches outward for the nearest in-bounds, unbuilt GRASS/VALLEY tile (distinct
+  per villager) and snaps their position + home + target there. Verified: 0/8 off-grass.
+- River-flow shader (view/micro/water_flow.gdshader + WaterFlowLayer.gd): every water
+  tile (RIVER/COASTAL) is drawn ONCE as an iso diamond; the GPU animates it via TIME
+  (no per-frame CPU redraw, off-screen pixels clipped) — extremely light. Each tile's
+  vertex colour bakes the local downstream flow direction (from the centroid of its
+  south-side water neighbours, so the current follows the channel's bends while running
+  generally north→south) plus a river/coastal tint flag. Cheap value-noise drift +
+  highlight bands sweeping downstream. Wired into CityViewScene above the flat terrain,
+  below decor/buildings.
+- Verified on Xvfb: 8/8 villagers on grass; 2494 water tiles flowing along the river
+  channels with banded ripples; full suite green.
+
+---
+
 ## [Iteration 170] 2026-06-14 — Campfire + low-poly building remaster + progressive construction + builder perimeter/avoidance
 
 User requests (two messages): (1) once the hall is built, a campfire out front that

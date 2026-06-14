@@ -113,6 +113,11 @@ func _build_scene() -> void:
 	_world_root.add_child(_iso_grid)
 	_iso_grid.set_camera(_camera)
 
+	# Animated river/water surface (light GPU-driven flow shader over water tiles).
+	var water_layer := preload("res://view/micro/WaterFlowLayer.gd").new()
+	water_layer.name = "WaterFlowLayer"
+	_world_root.add_child(water_layer)
+
 	# Terrain decoration layer (trees, rocks, water ripples)
 	_decor_layer = preload("res://view/micro/TerrainDecorationLayer.gd").new()
 	_decor_layer.name = "DecorationLayer"
