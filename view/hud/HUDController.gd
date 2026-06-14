@@ -178,19 +178,19 @@ static func get_popularity_breakdown_tooltip(player: Dictionary) -> String:
 	var tax_rate:    int = player.get("tax_rate", 0)
 	var religion:    float = player.get("religion_coverage", 0.0) * 10.0
 	var food_delta:  int = FOOD_POP.get(food_ration, 0)
-	var ale_delta:   int = ALE_POP.get(ale_ration, 0)
+	var ale_delta:   float = float(ALE_POP.get(ale_ration, 0)) * player.get("inn_coverage", 0.0)
 	var tax_delta:   int = TAX_POP.get(tax_rate, 0)
 	var variety_bonus: int = 0
 	var food: Dictionary = player.get("food", {})
 	for ft in VARIETY:
 		if int(food.get(ft, 0)) > 0:
 			variety_bonus += VARIETY[ft]
-	var total: float = float(food_delta + variety_bonus + ale_delta + tax_delta) + religion
+	var total: float = float(food_delta + variety_bonus + tax_delta) + ale_delta + religion
 	var lines: Array = [
 		"Popularity components (daily):",
 		"  ΔFood ration:  %+d" % food_delta,
 		"  ΔFood variety: %+d" % variety_bonus,
-		"  ΔAle ration:   %+d" % ale_delta,
+		"  ΔAle ration:   %+.0f" % ale_delta,
 		"  ΔReligion:     %+.0f" % religion,
 		"  ΔTax:          %+d" % tax_delta,
 		"  ─────────────────",

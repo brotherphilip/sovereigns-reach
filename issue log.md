@@ -3,6 +3,10 @@
 <!-- Format: ## [ID] Title | Severity: Blocker/High/Medium/Low | Status: Open/In Progress/Resolved/Byproduct -->
 <!-- Severities: Blocker=crashes/data loss, High=broken feature, Medium=wrong behavior, Low=polish/text -->
 
+## [094] HUDController popularity tooltip: ΔAle ignores inn_coverage multiplier — shows raw base even when no inns exist | Severity: Low | Status: Resolved
+HUDController.get_popularity_breakdown_tooltip() computes `var ale_delta: int = ALE_POP.get(ale_ration, 0)` and uses it directly in display and total. PopularityEngine._ale_score() computes `base * coverage` where coverage = `player["inn_coverage"]` (0.0–1.0 fraction of population served by inns). If the player has no inns (coverage=0.0), the actual ale popularity delta is 0 regardless of ration setting — but the tooltip could show "+5" or "+16" for non-zero rations, or "-8" for ration=0 despite no ale being served. The Net/day total is similarly wrong.
+Resolution: Changed `var ale_delta: int = ALE_POP.get(ale_ration, 0)` to `var ale_delta: float = float(ALE_POP.get(ale_ration, 0)) * player.get("inn_coverage", 0.0)`. Updated total and display format from `%+d` to `%+.0f` since ale_delta is now float. Scene test: ALL_SCENES_OK.
+
 ## [093] HUDController popularity tooltip: ΔReligion shows coverage ratio (0–1) instead of actual delta (0–10) | Severity: Low | Status: Resolved
 HUDController.get_popularity_breakdown_tooltip() reads `var religion: float = player.get("religion_coverage", 0.0)` and uses it directly in display (`%+.0f`) and total (`int(religion)`). PopularityEngine.calculate_delta() multiplies religion_coverage by 10.0 to produce the actual popularity delta (0–10). The tooltip therefore shows "+0" for any religion_coverage < 0.5, and at most "+1" for full coverage — off by 10×. The Net/day total is similarly wrong: `int(religion)` almost always resolves to 0 since religion_coverage is 0.0–1.0.
 Resolution: Changed `player.get("religion_coverage", 0.0)` to `player.get("religion_coverage", 0.0) * 10.0` to match PopularityEngine's formula. Updated total to use `+ religion` (float) instead of `+ int(religion)`. Scene test: ALL_SCENES_OK.
