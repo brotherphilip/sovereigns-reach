@@ -3,6 +3,10 @@
 <!-- Format: ## [ID] Title | Severity: Blocker/High/Medium/Low | Status: Open/In Progress/Resolved/Byproduct -->
 <!-- Severities: Blocker=crashes/data loss, High=broken feature, Medium=wrong behavior, Low=polish/text -->
 
+## [100] HUDController.get_total_food includes ale in food total — HUD "Food" bar inflated by ale stockpile | Severity: Low | Status: Resolved
+HUDController.get_total_food() iterates all player["food"] dict keys including "ale". The HUD renders the result as the "Food" bar, and separately renders player["food"]["ale"] as the "Ale" bar. This double-counts ale: if apples=10, bread=5, ale=30, the Food bar shows 45 while the Ale bar shows 30. The critical food alert (`if get_total_food(player) < 30`) also fails to fire when ale > 30 but real food is zero — same root cause as #097.
+Resolution: Changed get_total_food() to explicitly sum only ["apples", "bread", "cheese", "meat"], matching FoodSystem.FOOD_CONSUMPTION_ORDER. Ale is now excluded. Scene test: ALL_SCENES_OK.
+
 ## [099] Fire-destroyed buildings keep is_on_fire=true — permanent fire render and perpetual frame redraw | Severity: Medium | Status: Resolved
 When BuildingState.tick_fire() returns true (hp reaches 0), GameState emits building_destroyed but does not clear building["is_on_fire"]. The building stays in player["buildings"] with hp=0, is_active=false, is_on_fire=true. Consequences: (1) BuildingLayer._on_tick() sees _has_fire=true indefinitely → calls queue_redraw() every _process() frame forever, wasting CPU on all subsequent frames; (2) BuildingRenderer.get_visual_state() returns state="fire" (is_on_fire check runs before hp_ratio check) so the ruin renders with the fire overlay and fire animation permanently rather than as a static ruin.
 Resolution: After BuildingState.tick_fire() returns true in GameState._tick_player_economy(), immediately set building["is_on_fire"] = false. The ruin now renders as state="damaged" with hp_bar=0.0 (correct ruin appearance). BuildingLayer._has_fire correctly clears to false once no active fires remain, ending the perpetual queue_redraw() calls. Scene test: ALL_SCENES_OK.

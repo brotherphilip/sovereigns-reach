@@ -2,6 +2,12 @@
 
 ---
 
+## [Iteration 145] 2026-06-14 — Fix #100: HUD food bar inflated by ale stockpile
+
+- What changed: HUDController.get_total_food() now sums only ["apples","bread","cheese","meat"], matching FoodSystem.FOOD_CONSUMPTION_ORDER. Previously it iterated all player["food"] values including "ale", so the Food bar showed food + ale while the dedicated Ale bar also showed ale — double counting. Critical food alert also now fires correctly at zero real food.
+- Scene test: ALL_SCENES_OK
+- Issues resolved: #100
+
 ## [Iteration 144] 2026-06-14 — Fix #099: fire-destroyed buildings keep is_on_fire=true causing perpetual redraw
 
 - What changed: GameState fire damage tick now sets building["is_on_fire"] = false immediately when tick_fire() returns true. Previously the ruin stayed with is_on_fire=true indefinitely — BuildingLayer saw _has_fire=true forever and called queue_redraw() every frame, and BuildingRenderer rendered the ruin with a permanent fire overlay.
