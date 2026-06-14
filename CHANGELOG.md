@@ -2,6 +2,12 @@
 
 ---
 
+## [Iteration 148] 2026-06-14 — Fix #103: military_strength never updated — levied peasants double-counted
+
+- What changed: Three-part fix: WorkerSystem.levy_peasants() now increments player["military_strength"] by the count of levied workers. GameState day-boundary dead-unit purge now decrements military_strength for each dead armed_peasant removed. _cmd_disband_unit decrements military_strength when an armed_peasant is disbanded. Previously military_strength was always 0, so _available_workers() would re-expose levied peasants to the building assignment pool immediately after levy.
+- Scene test: ALL_SCENES_OK
+- Issues resolved: #103
+
 ## [Iteration 147] 2026-06-14 — Fix #102: FoodSystem.get_food_variety_count iterates food.values() including ale
 
 - What changed: FoodSystem.get_food_variety_count() now iterates FOOD_CONSUMPTION_ORDER keys explicitly instead of food.values(). Previously it counted ale as a distinct food type whenever ale stock > 0. The function is dead code in production (only called from TestPhase4.gd), but the result would be wrong with ale stocked — the existing test passes only because it uses ale=0.

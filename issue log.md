@@ -3,6 +3,10 @@
 <!-- Format: ## [ID] Title | Severity: Blocker/High/Medium/Low | Status: Open/In Progress/Resolved/Byproduct -->
 <!-- Severities: Blocker=crashes/data loss, High=broken feature, Medium=wrong behavior, Low=polish/text -->
 
+## [103] military_strength never updated — levied peasants double-counted as building workers | Severity: Medium | Status: Resolved
+`player["military_strength"]` is initialized to 0 and never written in production. `WorkerSystem._available_workers()` computes `pop - military_strength - assigned_to_buildings`. Since military_strength=0 always, levied peasants (taken from buildings via levy_peasants) are immediately "freed" into the available pool again — the player can reassign them to buildings on the same tick, double-counting them as both military units AND building workers. HUD always shows 0 military strength even with active units.
+Resolution: Three-part fix: (1) `WorkerSystem.levy_peasants()` increments `player["military_strength"]` by the levied count. (2) GameState day-boundary dead-unit purge decrements military_strength when a dead armed_peasant unit is removed. (3) `_cmd_disband_unit` decrements military_strength when an armed_peasant unit is disbanded. Military strength now correctly tracks the levied-peasant headcount, preventing double-assignment. Scene test: ALL_SCENES_OK.
+
 ## [102] FoodSystem.get_food_variety_count iterates food.values() including ale | Severity: Low | Status: Resolved
 FoodSystem.get_food_variety_count() iterated `player.get("food", {}).values()` counting any food dict entry > 0 as a distinct food type. Ale is stored in player["food"]["ale"] and would be counted as a 5th food type whenever ale stock > 0. Same root cause as #097–#101 (ale in food dict). The function is dead code in production (only called from TestPhase4.gd), so no gameplay impact, but the result would be wrong if ale is stocked — test_food_variety_count passes only because that test uses ale=0.
 Resolution: Changed to iterate FOOD_CONSUMPTION_ORDER (["apples","bread","cheese","meat"]) explicitly, same pattern as the other #097–#101 fixes. Scene test: ALL_SCENES_OK.
