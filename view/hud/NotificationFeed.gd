@@ -29,10 +29,15 @@ func push(text: String, duration: float = 3.0, color: Color = Color.YELLOW) -> v
 	dismiss_btn.pressed.connect(func(): _fade_out(row))
 	row.add_child(dismiss_btn)
 	create_tween().tween_property(row, "modulate:a", 1.0, FADE_IN_DUR)
-	var expire_delay: float = max(FADE_IN_DUR, duration - FADE_OUT_DUR)
-	get_tree().create_timer(expire_delay).timeout.connect(func() -> void:
-		_fade_out(row)
-	)
+	# Expire via a Timer parented to the row, so pruning/dismissing the row frees
+	# the timer too. A SceneTreeTimer would outlive a freed row and fire its lambda
+	# on a freed capture ("Lambda capture was freed" spam).
+	var expire := Timer.new()
+	expire.one_shot = true
+	expire.wait_time = max(FADE_IN_DUR, duration - FADE_OUT_DUR)
+	row.add_child(expire)
+	expire.timeout.connect(func() -> void: _fade_out(row))
+	expire.start()
 
 func _fade_out(node: Control) -> void:
 	if not is_instance_valid(node):

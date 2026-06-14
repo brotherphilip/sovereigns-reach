@@ -32,14 +32,27 @@ var _accumulator: float = 0.0
 func _ready() -> void:
 	pass
 
+# Hard cap on simulation ticks processed in a single frame. Without this, one
+# slow frame (a GC stall, a first-time shader/material compile when a new
+# building's geometry is drawn, an alt-tab) inflates `delta`, which queues more
+# ticks than real-time can drain — the classic "spiral of death" that hard-freezes
+# the main thread. FASTEST speed only needs ~1.7 ticks/frame at 60fps, so 10 is
+# ample headroom; any backlog beyond it is dropped so the game stays responsive.
+const MAX_TICKS_PER_FRAME: int = 10
+
 func _process(delta: float) -> void:
 	var multiplier: float = SPEED_MULTIPLIERS.get(game_speed, 1.0)
 	if multiplier == 0.0:
 		return
 	_accumulator += delta * multiplier
-	while _accumulator >= TICK_INTERVAL:
+	var ticks_this_frame: int = 0
+	while _accumulator >= TICK_INTERVAL and ticks_this_frame < MAX_TICKS_PER_FRAME:
 		_accumulator -= TICK_INTERVAL
 		_advance_tick()
+		ticks_this_frame += 1
+	# Hit the cap with time still owed → drop the backlog rather than spiral.
+	if _accumulator >= TICK_INTERVAL:
+		_accumulator = 0.0
 
 func _advance_tick() -> void:
 	current_tick += 1

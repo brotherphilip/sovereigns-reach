@@ -51,7 +51,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		_on_key(event)
 
 func _on_left_click(screen_pos: Vector2) -> void:
-	if get_viewport().gui_is_hovered():
+	# Click-through guard: ignore world clicks that land on a HUD control.
+	# (Godot 4 has no Viewport.gui_is_hovered(); use gui_get_hovered_control().)
+	if get_viewport().gui_get_hovered_control() != null:
 		return
 	if _iso_grid == null or _camera == null:
 		return
