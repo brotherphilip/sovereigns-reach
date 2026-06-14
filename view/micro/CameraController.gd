@@ -18,7 +18,7 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	_handle_keyboard_pan(delta)
 
-func _input(event: InputEvent) -> void:
+func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton:
 		_handle_mouse_button(event)
 	elif event is InputEventMouseMotion and _drag_active:

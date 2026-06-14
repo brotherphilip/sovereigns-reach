@@ -39,7 +39,7 @@ func setup(iso_grid: Node2D, camera: Camera2D, unit_layer: Node2D) -> void:
 func set_building_layer(layer: Node2D) -> void:
 	_bld_layer = layer
 
-func _input(event: InputEvent) -> void:
+func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton:
 		if event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 			_on_left_click(event.global_position)
@@ -51,6 +51,8 @@ func _input(event: InputEvent) -> void:
 		_on_key(event)
 
 func _on_left_click(screen_pos: Vector2) -> void:
+	if get_viewport().gui_is_hovered():
+		return
 	if _iso_grid == null or _camera == null:
 		return
 	# Convert screen position to world (iso) coordinates, accounting for camera

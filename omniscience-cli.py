@@ -7,8 +7,19 @@ Godot editor being open. Claude supervises: write operations require Y/n confirm
 Usage:
     python3 omniscience-cli.py "your task"
     python3 omniscience-cli.py --model qwen3-coder:30b "task"
+    python3 omniscience-cli.py --provider gemini "task"        # API, needs GEMINI_API_KEY
+    python3 omniscience-cli.py --provider gemini-cli "task"    # uses your Gemini CLI subscription
+    python3 omniscience-cli.py --provider claude-cli "task"    # uses your Claude CLI subscription
     python3 omniscience-cli.py --no-confirm "task"   # skip write confirmations
     python3 omniscience-cli.py --dry-run "task"      # read-only, no writes at all
+
+Backends:
+  ollama      local, free, runs Omniscience's own tool loop (default)
+  gemini      Google API, OpenAI-compat, pay-per-token (set GEMINI_API_KEY)
+  gemini-cli  delegates the whole task to the `gemini` CLI (your subscription)
+  claude-cli  delegates the whole task to the `claude` CLI (your subscription)
+CLI providers run the CLI's own agent loop; Omniscience streams its output and
+reports changed files. RAG embeddings always use local Ollama regardless of backend.
 """
 
 import argparse, json, os, re, shutil, subprocess, sys, urllib.request, urllib.error
@@ -16,8 +27,6 @@ from pathlib import Path
 
 # ── Config ─────────────────────────────────────────────────────────────────────
 PROJECT_ROOT   = Path(__file__).parent.resolve()
-OLLAMA_URL     = "http://127.0.0.1:11434/v1/chat/completions"
-DEFAULT_MODEL  = "qwen3-coder:30b"
 TEMPERATURE    = 0.2
 MAX_ITERS      = 10
 MAX_NUDGES     = 3
@@ -26,6 +35,135 @@ AUDIT_TOOL_BUDGET   = 5  # audit turns allowed to call tools before we force a t
 RAG_INDEX      = PROJECT_ROOT / "addons/omniscience/rag/index.json"
 EMBED_URL      = "http://127.0.0.1:11434/api/embed"
 EMBED_MODEL    = "nomic-embed-text"
+
+# ── Chat providers ───────────────────────────────────────────────────────────
+# Omniscience's chat backend. The CLI speaks the OpenAI-compatible
+# chat-completions wire format (streaming SSE + a "tools" array), so any provider
+# exposing that surface drops in with just a URL, an auth header, and a model id.
+# NOTE: RAG embeddings (_embed, EMBED_* above) ALWAYS stay on local Ollama — the
+# rag/index.json vectors were built with nomic-embed-text and are only comparable
+# within that embedding space. Switching the chat provider does not touch RAG.
+PROVIDERS = {
+    "ollama": {
+        "url": "http://127.0.0.1:11434/v1/chat/completions",
+        "default_model": "qwen3-coder:30b",
+        "api_key_env": None,
+    },
+    "gemini": {
+        # Google's OpenAI-compatibility endpoint. Override the model with --model
+        # (e.g. gemini-2.5-pro for harder tasks). Needs GEMINI_API_KEY in the env.
+        "url": "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+        "default_model": "gemini-2.5-flash",
+        "api_key_env": "GEMINI_API_KEY",
+    },
+}
+DEFAULT_PROVIDER = "ollama"
+
+# Active chat backend — overwritten by configure_provider() in main(). The
+# defaults below keep the module importable and preserve original Ollama behaviour.
+CHAT_URL      = PROVIDERS[DEFAULT_PROVIDER]["url"]
+CHAT_HEADERS  = {"Content-Type": "application/json", "Accept": "text/event-stream"}
+DEFAULT_MODEL = PROVIDERS[DEFAULT_PROVIDER]["default_model"]
+
+
+def configure_provider(provider: str) -> str:
+    """Point the chat backend at `provider`; return its default model id.
+    Sets the module globals CHAT_URL / CHAT_HEADERS that chat_completion() uses."""
+    global CHAT_URL, CHAT_HEADERS
+    if provider not in PROVIDERS:
+        raise SystemExit(f"Unknown provider '{provider}'. Choose from: {', '.join(PROVIDERS)}")
+    p = PROVIDERS[provider]
+    headers = {"Content-Type": "application/json", "Accept": "text/event-stream"}
+    key_env = p["api_key_env"]
+    if key_env:
+        key = os.environ.get(key_env)
+        if not key:
+            raise SystemExit(
+                f"Provider '{provider}' needs an API key — set {key_env} in your environment "
+                f"(e.g. export {key_env}=...).")
+        headers["Authorization"] = f"Bearer {key}"
+    CHAT_URL = p["url"]
+    CHAT_HEADERS = headers
+    return p["default_model"]
+
+
+# ── CLI-agent providers (subscription-backed) ─────────────────────────────────
+# These are full coding-agent CLIs you're already subscribed to (no per-token API
+# billing). Unlike the HTTP providers above, the CLI *is* the agent — it reads,
+# edits, and runs shell commands itself — so Omniscience does NOT run its own tool
+# loop for these. It hands the CLI the task, streams its output live, then derives
+# write_used / actions from the git working tree (status before vs. after the run).
+# The supervisor still reviews `git diff HEAD` afterward, exactly as for Ollama.
+def _gemini_argv(task: str, model, dry_run: bool) -> list:
+    # --skip-trust avoids the workspace-trust prompt in headless mode.
+    # approval-mode: plan = read-only; yolo = auto-approve all edits/shell.
+    argv = ["gemini", "-p", task, "--skip-trust",
+            "--approval-mode", "plan" if dry_run else "yolo"]
+    if model:
+        argv += ["-m", model]
+    return argv
+
+def _claude_argv(task: str, model, dry_run: bool) -> list:
+    argv = ["claude", "-p", task]
+    argv += ["--permission-mode", "plan"] if dry_run else ["--dangerously-skip-permissions"]
+    if model:
+        argv += ["--model", model]
+    return argv
+
+CLI_PROVIDERS = {
+    "gemini-cli": _gemini_argv,
+    "claude-cli": _claude_argv,
+}
+
+
+def _porcelain(text: str) -> set:
+    """Set of `git status --porcelain` lines (status + path)."""
+    return {ln for ln in text.splitlines() if ln.strip()}
+
+def _changed_files(before: str, after: str) -> list:
+    """Paths whose working-tree status appeared/changed during the run."""
+    new = _porcelain(after) - _porcelain(before)
+    return sorted({ln[3:].strip().strip('"') for ln in new if len(ln) > 3})
+
+def run_cli_agent(task: str, provider: str, model, dry_run: bool) -> dict:
+    """Delegate the whole task to a subscription-backed agent CLI.
+    Returns the same shape as run_agent(): summary/actions/iterations/write_used."""
+    argv = CLI_PROVIDERS[provider](task, model, dry_run)
+    if shutil.which(argv[0]) is None:
+        raise SystemExit(f"Provider '{provider}' needs the '{argv[0]}' CLI on PATH — not found.")
+
+    def _git(*a: str) -> str:
+        return subprocess.run(["git", "-C", str(PROJECT_ROOT), *a],
+                              capture_output=True, text=True).stdout
+
+    before = _git("status", "--porcelain")
+    print(f"  ▶ delegating to {argv[0]} (headless"
+          f"{' · read-only' if dry_run else ''}) — live output:\n")
+    captured: list = []
+    proc = subprocess.Popen(argv, cwd=str(PROJECT_ROOT),
+                            stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                            text=True, bufsize=1)
+    try:
+        for line in proc.stdout:
+            sys.stdout.write(line)
+            sys.stdout.flush()
+            captured.append(line)
+    finally:
+        proc.wait()
+    after = _git("status", "--porcelain")
+
+    changed = _changed_files(before, after)
+    summary = "".join(captured).strip()[-2000:] or "(no output)"
+    if proc.returncode != 0:
+        summary = f"[{provider} exited with code {proc.returncode}]\n" + summary
+    print(f"\n[{provider} done — exit {proc.returncode}, {len(changed)} file(s) changed]")
+    return {
+        "summary":    summary,
+        "actions":    changed,
+        "iterations": 1,
+        "write_used": bool(changed) and not dry_run,
+        "exit_code":  proc.returncode,
+    }
 
 # Tools that constitute an actual code edit. run_shell is NOT here: a read-only
 # grep must not flip write_used=True (that masked audit drift as "success").
@@ -504,11 +642,7 @@ def chat_completion(messages: list, tools: list, model: str) -> dict:
     if tools:
         payload["tools"] = tools
     data = json.dumps(payload).encode()
-    req = urllib.request.Request(
-        OLLAMA_URL, data=data,
-        headers={"Content-Type": "application/json",
-                 "Accept": "text/event-stream"}
-    )
+    req = urllib.request.Request(CHAT_URL, data=data, headers=CHAT_HEADERS)
     content = ""
     tool_calls: list = []
     print("  ⏳", end="", flush=True)
@@ -547,9 +681,17 @@ def chat_completion(messages: list, tools: list, model: str) -> dict:
                     if fn.get("name"):
                         entry["function"]["name"] = fn["name"]
                     entry["function"]["arguments"] += fn.get("arguments", "")
+    except urllib.error.HTTPError as e:
+        print()
+        body = ""
+        try:
+            body = e.read().decode("utf-8", "replace")[:800]
+        except Exception:
+            pass
+        raise RuntimeError(f"Chat API error ({CHAT_URL}): HTTP {e.code} {e.reason}\n{body}")
     except urllib.error.URLError as e:
         print()
-        raise RuntimeError(f"Ollama API unreachable: {e}")
+        raise RuntimeError(f"Chat API unreachable ({CHAT_URL}): {e}")
     print()
     message: dict = {"role": "assistant", "content": content}
     if tool_calls:
@@ -764,10 +906,17 @@ def main():
         description="Omniscience CLI — Ollama tool-calling agent for Sovereign's Reach")
     parser.add_argument("task", nargs="?",
                         help="Task to perform (or omit to read from stdin)")
-    parser.add_argument("--model", default=DEFAULT_MODEL,
-                        help=f"Ollama model (default: {DEFAULT_MODEL})")
+    parser.add_argument("--provider", default=DEFAULT_PROVIDER,
+                        choices=list(PROVIDERS) + list(CLI_PROVIDERS),
+                        help=f"Backend (default: {DEFAULT_PROVIDER}). HTTP: "
+                             f"{', '.join(PROVIDERS)}. Subscription CLIs: "
+                             f"{', '.join(CLI_PROVIDERS)}.")
+    parser.add_argument("--model", default=None,
+                        help="Model id (default: the chosen provider's default model)")
     parser.add_argument("--no-confirm", action="store_true",
-                        help="Skip write-operation confirmations (fully autonomous)")
+                        help="Skip write-operation confirmations (fully autonomous). "
+                             "Ignored for CLI providers — those self-approve via their "
+                             "own permission mode.")
     parser.add_argument("--dry-run", action="store_true",
                         help="Read-only mode: analyse and plan but make no file changes")
     args = parser.parse_args()
@@ -777,7 +926,16 @@ def main():
         parser.error("Provide a task as an argument or via stdin.")
 
     confirm_writes = not args.no_confirm
-    result = run_agent(task, args.model, confirm_writes, args.dry_run)
+
+    if args.provider in CLI_PROVIDERS:
+        # The CLI is itself the agent; it self-approves and runs its own tool loop.
+        print(f"  🧠 provider={args.provider}  model={args.model or '(cli default)'}")
+        result = run_cli_agent(task, args.provider, args.model, args.dry_run)
+    else:
+        provider_default_model = configure_provider(args.provider)
+        model = args.model or provider_default_model
+        print(f"  🧠 provider={args.provider}  model={model}")
+        result = run_agent(task, model, confirm_writes, args.dry_run)
 
     print("\n" + "─" * 60)
     print("SUMMARY:")

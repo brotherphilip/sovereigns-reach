@@ -147,6 +147,10 @@ func _build_scene() -> void:
 	_world_root.add_child(_iso_grid)
 	_iso_grid.set_camera(_camera)
 
+	var terrain_deco := preload("res://view/micro/TerrainDecorationLayer.gd").new()
+	terrain_deco.name = "TerrainDecorationLayer"
+	_world_root.add_child(terrain_deco)
+
 	_bld_layer = preload("res://view/micro/BuildingLayer.gd").new()
 	_bld_layer.name = "BuildingLayer"
 	_world_root.add_child(_bld_layer)
@@ -160,6 +164,13 @@ func _build_scene() -> void:
 	_hud.name = "HUD"
 	_hud.layer = 10
 	add_child(_hud)
+
+	# Minimap in HUD
+	var minimap := preload("res://view/micro/Minimap.gd").new()
+	minimap.name = "Minimap"
+	minimap.position = Vector2(1740, 540)
+	_hud.add_child(minimap)
+	minimap.set_camera(_camera)
 
 	# Macro view overlay
 	_macro_view = CanvasLayer.new()

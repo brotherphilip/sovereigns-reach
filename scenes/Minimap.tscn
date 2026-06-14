@@ -1,0 +1,26 @@
+[gd_scene load_steps=3 format=3 uid="uid://c97575507480"]
+
+[ext_resource type="Script" path="res://scripts/Minimap.gd" id="1"]
+
+[node name="Minimap" type="Control"]
+anchor_right = 1.0
+anchor_bottom = 1.0
+position = Vector2(20, 20)
+size = Vector2(200, 200)
+custom_minimum_size = Vector2(200, 200)
+
+[node name="MinimapBackground" type="TextureRect" parent="."]
+texture = ExtResource("1")
+size = Vector2(200, 200)
+position = Vector2(0, 0)
+stretch_mode = 0
+
+[node name="PlayerMarker" type="TextureRect" parent="."]
+texture = ExtResource("1")
+size = Vector2(10, 10)
+position = Vector2(0, 0)
+stretch_mode = 0
+
+[node name="MinimapContainer" type="Control" parent="."]
+size = Vector2(200, 200)
+position = Vector2(0, 0)

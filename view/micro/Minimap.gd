@@ -22,7 +22,7 @@ func _ready() -> void:
 func _on_tick(_tick: int) -> void:
 	queue_redraw()
 
-func _input(event: InputEvent) -> void:
+func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		if _camera == null: return
 		var local_pos: Vector2 = event.position - global_position
@@ -131,8 +131,8 @@ func _draw_units() -> void:
 		var units: Array = player.get("units", [])
 		for unit in units:
 			if not unit is Dictionary: continue
-			var gx: int = unit.get("grid_x", 0)
-			var gy: int = unit.get("grid_y", 0)
+			var gx: int = unit.get("pos_x", 0)
+			var gy: int = unit.get("pos_y", 0)
 			var px: float = MARGIN + gx * scale_x
 			var py: float = MARGIN + gy * scale_y
 			var col: Color = Color(0.4, 1.0, 0.4, 0.9)
@@ -143,8 +143,8 @@ func _draw_units() -> void:
 		var units: Array = faction.get("units", [])
 		for unit in units:
 			if not unit is Dictionary: continue
-			var gx: int = unit.get("grid_x", 0)
-			var gy: int = unit.get("grid_y", 0)
+			var gx: int = unit.get("pos_x", 0)
+			var gy: int = unit.get("pos_y", 0)
 			var px: float = MARGIN + gx * scale_x
 			var py: float = MARGIN + gy * scale_y
 			var col: Color = Color(1.0, 0.4, 0.4, 0.9)
