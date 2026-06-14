@@ -116,8 +116,6 @@ func _draw_building(b: Dictionary, is_enemy: bool) -> void:
 		"working": pass  # keep category color
 
 	var max_w: int = defn.get("max_workers", 0)
-	if max_w > 0 and int(b.get("workers", 0)) == 0 and vs.get("state", "") == "working":
-		base_color = base_color.darkened(0.30)
 
 	# Footprint corners in iso-space (painter's algorithm order)
 	var cx: float    = (gx - gy) * HALF_W
@@ -205,7 +203,7 @@ func _draw_building(b: Dictionary, is_enemy: bool) -> void:
 		name_str, HORIZONTAL_ALIGNMENT_LEFT, -1, 8, Color.WHITE.darkened(0.1))
 
 	# ── No-worker alert icon ───────────────────────────────────────────────────
-	if max_w > 0 and int(b.get("workers", 0)) == 0 and vs.get("state", "") == "working":
+	if max_w > 0 and int(b.get("workers", 0)) == 0 and b.get("is_active", true):
 		draw_string(ThemeDB.fallback_font, center + Vector2(-5, -wall_height - ridge_h - 2),
 			"!", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(1.0, 0.65, 0.1, 0.9))
 
