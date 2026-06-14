@@ -20,7 +20,6 @@ const DEFINITIONS: Dictionary = {
 # Grants PRESTIGE_BONUS to player for each newly earned milestone.
 static func check(player: Dictionary, _world: Dictionary, milestones: Dictionary, active_edicts: Array) -> Array:
 	var earned: Array = []
-	var pid: int = player.get("id", 0)
 
 	if not milestones.has("first_woodcutter"):
 		for b in player.get("buildings", []):
@@ -47,11 +46,6 @@ static func check(player: Dictionary, _world: Dictionary, milestones: Dictionary
 				milestones["first_edict"] = true
 				earned.append("first_edict")
 				break
-
-	if not milestones.has("three_shires"):
-		if player.get("shire_ids", []).size() >= 3:
-			milestones["three_shires"] = true
-			earned.append("three_shires")
 
 	if not earned.is_empty():
 		var bonus: float = float(earned.size()) * PRESTIGE_BONUS

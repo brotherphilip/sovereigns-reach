@@ -2,6 +2,12 @@
 
 ---
 
+## [Iteration 151] 2026-06-14 — Fix #105: MilestoneSystem three_shires milestone checks nonexistent shire_ids field
+
+- What changed: Removed the `three_shires` block from `MilestoneSystem.check()` — it called `player.get("shire_ids", []).size() >= 3` but players only have a scalar `shire_id` field (no `shire_ids` array). The milestone could never fire. Also removed an unused `var pid` at line 23. The DEFINITIONS entry is retained as aspirational copy for when multi-shire control is implemented.
+- Scene test: ALL_SCENES_OK
+- Issues resolved: #105
+
 ## [Iteration 150] 2026-06-14 — Fix #104: levy_summons edict creates phantom units when building workers < 50
 
 - What changed: `GameState._cmd_activate_edict` now uses the return value of `WorkerSystem.levy_peasants()` (`_sp_levied`) to control the unit spawn loop instead of always iterating `range(_sp_count)`. Previously, if fewer than 50 workers were in buildings, the edict would still create 50 armed_peasant units while only incrementing `military_strength` by the actual levied count. On death, the dead-unit purge would try to decrement `military_strength` 50 times despite it only tracking the smaller number — underflowing to 0 and allowing workers to appear available that weren't.
