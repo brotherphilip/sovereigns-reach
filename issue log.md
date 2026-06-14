@@ -3,6 +3,10 @@
 <!-- Format: ## [ID] Title | Severity: Blocker/High/Medium/Low | Status: Open/In Progress/Resolved/Byproduct -->
 <!-- Severities: Blocker=crashes/data loss, High=broken feature, Medium=wrong behavior, Low=polish/text -->
 
+## [090] gold_changed signal never emitted after market buy/sell or capital donation — HUD gold display lags until next tax tick | Severity: Medium | Status: Resolved
+EventBus.gold_changed is connected by HUDNode._refresh_top_bar() and TutorialSystem._on_gold_changed(). It is only emitted from GameState._tick_player_economy() when taxes are collected. Commands _cmd_buy_resource, _cmd_sell_resource, and _cmd_donate_to_capital all modify player["gold"] but never emit gold_changed — so after a market transaction or donation the gold label shows the pre-transaction amount until the next day's tax tick fires.
+Resolution: In _cmd_buy_resource, _cmd_sell_resource, and _cmd_donate_to_capital, capture player["gold"] before the operation, then after a successful operation emit EventBus.gold_changed(pid, old_gold, new_gold). Scene test: ALL_SCENES_OK.
+
 ## [089] Food consumption order inverted — bread consumed before apples, violating GDD §3.1.2 cheapest-first rule | Severity: Medium | Status: Resolved
 ResourceTick.tick_food_consumption() drains food in order `["bread", "meat", "cheese", "apples"]` — consuming the most processed, most valuable food first and leaving raw apples last. GDD §3.1.2 explicitly states "cheapest first": apples → bread → cheese → meat. FoodSystem.FOOD_CONSUMPTION_ORDER correctly defines this order and cites the same §3.1.2. The weather extra-drain in GameState._tick_player_economy() uses the same inverted order. Effect: players burn through bread/meat faster than intended, starving sooner and wasting processed food.
 Resolution: Changed consumption order in ResourceTick.tick_food_consumption() and GameState weather extra-drain to `["apples", "bread", "cheese", "meat"]`, matching FoodSystem.FOOD_CONSUMPTION_ORDER. Scene test: ALL_SCENES_OK.

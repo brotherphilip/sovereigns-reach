@@ -756,26 +756,34 @@ func _cmd_buy_resource(cmd: Dictionary) -> bool:
 	if not _valid_player(pid):
 		return false
 	var payload: Dictionary = cmd["payload"]
+	var old_gold: int = players[pid].get("gold", 0)
 	var result: Dictionary = MarketSystem.buy(
 		players[pid],
 		payload.get("resource", ""),
 		payload.get("amount", 0),
 		world
 	)
-	return result.get("ok", false)
+	if result.get("ok", false):
+		EventBus.gold_changed.emit(pid, old_gold, players[pid].get("gold", 0))
+		return true
+	return false
 
 func _cmd_sell_resource(cmd: Dictionary) -> bool:
 	var pid: int = cmd["player_id"]
 	if not _valid_player(pid):
 		return false
 	var payload: Dictionary = cmd["payload"]
+	var old_gold: int = players[pid].get("gold", 0)
 	var result: Dictionary = MarketSystem.sell(
 		players[pid],
 		payload.get("resource", ""),
 		payload.get("amount", 0),
 		world
 	)
-	return result.get("ok", false)
+	if result.get("ok", false):
+		EventBus.gold_changed.emit(pid, old_gold, players[pid].get("gold", 0))
+		return true
+	return false
 
 func _cmd_set_game_speed(cmd: Dictionary) -> bool:
 	var speed: int = cmd["payload"].get("speed", SimulationClock.SPEED_NORMAL)
@@ -802,6 +810,7 @@ func _cmd_donate_to_capital(cmd: Dictionary) -> bool:
 	if amount <= 0 or resource == "":
 		return false
 	var player: Dictionary = players[pid]
+	var old_gold: int = player.get("gold", 0)
 	# Deduct resource from player (gold is a special field, not in resources)
 	if resource == "gold":
 		if player.get("gold", 0) < amount:
@@ -820,6 +829,8 @@ func _cmd_donate_to_capital(cmd: Dictionary) -> bool:
 			# Auto-upgrade capital when cumulative donations meet the threshold
 			if CapitalSystem.can_upgrade(shire, world)["ok"]:
 				CapitalSystem.upgrade(shire, world)
+			if resource == "gold":
+				EventBus.gold_changed.emit(pid, old_gold, player.get("gold", 0))
 			return true
 	return false
 
