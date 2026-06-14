@@ -49,6 +49,7 @@ func _run_all() -> void:
 	_test_population_growth()
 	_test_medium_fixes()
 	_test_keep_diplomacy_save()
+	_test_ai_unit_id_uniqueness()
 
 func ok(label: String, cond: bool) -> void:
 	if cond:
@@ -406,3 +407,21 @@ func _test_keep_diplomacy_save() -> void:
 	_cq.enqueue(CT_ACTIVATE_EDICT, {"edict_id": "levy_summons"}, 0)
 	_sc._advance_tick()
 	ok("tier-3 edict allowed at level-2 capital", pe["popularity"] < 80.0)
+
+# ─── AI unit id uniqueness after purge (latent collision bug) ──────────────────
+
+func _test_ai_unit_id_uniqueness() -> void:
+	print("\n--- AI unit id uniqueness ---")
+	var f: Dictionary = AIFaction.make_faction(0, "Raiders", AIFaction.ARCHETYPE_BANDIT, 10, 10)
+	f["gold"] = 1000
+	AIFaction.recruit_unit(f, "armed_peasant")
+	AIFaction.recruit_unit(f, "armed_peasant")
+	ok("two recruited AI units have distinct ids", f["units"][0]["id"] != f["units"][1]["id"])
+	var survivor_id: int = f["units"][1]["id"]
+	# Kill the first unit and purge it via the day-boundary tick.
+	f["units"][0]["is_alive"] = false
+	AIFaction.tick(f, {}, 240)
+	ok("dead AI unit purged", f["units"].size() == 1)
+	# A freshly recruited unit must not reuse the survivor's id.
+	AIFaction.recruit_unit(f, "armed_peasant")
+	ok("recruited id does not collide after purge", f["units"][1]["id"] != survivor_id)

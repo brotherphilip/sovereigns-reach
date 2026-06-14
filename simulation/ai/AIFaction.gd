@@ -46,6 +46,7 @@ static func make_faction(id: int, name: String, archetype: String,
 		"days_alive": 0,
 		"threat_level": 0.0,      # 0–100; rises as faction grows
 		"siege_assembly": {},      # populated when assembling a siege tent
+		"next_unit_id": id * 10000 + 1,  # monotonic per-faction unit id counter
 		"tribute_demands": [],     # Array of {player_id, resource, amount, deadline_tick}
 		"last_attack_tick": 0,
 		"population": 100,
@@ -205,7 +206,10 @@ static func assess_player_strength(player: Dictionary) -> float:
 	return float(alive_units) * 2.0 + float(buildings) * 0.5 + float(gold) * 0.01 + float(population) * 0.1 + popularity * 0.1
 
 # Recruit one unit of the given type into the faction's army (no armory check for AI).
-static func recruit_unit(faction: Dictionary, unit_type: String, next_uid: int) -> bool:
+# The unit id comes from a monotonic per-faction counter so ids are never reused
+# after dead units are purged (the legacy size()-based id collided). The optional
+# next_uid argument is retained for caller compatibility but no longer sets the id.
+static func recruit_unit(faction: Dictionary, unit_type: String, _next_uid: int = -1) -> bool:
 	var defn: Dictionary = UnitRegistry.lookup(unit_type)
 	if defn.is_empty():
 		return false
@@ -215,7 +219,9 @@ static func recruit_unit(faction: Dictionary, unit_type: String, next_uid: int) 
 	faction["gold"] = faction.get("gold", 0) - cost
 	var cx: int = faction.get("capital_x", 0)
 	var cy: int = faction.get("capital_y", 0)
-	var unit: Dictionary = UnitState.create(unit_type, faction.get("id", -1), cx, cy, next_uid)
+	var uid: int = faction.get("next_unit_id", faction.get("id", 0) * 10000 + 1)
+	faction["next_unit_id"] = uid + 1
+	var unit: Dictionary = UnitState.create(unit_type, faction.get("id", -1), cx, cy, uid)
 	faction["units"].append(unit)
 	return true
 
