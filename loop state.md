@@ -6,10 +6,11 @@ last_issue_fixed: 035
 active_phase: complete
 phase_plan_exists: true
 last_iteration: 2026-06-14
-iteration_count: 153
+iteration_count: 154
 last_issue_fixed: 106
-omni_fail_streak: 0
+omni_fail_streak: 1
 omniscience_perf: fail iter2-3, partial iter4-6 — recurring truncation bug (model cuts off new_text mid-line). Logic is often correct but always needs supervisor wiring/cleanup. Decode bug patched iter5. Iter7: Supervisor wrote directly (large file, many callsites — safer than delegation).
+notes: AUDIT (iter 154) 2026-06-14 — code CLEAN: grep TODO/FIXME/BUG/HACK/XXX empty; supervisor spot-checks (AI faction-defeat emit in GameState:606-620, VisibilitySystem scouting, faction-capture flow) all sound; vassalization/tithe is GDD "expansion" aspirational, not a claimed feature — no issue. BUT Omniscience DRIFTED on the audit task: read the GDD and emitted a pitch-deck summary + "would you like a pitch deck?" instead of spot-checking code, then stopped. ROOT CAUSE: system prompt only had a code-WRITE mode (write-by-turn-3 / one-read / no-exploration) that conflicts with read-only auditing; model resolved the conflict by drifting. FIX+ENHANCE (per new ENHANCEMENT MANDATE): added AUDIT/REPORT MODE clause (suspends write/read/exploration rules for audits, demands a file:line findings list or "AUDIT RESULT: no issues found"), a NO CONVERSATIONAL DRIFT rule, and an is_audit nudge guard so the write-nudge no longer misfires on read-only sessions. New 'drift' + 'other' failure types added to loop taxonomy. omni_fail_streak=1 (drift); CLI patched, next audit validates the fix.
 notes: ALL 10 PHASES COMPLETE. Issues resolved: 001-035 (all). Iter 67-72: deep audit found 4 new bugs after phases complete — #031 shire_id never assigned, #032 demolished buildings produce, #033 weather label stuck "Clear", #034 weather tooltip wrong key names (speed_modifier/farm_yield/top-level popularity_delta). All fixed. Simulation fully audited (42 files), view layer audited (25 files), EventBus signal consistency verified. No open issues.
 notes: AUDIT COMPLETE — ALL CLEAR 2026-06-14. Iter 74: GDD spot-checks — DiseaseSystem, UnitState kill guard, CapitalSystem upgrade wiring, AudioManager signal connections — all clean. TODO/FIXME grep: nothing found. CityViewScene.tscn and Main.tscn load OK (headless test). No new issues found.
 notes: AUDIT COMPLETE — ALL CLEAR 2026-06-14. Iter 75: Audited SaveManager, TechTreePanelController, DiplomacyPanel, NotificationFeed, GameBootstrap — all clean. All EventBus signal connections in GameBootstrap verified (building_placement_failed, building_destroyed, ai_faction_defeated, save_requested/completed, load_requested/completed, edict_expired, gold_changed). No new issues found.

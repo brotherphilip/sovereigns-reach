@@ -2,6 +2,16 @@
 
 ---
 
+## [Iteration 154] 2026-06-14 — Audit clean; Omniscience drift fixed + enhanced (AUDIT MODE)
+
+- Delegated to: Omniscience (qwen3-coder:30b) — audit task
+- Audit result: code CLEAN. grep TODO/FIXME/BUG/HACK/XXX over simulation/ + view/ returned nothing. Supervisor spot-checks against the GDD — AI faction-defeat emit (GameState.gd:606-620), VisibilitySystem scouting vision, shire-capture flow — all sound. Vassalization/tithe is listed under the GDD's "Potential Features for Expansion" (aspirational), not a claimed-but-missing feature; not an issue.
+- Omniscience failure (type: drift): given the audit task, it read GAME DESIGN DOC.md and emitted a marketing/pitch-deck summary plus a "would you like a pitch deck?" offer instead of spot-checking code against the doc, then stopped. Root cause: build_system_prompt() only modeled code-WRITE work (write-by-turn-3 / one-read / no-exploration), which directly conflicts with read-only auditing; the model resolved the conflict by drifting into a prose summary.
+- Supervisor correction (fix + enhance per new ENHANCEMENT MANDATE): patched omniscience-cli.py — (1) added AUDIT/REPORT MODE clause that suspends the write/one-read/no-exploration rules for audit tasks and requires a `path:line — bug` findings list or exactly `AUDIT RESULT: no issues found`; (2) added a NO CONVERSATIONAL DRIFT rule (no pitches/wish-lists/"would you like me to…"); (3) added an is_audit guard so the write-nudge no longer misfires on read-only sessions. Updated sovereign-loop-prompt.md with new 'drift' + 'other' failure types and a standing ENHANCEMENT MANDATE: every Omniscience failure must be fixed AND the whole failure class made far less likely, leaving Omniscience meaningfully better each iteration.
+- Issues resolved: none (code already clean)
+- Issues discovered: none in game code
+- omni_fail_streak: 1 (drift) — CLI patched; next audit validates the fix
+
 ## [Iteration 153] 2026-06-14 — Audit pass: remaining simulation files all clean
 
 - What changed: No code changes. Completed audit of all remaining files: CapitalSystem.gd, WeatherSystem.gd (all effects — farm_yield_mult, food_drain, movement_penalty — confirmed consumed in GameState), VisibilitySystem.gd, BuildingRegistry.gd, CommandQueue.gd, DiplomacySystem.accept/refuse, all four AI archetypes (BanditKing, MerchantPrince, Ironhand, AshenBarony). TODO/FIXME grep: nothing found. Full codebase audited.
