@@ -508,6 +508,8 @@ func simulate_tick(tick: int) -> void:
 							var captured_id: int = tgt_shires[0]
 							tgt_shires.remove_at(0)
 							tgt["shire_ids"] = tgt_shires
+							if tgt.get("shire_id", -1) == captured_id:
+								tgt["shire_id"] = tgt_shires[0] if not tgt_shires.is_empty() else -1
 							for shire in world.get("shires", []):
 								if shire.get("id", -1) == captured_id:
 									var old_owner: int = shire.get("owner_id", -1)

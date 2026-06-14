@@ -2,6 +2,19 @@
 
 ---
 
+## [Iteration 123] 2026-06-14 — Fix #078: shire_id not cleared on AI shire capture
+
+- Delegated to: Supervisor
+- What changed: GameState.gd — shire capture handler now updates `tgt["shire_id"]` when the captured shire was the player's primary shire. Sets to next remaining shire or -1 if none remain.
+- Before: After AI siege captured a shire, `shire_ids` lost the entry but `shire_id` stayed stale. PlacementValidator continued to allow building within the AI's shire. PrestigeSystem and TaxSystem continued to read bonuses from the enemy-owned shire.
+- After: `shire_id` is reassigned to the next remaining shire (or -1) on capture. PlacementValidator sees `shire_id == -1` and skips the border check (or enforces it correctly with the next shire). Prestige/tax bonuses from enemy shires no longer apply.
+- Scene test: ALL_SCENES_OK
+- Issues resolved: #078
+- Issues discovered: none
+- Supervisor correction: none
+
+---
+
 ## [Iteration 122] 2026-06-14 — Fix #077: levy_summons doesn't pull workers from buildings
 
 - Delegated to: Supervisor
