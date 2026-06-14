@@ -1,8 +1,9 @@
 extends PanelContainer
 # Player-facing diplomacy: when an AI faction demands tribute (EventBus.ai_envoy_sent),
-# show the demand with Accept / Refuse choices and apply the outcome via DiplomacySystem.
+# show the demand with Accept / Refuse choices. The outcome is applied through the
+# deterministic command pipeline (CommandQueue → GameState._cmd_diplomacy_response).
 
-const DiplomacySystem = preload("res://simulation/ai/DiplomacySystem.gd")
+const CT_DIPLOMACY_RESPONSE = 26  # CommandQueue.CommandType.DIPLOMACY_RESPONSE
 
 # Archetype-specific opening lines for tribute demands
 const ARCH_FLAVOR: Dictionary = {
@@ -125,21 +126,20 @@ func _get_active_agreement_lines() -> Array:
 
 func _on_accept() -> void:
 	if GameState.players.size() > 0:
-		var faction = null
-		for f in GameState.ai_factions:
-			if f is Dictionary and f.get("id", -1) == _current.get("faction_id", -1):
-				faction = f
-		DiplomacySystem.accept(GameState.players[0], _current.get("demands", {}), faction)
+		CommandQueue.enqueue(CT_DIPLOMACY_RESPONSE, {
+			"faction_id": _current.get("faction_id", -1),
+			"accept": true,
+			"demands": _current.get("demands", {}),
+		}, 0)
 		_record_history("accept", _current)
 	visible = false
 
 func _on_refuse() -> void:
 	if GameState.players.size() > 0:
-		var faction = null
-		for f in GameState.ai_factions:
-			if f is Dictionary and f.get("id", -1) == _current.get("faction_id", -1):
-				faction = f
-		DiplomacySystem.refuse(GameState.players[0], faction)
+		CommandQueue.enqueue(CT_DIPLOMACY_RESPONSE, {
+			"faction_id": _current.get("faction_id", -1),
+			"accept": false,
+		}, 0)
 		_record_history("refuse", _current)
 		var fname: String = _current.get("faction_name", "The faction")
 		var hud = get_parent()

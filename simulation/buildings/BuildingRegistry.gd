@@ -40,6 +40,17 @@ const BUILDINGS: Dictionary = {
 		"unique": true,       # Only one per village
 		"description": "Heart of the village. Spawns peasants. Destruction ends village.",
 	},
+	"keep": {
+		"name": "Keep", "category": Category.CIVIC,
+		"width": 3, "height": 3,
+		"cost": {"stone": 150, "wood": 80, "gold": 100},
+		"max_workers": 0, "worker_slots": 0,
+		"terrain_req": TERRAIN_FLAT, "fire_risk": 0.0, "hp": 1000,
+		"requires_tech": ["advanced_masonry"], "produces": {"population_cap": 30}, "consumes": {},
+		"coverage_radius": 0,
+		"unique": true, "immune_to_fire": true,
+		"description": "Fortified heart of a great realm — a late-game upgrade of the Village Hall. GDD §5.1.",
+	},
 	"hovel": {
 		"name": "Hovel", "category": Category.CIVIC,
 		"width": 1, "height": 1,

@@ -13,6 +13,9 @@ const ResourceTick  = preload("res://simulation/economy/ResourceTick.gd")
 const ShireMap      = preload("res://simulation/world/ShireMap.gd")
 const PlacementValidator = preload("res://simulation/buildings/PlacementValidator.gd")
 const MilestoneSystem = preload("res://simulation/core/MilestoneSystem.gd")
+const SaveManager   = preload("res://simulation/persistence/SaveManager.gd")
+
+const CT_DIPLOMACY_RESPONSE = 26
 
 const CT_RECRUIT_UNIT       = 11
 const CT_ISSUE_ATTACK_ORDER = 13
@@ -42,6 +45,7 @@ func _run_all() -> void:
 	_test_armor_production()
 	_test_population_growth()
 	_test_medium_fixes()
+	_test_keep_diplomacy_save()
 
 func ok(label: String, cond: bool) -> void:
 	if cond:
@@ -293,3 +297,50 @@ func _test_medium_fixes() -> void:
 	var post: Dictionary = {"type": "trading_post", "workers": 1, "is_active": true}
 	var ch_cart: Dictionary = ResourceTick.tick_building(post, p_cart, 480)
 	ok("cart_capacity_bonus lifts trade income above base 3", int(ch_cart.get("gold", 0)) > 3)
+
+# ─── S6 (keep) / S9 (diplomacy command) / S16 (save migration) ─────────────────
+
+func _test_keep_diplomacy_save() -> void:
+	print("\n--- S6 keep / S9 diplomacy / S16 save migration ---")
+
+	# S6: the keep is now a registered, unique, fortified building.
+	ok("keep registered", BuildingRegistry.is_valid_type("keep"))
+	var keep_defn: Dictionary = BuildingRegistry.lookup("keep")
+	ok("keep is fortified (hp >= 1000)", int(keep_defn.get("hp", 0)) >= 1000)
+	ok("keep is unique", keep_defn.get("unique", false) == true)
+
+	# S9: a tribute response routed through the command pipeline pays the demand.
+	var p: Dictionary = _fresh_player(60)
+	p["resources"]["iron"] = 100
+	var fid: int = _gs.add_ai_faction(AIFaction.ARCHETYPE_ASHEN_BARONY, 55, 55)
+	var faction: Dictionary = _gs.ai_factions[fid]
+	faction["tribute_demands"] = [{"player_id": 0, "resource": "iron", "amount": 20, "fulfilled": false}]
+	_cq.enqueue(CT_DIPLOMACY_RESPONSE,
+		{"faction_id": fid, "accept": true, "demands": {"iron": 20}}, 0)
+	_sc._advance_tick()
+	ok("diplomacy accept pays tribute via command", int(p["resources"]["iron"]) == 80)
+	ok("diplomacy accept marks demand fulfilled", faction["tribute_demands"][0].get("fulfilled", false))
+
+	# Refuse imposes an embargo through the command pipeline.
+	var p2: Dictionary = _fresh_player(60)
+	var fid2: int = _gs.add_ai_faction(AIFaction.ARCHETYPE_ASHEN_BARONY, 55, 55)
+	var faction2: Dictionary = _gs.ai_factions[fid2]
+	faction2["tribute_demands"] = [{"player_id": 0, "resource": "iron", "amount": 20, "fulfilled": false}]
+	_cq.enqueue(CT_DIPLOMACY_RESPONSE, {"faction_id": fid2, "accept": false}, 0)
+	_sc._advance_tick()
+	ok("diplomacy refuse embargoes the player", 0 in faction2.get("embargoed_players", []))
+
+	# S16: a pre-Phase-6 (v1) save without unit/armory fields migrates and loads.
+	var path: String = "user://test_v1_migration.json"
+	var f := FileAccess.open(path, FileAccess.WRITE)
+	f.store_string(JSON.stringify({
+		"save_version": 1,
+		"state": {"players": [{"id": 0, "gold": 200, "population": 50}], },
+	}))
+	f.close()
+	var loaded: Dictionary = SaveManager.load_save(path)
+	DirAccess.remove_absolute(path)
+	ok("v1 save migrates (non-empty)", not loaded.is_empty())
+	ok("v1 migration backfills units array", loaded["players"][0].has("units"))
+	ok("v1 migration backfills armory", loaded["players"][0].has("armory"))
+	ok("v1 migration backfills ai_factions", loaded.has("ai_factions"))

@@ -43,6 +43,9 @@ enum CommandType {
 
 	# Tech
 	RESEARCH_TECH,
+
+	# Diplomacy
+	DIPLOMACY_RESPONSE,
 }
 
 var _queue: Array[Dictionary] = []

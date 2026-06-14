@@ -34,6 +34,7 @@ const AshenBarony      = preload("res://simulation/ai/AshenBarony.gd")
 const CombatSystem     = preload("res://simulation/combat/CombatSystem.gd")
 const MilestoneSystem  = preload("res://simulation/core/MilestoneSystem.gd")
 const Pathfinder       = preload("res://simulation/pathfinding/Pathfinder.gd")
+const DiplomacySystem  = preload("res://simulation/ai/DiplomacySystem.gd")
 # All fields are plain Dictionary/Array/int/float/bool — JSON-serializable.
 # Never stores Godot objects (Vector2, Node, etc.) to ensure network/save readiness.
 # The View layer reads from here; it never writes here directly.
@@ -635,6 +636,8 @@ func apply_command(command: Dictionary) -> void:
 			success = _cmd_disband_unit(command)
 		CommandQueue.CommandType.RESEARCH_TECH:
 			success = _cmd_research_tech(command)
+		CommandQueue.CommandType.DIPLOMACY_RESPONSE:
+			success = _cmd_diplomacy_response(command)
 		CommandQueue.CommandType.SAVE_GAME:
 			EventBus.save_requested.emit()
 			success = true
@@ -1039,6 +1042,25 @@ func _cmd_activate_edict(cmd: Dictionary) -> bool:
 		var dur: int = EdictSystem.lookup(edict_id).get("duration_ticks", 0)
 		EventBus.edict_activated.emit(pid, edict_id, dur)
 	return result.get("ok", false)
+
+# S9: resolve a player's response to an AI tribute demand through the
+# deterministic command pipeline (was previously mutated directly by the panel).
+func _cmd_diplomacy_response(cmd: Dictionary) -> bool:
+	var pid: int = cmd["player_id"]
+	if not _valid_player(pid):
+		return false
+	var payload: Dictionary = cmd["payload"]
+	var faction_id: int = payload.get("faction_id", -1)
+	var faction = null
+	for f in ai_factions:
+		if f is Dictionary and f.get("id", -1) == faction_id:
+			faction = f
+			break
+	if payload.get("accept", false):
+		DiplomacySystem.accept(players[pid], payload.get("demands", {}), faction)
+	else:
+		DiplomacySystem.refuse(players[pid], faction)
+	return true
 
 func _cmd_research_tech(cmd: Dictionary) -> bool:
 	var pid: int = cmd["player_id"]
