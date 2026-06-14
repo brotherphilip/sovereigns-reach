@@ -28,6 +28,9 @@ const PRODUCTION_INTERVALS: Dictionary = {
 	"fletcher":          90,   # 4.5s per bow
 	"poleturner":        60,   # 3s per pike
 	"blacksmith":        300,  # 15s per sword (slow — iron required)
+	"tannery":           240,  # 12s per leather armour (from leather)
+	"armorer":           360,  # 18s per plate armour (slow — iron required)
+	"crossbow_workshop": 300,  # 15s per crossbow (wood + iron)
 	"trading_post":      480,  # once per game day (24s) — gold income from caravans
 }
 
@@ -39,6 +42,9 @@ const PRODUCTION_INPUTS: Dictionary = {
 	"blacksmith":  {"iron": 2},
 	"fletcher":    {"wood": 1},
 	"poleturner":  {"wood": 1},
+	"tannery":     {"leather": 1},
+	"armorer":     {"iron": 2},
+	"crossbow_workshop": {"wood": 1, "iron": 1},
 }
 
 # Resource outputs per production tick
@@ -48,7 +54,7 @@ const PRODUCTION_OUTPUTS: Dictionary = {
 	"iron_mine":         {"iron": 1},
 	"pitch_rig":         {"pitch": 1},
 	"apple_orchard":     {"apples": 2},
-	"pig_farm":          {"meat": 1},
+	"pig_farm":          {"meat": 1, "leather": 1},   # pigs yield meat + hides (leather source)
 	"dairy_farm":        {"cheese": 1},
 	"hops_farm":         {"hops": 2},
 	"wheat_farm":        {"wheat": 2},
@@ -58,6 +64,9 @@ const PRODUCTION_OUTPUTS: Dictionary = {
 	"fletcher":          {"bows": 1},
 	"poleturner":        {"pikes": 1},
 	"blacksmith":        {"swords": 1},
+	"tannery":           {"leather_armor": 1},
+	"armorer":           {"plate_armor": 1},
+	"crossbow_workshop": {"crossbows": 1},
 	"trading_post":      {"gold": 3},
 }
 

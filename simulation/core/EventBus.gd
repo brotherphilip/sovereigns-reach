@@ -17,6 +17,7 @@ signal view_rotated(rotation_index: int) # 0–3 clockwise 90° steps
 
 # --- Economy ---
 signal popularity_changed(player_id: int, old_value: float, new_value: float)
+signal population_changed(player_id: int, old_value: int, new_value: int)
 signal resource_changed(player_id: int, resource_type: String, old_amount: int, new_amount: int)
 signal gold_changed(player_id: int, old_amount: int, new_amount: int)
 signal prestige_changed(player_id: int, old_value: float, new_value: float)

@@ -9,6 +9,7 @@ const WorldGrid     = preload("res://simulation/world/WorldGrid.gd")
 const AIFaction     = preload("res://simulation/ai/AIFaction.gd")
 const BuildingState = preload("res://simulation/buildings/BuildingState.gd")
 const BuildingRegistry = preload("res://simulation/buildings/BuildingRegistry.gd")
+const ResourceTick  = preload("res://simulation/economy/ResourceTick.gd")
 
 const CT_RECRUIT_UNIT       = 11
 const CT_ISSUE_ATTACK_ORDER = 13
@@ -35,6 +36,8 @@ func _init() -> void:
 func _run_all() -> void:
 	_test_attack_orders()
 	_test_training_queue()
+	_test_armor_production()
+	_test_population_growth()
 
 func ok(label: String, cond: bool) -> void:
 	if cond:
@@ -139,3 +142,86 @@ func _test_training_queue() -> void:
 	_cq.enqueue(CT_RECRUIT_UNIT, {"unit_type": "peasant"}, 0)
 	_sc._advance_tick()
 	ok("peasant deploys instantly", p3["units"].size() == 1 and UnitState.is_deployable(p3["units"][0]))
+
+# ─── S3: Armor & crossbow production ──────────────────────────────────────────
+
+func _test_armor_production() -> void:
+	print("\n--- S3: Armor & Crossbow Production ---")
+
+	# Registry has the new producers.
+	ok("armorer registered", BuildingRegistry.is_valid_type("armorer"))
+	ok("tannery registered", BuildingRegistry.is_valid_type("tannery"))
+	ok("crossbow_workshop registered", BuildingRegistry.is_valid_type("crossbow_workshop"))
+
+	var p: Dictionary = _fresh_player(60)
+	p["resources"]["iron"] = 20
+	p["resources"]["leather"] = 5
+	p["resources"]["wood"] = 20
+
+	var armorer: Dictionary = {"type": "armorer", "workers": 1, "is_active": true}
+	var ch_a: Dictionary = ResourceTick.tick_building(armorer, p, 360)
+	ok("armorer produces plate_armor", int(ch_a.get("plate_armor", 0)) == 1)
+	ok("armorer consumes iron", int(ch_a.get("iron", 0)) == -2)
+
+	var tannery: Dictionary = {"type": "tannery", "workers": 1, "is_active": true}
+	var ch_t: Dictionary = ResourceTick.tick_building(tannery, p, 240)
+	ok("tannery produces leather_armor", int(ch_t.get("leather_armor", 0)) == 1)
+	ok("tannery consumes leather", int(ch_t.get("leather", 0)) == -1)
+
+	var xbow: Dictionary = {"type": "crossbow_workshop", "workers": 1, "is_active": true}
+	var ch_x: Dictionary = ResourceTick.tick_building(xbow, p, 300)
+	ok("crossbow_workshop produces crossbows", int(ch_x.get("crossbows", 0)) == 1)
+
+	var pig: Dictionary = {"type": "pig_farm", "workers": 1, "is_active": true, "terrain_yield": 1.0}
+	var ch_p: Dictionary = ResourceTick.tick_building(pig, p, 600)
+	ok("pig_farm yields leather (domestic source)", int(ch_p.get("leather", 0)) >= 1)
+
+	# End-to-end: produced armory items are deposited into the armory.
+	ResourceTick.apply_changes(p, ch_a)
+	ok("plate_armor deposited into armory", int(p["armory"].get("plate_armor", 0)) >= 1)
+
+# ─── S4: Population growth ────────────────────────────────────────────────────
+
+func _test_population_growth() -> void:
+	print("\n--- S4: Population Growth ---")
+
+	var p: Dictionary = _fresh_player(60)
+	p["buildings"] = [
+		BuildingState.create("village_hall", 0, 40, 40, 1),
+		BuildingState.create("hovel", 0, 45, 45, 2),
+	]
+	ok("population cap = hall baseline + hovel", _gs._get_population_cap(p) == 58)
+
+	p["population"] = 50
+	p["popularity"] = 80.0
+	p["food"]["apples"] = 100
+	_gs._tick_population_growth(p)
+	ok("content, fed village grows", int(p["population"]) > 50)
+
+	p["population"] = 58
+	_gs._tick_population_growth(p)
+	ok("growth is capped at housing", int(p["population"]) == 58)
+
+	# Unhappy village does not grow.
+	var p2: Dictionary = _fresh_player(60)
+	p2["buildings"] = [
+		BuildingState.create("village_hall", 0, 40, 40, 1),
+		BuildingState.create("hovel", 0, 45, 45, 2),
+	]
+	p2["population"] = 40
+	p2["popularity"] = 30.0
+	p2["food"]["apples"] = 100
+	_gs._tick_population_growth(p2)
+	ok("unhappy village does not grow", int(p2["population"]) == 40)
+
+	# Starving village attracts no newcomers (growth-only; no decline here).
+	var p3: Dictionary = _fresh_player(60)
+	p3["buildings"] = [
+		BuildingState.create("village_hall", 0, 40, 40, 1),
+		BuildingState.create("hovel", 0, 45, 45, 2),
+	]
+	p3["population"] = 30
+	p3["popularity"] = 60.0
+	p3["food"] = {"apples": 0, "bread": 0, "cheese": 0, "meat": 0, "ale": 0}
+	_gs._tick_population_growth(p3)
+	ok("starving village does not grow", int(p3["population"]) == 30)

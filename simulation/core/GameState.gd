@@ -385,6 +385,12 @@ func _tick_player_economy(player: Dictionary, tick: int) -> void:
 		if old_pop != new_pop:
 			EventBus.popularity_changed.emit(player["id"], old_pop, new_pop)
 
+		# S4: population growth/decline (uses the freshly-updated popularity)
+		var pre_population: int = player.get("population", 0)
+		_tick_population_growth(player)
+		if player.get("population", 0) != pre_population:
+			EventBus.population_changed.emit(player["id"], pre_population, player.get("population", 0))
+
 		# Phase 5: Prestige generation
 		var prestige_result: Dictionary = PrestigeSystem.tick(player, world, tick)
 		if not prestige_result.is_empty():
@@ -406,6 +412,40 @@ func _tick_player_economy(player: Dictionary, tick: int) -> void:
 		EventBus.edict_expired.emit(player.get("id", 0), eid)
 
 # _collect_taxes removed — logic migrated to TaxSystem.tick() (Phase 4)
+
+# S4: village hall / keep baseline housing. Hovels add their population_cap on top.
+const BASE_POPULATION_CAP: int = 50
+
+# Maximum population the village can house: baseline (if a hall/keep exists) plus
+# every active building's population_cap output (hovels grant 8 each).
+func _get_population_cap(player: Dictionary) -> int:
+	var cap: int = 0
+	var has_hall: bool = false
+	for b in player.get("buildings", []):
+		if not (b is Dictionary and b.get("is_active", true)):
+			continue
+		var t: String = b.get("type", "")
+		if t == "village_hall" or t == "keep":
+			has_hall = true
+		cap += int(BuildingRegistry.lookup(t).get("produces", {}).get("population_cap", 0))
+	if has_hall:
+		cap += BASE_POPULATION_CAP
+	return cap
+
+# S4: population growth at day boundaries. A content (popularity >= 50), fed
+# village attracts migrants up to its housing cap. Population loss is handled
+# separately by disease (DiseaseSystem) and military desertion, so this only
+# ever adds peasants — never removes them.
+func _tick_population_growth(player: Dictionary) -> void:
+	if FoodSystem.get_total_food(player) <= 0:
+		return  # a hungry village attracts no newcomers
+	if player.get("popularity", 50.0) < 50.0:
+		return  # discontent halts immigration
+	var cap: int = _get_population_cap(player)
+	var pop: int = player.get("population", 0)
+	if pop < cap:
+		var growth: int = 2 if player.get("popularity", 50.0) >= 75.0 else 1
+		player["population"] = mini(cap, pop + growth)
 
 func _get_player_capital_buff(player: Dictionary) -> Dictionary:
 	var shire_id: int = player.get("shire_id", -1)
