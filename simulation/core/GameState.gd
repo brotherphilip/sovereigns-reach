@@ -286,6 +286,8 @@ func _tick_player_economy(player: Dictionary, tick: int) -> void:
 		for u in player.get("units", []):
 			if u is Dictionary and u.get("is_alive", false):
 				live_units.append(u)
+			elif u is Dictionary and u.get("type", "") == "armed_peasant":
+				player["military_strength"] = maxi(0, player.get("military_strength", 0) - 1)
 		player["units"] = live_units
 
 		# Weather events for popularity
@@ -969,6 +971,8 @@ func _cmd_disband_unit(cmd: Dictionary) -> bool:
 	var units: Array = players[pid].get("units", [])
 	for i in range(units.size()):
 		if units[i] is Dictionary and units[i].get("id", -1) == uid:
+			if units[i].get("type", "") == "armed_peasant":
+				players[pid]["military_strength"] = maxi(0, players[pid].get("military_strength", 0) - 1)
 			units.remove_at(i)
 			return true
 	return false

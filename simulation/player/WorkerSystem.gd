@@ -99,6 +99,7 @@ static func levy_peasants(count: int, player: Dictionary) -> int:
 		var pull: int = mini(w, count - levied)
 		building["workers"] -= pull
 		levied += pull
+	player["military_strength"] = player.get("military_strength", 0) + levied
 	return levied
 
 # Calculate inn coverage for a given player's layout.
