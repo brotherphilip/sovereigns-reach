@@ -2,6 +2,12 @@
 
 ---
 
+## [Iteration 133] 2026-06-14 — Fix #088: hops_farm excluded from first_farm milestone check
+
+- What changed: MilestoneSystem.check() first_farm condition now includes "hops_farm" alongside wheat_farm, pig_farm, dairy_farm. Players who build a hops_farm first (after crop_tiers research) now earn the milestone and its +50 prestige bonus.
+- Scene test: ALL_SCENES_OK
+- Issues resolved: #088
+
 ## [Iteration 132] 2026-06-14 — Fix #087: border_radius_bonus from level 5 capital upgrade never applied in PlacementValidator
 
 - What changed: PlacementValidator preloads CapitalSystem and reads `border_radius_bonus` from the shire's capital buffs. The base influence_radius (30) is scaled by `int(ceil(radius * (1.0 + bonus)))` before the distance check. Level 5 capital: 30 → 36 tile build zone.
