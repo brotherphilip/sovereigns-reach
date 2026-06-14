@@ -40,37 +40,41 @@ func _run() -> void:
 			saw_wander = true
 	ok("citizens idle→wander", saw_wander)
 
-	print("\n--- Builder dispatch + construction ---")
+	print("\n--- Builder-driven construction ---")
 	var cz2: Array = []
 	CitizenSystem.spawn(cz2, 6, 50.0, 50.0, _rng(2), 1)
-	var bld := [{"id": 1, "grid_x": 60, "grid_y": 50, "construction_until": 100000}]
+	var bld := [{"id": 1, "grid_x": 56, "grid_y": 50, "built": false, "build_progress": 0.0, "build_required": 200.0}]
 	var saw_builder := false
 	var reached_build := false
-	for t in range(500):
+	var built_at := -1
+	for t in range(1000):
 		CitizenSystem.tick(cz2, bld, _rng(t + 1), t)
 		for c in cz2:
-			if c["role"] == "builder":
-				saw_builder = true
-			if c["state"] == CitizenSystem.STATE_BUILD:
-				reached_build = true
-	ok("a citizen becomes a builder", saw_builder)
-	ok("builder walks to site and builds", reached_build)
-	# Only one builder per site.
-	var builders: int = 0
-	for c in cz2:
-		if c["role"] == "builder":
-			builders += 1
-	ok("only one builder per site", builders <= 1)
+			if c["role"] == "builder": saw_builder = true
+			if c["state"] == CitizenSystem.STATE_BUILD: reached_build = true
+		if bld[0]["built"] and built_at < 0:
+			built_at = t
+	ok("citizens become builders", saw_builder)
+	ok("builders reach the site and build", reached_build)
+	ok("progress is builder-driven and completes the building", bld[0]["built"])
+	ok("builders revert to peasants once built", cz2.all(func(c): return c["role"] == "peasant"))
 
-	print("\n--- Construction completes → builder goes home ---")
-	# Construction finished (tick_count past construction_until).
-	CitizenSystem.tick(cz2, bld, _rng(9), 100001)
-	var still_building := false
-	for c in cz2:
-		if c["state"] == CitizenSystem.STATE_BUILD:
-			still_building = true
-	ok("no one keeps building a finished site", not still_building)
-	ok("builders revert to peasants when done", cz2.all(func(c): return c["role"] == "peasant"))
+	# More builders → faster: same work with 6 vs 1 villager.
+	print("\n--- More builders build faster ---")
+	var one: Array = []; CitizenSystem.spawn(one, 1, 50.0, 50.0, _rng(4), 1)
+	var many: Array = []; CitizenSystem.spawn(many, 6, 50.0, 50.0, _rng(4), 1)
+	var b1 := [{"id": 1, "grid_x": 51, "grid_y": 50, "built": false, "build_progress": 0.0, "build_required": 300.0}]
+	var bM := [{"id": 1, "grid_x": 51, "grid_y": 50, "built": false, "build_progress": 0.0, "build_required": 300.0}]
+	var t1 := -1; var tM := -1
+	for t in range(1500):
+		if t1 < 0:
+			CitizenSystem.tick(one, b1, _rng(t + 100), t)
+			if b1[0]["built"]: t1 = t
+		if tM < 0:
+			CitizenSystem.tick(many, bM, _rng(t + 100), t)
+			if bM[0]["built"]: tM = t
+		if t1 >= 0 and tM >= 0: break
+	ok("six builders finish faster than one", tM >= 0 and t1 >= 0 and tM < t1)
 
 	print("\n--- Walk movement ---")
 	var w: Array = []

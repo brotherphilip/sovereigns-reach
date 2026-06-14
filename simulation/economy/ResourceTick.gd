@@ -88,6 +88,8 @@ const RATION_CONSUMPTION_MULTIPLIERS: Dictionary = {
 # current_tick: int
 static func tick_building(building: Dictionary, player: Dictionary, current_tick: int) -> Dictionary:
 	var changes: Dictionary = {}
+	if not building.get("built", true):
+		return changes   # still under construction — no output yet
 	var btype: String = building.get("type", "")
 	var interval: int = PRODUCTION_INTERVALS.get(btype, 0)
 	if interval == 0:

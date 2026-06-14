@@ -189,7 +189,7 @@ func _draw_building(b: Dictionary, is_enemy: bool) -> void:
 		top, right, bot, left, top_up, right_up, bot_up, left_up, ridge_apex, center)
 
 	# ── Under-construction scaffolding ─────────────────────────────────────────
-	if int(b.get("construction_until", 0)) > _tick:
+	if not b.get("built", true):
 		var wood := Color(0.62, 0.45, 0.24, 0.9)
 		for corner in [top, right, bot, left]:
 			draw_line(corner, corner + Vector2(0, -wall_height - 4.0), wood, 1.3)

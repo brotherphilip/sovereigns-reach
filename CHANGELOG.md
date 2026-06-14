@@ -2,6 +2,35 @@
 
 ---
 
+## [Iteration 169] 2026-06-14 — Builder-driven construction + no build restrictions + no starting buildings
+
+- User feedback fix: "nothing happened when the builder got there — building didn't
+  build, builders left early, placement was locked, [there should be] no build area
+  restrictions, and the player should start by building a hall on any free tile."
+- Construction is now builder-action-driven, not a timer. A placed building starts
+  `built=false`, `build_progress=0`, `build_required = width*height*100`. Every idle/
+  wandering citizen is dispatched to the nearest unbuilt site; each builder present
+  adds `BUILD_RATE` per tick, so more builders finish faster. Builders stay until the
+  building is `built` (or removed), then revert to peasants and amble home.
+  (CitizenSystem.gd, GameState `_cmd_place_building`).
+- Gating on `built`: `_get_population_cap` and `ResourceTick.tick_building` skip
+  unbuilt buildings (no output / housing until construction completes).
+- No build-area restrictions: the old shire-influence radius check was already gone;
+  the Village Hall (and Keep) are now `TERRAIN_ANY` so the foundational hall can be
+  placed on any free tile regardless of terrain.
+- No starting buildings: removed `_place_starting_buildings()` / `prepare_starting_area`
+  from CityViewScene; the camera/keep position is snapped to the nearest buildable
+  (grass/valley) tile so the player begins on open ground and must build a hall.
+- BuildingLayer scaffolding now keys off `not built` (was the construction timer).
+- Tests: TestPhase14 rewritten for builder-driven model — "progress is builder-driven
+  and completes" + "six builders finish faster than one" (11/11). TestPhase3 border
+  test now asserts placement succeeds far from the capital (88/88). Full suite green.
+- Verified on Xvfb (real UI/input path): fresh game = 0 buildings + 8 citizens; placing
+  a hall on a free tile creates an unbuilt site; builders walk over and construct it
+  (progress 0→900, built=true); scaffolding + animated pawns visible; far placement OK.
+
+---
+
 ## [Iteration 168] 2026-06-14 — Citizens: animated villagers + builders that walk to construct
 
 - New feature (user request): animated villager pawns with states; builders walk

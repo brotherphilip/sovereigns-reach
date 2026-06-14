@@ -34,7 +34,7 @@ const BUILDINGS: Dictionary = {
 		"width": 3, "height": 3,
 		"cost": {"wood": 0},  # Starting building — no cost
 		"max_workers": 0, "worker_slots": 0,
-		"terrain_req": TERRAIN_FLAT, "fire_risk": 0.02, "hp": 500,
+		"terrain_req": TERRAIN_ANY, "fire_risk": 0.02, "hp": 500,
 		"requires_tech": [], "produces": {}, "consumes": {},
 		"coverage_radius": 0,
 		"unique": true,       # Only one per village

@@ -86,26 +86,8 @@ static func validate(
 			if player.get("resources", {}).get(res, 0) < cost[res]:
 				return _fail(ValidationResult.MISSING_RESOURCES, "Not enough %s" % res)
 
-	# Border check: must be within player's shire influence
-	var shire_id: int = player.get("shire_id", -1)
-	if shire_id >= 0 and world.has("shires"):
-		var shire: Dictionary = {}
-		for s in world.get("shires", []):
-			if s["id"] == shire_id:
-				shire = s
-				break
-		if not shire.is_empty():
-			var cap_x: int = shire.get("capital_x", grid_x)
-			var cap_y: int = shire.get("capital_y", grid_y)
-			var radius: int = shire.get("influence_radius", 999)
-			var border_bonus: float = CapitalSystem.get_capital_buffs(shire).get("border_radius_bonus", 0.0)
-			if border_bonus > 0.0:
-				radius = int(ceil(float(radius) * (1.0 + border_bonus)))
-			var dx: int = grid_x - cap_x
-			var dy: int = grid_y - cap_y
-			if dx * dx + dy * dy > radius * radius:
-				return _fail(ValidationResult.OUTSIDE_BORDERS, "Outside shire influence radius")
-
+	# No build-area restriction: buildings may be placed on any valid free tile,
+	# anywhere on the map (the old shire-influence radius limit was removed).
 	return {"ok": true, "code": ValidationResult.OK, "message": ""}
 
 # Calculates terrain yield modifier for the building's primary tile

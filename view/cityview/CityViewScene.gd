@@ -36,7 +36,7 @@ func _ready() -> void:
 	_init_simulation()
 	_build_scene()
 	_connect_signals()
-	_place_starting_buildings()
+	# No auto-placed buildings: the player must build a Hall (anywhere free) to begin.
 	SimulationClock.set_speed(SimulationClock.SPEED_NORMAL)
 	print("[CityView] Game initialized. Player: %s at (%d,%d)" % [PLAYER_NAME, _keep_x, _keep_y])
 
@@ -62,7 +62,9 @@ func _resolve_city() -> void:
 
 func _init_simulation() -> void:
 	GameState.setup_world(_map_seed, DEFAULT_SHIRE_COUNT)
-	GameState.prepare_starting_area(_keep_x, _keep_y, STARTING_AREA_RADIUS)
+	# No cleared "starting zone": just spawn the player on nearby buildable land so
+	# their first Hall can be placed. No terrain is altered.
+	_snap_keep_to_buildable()
 	GameState.initialize_player(0, PLAYER_NAME, _keep_x, _keep_y)
 	var p: Dictionary = GameState.players[0]
 	p["gold"]                   = 500
@@ -74,6 +76,25 @@ func _init_simulation() -> void:
 	p["population"]             = 50
 	GameState.add_ai_faction("bandit_king",   20,  20)
 	GameState.add_ai_faction("ashen_barony", 180, 180)
+
+# Move the start position to the nearest buildable (grass/valley) tile so the
+# player's first Hall can be placed there — without clearing any terrain.
+func _snap_keep_to_buildable() -> void:
+	const GRASS := 0
+	const VALLEY := 7
+	if GameState.get_terrain_at(_keep_x, _keep_y) in [GRASS, VALLEY]:
+		return
+	for radius in range(1, 40):
+		for dy in range(-radius, radius + 1):
+			for dx in range(-radius, radius + 1):
+				if abs(dx) != radius and abs(dy) != radius:
+					continue   # ring only
+				var x: int = _keep_x + dx
+				var y: int = _keep_y + dy
+				if GameState.grid_in_bounds(x, y) and GameState.get_terrain_at(x, y) in [GRASS, VALLEY]:
+					_keep_x = x
+					_keep_y = y
+					return
 
 # ── Scene tree ────────────────────────────────────────────────────────────────
 

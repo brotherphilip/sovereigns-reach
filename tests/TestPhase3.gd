@@ -349,6 +349,8 @@ func test_validator_inside_shire_radius() -> void:
 	expect("hovel inside influence passes", result["ok"] == true)
 
 func test_validator_outside_shire_radius() -> void:
+	# Build-area restriction removed: a valid free tile is placeable anywhere on
+	# the map, regardless of shire influence radius.
 	var grid = _make_grass_grid(100, 100)
 	var player = _make_test_player()
 	player["shire_id"] = 0
@@ -356,8 +358,7 @@ func test_validator_outside_shire_radius() -> void:
 		"shires": [{"id": 0, "capital_x": 50, "capital_y": 50, "influence_radius": 10}]
 	}
 	var result = PlacementValidator.validate("hovel", 5, 5, grid, player, world)
-	expect("hovel outside influence fails", result["ok"] == false)
-	expect("outside borders code", result["code"] == VR_OUTSIDE_BORDERS)
+	expect("hovel far from capital still places (no build-area restriction)", result["ok"] == true)
 
 func test_validator_invalid_type() -> void:
 	var grid = _make_grass_grid()

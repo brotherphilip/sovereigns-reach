@@ -527,7 +527,7 @@ func _get_population_cap(player: Dictionary) -> int:
 	var cap: int = 0
 	var has_hall: bool = false
 	for b in player.get("buildings", []):
-		if not (b is Dictionary and b.get("is_active", true)):
+		if not (b is Dictionary and b.get("is_active", true) and b.get("built", true)):
 			continue
 		var t: String = b.get("type", "")
 		if t == "village_hall" or t == "keep":
@@ -963,9 +963,13 @@ func _cmd_place_building(cmd: Dictionary) -> bool:
 			for dx in range(w):
 				_grid.set_building_at(gx + dx, gy + dy, bid)
 
-	# Mark it under construction so a builder pawn walks over and raises it
-	# (cosmetic build timer; the structure is otherwise usable immediately).
-	building["construction_until"] = SimulationClock.current_tick + CitizenSystem.BUILD_TIME
+	# Placed unbuilt — villagers must raise it. build_progress accrues per builder
+	# (see CitizenSystem); the structure isn't functional until built. Bigger
+	# footprints take more work.
+	var _cdefn: Dictionary = BuildingRegistry.lookup(btype)
+	building["built"] = false
+	building["build_progress"] = 0.0
+	building["build_required"] = float(maxi(1, _cdefn.get("width", 1) * _cdefn.get("height", 1))) * 100.0
 	player["buildings"].append(building)
 	EventBus.building_placed.emit(pid, btype, gx, gy, bid)
 	return true
