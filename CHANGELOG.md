@@ -2,6 +2,12 @@
 
 ---
 
+## [Iteration 149] 2026-06-14 — Audit pass: extended view-layer review, all clean
+
+- What changed: No code changes. Audited 13 previously unreviewed files: AudioManager.gd, EventBus.gd, ShireMap.gd, MicroViewController.gd, EdictPanelController.gd, WorldMapController.gd, UnitRenderer.gd, BuildingLayer.gd, DiplomacyPanel.gd, UnitLayer.gd, MacroMapView.gd, WorldMapController.gd, plus additional spot checks on DiplomacySystem.accept/refuse, CapitalSystem, and WeatherSystem. No new bugs found.
+- Issues resolved: none
+- Notes: Full 63-file codebase audit complete. Issues #097-#103 resolved this run. Codebase all-clear.
+
 ## [Iteration 148] 2026-06-14 — Fix #103: military_strength never updated — levied peasants double-counted
 
 - What changed: Three-part fix: WorkerSystem.levy_peasants() now increments player["military_strength"] by the count of levied workers. GameState day-boundary dead-unit purge now decrements military_strength for each dead armed_peasant removed. _cmd_disband_unit decrements military_strength when an armed_peasant is disbanded. Previously military_strength was always 0, so _available_workers() would re-expose levied peasants to the building assignment pool immediately after levy.
