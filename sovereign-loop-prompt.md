@@ -57,10 +57,28 @@ WHY: Omniscience tends to explore broadly when given vague descriptions. Giving 
 current code snippet removes the need to explore and forces a "read → act" path.
 
 OMNISCIENCE PERFORMANCE LOG (update loop state.md after each call):
-  - If OMNISCIENCE_RESULT shows write_used=false: log "Omniscience fail: no write [iteration N]"
-  - If diff shows < 5 lines changed for a feature task: log "Omniscience fail: incomplete [iteration N]"
-  - If 2+ consecutive failures of the same type: patch omniscience-cli.py's build_system_prompt()
-    or the nudge message, commit the change, and note it in loop state.md.
+  Track `omni_fail_streak: N` in loop state.md. Increment on every failure; reset to 0 on success.
+
+  Classify each failure and patch omniscience-cli.py immediately (every fail, not just 2+):
+    no_write  : write_used=false — explored but wrote nothing.
+                → Patch build_system_prompt(): tighten 3-TURN WRITE RULE language.
+                → Strengthen the STOP EXPLORING nudge (longer / more forceful).
+    incomplete: write_used=true but < 5 lines for a feature-sized task.
+                → Patch nudge to demand larger write scope explicitly.
+    wrong_file: wrote to wrong file.
+                → You gave a vague task — add an explicit file path to your next task prompt.
+    truncated : output cut off mid-line or mid-block.
+                → Split the task into a smaller subtask next iteration.
+    wrong_logic: wrote but the logic is incorrect.
+                → Add pseudocode or a concrete example to your next task prompt.
+
+  After classifying, commit the omniscience-cli.py patch, note the streak in loop state.md.
+  Do NOT fix the code yourself — leave the task open so the next iteration retries.
+
+  HARD-CUT rule: only after omni_fail_streak reaches 10 on the SAME task:
+    Write the code yourself with Edit/Write tools.
+    Then reset omni_fail_streak: 0 in loop state.md.
+    Omniscience is automatically restored for the next task — no other action needed.
 
 ════════════════════════════════════════════
 STEP 3A — ISSUE FIX (delegate to Omniscience)
@@ -87,8 +105,17 @@ STEP 3A — ISSUE FIX (delegate to Omniscience)
      - Check that the diff is plausible: right file, right kind of change, not a massive rewrite.
      - If Omniscience ran tests, check they passed (look for pass counts in output).
 
-  d) CORRECT if needed: if the diff is wrong, over-broad, or introduces a new error,
-     fix it yourself using Edit/Write tools. Do not re-run Omniscience for the same issue.
+  d) HANDLE FAILURES:
+     - If write_used=true AND diff is correct: success. Reset omni_fail_streak: 0. Proceed.
+     - If write_used=false OR diff is wrong/over-broad/introduces an error:
+       Classify failure type (see STEP 2 PERFORMANCE LOG).
+       Increment omni_fail_streak in loop state.md.
+       Patch omniscience-cli.py accordingly, commit the patch.
+       Leave the issue Status: In Progress — do NOT fix it yourself.
+       The next loop iteration will re-enter STEP 3A and retry Omniscience on the same issue.
+     - HARD-CUT exception: if omni_fail_streak has now reached 10 on this exact issue:
+       Fix the code yourself with Edit/Write tools. Mark issue Resolved.
+       Reset omni_fail_streak: 0 in loop state.md.
 
   e) Update issue log.md: Status: Resolved + one-line resolution note.
      Byproduct check: if another open issue is clearly fixed by this change, mark it
@@ -123,7 +150,9 @@ STEP 3B — PHASE STEP (delegate to Omniscience)
      - Verify the diff is scoped to the sub-task only — no unrelated changes.
      - Check compile errors are absent (look for "compiles cleanly" in output).
 
-  d) CORRECT if needed: fix yourself with Edit/Write if the change is wrong or too broad.
+  d) HANDLE FAILURES: same protocol as STEP 3A(d).
+     If Omniscience failed: classify, increment omni_fail_streak, patch omniscience-cli.py,
+     leave the sub-task undone. Hard-cut only at streak = 10, then reset streak to 0.
 
   e) Mark the sub-task as done in phase plan.md (append "✓" or strike through it).
      If ALL sub-tasks for this phase are now done, mark the phase Status: Complete
@@ -248,19 +277,19 @@ STEP 4 — WRAP UP (you do this)
 
   b) Confirm loop state.md is fully up to date.
 
-  c) SELF-IMPROVEMENT CHECK — every iteration, ask: did Omniscience succeed?
-     - SUCCESS: write_used=true AND diff shows the feature was fully implemented.
-       No action needed.
-     - PARTIAL FAIL: write_used=true but only 1–3 lines changed for a full-feature task.
-       Note in loop state.md. If this happened before: open omniscience-cli.py, find
-       build_system_prompt(), and add a stricter rule targeting the failure pattern.
-     - FULL FAIL: write_used=false (explored but never wrote).
-       Note in loop state.md. If this is the 2nd+ full-fail in a row: strengthen the nudge
-       message in omniscience-cli.py (the string passed in the "STOP EXPLORING" block).
-       Also: review whether your pre-delegation prompt included a code snippet — if not,
-       add one next iteration (STEP 2 prep).
-     After any patch to omniscience-cli.py, commit it: git add omniscience-cli.py &&
-     git commit -m "omniscience: tighten system prompt / nudge — [one-line reason]"
+  c) SELF-IMPROVEMENT CHECK — every iteration that involved Omniscience:
+     - SUCCESS: write_used=true AND diff is correct and complete.
+       Reset omni_fail_streak: 0 in loop state.md. No other action needed.
+     - ANY FAIL (write_used=false OR diff is wrong/incomplete/over-broad):
+       Classify failure type per STEP 2 PERFORMANCE LOG.
+       Increment omni_fail_streak in loop state.md.
+       Patch omniscience-cli.py (build_system_prompt() or nudge block) to address root cause.
+       Commit: git add omniscience-cli.py && git commit -m "omniscience: <type> — [reason]"
+       Do NOT write the code yourself — leave the task open for retry next iteration.
+     - HARD-CUT (only when omni_fail_streak = 10 on the same task):
+       Write the code yourself with Edit/Write. Complete the task fully.
+       Note in CHANGELOG: "Supervisor hard-cut after 10 Omniscience failures — [reason]"
+       Reset omni_fail_streak: 0. Omniscience is restored for the next task automatically.
 
   d) Run /compact to compress conversation context.
 
