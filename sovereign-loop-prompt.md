@@ -71,9 +71,32 @@ OMNISCIENCE PERFORMANCE LOG (update loop state.md after each call):
                 → Split the task into a smaller subtask next iteration.
     wrong_logic: wrote but the logic is incorrect.
                 → Add pseudocode or a concrete example to your next task prompt.
+    drift     : produced a conversational summary, marketing/"pitch" text, a feature
+                wish-list, or a trailing "would you like me to…" offer instead of doing
+                the task — or substituted a document summary for a requested audit.
+                → Patch build_system_prompt(): strengthen the NO CONVERSATIONAL DRIFT rule
+                  and the mode clause that applies (e.g. AUDIT/REPORT MODE) so the model
+                  cannot resolve a rule-conflict by drifting.
+    other     : any failure that does not fit the types above.
+                → Diagnose the ROOT cause, then add a NEW named failure type to this list
+                  (this file) AND patch omniscience-cli.py to prevent the whole class.
+
+  ENHANCEMENT MANDATE (standing directive — applies to EVERY Omniscience failure or
+  underperformance, in any mode, whether or not it matches a type above):
+  Do not stop at a minimal patch for the one symptom. Each time Omniscience fails, drifts,
+  or performs below what the task needed, you MUST:
+    1. Find the ROOT cause (often a missing mode/guard or a rule-conflict in the system
+       prompt), not just the surface symptom.
+    2. Fix it AND enhance Omniscience so the entire CLASS of failure is far less likely
+       next time — improve build_system_prompt(), the nudge logic, mode detection, schemas,
+       or add new guardrails as needed. Leave Omniscience meaningfully better than you
+       found it every single time.
+    3. If the failure exposed a gap in this taxonomy, add the new failure type here so the
+       loop keeps getting smarter. The goal is a continuously self-improving Omniscience.
 
   After classifying, commit the omniscience-cli.py patch, note the streak in loop state.md.
-  Do NOT fix the code yourself — leave the task open so the next iteration retries.
+  Do NOT fix the GAME code yourself — leave the task open so the next iteration retries.
+  (Patching/enhancing omniscience-cli.py itself is always allowed and expected.)
 
   HARD-CUT rule: only after omni_fail_streak reaches 10 on the SAME task:
     Write the code yourself with Edit/Write tools.
@@ -280,12 +303,15 @@ STEP 4 — WRAP UP (you do this)
   c) SELF-IMPROVEMENT CHECK — every iteration that involved Omniscience:
      - SUCCESS: write_used=true AND diff is correct and complete.
        Reset omni_fail_streak: 0 in loop state.md. No other action needed.
-     - ANY FAIL (write_used=false OR diff is wrong/incomplete/over-broad):
-       Classify failure type per STEP 2 PERFORMANCE LOG.
+     - ANY FAIL (write_used=false OR diff is wrong/incomplete/over-broad OR drift OR any
+       below-par result, even in audit mode where nothing is written):
+       Classify failure type per STEP 2 PERFORMANCE LOG (add a new type if none fit).
        Increment omni_fail_streak in loop state.md.
-       Patch omniscience-cli.py (build_system_prompt() or nudge block) to address root cause.
+       Apply the ENHANCEMENT MANDATE: fix the root cause AND enhance Omniscience so the
+       whole class of failure is far less likely — patch build_system_prompt(), the nudge
+       block, mode detection, schemas, or add new guardrails. Leave it meaningfully better.
        Commit: git add omniscience-cli.py && git commit -m "omniscience: <type> — [reason]"
-       Do NOT write the code yourself — leave the task open for retry next iteration.
+       Do NOT write the GAME code yourself — leave the task open for retry next iteration.
      - HARD-CUT (only when omni_fail_streak = 10 on the same task):
        Write the code yourself with Edit/Write. Complete the task fully.
        Note in CHANGELOG: "Supervisor hard-cut after 10 Omniscience failures — [reason]"
