@@ -2,6 +2,12 @@
 
 ---
 
+## [Iteration 137] 2026-06-14 — Fix #092: weather farm_yield_mult truncates rain bonus with int() instead of ceil()
+
+- What changed: GameState._tick_player_economy() changed `int(float(changes[res]) * farm_mult)` to `int(ceil(...))` for weather farm_yield_mult application. Rain bonus (1.1×) now correctly rounds up: 4 wheat → 5 instead of 4. Consistent with biome/capital bonus pattern in the same loop.
+- Scene test: ALL_SCENES_OK
+- Issues resolved: #092
+
 ## [Iteration 136] 2026-06-14 — Fix #091: HP bar uses definition base HP instead of building max_hp
 
 - What changed: BuildingRenderer.get_hp_bar() now reads building.get("max_hp", defn.get("hp", 100)) instead of defn.get("hp", 100). Tech-boosted walls (fix #084) have max_hp=325; HP bar now shows the correct ratio against the actual max rather than the base definition HP.
