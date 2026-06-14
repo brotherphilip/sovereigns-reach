@@ -73,11 +73,12 @@ static func get_tax_label(rate: int) -> String:
 	var idx: int = clampi(rate + 3, 0, TAX_LABELS.size() - 1)
 	return TAX_LABELS[idx]
 
-# Returns the total food across all food types.
+# Returns the total food across all food types (ale excluded — shown separately).
 static func get_total_food(player: Dictionary) -> int:
 	var total: int = 0
-	for key in player.get("food", {}):
-		total += int(player["food"][key])
+	var food: Dictionary = player.get("food", {})
+	for key in ["apples", "bread", "cheese", "meat"]:
+		total += int(food.get(key, 0))
 	return total
 
 # Returns the resource summary dict for the HUD resource bar.
