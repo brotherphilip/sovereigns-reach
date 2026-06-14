@@ -2,6 +2,12 @@
 
 ---
 
+## [Iteration 141] 2026-06-14 — Fix #096: donate_to_capital deducts resources before shire lookup
+
+- What changed: GameState._cmd_donate_to_capital() now finds the player's shire before deducting resources. Previously, if player["shire_id"]==-1 (set by siege capture when all shires lost), resources were deducted then the function returned false — silent resource loss. Added early `return false` when no shire found, moved all resource changes after shire is confirmed.
+- Scene test: ALL_SCENES_OK
+- Issues resolved: #096
+
 ## [Iteration 140] 2026-06-14 — Fix #095: BuildingLayer no-worker alert icon never fires
 
 - What changed: BuildingLayer._draw_building() checked `state == "working" and workers == 0` to show a "!" alert icon for buildings with no workers. This condition is logically impossible — BuildingRenderer returns state="empty" when workers==0, never "working". Fixed by checking `b.get("is_active", true)` instead (alert shows when building is active but has no workers assigned). Also removed the dead-code extra darkening block that had the same impossible condition.
