@@ -2,6 +2,18 @@
 
 ---
 
+## [Iteration 139] 2026-06-14 — Fix #094: popularity tooltip ΔAle ignores inn_coverage multiplier
+
+- What changed: HUDController.get_popularity_breakdown_tooltip() now computes ale_delta as `float(ALE_POP[ration]) * player["inn_coverage"]`, matching PopularityEngine._ale_score() = base * coverage. Without inns (coverage=0.0), the tooltip now correctly shows 0 instead of the raw base value. Format updated to %+.0f. Net/day total corrected.
+- Scene test: ALL_SCENES_OK
+- Issues resolved: #094
+
+## [Iteration 138] 2026-06-14 — Fix #093: popularity tooltip ΔReligion shows coverage ratio instead of delta
+
+- What changed: HUDController.get_popularity_breakdown_tooltip() now multiplies religion_coverage by 10.0 to match PopularityEngine.calculate_delta() (religion_score = coverage * 10.0). The tooltip previously showed "+0" for any coverage <0.5 and "+1" for full coverage. Also fixed total: uses float addition instead of int(religion) which was always 0.
+- Scene test: ALL_SCENES_OK
+- Issues resolved: #093
+
 ## [Iteration 137] 2026-06-14 — Fix #092: weather farm_yield_mult truncates rain bonus with int() instead of ceil()
 
 - What changed: GameState._tick_player_economy() changed `int(float(changes[res]) * farm_mult)` to `int(ceil(...))` for weather farm_yield_mult application. Rain bonus (1.1×) now correctly rounds up: 4 wheat → 5 instead of 4. Consistent with biome/capital bonus pattern in the same loop.
