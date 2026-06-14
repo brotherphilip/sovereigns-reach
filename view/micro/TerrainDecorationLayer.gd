@@ -15,7 +15,13 @@ const T_RIVER:    int = 3
 const T_ROCK:     int = 5
 const T_COASTAL:  int = 8
 
-var _camera: Camera2D = null   # kept for API compatibility (culling no longer needed)
+# Decorations (trees/mountains/rocks) are the heaviest layer — thousands of
+# multi-polygon sprites. They're also illegible when zoomed far out, so we hide
+# the whole layer below this zoom to keep zoomed-out performance smooth (the GPU
+# then skips all those draws). Hiding a cached canvas item does NOT re-run _draw.
+const DECOR_MIN_ZOOM: float = 0.55
+
+var _camera: Camera2D = null
 var _map_w:  int      = 200
 var _map_h:  int      = 200
 
@@ -23,10 +29,18 @@ func _ready() -> void:
 	var gs: Vector2i = GameState.get_grid_size()
 	_map_w = gs.x
 	_map_h = gs.y
+	set_process(true)
 	queue_redraw()  # paint decorations once
 
 func set_camera(cam: Camera2D) -> void:
 	_camera = cam
+
+func _process(_delta: float) -> void:
+	if _camera == null:
+		return
+	var want_visible: bool = _camera.zoom.x >= DECOR_MIN_ZOOM
+	if want_visible != visible:
+		visible = want_visible
 
 func refresh() -> void:
 	queue_redraw()

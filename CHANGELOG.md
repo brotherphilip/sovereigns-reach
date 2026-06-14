@@ -2,6 +2,19 @@
 
 ---
 
+## [Iteration 165] 2026-06-14 — Zoom-out perf: decoration level-of-detail
+
+- User insight: lag is from "too much on screen" — correct. The iter-160 draw-once
+  fix removed the per-frame CPU rebuild, but the GPU still draws everything visible
+  each frame, and zoomed out the whole 200×200 map (40k tiles + thousands of
+  multi-polygon trees/mountains/rocks) is on screen at once.
+- Fix: TerrainDecorationLayer now hides itself below zoom 0.55 (DECOR_MIN_ZOOM).
+  Decorations are the heaviest layer and illegible when tiny; hiding a cached
+  canvas item skips its draws without re-running _draw.
+- Measured (software renderer, full zoom-out + panning): ~184 ms/frame → ~76 ms/
+  frame (~60% less). Confirmed decor.visible flips false@0.3 / true@1.0.
+- Full suite green.
+
 ## [Iteration 164] 2026-06-14 — Map backdrop + remaster status review
 
 - Reviewed the named remaster targets on Xvfb: main menu (gold-framed, styled
