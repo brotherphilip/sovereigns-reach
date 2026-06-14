@@ -47,6 +47,11 @@ static func check(player: Dictionary, _world: Dictionary, milestones: Dictionary
 				earned.append("first_edict")
 				break
 
+	if not milestones.has("three_shires"):
+		if player.get("shire_ids", []).size() >= 3:
+			milestones["three_shires"] = true
+			earned.append("three_shires")
+
 	if not earned.is_empty():
 		var bonus: float = float(earned.size()) * PRESTIGE_BONUS
 		player["prestige"] = player.get("prestige", 0.0) + bonus

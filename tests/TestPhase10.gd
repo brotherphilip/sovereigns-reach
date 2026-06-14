@@ -10,6 +10,9 @@ const AIFaction     = preload("res://simulation/ai/AIFaction.gd")
 const BuildingState = preload("res://simulation/buildings/BuildingState.gd")
 const BuildingRegistry = preload("res://simulation/buildings/BuildingRegistry.gd")
 const ResourceTick  = preload("res://simulation/economy/ResourceTick.gd")
+const ShireMap      = preload("res://simulation/world/ShireMap.gd")
+const PlacementValidator = preload("res://simulation/buildings/PlacementValidator.gd")
+const MilestoneSystem = preload("res://simulation/core/MilestoneSystem.gd")
 
 const CT_RECRUIT_UNIT       = 11
 const CT_ISSUE_ATTACK_ORDER = 13
@@ -38,6 +41,7 @@ func _run_all() -> void:
 	_test_training_queue()
 	_test_armor_production()
 	_test_population_growth()
+	_test_medium_fixes()
 
 func ok(label: String, cond: bool) -> void:
 	if cond:
@@ -225,3 +229,67 @@ func _test_population_growth() -> void:
 	p3["food"] = {"apples": 0, "bread": 0, "cheese": 0, "meat": 0, "ale": 0}
 	_gs._tick_population_growth(p3)
 	ok("starving village does not grow", int(p3["population"]) == 30)
+
+# ─── S5/S7/S8/S11/S13 + dead modifiers ────────────────────────────────────────
+
+func _test_medium_fixes() -> void:
+	print("\n--- S5/S7/S8/S11/S13 + dead modifiers ---")
+
+	# S8: three_shires milestone fires when the player owns 3+ shires.
+	var p_ms: Dictionary = _fresh_player(60)
+	p_ms["shire_ids"] = [0, 1, 2]
+	var earned: Array = MilestoneSystem.check(p_ms, _gs.world, {}, [])
+	ok("three_shires milestone fires at 3 shires", "three_shires" in earned)
+	var earned2: Array = MilestoneSystem.check(p_ms, _gs.world, {"three_shires": true}, [])
+	ok("three_shires does not re-fire", "three_shires" not in earned2)
+
+	# S11: a second village_hall (unique) is rejected by the placement validator.
+	var p_uniq: Dictionary = _fresh_player(60)
+	p_uniq["buildings"] = [BuildingState.create("village_hall", 0, 40, 40, 1)]
+	p_uniq["shire_id"] = -1  # skip border check
+	var res_uniq: Dictionary = PlacementValidator.validate("village_hall", 30, 30, _gs._grid, p_uniq, _gs.world)
+	ok("second village_hall rejected (unique)", not res_uniq["ok"])
+	ok("rejection code is UNIQUE_EXISTS", res_uniq.get("code") == PlacementValidator.ValidationResult.UNIQUE_EXISTS)
+
+	# S7: only one Captain (hero) may be recruited.
+	var p_cap: Dictionary = _fresh_player(60)
+	p_cap["buildings"] = [BuildingState.create("barracks", 0, 40, 40, 1)]
+	p_cap["tech_unlocks"] = ["advanced_masonry"]
+	p_cap["gold"] = 1000
+	p_cap["armory"] = {"swords": 4, "plate_armor": 4, "bows": 0, "crossbows": 0, "pikes": 0, "leather_armor": 0}
+	_cq.enqueue(CT_RECRUIT_UNIT, {"unit_type": "captain"}, 0)
+	_sc._advance_tick()
+	var captains_after_first: int = p_cap.get("units", []).size()
+	_cq.enqueue(CT_RECRUIT_UNIT, {"unit_type": "captain"}, 0)
+	_sc._advance_tick()
+	ok("first captain recruited", captains_after_first == 1)
+	ok("second captain rejected (hero unique)", p_cap.get("units", []).size() == 1)
+
+	# S5: desertion removes a soldier and a peasant at desertion-risk popularity.
+	var p_des: Dictionary = _fresh_player(60)
+	p_des["popularity"] = 15.0
+	p_des["population"] = 30
+	p_des["units"] = [UnitState.create("swordsman", 0, 50, 50, 1)]
+	var pop_before: int = p_des["population"]
+	_gs._apply_desertion(p_des)
+	ok("desertion removes a soldier", p_des["units"].size() == 0)
+	ok("desertion costs a peasant", int(p_des["population"]) < pop_before)
+
+	# S13: shire layout varies with the world seed (no longer hardcoded to 42).
+	var sm_a := ShireMap.new()
+	sm_a.generate_default(200, 200, 8, 111)
+	var sm_b := ShireMap.new()
+	sm_b.generate_default(200, 200, 8, 222)
+	var differs: bool = false
+	for i in range(sm_a.shires.size()):
+		if sm_a.shires[i].get("capital_x") != sm_b.shires[i].get("capital_x"):
+			differs = true
+			break
+	ok("shire capitals vary with seed", differs)
+
+	# cart_capacity_bonus (transport_logistics) now boosts trading-post income.
+	var p_cart: Dictionary = _fresh_player(60)
+	p_cart["tech_unlocks"] = ["resource_unlocks", "transport_logistics"]
+	var post: Dictionary = {"type": "trading_post", "workers": 1, "is_active": true}
+	var ch_cart: Dictionary = ResourceTick.tick_building(post, p_cart, 480)
+	ok("cart_capacity_bonus lifts trade income above base 3", int(ch_cart.get("gold", 0)) > 3)

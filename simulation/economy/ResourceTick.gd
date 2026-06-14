@@ -133,7 +133,7 @@ static func tick_building(building: Dictionary, player: Dictionary, current_tick
 		if mining_rate_bonus > 0.0 and btype in ["stone_quarry", "iron_mine"]:
 			amount = int(ceil(float(amount) * (1.0 + mining_rate_bonus)))
 		if res == "gold" and btype == "trading_post":
-			var trade_bonus: float = tech_mods.get("trade_income_bonus", 0.0) + edict_mods.get("trade_income_bonus", 0.0)
+			var trade_bonus: float = tech_mods.get("trade_income_bonus", 0.0) + edict_mods.get("trade_income_bonus", 0.0) + tech_mods.get("cart_capacity_bonus", 0.0)
 			if trade_bonus > 0.0:
 				amount = int(ceil(float(amount) * (1.0 + trade_bonus)))
 		if changes.has(res):

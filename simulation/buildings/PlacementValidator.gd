@@ -16,6 +16,7 @@ enum ValidationResult {
 	MISSING_RESOURCES = 5,
 	OUTSIDE_BORDERS = 6,
 	INVALID_TYPE    = 7,
+	UNIQUE_EXISTS   = 8,
 }
 
 # Main validation entry point.
@@ -62,6 +63,12 @@ static func validate(
 				break
 		if not all_valid:
 			return _fail(ValidationResult.WRONG_TERRAIN, "Terrain not suitable for %s" % building_type)
+
+	# Uniqueness — only one of certain buildings (e.g. village hall) per player.
+	if defn.get("unique", false):
+		for b in player.get("buildings", []):
+			if b is Dictionary and b.get("type", "") == building_type:
+				return _fail(ValidationResult.UNIQUE_EXISTS, "Only one %s is allowed" % building_type)
 
 	# Tech requirements
 	var player_techs: Array = player.get("tech_unlocks", [])

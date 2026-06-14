@@ -35,7 +35,7 @@ func initialize(shire_definitions: Array) -> void:
 			defn.get("owner_id", -1)
 		))
 
-func generate_default(map_width: int, map_height: int, count: int = 8) -> void:
+func generate_default(map_width: int, map_height: int, count: int = 8, seed_value: int = 42) -> void:
 	shires.clear()
 	var biomes: Array = [BiomeTrait.PLAINS, BiomeTrait.HIGHLAND, BiomeTrait.COAST,
 	                     BiomeTrait.FOREST, BiomeTrait.TUNDRA]
@@ -58,7 +58,7 @@ func generate_default(map_width: int, map_height: int, count: int = 8) -> void:
 		"Queensgate", "Rookmere",
 	]
 	var rng := RandomNumberGenerator.new()
-	rng.seed = 42
+	rng.seed = seed_value
 	for i in range(min(count, names.size())):
 		shires.append(_make_shire(
 			i,

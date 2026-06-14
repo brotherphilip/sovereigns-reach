@@ -94,7 +94,9 @@ func setup_world(seed_value: int = 12345, shire_count: int = 8) -> void:
 	_grid.generate(seed_value, shire_count)
 
 	_shire_map = ShireMap.new()
-	_shire_map.generate_default(server_config["map_width"], server_config["map_height"], shire_count)
+	# Derive the shire layout from the world seed so capitals vary per game
+	# (offset keeps it distinct from the terrain RNG stream). See audit S13.
+	_shire_map.generate_default(server_config["map_width"], server_config["map_height"], shire_count, seed_value ^ 0x51932)
 
 	world["grid"] = _grid.serialize()
 	world["shires"] = _shire_map.serialize().get("shires", [])
@@ -388,6 +390,9 @@ func _tick_player_economy(player: Dictionary, tick: int) -> void:
 		# S4: population growth/decline (uses the freshly-updated popularity)
 		var pre_population: int = player.get("population", 0)
 		_tick_population_growth(player)
+		# S5: desertion — at rock-bottom popularity, soldiers and peasants flee.
+		if PopularityEngine.is_desertion_risk(player):
+			_apply_desertion(player)
 		if player.get("population", 0) != pre_population:
 			EventBus.population_changed.emit(player["id"], pre_population, player.get("population", 0))
 
@@ -446,6 +451,25 @@ func _tick_population_growth(player: Dictionary) -> void:
 	if pop < cap:
 		var growth: int = 2 if player.get("popularity", 50.0) >= 75.0 else 1
 		player["population"] = mini(cap, pop + growth)
+
+# S5: desertion at desertion-risk popularity (< 20). Each affected day one
+# trained non-hero soldier abandons the army and a disillusioned peasant
+# leaves the village. Heroes (the Captain) stay loyal.
+func _apply_desertion(player: Dictionary) -> void:
+	var units: Array = player.get("units", [])
+	for i in range(units.size()):
+		var u = units[i]
+		if not (u is Dictionary and UnitState.is_deployable(u)):
+			continue
+		if UnitRegistry.lookup(u.get("type", "")).get("is_hero", false):
+			continue
+		if u.get("type", "") == "armed_peasant":
+			player["military_strength"] = maxi(0, player.get("military_strength", 0) - 1)
+		EventBus.unit_killed.emit(u.get("id", -1), player.get("id", 0), "desertion")
+		units.remove_at(i)
+		break
+	if player.get("population", 0) > 0:
+		player["population"] = player.get("population", 0) - 1
 
 func _get_player_capital_buff(player: Dictionary) -> Dictionary:
 	var shire_id: int = player.get("shire_id", -1)
@@ -1036,6 +1060,12 @@ func _cmd_recruit_unit(cmd: Dictionary) -> bool:
 	if not check["ok"]:
 		return false
 	var defn: Dictionary = UnitRegistry.lookup(unit_type)
+	# S7: hero units (the Captain) are unique per army — reject if one already lives.
+	if defn.get("is_hero", false):
+		for u in player.get("units", []):
+			if u is Dictionary and u.get("is_alive", false) \
+					and UnitRegistry.lookup(u.get("type", "")).get("is_hero", false):
+				return false
 	var cost_gold: int = defn.get("cost_gold", 0)
 	var recruit_reduction: float = EdictSystem.get_active_modifiers(player).get("recruitment_cost_reduction", 0.0)
 	if recruit_reduction > 0.0:
