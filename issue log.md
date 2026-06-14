@@ -3,6 +3,10 @@
 <!-- Format: ## [ID] Title | Severity: Blocker/High/Medium/Low | Status: Open/In Progress/Resolved/Byproduct -->
 <!-- Severities: Blocker=crashes/data loss, High=broken feature, Medium=wrong behavior, Low=polish/text -->
 
+## [079] _cmd_donate_to_capital ignores gold — Level 4→5 capital upgrade permanently blocked | Severity: Medium | Status: Resolved
+`_cmd_donate_to_capital` reads donated resources from `player["resources"]` only. `CapitalSystem.UPGRADE_COSTS[4]` requires `{"stone": 2000, "wood": 800, "iron": 400, "gold": 500}`. Gold lives in `player["gold"]` (a top-level scalar), not in `player["resources"]`. Any donation attempt for "gold" returns `has = 0`, fails the `< amount` check, and returns false — silently blocking the Level 4→5 upgrade.
+Resolution: Added a gold branch in `_cmd_donate_to_capital`: when resource is "gold", checks and deducts from `player["gold"]` directly. All other resources continue to use `player["resources"]`. Scene test: ALL_SCENES_OK.
+
 ## [078] shire_id not cleared on AI shire capture — player retains build rights and prestige bonus in enemy territory | Severity: High | Status: Resolved
 When an AI faction captures a player's shire (siege_assembled event), `tgt["shire_ids"]` loses the captured entry but `tgt["shire_id"]` (the primary shire pointer) is never cleared. PlacementValidator uses `shire_id` to check building placement radius; PrestigeSystem._capital_multiplier() reads the shire's `capital_level`; TaxSystem._get_shire_tax_modifier() reads the shire's tax biome modifier. All three continue to use the AI-owned shire, allowing the player to build within enemy territory and retain shire prestige/tax bonuses after losing.
 Resolution: After removing `captured_id` from `shire_ids`, if `tgt["shire_id"] == captured_id`: update it to `shire_ids[0]` (next remaining shire) or `-1` (no shires left). PlacementValidator border check now fails correctly for players with `shire_id == -1`. Scene test: ALL_SCENES_OK.

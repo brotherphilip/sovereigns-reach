@@ -766,11 +766,16 @@ func _cmd_donate_to_capital(cmd: Dictionary) -> bool:
 	if amount <= 0 or resource == "":
 		return false
 	var player: Dictionary = players[pid]
-	# Deduct resource from player
-	var has: int = player.get("resources", {}).get(resource, 0)
-	if has < amount:
-		return false
-	player["resources"][resource] = has - amount
+	# Deduct resource from player (gold is a special field, not in resources)
+	if resource == "gold":
+		if player.get("gold", 0) < amount:
+			return false
+		player["gold"] = player.get("gold", 0) - amount
+	else:
+		var has: int = player.get("resources", {}).get(resource, 0)
+		if has < amount:
+			return false
+		player["resources"][resource] = has - amount
 	# Find the player's shire and record donation
 	var shire_id: int = player.get("shire_id", -1)
 	for shire in world.get("shires", []):

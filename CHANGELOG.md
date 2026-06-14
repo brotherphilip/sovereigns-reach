@@ -2,6 +2,19 @@
 
 ---
 
+## [Iteration 124] 2026-06-14 — Fix #079: donate_to_capital ignores gold donations
+
+- Delegated to: Supervisor
+- What changed: GameState.gd — `_cmd_donate_to_capital` now special-cases "gold": checks and deducts from `player["gold"]` instead of `player["resources"]`.
+- Before: Gold donations always returned false (`player["resources"]` has no "gold" key, so `has = 0 < amount`). Level 4→5 capital upgrade (`gold: 500` required) was permanently unreachable.
+- After: Gold donations correctly deduct from `player["gold"]`. All 5 upgrade tiers are now achievable.
+- Scene test: ALL_SCENES_OK
+- Issues resolved: #079
+- Issues discovered: none
+- Supervisor correction: none
+
+---
+
 ## [Iteration 123] 2026-06-14 — Fix #078: shire_id not cleared on AI shire capture
 
 - Delegated to: Supervisor
