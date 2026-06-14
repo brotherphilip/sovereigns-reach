@@ -2,6 +2,17 @@
 
 ---
 
+## [Iteration 156] 2026-06-14 — Clean audit via hardened pipeline (anti-drift fix validated)
+
+- Delegated to: Omniscience (qwen3-coder:30b) — audit task
+- Result: game code CLEAN, and the first fully successful Omniscience audit since the structural anti-drift hardening landed (iter 155). The audit ran with no drift: 3 turns, write_used=false, emitted `AUDIT RESULT: no issues found`, modified zero .gd files.
+- Scope: grep TODO/FIXME/BUG/HACK/XXX (empty) + ResourceTick.gd and TaxSystem.gd inspected for logic bugs.
+- Supervisor corroboration: ResourceTick applies int(ceil(...)) to every bonus multiplier (farm_yield_bonus, orchard_yield_bonus, mining_rate_bonus) — no truncation, #092 pattern intact. TaxSystem keeps edict_tax_mult inside the `tax_rate > 0` branch with the bribe path (`return -base_delta`) unscaled — #098 fix intact.
+- Significance: validates the iteration-155 structural fix (read-only audit toolset, forced-text fallback, drift validator) in a normal loop iteration. omni_fail_streak reset 2 → 0.
+- Issues resolved: none (clean)
+- Issues discovered: none
+- Supervisor correction: none
+
 ## [Iteration 155] 2026-06-14 — Omniscience audit hardening (structural anti-drift) after relapse
 
 - Delegated to: Omniscience (qwen3-coder:30b) — audit task (drift relapse caught)
