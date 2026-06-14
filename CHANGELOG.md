@@ -2,6 +2,28 @@
 
 ---
 
+## [Iteration 160] 2026-06-14 — Visual remaster pass + zoom-out lag fix
+
+- Mode: feature/polish (`/loop` "full Repaint" directive).
+- ZOOM-OUT LAG (root cause + fix): IsometricGrid re-ran _draw on every camera
+  move, and TerrainDecorationLayer re-ran _draw every simulation tick — both
+  rebuilding tens of thousands of polygons per frame when zoomed out. Terrain and
+  decorations are static, so both now paint the whole map ONCE (cached by the
+  renderer); panning/zooming no longer rebuilds anything. The build-mode hover
+  highlight moved to a separate lightweight overlay (GridHoverOverlay) so it can
+  update without repainting terrain. (Software-render timing can't show the win;
+  the fix removes the per-frame CPU rebuild that lagged on real GPUs.)
+- UI scaling: project stretch mode set to canvas_items / expand (resizable
+  window) so the HUD scales consistently across resolutions.
+- Palette/map: richer cohesive terrain colours + subtle deterministic per-tile
+  brightness variation so large fields read as textured, not flat.
+- Models: building name labels enlarged + outlined for legibility; units redrawn
+  as little standing figures (shadow + torso + head) instead of flat discs.
+- Verified on isolated Xvfb: menu, city zoomed-in, and city zoomed-out all render
+  cleanly with no errors. Full test suite green.
+- Follow-ups for later loop passes: per-building bespoke models, unit type
+  silhouettes, world-map screen polish, minor menu panel clipping.
+
 ## [Iteration 159] 2026-06-14 — Full playthrough QA + early-game food rebalance (ease & fun)
 
 - Mode: playthrough (`/loop` directive — play a full game like a person, verify every system, amend for ease & fun).

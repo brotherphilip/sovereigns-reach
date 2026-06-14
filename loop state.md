@@ -1,5 +1,7 @@
 # Loop State — Sovereign's Reach
 
+notes: VISUAL REMASTER + LAG FIX (iter 160) 2026-06-14 — fixed zoom-out lag: IsometricGrid (redrew every camera move) and TerrainDecorationLayer (redrew every tick) now paint the static map ONCE (cached); hover moved to a separate GridHoverOverlay. Set project stretch mode canvas_items/expand for UI scaling. Richer terrain palette + per-tile variation. Building labels enlarged+outlined; units now standing figures (shadow/torso/head) not flat discs. Verified menu + city in/out on Xvfb, full suite green. REMASTER IS ITERATIVE — follow-ups: bespoke per-building models, unit-type silhouettes, world-map polish, menu panel clipping. Continue refining visuals in subsequent loops.
+
 notes: PLAYTHROUGH QA (iter 159) 2026-06-14 — played ~14 game-days via the real command pipeline on isolated Xvfb (screenshots). Verified live: build+staff, food/ale chains, public health (100), training queue, AI sieges/combat (bandit killed undefended player soldier — correct), diplomacy tribute panel (Accept/Refuse), tech research, prestige, save/load. CRITICAL fix: early food was unsurvivable (50 pop ate 50/day, produced ~10/day → starve by day 3; remedy gated at 100 prestige ≈ day 19). Halved consumption (1.0→0.5, ResourceTick live path) + buffed apple_orchard (300→150, 2→3) and wheat (480→360, 2→3). Replay: food climbs 100→167, crop_tiers researchable, chains online, health 100. Updated 1 TestPhase10 assertion (pig interval). Full suite green. Open observation: popularity drifts slowly under tax+1 when ale-ration/faith neglected (player-managed, not a blocker).
 
 notes: FEATURE FLESH-OUT (iter 158) 2026-06-14 — Disease → Public Health & Disease. Was binary; now a 0–100 health score (sanitation = apothecary + ½ well, minus winter/malnutrition) + graded disease severity (spreads w/o sanitation, cured by apothecaries, deaths scale with severity). New `well` building (passive sanitation, auto in build menu). Wired GameState (weather→disease tick, health/disease_severity fields), HUDController + HUDNode (Health / "Plague! n%" readout). GDD §3.5.3.IMPL (both copies). New TestPhase12.gd (23 tests). Legacy Phase4 disease tests kept passing (back-compat tick signature). Visually verified via isolated Xvfb. NEXT RUN per user: full human-paced playthrough verifying all systems + amend for ease/fun.
@@ -13,7 +15,7 @@ last_issue_fixed: minimap-draw_circle (Godot3 API in view/micro/Minimap.gd)
 active_phase: complete
 phase_plan_exists: true
 last_iteration: 2026-06-14
-iteration_count: 159
+iteration_count: 160
 next_directive: continue — alternate playthrough QA and system flesh-out; keep amending for ease & fun
 last_issue_fixed: 106
 omni_fail_streak: 0

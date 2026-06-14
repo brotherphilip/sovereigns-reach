@@ -147,8 +147,20 @@ func _draw_unit(unit: Dictionary, is_enemy: bool) -> void:
 		var ring_r: float = UNIT_RADIUS + 3.0 + 2.0 * sin(t * 1.3)
 		draw_circle(Vector2(cx, cy), ring_r, Color(1.0, 1.0, 0.2, pulse))
 
-	draw_circle(Vector2(cx, cy), UNIT_RADIUS, fill)
-	draw_arc(Vector2(cx, cy), UNIT_RADIUS, 0, TAU, 12, Color.WHITE.darkened(0.2), 1.0)
+	# Little standing figure (shadow + torso + head) instead of a flat disc.
+	var r: float = UNIT_RADIUS
+	var body_h: float = r * 1.7
+	draw_circle(Vector2(cx, cy + r * 0.35), r * 0.85, Color(0.0, 0.0, 0.0, 0.20))  # ground shadow
+	var torso := PackedVector2Array([
+		Vector2(cx - r * 0.55, cy),       Vector2(cx + r * 0.55, cy),
+		Vector2(cx + r * 0.70, cy - body_h), Vector2(cx - r * 0.70, cy - body_h),
+	])
+	draw_colored_polygon(torso, fill)
+	draw_polyline(PackedVector2Array([torso[0], torso[1], torso[2], torso[3], torso[0]]),
+		Color(0.0, 0.0, 0.0, 0.45), 0.8)
+	var head_c := Vector2(cx, cy - body_h - r * 0.45)
+	draw_circle(head_c, r * 0.5, fill.lightened(0.18))
+	draw_arc(head_c, r * 0.5, 0, TAU, 10, Color(0.0, 0.0, 0.0, 0.40), 0.8)
 
 	# HP bar above unit
 	var hp: int     = unit.get("hp", 1)

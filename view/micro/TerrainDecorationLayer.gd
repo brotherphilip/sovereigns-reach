@@ -1,7 +1,9 @@
 extends Node2D
-# Renders terrain decorations (trees, peaks, rocks, water ripples) above the
-# isometric tile grid but below buildings. Uses the same camera culling logic
-# as IsometricGrid.gd. Terrain enum matches WorldGrid.Terrain (0-10).
+# Renders static terrain decorations (trees, peaks, rocks, water) above the iso
+# tile grid but below buildings. Terrain never changes at runtime, so the whole
+# map is painted ONCE and cached — it no longer repaints every simulation tick
+# (which was redrawing thousands of decorations 20×/sec and helped cause the
+# zoom-out lag). Terrain enum matches WorldGrid.Terrain (0-10).
 
 const HALF_W: float = 32.0
 const HALF_H: float = 16.0
@@ -13,7 +15,7 @@ const T_RIVER:    int = 3
 const T_ROCK:     int = 5
 const T_COASTAL:  int = 8
 
-var _camera: Camera2D = null
+var _camera: Camera2D = null   # kept for API compatibility (culling no longer needed)
 var _map_w:  int      = 200
 var _map_h:  int      = 200
 
@@ -21,46 +23,17 @@ func _ready() -> void:
 	var gs: Vector2i = GameState.get_grid_size()
 	_map_w = gs.x
 	_map_h = gs.y
-	EventBus.simulation_tick.connect(func(_t): queue_redraw())
+	queue_redraw()  # paint decorations once
 
 func set_camera(cam: Camera2D) -> void:
 	_camera = cam
 
+func refresh() -> void:
+	queue_redraw()
+
 func _draw() -> void:
-	if _camera == null:
-		_draw_range(0, 0, _map_w, _map_h)
-		return
-
-	var vp_size: Vector2 = get_viewport_rect().size
-	var cam_pos: Vector2 = _camera.position
-	var cam_zoom: float  = _camera.zoom.x
-	var half_w: float    = (vp_size.x * 0.5) / cam_zoom + HALF_W * 4
-	var half_h: float    = (vp_size.y * 0.5) / cam_zoom + HALF_H * 4
-
-	var left_sx: float  = cam_pos.x - half_w
-	var right_sx: float = cam_pos.x + half_w
-	var top_sy: float   = cam_pos.y - half_h
-	var bot_sy: float   = cam_pos.y + half_h
-
-	var margin: int = 3
-	var min_diff: int = floori(left_sx  / HALF_W) - margin
-	var max_diff: int = ceili(right_sx  / HALF_W) + margin
-	var min_sum: int  = floori(top_sy   / HALF_H) - margin
-	var max_sum: int  = ceili(bot_sy    / HALF_H) + margin
-
-	for s in range(min_sum, max_sum + 1):
-		for d in range(min_diff, max_diff + 1):
-			if (s + d) % 2 != 0:
-				continue
-			var gx: int = (d + s) / 2
-			var gy: int = (s - d) / 2
-			if gx < 0 or gx >= _map_w or gy < 0 or gy >= _map_h:
-				continue
-			_draw_decor(gx, gy)
-
-func _draw_range(x0: int, y0: int, x1: int, y1: int) -> void:
-	for gy in range(y0, y1):
-		for gx in range(x0, x1):
+	for gy in range(_map_h):
+		for gx in range(_map_w):
 			_draw_decor(gx, gy)
 
 func _draw_decor(gx: int, gy: int) -> void:

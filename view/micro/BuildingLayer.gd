@@ -198,9 +198,13 @@ func _draw_building(b: Dictionary, is_enemy: bool) -> void:
 		Color.WHITE.darkened(0.4), 0.8)
 
 	# ── Label ─────────────────────────────────────────────────────────────────
-	var name_str: String = defn.get("name", btype).left(10)
-	draw_string(ThemeDB.fallback_font, center + Vector2(-20, -wall_height - ridge_h + 6),
-		name_str, HORIZONTAL_ALIGNMENT_LEFT, -1, 8, Color.WHITE.darkened(0.1))
+	var name_str: String = defn.get("name", btype).left(12)
+	# Slight outline for legibility over varied terrain, then the label.
+	var label_pos: Vector2 = center + Vector2(-22, -wall_height - ridge_h + 6)
+	draw_string(ThemeDB.fallback_font, label_pos + Vector2(1, 1),
+		name_str, HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color(0, 0, 0, 0.5))
+	draw_string(ThemeDB.fallback_font, label_pos,
+		name_str, HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color.WHITE)
 
 	# ── No-worker alert icon ───────────────────────────────────────────────────
 	if max_w > 0 and int(b.get("workers", 0)) == 0 and b.get("is_active", true):
