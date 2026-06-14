@@ -2,6 +2,12 @@
 
 ---
 
+## [Iteration 140] 2026-06-14 — Fix #095: BuildingLayer no-worker alert icon never fires
+
+- What changed: BuildingLayer._draw_building() checked `state == "working" and workers == 0` to show a "!" alert icon for buildings with no workers. This condition is logically impossible — BuildingRenderer returns state="empty" when workers==0, never "working". Fixed by checking `b.get("is_active", true)` instead (alert shows when building is active but has no workers assigned). Also removed the dead-code extra darkening block that had the same impossible condition.
+- Scene test: ALL_SCENES_OK
+- Issues resolved: #095
+
 ## [Iteration 139] 2026-06-14 — Fix #094: popularity tooltip ΔAle ignores inn_coverage multiplier
 
 - What changed: HUDController.get_popularity_breakdown_tooltip() now computes ale_delta as `float(ALE_POP[ration]) * player["inn_coverage"]`, matching PopularityEngine._ale_score() = base * coverage. Without inns (coverage=0.0), the tooltip now correctly shows 0 instead of the raw base value. Format updated to %+.0f. Net/day total corrected.
