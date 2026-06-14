@@ -88,7 +88,7 @@ static func resolve_combat(attacker_army: Array, defender_army: Array, rng: Rand
 		var boosted: Dictionary = attacker.duplicate()
 		boosted["attack"] = attacker.get("attack", 0) + atk_morale
 		var result: Dictionary = calculate_damage(boosted, target)
-		if result.get("kills", false):
+		if result.get("killed", false):
 			def_casualties += 1
 			alive_defenders.erase(target)
 
@@ -107,7 +107,7 @@ static func resolve_combat(attacker_army: Array, defender_army: Array, rng: Rand
 		var boosted: Dictionary = defender.duplicate()
 		boosted["attack"] = defender.get("attack", 0) + def_morale
 		var result: Dictionary = calculate_damage(boosted, target)
-		if result.get("kills", false):
+		if result.get("killed", false):
 			atk_casualties += 1
 			alive_attackers.erase(target)
 

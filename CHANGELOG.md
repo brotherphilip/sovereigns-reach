@@ -2,6 +2,12 @@
 
 ---
 
+## [Iteration 152] 2026-06-14 — Fix #106: CombatSystem.resolve_combat "kills" vs "killed" key mismatch breaks multi-unit combat
+
+- What changed: `CombatSystem.resolve_combat` checked `result.get("kills", false)` in two places (attacker kills defender, defender kills attacker). `UnitState.apply_damage` returns the key `"killed"`, not `"kills"`. The mismatch caused dead units to never be erased from the alive pool — `_pick_target` always selected the corpse (lowest HP ratio = 0), so all subsequent attackers wasted their strikes on it. Only one kill was possible per half-round regardless of army size. Fixed both occurrences to `result.get("killed", false)`.
+- Scene test: ALL_SCENES_OK
+- Issues resolved: #106
+
 ## [Iteration 151] 2026-06-14 — Fix #105: MilestoneSystem three_shires milestone checks nonexistent shire_ids field
 
 - What changed: Removed the `three_shires` block from `MilestoneSystem.check()` — it called `player.get("shire_ids", []).size() >= 3` but players only have a scalar `shire_id` field (no `shire_ids` array). The milestone could never fire. Also removed an unused `var pid` at line 23. The DEFINITIONS entry is retained as aspirational copy for when multi-shire control is implemented.
