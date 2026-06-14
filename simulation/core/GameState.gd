@@ -263,6 +263,7 @@ func _tick_player_economy(player: Dictionary, tick: int) -> void:
 		if not building is Dictionary:
 			continue
 		if BuildingState.tick_fire(building):
+			building["is_on_fire"] = false  # extinguish so ruin doesn't render as burning
 			PrestigeSystem.apply_defeat_loss(player)
 			EventBus.building_destroyed.emit(player.get("id", 0), building.get("id", -1), "fire")
 
