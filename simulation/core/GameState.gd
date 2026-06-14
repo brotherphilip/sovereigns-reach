@@ -211,6 +211,19 @@ func _make_armory() -> Dictionary:
 	}
 
 func _tick_player_economy(player: Dictionary, tick: int) -> void:
+	# Resolve shire biome production bonuses once per player per tick (GDD §1.2.1).
+	var _biome_farm_bonus: float = 0.0
+	var _biome_mine_bonus: float = 0.0
+	var _biome_trade_bonus: float = 0.0
+	var _pid_shire_id: int = player.get("shire_id", -1)
+	if _pid_shire_id >= 0:
+		for _s in world.get("shires", []):
+			if _s is Dictionary and _s.get("id", -1) == _pid_shire_id:
+				_biome_farm_bonus  = _s.get("farm_yield_bonus", 0.0)
+				_biome_mine_bonus  = _s.get("mining_speed_bonus", 0.0)
+				_biome_trade_bonus = _s.get("trade_fee_bonus", 0.0)
+				break
+
 	# Phase 2: resource production from all buildings
 	for building in player.get("buildings", []):
 		if not building is Dictionary or not building.get("is_active", true):
@@ -225,12 +238,24 @@ func _tick_player_economy(player: Dictionary, tick: int) -> void:
 			# Apply weather farm_yield_mult to raw crop and animal farm outputs (GDD §1.1.3).
 			# Drought and snow suppress production to 0; rain gives +10% bonus.
 			const FARM_TYPES: Array = ["apple_orchard", "wheat_farm", "hops_farm", "pig_farm", "dairy_farm"]
-			if building.get("type", "") in FARM_TYPES:
+			var btype: String = building.get("type", "")
+			if btype in FARM_TYPES:
 				var farm_mult: float = weather.get("effects", {}).get("farm_yield_mult", 1.0)
 				if farm_mult != 1.0:
 					for res in changes.keys():
 						if changes[res] > 0:
 							changes[res] = int(float(changes[res]) * farm_mult)
+			# Apply shire biome bonuses (ShireMap biome traits, GDD §1.2.1).
+			if _biome_farm_bonus > 0.0 and btype in FARM_TYPES:
+				for res in changes.keys():
+					if changes[res] > 0:
+						changes[res] = int(ceil(float(changes[res]) * (1.0 + _biome_farm_bonus)))
+			if _biome_mine_bonus > 0.0 and btype in ["iron_mine", "stone_quarry"]:
+				for res in changes.keys():
+					if changes[res] > 0:
+						changes[res] = int(ceil(float(changes[res]) * (1.0 + _biome_mine_bonus)))
+			if _biome_trade_bonus > 0.0 and btype == "trading_post" and changes.has("gold"):
+				changes["gold"] = int(ceil(float(changes["gold"]) * (1.0 + _biome_trade_bonus)))
 			ResourceTick.apply_changes(player, changes)
 
 	# Fire damage tick — applies each game-tick for burning buildings

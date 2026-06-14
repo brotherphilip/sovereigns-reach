@@ -44,7 +44,7 @@ static func tick(player: Dictionary, tick: int) -> Dictionary:
 	var ration: int = player.get("ale_ration", 1)
 	# Higher ration = more ale consumed per inn per day (scaled 0.0–2.0)
 	var ration_mult: float = float(ration) * 0.5  # 0=0.0, 1=0.5, 2=1.0, 3=1.5, 4=2.0
-	var to_consume: int = int(float(inn_count) * ration_mult)
+	var to_consume: int = roundi(float(inn_count) * float(ALE_PER_INN_PER_DAY) * ration_mult)
 
 	if to_consume <= 0:
 		return {"ale_consumed": 0, "ale_shortage": 0}

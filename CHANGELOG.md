@@ -2,6 +2,18 @@
 
 ---
 
+## [Iteration 128] 2026-06-14 — Fix #083: shire biome bonuses never applied to building production
+
+- What changed: GameState._tick_player_economy() now resolves the player's shire biome bonuses once per player per tick before the building loop. farm_yield_bonus applies to all farm types; mining_speed_bonus applies to iron_mine and stone_quarry; trade_fee_bonus applies to trading_post gold output. All applied via int(ceil(amount * (1 + bonus))), consistent with existing bonus stacking pattern.
+- Scene test: ALL_SCENES_OK
+- Issues resolved: #083
+
+## [Iteration 127] 2026-06-14 — Fix #082: AleSystem truncates ale consumption — 1 inn at default rations consumes 0 ale/day
+
+- What changed: AleSystem.tick() replaced `int(float(inn_count) * ration_mult)` with `roundi(float(inn_count) * float(ALE_PER_INN_PER_DAY) * ration_mult)`. Incorporates the unused ALE_PER_INN_PER_DAY constant and rounds to nearest instead of truncating, so 1 inn at ration=1 (0.5 ale/day) rounds to 1 ale consumed instead of 0. Ale shortage now correctly triggers inn_coverage reduction for single-inn setups.
+- Scene test: ALL_SCENES_OK
+- Issues resolved: #082
+
 ## [Iteration 126] 2026-06-14 — Fix #081: player's shire shows as BanditKing brown on macro map
 
 - Delegated to: Supervisor
