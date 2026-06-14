@@ -76,6 +76,27 @@ func _run() -> void:
 		if t1 >= 0 and tM >= 0: break
 	ok("six builders finish faster than one", tM >= 0 and t1 >= 0 and tM < t1)
 
+	print("\n--- Builders spread around the perimeter ---")
+	var crew: Array = []; CitizenSystem.spawn(crew, 6, 50.0, 50.0, _rng(7), 1)
+	var site := [{"id": 1, "type": "village_hall", "grid_x": 54, "grid_y": 50,
+		"built": false, "build_progress": 0.0, "build_required": 9000.0}]
+	# One tick dispatches every free villager to a distinct slot.
+	CitizenSystem.tick(crew, site, _rng(1), 0)
+	var slots := {}
+	var spots := {}
+	for c in crew:
+		slots[c.get("build_slot", -1)] = true
+		spots["%0.2f,%0.2f" % [c.get("tx", 0.0), c.get("ty", 0.0)]] = true
+	ok("each builder gets a distinct slot", slots.size() == crew.size())
+	ok("builders target distinct standing spots", spots.size() == crew.size())
+	# Standing spots sit outside the 3x3 footprint (not on the building tiles).
+	var all_outside := true
+	for c in crew:
+		var tx: float = c.get("tx", 0.0); var ty: float = c.get("ty", 0.0)
+		if tx >= 53.5 and tx <= 56.5 and ty >= 49.5 and ty <= 52.5:
+			all_outside = false
+	ok("standing spots are outside the building", all_outside)
+
 	print("\n--- Walk movement ---")
 	var w: Array = []
 	CitizenSystem.spawn(w, 1, 50.0, 50.0, _rng(3), 1)

@@ -73,6 +73,10 @@ var citizens: Array = []
 var _next_citizen_id: int = 1
 var _citizen_rng: RandomNumberGenerator = null
 
+# Campfire — lit once the village hall is built. Villagers gather around it and
+# new recruits muster there. Serializable: {"active": bool, "x": float, "y": float}.
+var campfire: Dictionary = {"active": false}
+
 func _ready() -> void:
 	_init_default_state()
 
@@ -101,6 +105,7 @@ func _init_default_state() -> void:
 	_citizen_rng = RandomNumberGenerator.new()
 	_citizen_rng.seed = server_config["map_seed"] ^ 0xC1721E
 	citizens = []
+	campfire = {"active": false}
 	_next_citizen_id = 1
 	weather = WeatherSystem.make_state()
 	milestones = {}
@@ -768,7 +773,10 @@ func simulate_tick(tick: int) -> void:
 
 	# Villager pawns wander and build placed structures (player 0).
 	if not citizens.is_empty() and not players.is_empty():
-		CitizenSystem.tick(citizens, players[0].get("buildings", []), _citizen_rng, tick)
+		CitizenSystem.tick(citizens, players[0].get("buildings", []), _citizen_rng, tick, _grid)
+	# Once the hall is built, a campfire lights up out front; villagers gather
+	# around it and new recruits muster there.
+	_update_campfire()
 
 	# Phase 6: tick AI factions each game-day
 	if tick > 0 and tick % SimulationClock.TICKS_PER_GAME_DAY == 0:
@@ -1206,6 +1214,43 @@ func _cmd_research_tech(cmd: Dictionary) -> bool:
 	var result: Dictionary = TechTree.research(players[pid], tech_id)
 	return result.get("ok", false)
 
+# Lights / moves the campfire to sit just in front of the player's built hall, and
+# re-homes the villagers in a ring around it the moment it first appears.
+func _update_campfire() -> void:
+	if players.is_empty():
+		return
+	var hall: Dictionary = {}
+	for b in players[0].get("buildings", []):
+		if b is Dictionary and b.get("type", "") in ["village_hall", "keep"] and b.get("built", true):
+			hall = b
+			break
+	if hall.is_empty():
+		if campfire.get("active", false):
+			campfire = {"active": false}
+		return
+	var defn: Dictionary = BuildingRegistry.lookup(hall.get("type", ""))
+	var w: int = defn.get("width", 1)
+	var h: int = defn.get("height", 1)
+	var fx: float = float(hall.get("grid_x", 0)) + w * 0.5
+	var fy: float = float(hall.get("grid_y", 0)) + h + 0.5
+	if not campfire.get("active", false) \
+			or absf(float(campfire.get("x", 0.0)) - fx) > 0.01 \
+			or absf(float(campfire.get("y", 0.0)) - fy) > 0.01:
+		campfire = {"active": true, "x": fx, "y": fy}
+		_gather_citizens_at_fire(fx, fy)
+
+# Re-home villagers around the campfire so they idle/wander in a loose ring.
+func _gather_citizens_at_fire(fx: float, fy: float) -> void:
+	for i in range(citizens.size()):
+		var c = citizens[i]
+		if not (c is Dictionary):
+			continue
+		var idx: int = int(c.get("id", i))
+		var a: float = float(idx) * 2.39996323  # golden angle → even spread
+		var r: float = 1.8 + float(idx % 3) * 0.6
+		c["hx"] = fx + cos(a) * r
+		c["hy"] = fy + sin(a) * r
+
 # Phase 6: unit command handlers
 
 func _cmd_recruit_unit(cmd: Dictionary) -> bool:
@@ -1249,7 +1294,15 @@ func _cmd_recruit_unit(cmd: Dictionary) -> bool:
 			player["resources"][item] = maxi(0, player["resources"].get(item, 0) - needed)
 	var uid: int = _next_unit_id
 	_next_unit_id += 1
-	var unit: Dictionary = UnitState.create(unit_type, pid, player.get("keep_x", 0), player.get("keep_y", 0), uid)
+	# New recruits muster around the campfire (once lit); otherwise at the keep tile.
+	var sx: int = player.get("keep_x", 0)
+	var sy: int = player.get("keep_y", 0)
+	if pid == 0 and campfire.get("active", false):
+		var a: float = float(uid) * 2.39996323
+		var r: float = 1.5 + float(uid % 3) * 0.7
+		sx = int(round(float(campfire.get("x", sx)) + cos(a) * r))
+		sy = int(round(float(campfire.get("y", sy)) + sin(a) * r))
+	var unit: Dictionary = UnitState.create(unit_type, pid, sx, sy, uid)
 	# Apply unit_armor_rating from armor_forging tech: boosts defense by the rated fraction.
 	var _armor_bonus: float = TechTree.get_all_modifiers(player).get("unit_armor_rating", 0.0)
 	if _armor_bonus > 0.0 and unit.has("defense"):
@@ -1419,6 +1472,7 @@ func serialize() -> Dictionary:
 		"next_animal_id": _next_animal_id,
 		"citizens": citizens.duplicate(true),
 		"next_citizen_id": _next_citizen_id,
+		"campfire": campfire.duplicate(true),
 	}
 
 func deserialize(data: Dictionary) -> void:
@@ -1435,6 +1489,7 @@ func deserialize(data: Dictionary) -> void:
 	_next_animal_id = data.get("next_animal_id", 1)
 	citizens = data.get("citizens", [])
 	_next_citizen_id = data.get("next_citizen_id", 1)
+	campfire = data.get("campfire", {"active": false})
 	# Re-seed RNGs from the loaded map_seed so random events use the correct seed
 	var loaded_seed: int = server_config.get("map_seed", 12345)
 	_weather_rng.seed = loaded_seed

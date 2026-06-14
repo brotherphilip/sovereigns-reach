@@ -2,6 +2,41 @@
 
 ---
 
+## [Iteration 170] 2026-06-14 — Campfire + low-poly building remaster + progressive construction + builder perimeter/avoidance
+
+User requests (two messages): (1) once the hall is built, a campfire out front that
+villagers dynamically hang around and where new units spawn; buildings should build
+up among the scaffolding; bring buildings up to the same low-poly quality as the
+pawns/trees with correct colours + more detail; the fire should be rendered low-poly
+flame. (2) builders shouldn't all head to the same spot — spread around the outside
+of the building facing in, with crude pathfinding to avoid each other and obstacles.
+
+- Campfire (GameState): `campfire` state (active/x/y), serialized. `_update_campfire()`
+  lights a fire just in front of the player's built village_hall/keep; on first light
+  it re-homes villagers in a golden-angle ring around it so they idle/wander there.
+  New recruits (`_cmd_recruit_unit`) now muster in a ring around the fire (was the
+  keep tile). New CampfireLayer.gd renders it: stone ring, crossed logs, ember bed,
+  faceted flame tongues (orange→amber→white core) with sway + sparks + ground glow.
+- Building remaster (BuildingLayer): per-type/-category material palette (stone,
+  timber, wattle walls; tile/thatch/slate roofs) replacing flat category swatches;
+  added foundation course, timber-frame bands, an arched door on the front face, and
+  lit windows — matching the trees'/pawns' low-poly shading quality.
+- Progressive construction: walls now RISE within the scaffolding as `build_progress`
+  climbs (foundation → walls → roof tops out at ~82%); scaffold poles stand at the
+  full target height with two plank lifts + a diagonal brace; an open dark interior
+  shows while roofless.
+- Builder behaviour (CitizenSystem): each builder is assigned a distinct standing
+  SLOT on a ring just OUTSIDE the footprint (≈one per perimeter tile) and faces
+  inward while hammering — no more stacking on one tile. Crude local avoidance:
+  boids separation from neighbours + deflection (fan ±0.7/1.3/2.0 rad) around
+  impassable/occupied tiles, using the world grid passed into `CitizenSystem.tick`.
+- Tests: TestPhase14 +3 (distinct slots, distinct standing spots, spots outside the
+  building) → 14/14. Full suite green. Xvfb-verified: mid-build walls rise inside
+  scaffolding; finished hall has stone walls + tiled roof + campfire with villagers
+  ringing it; 8 builders occupy 8 distinct perimeter positions.
+
+---
+
 ## [Iteration 169] 2026-06-14 — Builder-driven construction + no build restrictions + no starting buildings
 
 - User feedback fix: "nothing happened when the builder got there — building didn't

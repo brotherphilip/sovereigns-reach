@@ -131,6 +131,10 @@ func _build_scene() -> void:
 	_animal_layer.name = "AnimalLayer"
 	_world_root.add_child(_animal_layer)
 
+	var campfire_layer := preload("res://view/micro/CampfireLayer.gd").new()
+	campfire_layer.name = "CampfireLayer"
+	_world_root.add_child(campfire_layer)
+
 	_citizen_layer = preload("res://view/micro/CitizenLayer.gd").new()
 	_citizen_layer.name = "CitizenLayer"
 	_world_root.add_child(_citizen_layer)

@@ -106,18 +106,23 @@ func _draw_building(b: Dictionary, is_enemy: bool) -> void:
 	var cat: int      = defn.get("category", 0)
 	var vs: Dictionary = BuildingRenderer.get_visual_state(b)
 
-	var base_color: Color
-	if is_enemy:
-		base_color = Color(0.70, 0.20, 0.20)
-	else:
-		base_color = CAT_COLORS[mini(cat, CAT_COLORS.size() - 1)]
+	# Material palette — natural wall/roof/trim colours per type, like the trees.
+	var mat: Dictionary = _materials(cat, btype, is_enemy)
+	var wall_col: Color = mat["wall"]
+	var roof_base: Color = mat["roof"]
+	var trim_col: Color  = mat["trim"]
 	match vs.get("state", "empty"):
-		"empty":   base_color = base_color.darkened(0.4)
-		"damaged": base_color = Color(0.8, 0.5, 0.3)
-		"fire":    base_color = Color(1.0, 0.4, 0.1)
-		"working": pass  # keep category color
+		"empty":   wall_col = wall_col.darkened(0.35); roof_base = roof_base.darkened(0.3)
+		"damaged": wall_col = wall_col.lerp(Color(0.55, 0.42, 0.32), 0.6)
+		"fire":    wall_col = Color(0.55, 0.30, 0.18); roof_base = Color(0.45, 0.20, 0.10)
+		"working": pass
 
 	var max_w: int = defn.get("max_workers", 0)
+	var built: bool = b.get("built", true)
+	# Construction progress drives how high the structure has risen within the scaffold.
+	var prog: float = 1.0
+	if not built:
+		prog = clampf(float(b.get("build_progress", 0.0)) / maxf(1.0, float(b.get("build_required", 1.0))), 0.0, 1.0)
 
 	# Footprint corners in iso-space (painter's algorithm order)
 	var cx: float    = (gx - gy) * HALF_W
@@ -128,13 +133,10 @@ func _draw_building(b: Dictionary, is_enemy: bool) -> void:
 	var bot:   Vector2 = Vector2(cx + (w - h) * HALF_W, cy + (w + h - 1) * HALF_H)
 	var left:  Vector2 = Vector2(cx - h * HALF_W,       cy + (h - 1) * HALF_H)
 
-	var wall_height: float = 18.0 + (w + h) * 4.0
-
-	# Lifted versions (wall tops)
-	var top_up:   Vector2 = top   + Vector2(0, -wall_height)
-	var right_up: Vector2 = right + Vector2(0, -wall_height)
-	var bot_up:   Vector2 = bot   + Vector2(0, -wall_height)
-	var left_up:  Vector2 = left  + Vector2(0, -wall_height)
+	var full_height: float = 18.0 + (w + h) * 4.0
+	# Walls rise with progress; the roof goes on once mostly topped out.
+	var wall_height: float = full_height * prog
+	var show_roof: bool = built or prog >= 0.82
 
 	var center: Vector2 = (top + bot) * 0.5
 
@@ -145,59 +147,83 @@ func _draw_building(b: Dictionary, is_enemy: bool) -> void:
 		bot + shadow_off, left + shadow_off,
 	]), Color(0.0, 0.0, 0.0, 0.22))
 
-	# ── Left wall (top–left face) ─────────────────────────────────────────────
-	draw_colored_polygon(PackedVector2Array([
-		left, top, top_up, left_up,
-	]), base_color.darkened(0.35))
-	draw_polyline(PackedVector2Array([left, top, top_up, left_up, left]),
-		Color.BLACK.lightened(0.7), 0.5)
+	# A bare/low foundation reads as a stone plinth before walls rise.
+	if prog < 0.12:
+		draw_colored_polygon(PackedVector2Array([top, right, bot, left]),
+			Color(0.55, 0.52, 0.47))
 
-	# ── Right wall (top–right face) ───────────────────────────────────────────
-	draw_colored_polygon(PackedVector2Array([
-		top, right, right_up, top_up,
-	]), base_color.darkened(0.20))
-	draw_polyline(PackedVector2Array([top, right, right_up, top_up, top]),
-		Color.BLACK.lightened(0.7), 0.5)
+	# Lifted versions (wall tops)
+	var top_up:   Vector2 = top   + Vector2(0, -wall_height)
+	var right_up: Vector2 = right + Vector2(0, -wall_height)
+	var bot_up:   Vector2 = bot   + Vector2(0, -wall_height)
+	var left_up:  Vector2 = left  + Vector2(0, -wall_height)
 
-	# ── Roof face (flat top diamond) ──────────────────────────────────────────
-	var roof_col: Color = base_color.lightened(0.10)
-	draw_colored_polygon(PackedVector2Array([
-		top_up, right_up, bot_up, left_up,
-	]), roof_col)
+	if wall_height > 1.0:
+		# ── Left wall (top–left face) ──────────────────────────────────────────
+		draw_colored_polygon(PackedVector2Array([left, top, top_up, left_up]),
+			wall_col.darkened(0.32))
+		# ── Right wall (top–right face) ────────────────────────────────────────
+		draw_colored_polygon(PackedVector2Array([top, right, right_up, top_up]),
+			wall_col.darkened(0.14))
+		# Foundation course (lighter stone band along the ground).
+		var sill: float = -minf(wall_height * 0.16, 4.0)
+		draw_line(left + Vector2(0, sill), top + Vector2(0, sill), wall_col.lightened(0.12), 1.2)
+		draw_line(top + Vector2(0, sill), right + Vector2(0, sill), wall_col.lightened(0.18), 1.2)
+		# Timber-frame bands across both faces for texture.
+		for f in [0.42, 0.74]:
+			if wall_height * f < 3.0:
+				continue
+			var by: float = -wall_height * f
+			draw_line(left + Vector2(0, by), top + Vector2(0, by), trim_col, 0.9)
+			draw_line(top + Vector2(0, by), right + Vector2(0, by), trim_col, 0.9)
+		draw_polyline(PackedVector2Array([left, top, top_up, left_up, left]),
+			Color(0, 0, 0, 0.35), 0.5)
+		draw_polyline(PackedVector2Array([top, right, right_up, top_up, top]),
+			Color(0, 0, 0, 0.35), 0.5)
+		# Door + windows once the walls are tall enough to carry them.
+		if prog > 0.45 or built:
+			_draw_wall_details(top, right, left, wall_height, trim_col)
 
-	# ── Ridge triangle (pitched roof apex) ───────────────────────────────────
-	var ridge_h: float
-	if cat == 2:  # FOOD — flat hay roof
-		ridge_h = clampf(wall_height * 0.18, 4.0, 12.0)
-	else:
-		ridge_h = clampf(wall_height * 0.40, 8.0, 24.0)
+	# ── Roof ────────────────────────────────────────────────────────────────────
+	var ridge_h: float = 0.0
+	var ridge_apex: Vector2 = (top_up + bot_up) * 0.5
+	if show_roof:
+		ridge_h = (clampf(full_height * 0.18, 4.0, 12.0) if cat == 2
+			else clampf(full_height * 0.40, 8.0, 24.0))
+		ridge_apex = (top_up + bot_up) * 0.5 + Vector2(0, -ridge_h)
+		# Flat top diamond underneath the pitch (eaves).
+		draw_colored_polygon(PackedVector2Array([top_up, right_up, bot_up, left_up]),
+			roof_base.darkened(0.10))
+		# Pitched roof faces (two shaded slopes).
+		draw_colored_polygon(PackedVector2Array([left_up, bot_up, ridge_apex]),
+			roof_base.darkened(0.12))
+		draw_colored_polygon(PackedVector2Array([top_up, right_up, ridge_apex]),
+			roof_base.lightened(0.10))
+		draw_polyline(PackedVector2Array([left_up, ridge_apex, bot_up]), Color(0, 0, 0, 0.3), 0.5)
+		draw_polyline(PackedVector2Array([top_up, ridge_apex, right_up]), Color(0, 0, 0, 0.3), 0.5)
+		# ── Per-type distinctive features ──────────────────────────────────────
+		_draw_building_topper(btype, cat, w, h, wall_col,
+			top, right, bot, left, top_up, right_up, bot_up, left_up, ridge_apex, center)
+	elif wall_height > 1.0:
+		# Open top while building — a dark interior cap so the box reads as roofless.
+		draw_colored_polygon(PackedVector2Array([top_up, right_up, bot_up, left_up]),
+			Color(0.18, 0.15, 0.12, 0.85))
 
-	var ridge_apex: Vector2 = (top_up + bot_up) * 0.5 + Vector2(0, -ridge_h)
-	draw_colored_polygon(PackedVector2Array([
-		left_up, bot_up, ridge_apex,
-	]), base_color.lightened(0.18))
-	draw_colored_polygon(PackedVector2Array([
-		top_up, right_up, ridge_apex,
-	]), base_color.lightened(0.22))
-	draw_polyline(PackedVector2Array([left_up, ridge_apex, bot_up]),
-		Color.BLACK.lightened(0.8), 0.5)
-	draw_polyline(PackedVector2Array([top_up, ridge_apex, right_up]),
-		Color.BLACK.lightened(0.8), 0.5)
-
-	# ── Per-type distinctive features ──────────────────────────────────────────
-	_draw_building_topper(btype, cat, w, h, base_color,
-		top, right, bot, left, top_up, right_up, bot_up, left_up, ridge_apex, center)
-
-	# ── Under-construction scaffolding ─────────────────────────────────────────
-	if not b.get("built", true):
-		var wood := Color(0.62, 0.45, 0.24, 0.9)
+	# ── Under-construction scaffolding (poles rise to the *target* height) ──────
+	if not built:
+		var wood := Color(0.64, 0.46, 0.25, 0.95)
+		var sh: float = full_height + 5.0
 		for corner in [top, right, bot, left]:
-			draw_line(corner, corner + Vector2(0, -wall_height - 4.0), wood, 1.3)
-		var bandy: float = -wall_height * 0.6
-		draw_line(top + Vector2(0, bandy), right + Vector2(0, bandy), wood, 1.0)
-		draw_line(right + Vector2(0, bandy), bot + Vector2(0, bandy), wood, 1.0)
-		draw_line(bot + Vector2(0, bandy), left + Vector2(0, bandy), wood, 1.0)
-		draw_line(left + Vector2(0, bandy), top + Vector2(0, bandy), wood, 1.0)
+			draw_line(corner, corner + Vector2(0, -sh), wood, 1.3)
+		# Two horizontal lifts of planking around the frame.
+		for band in [0.45, 0.85]:
+			var by: float = -full_height * band
+			draw_line(top + Vector2(0, by), right + Vector2(0, by), wood, 1.0)
+			draw_line(right + Vector2(0, by), bot + Vector2(0, by), wood, 1.0)
+			draw_line(bot + Vector2(0, by), left + Vector2(0, by), wood, 1.0)
+			draw_line(left + Vector2(0, by), top + Vector2(0, by), wood, 1.0)
+		# A diagonal brace for that under-construction look.
+		draw_line(left, top + Vector2(0, -full_height), wood.darkened(0.1), 0.9)
 
 	# ── Outline ───────────────────────────────────────────────────────────────
 	draw_polyline(PackedVector2Array([top, right, bot, left, top]),
@@ -241,6 +267,49 @@ func _draw_building(b: Dictionary, is_enemy: bool) -> void:
 		draw_circle(fire_c + Vector2(sin(t * 5.1) * 2.0, 0), 7.5 * f2, Color(1.0, 0.42, 0.0, 0.85))
 		draw_circle(fire_c + Vector2(sin(t * 8.7) * 1.5, -2.5 * f1), 4.5 * f2, Color(1.0, 0.78, 0.1, 0.90))
 		draw_circle(fire_c + Vector2(sin(t * 13.1) * 1.0, -5.0 * f2), 2.2 * f1, Color(1.0, 1.0, 0.65, 0.80))
+
+# Natural material palette (wall / roof / trim) per building, so structures read
+# like the trees and rocks rather than flat category swatches.
+func _materials(cat: int, btype: String, is_enemy: bool) -> Dictionary:
+	if is_enemy:
+		return {"wall": Color(0.52, 0.30, 0.28), "roof": Color(0.40, 0.18, 0.16), "trim": Color(0.30, 0.16, 0.14)}
+	match btype:
+		"village_hall":
+			return {"wall": Color(0.82, 0.77, 0.66), "roof": Color(0.74, 0.34, 0.24), "trim": Color(0.45, 0.32, 0.20)}
+		"keep", "castle":
+			return {"wall": Color(0.70, 0.69, 0.66), "roof": Color(0.40, 0.42, 0.50), "trim": Color(0.34, 0.33, 0.32)}
+		"church", "cathedral":
+			return {"wall": Color(0.84, 0.80, 0.72), "roof": Color(0.46, 0.48, 0.56), "trim": Color(0.50, 0.40, 0.26)}
+		"well":
+			return {"wall": Color(0.66, 0.64, 0.60), "roof": Color(0.50, 0.38, 0.24), "trim": Color(0.34, 0.30, 0.26)}
+	match cat:
+		0: return {"wall": Color(0.80, 0.76, 0.66), "roof": Color(0.72, 0.36, 0.26), "trim": Color(0.45, 0.32, 0.20)}  # CIVIC — stone + tile
+		1: return {"wall": Color(0.58, 0.43, 0.28), "roof": Color(0.46, 0.37, 0.22), "trim": Color(0.34, 0.24, 0.14)}  # HARVEST — timber + thatch
+		2: return {"wall": Color(0.80, 0.68, 0.48), "roof": Color(0.84, 0.69, 0.34), "trim": Color(0.46, 0.34, 0.20)}  # FOOD — wattle + golden thatch
+		3: return {"wall": Color(0.50, 0.38, 0.30), "roof": Color(0.42, 0.44, 0.50), "trim": Color(0.30, 0.22, 0.16)}  # MILITARY — dark timber + slate
+		4: return {"wall": Color(0.66, 0.64, 0.60), "roof": Color(0.52, 0.52, 0.55), "trim": Color(0.40, 0.39, 0.37)}  # DEFENSE — stone
+	return {"wall": Color(0.72, 0.70, 0.64), "roof": Color(0.55, 0.45, 0.35), "trim": Color(0.40, 0.30, 0.20)}
+
+# A door on the front-right face and a couple of lit windows on the front-left face.
+func _draw_wall_details(top: Vector2, right: Vector2, left: Vector2, wall_height: float, trim: Color) -> void:
+	var edir: Vector2 = right - top
+	if edir.length() > 0.001:
+		edir = edir.normalized()
+		var door_base: Vector2 = top.lerp(right, 0.5)
+		var dh: float = minf(wall_height * 0.70, 14.0)
+		var dw: float = 3.2
+		var dark := Color(0.16, 0.10, 0.06)
+		draw_colored_polygon(PackedVector2Array([
+			door_base - edir * dw, door_base + edir * dw,
+			door_base + edir * dw + Vector2(0, -dh), door_base - edir * dw + Vector2(0, -dh),
+		]), dark)
+		draw_circle(door_base + Vector2(0, -dh), dw, dark)  # arched lintel
+	if wall_height > 12.0:
+		var lit := Color(0.98, 0.85, 0.45)
+		for fwin in [0.32, 0.68]:
+			var wc: Vector2 = left.lerp(top, fwin) + Vector2(0, -wall_height * 0.55)
+			draw_rect(Rect2(wc.x - 1.9, wc.y - 2.2, 3.8, 4.4), lit)
+			draw_line(Vector2(wc.x, wc.y - 2.2), Vector2(wc.x, wc.y + 2.2), trim, 0.6)
 
 # Distinctive per-building-type features drawn on top of the base massing, so
 # each building type reads at a glance (church cross, keep flag, farm furrows…).
