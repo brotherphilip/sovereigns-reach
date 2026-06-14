@@ -3,6 +3,10 @@
 <!-- Format: ## [ID] Title | Severity: Blocker/High/Medium/Low | Status: Open/In Progress/Resolved/Byproduct -->
 <!-- Severities: Blocker=crashes/data loss, High=broken feature, Medium=wrong behavior, Low=polish/text -->
 
+## [102] FoodSystem.get_food_variety_count iterates food.values() including ale | Severity: Low | Status: Resolved
+FoodSystem.get_food_variety_count() iterated `player.get("food", {}).values()` counting any food dict entry > 0 as a distinct food type. Ale is stored in player["food"]["ale"] and would be counted as a 5th food type whenever ale stock > 0. Same root cause as #097–#101 (ale in food dict). The function is dead code in production (only called from TestPhase4.gd), so no gameplay impact, but the result would be wrong if ale is stocked — test_food_variety_count passes only because that test uses ale=0.
+Resolution: Changed to iterate FOOD_CONSUMPTION_ORDER (["apples","bread","cheese","meat"]) explicitly, same pattern as the other #097–#101 fixes. Scene test: ALL_SCENES_OK.
+
 ## [101] PrestigeSystem food variety bonus counts ale as a food type — +2 prestige/day from ale stockpile | Severity: Low | Status: Resolved
 PrestigeSystem.calculate_daily_prestige() computes food variety by iterating all food.values() with `for v in food.values(): if v > 0: variety += 1`. This counts ale (stored in player["food"]["ale"]) as a distinct food type, awarding +FOOD_VARIETY_BONUS (2.0) prestige per day whenever ale is stocked. Ale is not a food — it's a popularity modifier via inn coverage. The variety bonus should apply only to apples/bread/cheese/meat per GDD §4.1.1.
 Resolution: Changed to explicit iteration over ["apples", "bread", "cheese", "meat"] using food.get(ftype, 0). Ale no longer contributes a +2 prestige/day variety bonus. Scene test: ALL_SCENES_OK.

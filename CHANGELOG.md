@@ -2,6 +2,12 @@
 
 ---
 
+## [Iteration 147] 2026-06-14 — Fix #102: FoodSystem.get_food_variety_count iterates food.values() including ale
+
+- What changed: FoodSystem.get_food_variety_count() now iterates FOOD_CONSUMPTION_ORDER keys explicitly instead of food.values(). Previously it counted ale as a distinct food type whenever ale stock > 0. The function is dead code in production (only called from TestPhase4.gd), but the result would be wrong with ale stocked — the existing test passes only because it uses ale=0.
+- Scene test: ALL_SCENES_OK
+- Issues resolved: #102
+
 ## [Iteration 146] 2026-06-14 — Fix #101: PrestigeSystem food variety bonus counts ale as food type
 
 - What changed: PrestigeSystem.calculate_daily_prestige() now iterates only ["apples","bread","cheese","meat"] for the food variety prestige bonus, excluding ale. Previously iterating food.values() counted ale as a 5th food variety, granting +2 prestige/day whenever the player had ale stock from a brewery.
