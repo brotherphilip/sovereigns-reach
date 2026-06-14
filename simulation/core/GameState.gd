@@ -810,6 +810,15 @@ func _cmd_donate_to_capital(cmd: Dictionary) -> bool:
 	if amount <= 0 or resource == "":
 		return false
 	var player: Dictionary = players[pid]
+	# Find the player's shire BEFORE deducting — prevents resource drain when shire_id == -1
+	var shire_id: int = player.get("shire_id", -1)
+	var target_shire: Dictionary = {}
+	for shire in world.get("shires", []):
+		if shire.get("id", -1) == shire_id:
+			target_shire = shire
+			break
+	if target_shire.is_empty():
+		return false
 	var old_gold: int = player.get("gold", 0)
 	# Deduct resource from player (gold is a special field, not in resources)
 	if resource == "gold":
@@ -821,18 +830,13 @@ func _cmd_donate_to_capital(cmd: Dictionary) -> bool:
 		if has < amount:
 			return false
 		player["resources"][resource] = has - amount
-	# Find the player's shire and record donation
-	var shire_id: int = player.get("shire_id", -1)
-	for shire in world.get("shires", []):
-		if shire.get("id", -1) == shire_id:
-			CapitalSystem.record_donation(player, shire, resource, amount)
-			# Auto-upgrade capital when cumulative donations meet the threshold
-			if CapitalSystem.can_upgrade(shire, world)["ok"]:
-				CapitalSystem.upgrade(shire, world)
-			if resource == "gold":
-				EventBus.gold_changed.emit(pid, old_gold, player.get("gold", 0))
-			return true
-	return false
+	CapitalSystem.record_donation(player, target_shire, resource, amount)
+	# Auto-upgrade capital when cumulative donations meet the threshold
+	if CapitalSystem.can_upgrade(target_shire, world)["ok"]:
+		CapitalSystem.upgrade(target_shire, world)
+	if resource == "gold":
+		EventBus.gold_changed.emit(pid, old_gold, player.get("gold", 0))
+	return true
 
 func _cmd_activate_edict(cmd: Dictionary) -> bool:
 	var pid: int = cmd["player_id"]
