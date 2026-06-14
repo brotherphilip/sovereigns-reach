@@ -2,6 +2,12 @@
 
 ---
 
+## [Iteration 135] 2026-06-14 — Fix #090: gold_changed not emitted after market or donation transactions
+
+- What changed: _cmd_buy_resource, _cmd_sell_resource, and _cmd_donate_to_capital now capture old_gold before the operation and emit EventBus.gold_changed(pid, old_gold, new_gold) on success. HUD gold display now updates immediately after market transactions instead of waiting for the next tax tick.
+- Scene test: ALL_SCENES_OK
+- Issues resolved: #090
+
 ## [Iteration 134] 2026-06-14 — Fix #089: food consumption order inverted — best food eaten first
 
 - What changed: ResourceTick.tick_food_consumption() and GameState weather extra-drain both changed from ["bread","meat","cheese","apples"] to ["apples","bread","cheese","meat"], matching FoodSystem.FOOD_CONSUMPTION_ORDER and GDD §3.1.2 (cheapest first). Bread/meat now preserved longer; raw apples consumed first.
