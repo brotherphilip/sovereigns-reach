@@ -2,6 +2,18 @@
 
 ---
 
+## [Iteration 159] 2026-06-14 — Full playthrough QA + early-game food rebalance (ease & fun)
+
+- Mode: playthrough (`/loop` directive — play a full game like a person, verify every system, amend for ease & fun).
+- Method: drove the REAL command pipeline (build/staff/policy/recruit/fight/save) through ~14 game-days on an isolated Xvfb display with screenshots, never touching the host screen.
+- Verified working in actual play: building placement + worker staffing, the food chain, ale/inn, public health (100), population, training queue, AI sieges & combat (a bandit killed the player's lone undefended soldier — correct PvE), diplomacy (Ashen Barony tribute-demand panel with Accept/Refuse), tech research, prestige, edicts/tax/rations, save→JSON→load round-trip.
+- CRITICAL balance fix found by playing: the early food economy was unsurvivable — 50 pop ate 50 food/day while a normal opening produced ~10/day, starving the town by day 3 and bleeding popularity, while the remedy (crop_tiers) sat behind 100 prestige (~day 19). A new player could not win the opening.
+  - Halved per-peasant consumption (1.0 → 0.5/day) in the live path (ResourceTick).
+  - Buffed the no-tech staple apple_orchard (interval 300→150, yield 2→3) and the bread chain (wheat_farm 480→360, yield 2→3).
+  - Result on replay: food now climbs (100→167), crop_tiers becomes researchable, the bread+ale chains come online, health reaches 100 — the opening is survivable and progression flows.
+- Tests: updated one TestPhase10 assertion to the new pig_farm interval; full suite green.
+- Observation logged for a future pass: with plentiful food, popularity still drifts down slowly under tax +1 when ale-ration and faith are neglected — acceptable player-managed pressure, not a blocker.
+
 ## [Iteration 158] 2026-06-14 — Public Health & Disease system fleshed out
 
 - Mode: feature development (`/loop` system-flesh-out).

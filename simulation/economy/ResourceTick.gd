@@ -17,11 +17,11 @@ const PRODUCTION_INTERVALS: Dictionary = {
 	"stone_quarry":      120,  # 6s per stone (slow — needs ox tethers)
 	"iron_mine":         180,  # 9s per iron
 	"pitch_rig":         60,   # 3s per pitch
-	"apple_orchard":     300,  # 15s per apple unit (seasonal)
-	"pig_farm":          600,  # 30s per meat unit
-	"dairy_farm":        480,  # 24s per cheese unit
+	"apple_orchard":     150,  # the no-tech staple — must feed the early village
+	"pig_farm":          360,  # meat (animal husbandry)
+	"dairy_farm":        300,  # cheese (animal husbandry)
 	"hops_farm":         360,  # 18s per hops
-	"wheat_farm":        480,  # 24s per wheat
+	"wheat_farm":        360,  # 18s per wheat (bread chain reward)
 	"mill":              120,  # 6s per flour (converts wheat)
 	"bakery":            180,  # 9s per bread (converts flour)
 	"brewery":           240,  # 12s per ale (converts hops)
@@ -53,11 +53,11 @@ const PRODUCTION_OUTPUTS: Dictionary = {
 	"stone_quarry":      {"stone": 1},
 	"iron_mine":         {"iron": 1},
 	"pitch_rig":         {"pitch": 1},
-	"apple_orchard":     {"apples": 2},
+	"apple_orchard":     {"apples": 3},
 	"pig_farm":          {"meat": 1, "leather": 1},   # pigs yield meat + hides (leather source)
 	"dairy_farm":        {"cheese": 1},
 	"hops_farm":         {"hops": 2},
-	"wheat_farm":        {"wheat": 2},
+	"wheat_farm":        {"wheat": 3},
 	"mill":              {"flour": 1},
 	"bakery":            {"bread": 1},
 	"brewery":           {"ale": 2},
@@ -71,7 +71,7 @@ const PRODUCTION_OUTPUTS: Dictionary = {
 }
 
 # Per-tick food consumption per peasant (GDD §3.1.3 granary distribution)
-const FOOD_CONSUMPTION_PER_PEASANT_PER_DAY: float = 1.0
+const FOOD_CONSUMPTION_PER_PEASANT_PER_DAY: float = 0.5
 
 # Ration multipliers for food consumption
 const RATION_CONSUMPTION_MULTIPLIERS: Dictionary = {

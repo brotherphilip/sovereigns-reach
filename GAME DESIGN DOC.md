@@ -150,6 +150,8 @@ Calculation: P=ΔF+ΔA+ΔR−T±E
 3.1.2 Food Variety: (1) Multiple food types stack. (2) Apples provide base sustenance. (3) Cheese adds small bonuses. (4) Meat adds medium bonuses. (5) Bread provides maximum bonuses.
 3.1.3 Distribution Speed: (1) Granaries hand out food. (2) Proximity to Keep matters. (3) Multiple granaries increase speed. (4) Empty granaries trigger warnings. (5) Spoilage reduces totals.
 3.1.4 Agricultural Space: (1) Farms require green terrain. (2) Space is highly limited. (3) Forces spatial puzzles. (4) Dictates food caps. (5) Encourages trade routes.
+
+3.1.BAL Balance (ResourceTick, tuned via playthrough iter 159): peasants eat 0.5 food/day each (× ration multiplier). The no-tech Apple Orchard is the survival staple — interval 150 ticks, 3 apples/cycle/worker — so ~3 staffed orchards sustain a 50-soul village while the player banks prestige for crop_tiers (the bread chain: wheat_farm 360t×3, mill, bakery). Starting stock is 100 apples (≈ a few days' buffer to build the first orchards).
 3.1.5 Peasant Diet Logic: (1) Peasants eat all available types. (2) Cannot restrict to one food. (3) Variety unlocks Prestige. (4) Famines plummet popularity. (5) Requires Edicts to fix quickly.  
 3.2 Ale Distribution (ΔA)
 
@@ -388,6 +390,8 @@ Calculation: P=ΔF+ΔA+ΔR−T±E
 3.1.2 Food Variety: (1) Multiple food types stack. (2) Apples provide base sustenance. (3) Cheese adds small bonuses. (4) Meat adds medium bonuses. (5) Bread provides maximum bonuses.
 3.1.3 Distribution Speed: (1) Granaries hand out food. (2) Proximity to Keep matters. (3) Multiple granaries increase speed. (4) Empty granaries trigger warnings. (5) Spoilage reduces totals.
 3.1.4 Agricultural Space: (1) Farms require green terrain. (2) Space is highly limited. (3) Forces spatial puzzles. (4) Dictates food caps. (5) Encourages trade routes.
+
+3.1.BAL Balance (ResourceTick, tuned via playthrough iter 159): peasants eat 0.5 food/day each (× ration multiplier). The no-tech Apple Orchard is the survival staple — interval 150 ticks, 3 apples/cycle/worker — so ~3 staffed orchards sustain a 50-soul village while the player banks prestige for crop_tiers (the bread chain: wheat_farm 360t×3, mill, bakery). Starting stock is 100 apples (≈ a few days' buffer to build the first orchards).
 3.1.5 Peasant Diet Logic: (1) Peasants eat all available types. (2) Cannot restrict to one food. (3) Variety unlocks Prestige. (4) Famines plummet popularity. (5) Requires Edicts to fix quickly.  
 3.2 Ale Distribution (ΔA)
 

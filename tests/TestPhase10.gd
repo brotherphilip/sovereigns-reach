@@ -210,7 +210,7 @@ func _test_armor_production() -> void:
 	ok("crossbow_workshop produces crossbows", int(ch_x.get("crossbows", 0)) == 1)
 
 	var pig: Dictionary = {"type": "pig_farm", "workers": 1, "is_active": true, "terrain_yield": 1.0}
-	var ch_p: Dictionary = ResourceTick.tick_building(pig, p, 600)
+	var ch_p: Dictionary = ResourceTick.tick_building(pig, p, 720)  # multiple of pig_farm interval (360)
 	ok("pig_farm yields leather (domestic source)", int(ch_p.get("leather", 0)) >= 1)
 
 	# End-to-end: produced armory items are deposited into the armory.

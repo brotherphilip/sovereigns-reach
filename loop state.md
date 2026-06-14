@@ -1,5 +1,7 @@
 # Loop State — Sovereign's Reach
 
+notes: PLAYTHROUGH QA (iter 159) 2026-06-14 — played ~14 game-days via the real command pipeline on isolated Xvfb (screenshots). Verified live: build+staff, food/ale chains, public health (100), training queue, AI sieges/combat (bandit killed undefended player soldier — correct), diplomacy tribute panel (Accept/Refuse), tech research, prestige, save/load. CRITICAL fix: early food was unsurvivable (50 pop ate 50/day, produced ~10/day → starve by day 3; remedy gated at 100 prestige ≈ day 19). Halved consumption (1.0→0.5, ResourceTick live path) + buffed apple_orchard (300→150, 2→3) and wheat (480→360, 2→3). Replay: food climbs 100→167, crop_tiers researchable, chains online, health 100. Updated 1 TestPhase10 assertion (pig interval). Full suite green. Open observation: popularity drifts slowly under tax+1 when ale-ration/faith neglected (player-managed, not a blocker).
+
 notes: FEATURE FLESH-OUT (iter 158) 2026-06-14 — Disease → Public Health & Disease. Was binary; now a 0–100 health score (sanitation = apothecary + ½ well, minus winter/malnutrition) + graded disease severity (spreads w/o sanitation, cured by apothecaries, deaths scale with severity). New `well` building (passive sanitation, auto in build menu). Wired GameState (weather→disease tick, health/disease_severity fields), HUDController + HUDNode (Health / "Plague! n%" readout). GDD §3.5.3.IMPL (both copies). New TestPhase12.gd (23 tests). Legacy Phase4 disease tests kept passing (back-compat tick signature). Visually verified via isolated Xvfb. NEXT RUN per user: full human-paced playthrough verifying all systems + amend for ease/fun.
 
 notes: FEATURE FLESH-OUT (iter 157) 2026-06-14 — Religion/Faith system fully built out (was thinnest: coverage→popularity only, Monk did nothing). Added Faith economy (churches/cathedrals/monks accrue capped Faith scaled by staffing+coverage) + auto-Blessing (+6 popularity, 3-day −50% fire protection) in ReligionSystem.gd; wired GameState (faith/faith_cap/blessing_until + day-boundary tick + ignition protection), PopularityEngine (blessing event), EventBus (blessing_bestowed), HUDController (faith/faith_cap/blessing_active). Removed dead dup WorkerSystem.calculate_religion_coverage. GDD §3.3 updated (3.3.IMPL, both copies). New TestPhase11.gd (20 tests). Bug found+fixed by ACTUALLY RUNNING the game: view/micro/Minimap.gd used Godot-3 draw_circle(x,y,r,color) → failed to compile → broke entire city view at runtime (headless boot/unit tests never loaded it). Visually verified via isolated Xvfb (no host interference). Full suite green (703 assertions).
@@ -10,8 +12,8 @@ last_issue_fixed: minimap-draw_circle (Godot3 API in view/micro/Minimap.gd)
 active_phase: complete
 phase_plan_exists: true
 last_iteration: 2026-06-14
-iteration_count: 158
-next_directive: PLAYTHROUGH — run a full game human-paced, verify all systems work, amend for ease & fun
+iteration_count: 159
+next_directive: continue — alternate playthrough QA and system flesh-out; keep amending for ease & fun
 last_issue_fixed: 106
 omni_fail_streak: 0
 omniscience_perf: fail iter2-3, partial iter4-6 — recurring truncation bug (model cuts off new_text mid-line). Logic is often correct but always needs supervisor wiring/cleanup. Decode bug patched iter5. Iter7: Supervisor wrote directly (large file, many callsites — safer than delegation).
