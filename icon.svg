@@ -1,0 +1,13 @@
+<svg width="128" height="128" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
+  <rect width="128" height="128" rx="16" fill="#2b2118"/>
+  <rect x="8" y="8" width="112" height="112" rx="12" fill="none" stroke="#caa44a" stroke-width="2"/>
+  <!-- Crown -->
+  <g fill="#e8c14a" stroke="#8a6d1f" stroke-width="2" stroke-linejoin="round">
+    <path d="M28 84 L24 44 L44 64 L64 32 L84 64 L104 44 L100 84 Z"/>
+    <rect x="28" y="84" width="72" height="14" rx="3"/>
+  </g>
+  <!-- Crown jewels -->
+  <circle cx="44" cy="70" r="4" fill="#c0392b"/>
+  <circle cx="64" cy="64" r="5" fill="#2980b9"/>
+  <circle cx="84" cy="70" r="4" fill="#27ae60"/>
+</svg>

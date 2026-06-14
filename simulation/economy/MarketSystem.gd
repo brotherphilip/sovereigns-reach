@@ -1,6 +1,7 @@
 extends RefCounted
 const EdictSystem = preload("res://simulation/edicts/EdictSystem.gd")
 const TechTree    = preload("res://simulation/tech/TechTree.gd")
+const DiplomacySystem = preload("res://simulation/ai/DiplomacySystem.gd")
 # GDD §5.1.3 — Market
 # Handles BUY_RESOURCE and SELL_RESOURCE commands.
 # Prices are stored in world["market_prices"] and fluctuate over time.
@@ -75,10 +76,10 @@ static func get_sell_price(resource: String, world: Dictionary) -> int:
 # compilable when preloaded in isolation (e.g. headless unit tests where the
 # autoload singleton is not yet registered). See audit item S12.
 static func is_embargoed(player: Dictionary) -> bool:
+	var pid: int = player.get("id", 0)
 	for f in _get_ai_factions():
-		if f is Dictionary and f.get("is_alive", false):
-			if player.get("id", 0) in f.get("embargoed_players", []):
-				return true
+		if f is Dictionary and f.get("is_alive", false) and DiplomacySystem.is_embargoed(f, pid):
+			return true
 	return false
 
 # Resolves GameState.ai_factions at runtime; returns [] if the autoload is absent.

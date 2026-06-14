@@ -5,8 +5,9 @@ extends RefCounted
 # Defends aggressively but rarely initiates sieges.
 # Punishes player economic weakness by bribing bandits and imposing embargoes.
 
-const AIFaction    = preload("res://simulation/ai/AIFaction.gd")
-const UnitRegistry = preload("res://simulation/units/UnitRegistry.gd")
+const AIFaction      = preload("res://simulation/ai/AIFaction.gd")
+const UnitRegistry   = preload("res://simulation/units/UnitRegistry.gd")
+const DiplomacySystem = preload("res://simulation/ai/DiplomacySystem.gd")
 
 # GDD §8.2.4: small elite army — crossbowmen, heavy infantry
 const ARMY_WEIGHTS: Dictionary = {
@@ -94,5 +95,6 @@ static func _get_player_y(players: Array, pid: int) -> int:
 	return 0
 
 # Returns true if the given player is currently embargoed.
+# Delegates to the canonical DiplomacySystem check (single source of truth).
 static func is_embargoed(faction: Dictionary, player_id: int) -> bool:
-	return player_id in faction.get("embargoed_players", [])
+	return DiplomacySystem.is_embargoed(faction, player_id)

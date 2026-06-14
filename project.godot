@@ -12,7 +12,8 @@ config_version=5
 
 config/name="Sovereign's Reach"
 run/main_scene="res://view/menu/MainMenuScene.tscn"
-config/features=PackedStringArray("4.6", "Forward Plus")
+config/features=PackedStringArray("4.6", "GL Compatibility")
+config/icon="res://icon.svg"
 
 [autoload]
 
