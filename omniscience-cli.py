@@ -21,11 +21,41 @@ DEFAULT_MODEL  = "qwen3-coder:30b"
 TEMPERATURE    = 0.2
 MAX_ITERS      = 10
 MAX_NUDGES     = 3
+MAX_AUDIT_REPROMPTS = 2  # times we reject a drifting audit answer and force the findings format
+AUDIT_TOOL_BUDGET   = 5  # audit turns allowed to call tools before we force a text-only answer
 RAG_INDEX      = PROJECT_ROOT / "addons/omniscience/rag/index.json"
 EMBED_URL      = "http://127.0.0.1:11434/api/embed"
 EMBED_MODEL    = "nomic-embed-text"
 
-WRITE_TOOLS = {"write_file", "replace_in_file", "replace_lines", "run_shell"}
+# Tools that constitute an actual code edit. run_shell is NOT here: a read-only
+# grep must not flip write_used=True (that masked audit drift as "success").
+WRITE_TOOLS = {"write_file", "replace_in_file", "replace_lines"}
+
+# Phrases that mark a "chat-assistant drift" answer: summaries, pitches, and
+# trailing offers to help. If any appears, the answer is rejected as drift.
+DRIFT_MARKERS = (
+    "would you like me to", "would you like help", "let me know how",
+    "let me know if", "suggestions for improvement", "potential use cases",
+    "potential features", "pitch deck", "i'd be happy to", "i would be happy to",
+    "here's a summary", "here is a summary", "in summary,", "## summary",
+    "translate this into", "generate a diagram",
+)
+
+
+def _audit_output_ok(text: str) -> bool:
+    """True only if an audit's final answer is a real findings report.
+
+    Valid forms: the exact sentinel 'AUDIT RESULT: no issues found', or at least
+    one concrete file:line finding (e.g. 'GameState.gd:620 — ...'). Any drift
+    marker forces rejection even if a stray file:line slipped in.
+    """
+    import re
+    t = (text or "").lower()
+    if any(m in t for m in DRIFT_MARKERS):
+        return False
+    if "audit result: no issues found" in t:
+        return True
+    return re.search(r"[\w/]+\.gd:\d+", text or "") is not None
 
 # ── Tool schemas (CLI-compatible subset of editor_tools.gd SCHEMAS) ────────────
 SCHEMAS = [
@@ -103,6 +133,11 @@ SCHEMAS = [
         }, "required": ["command"]},
     }},
 ]
+
+# Read-only schema set for audits: write tools are removed entirely so an audit
+# can NEVER modify code (the model otherwise "helpfully" edits files it was only
+# asked to inspect — and small models often corrupt them while doing so).
+AUDIT_SCHEMAS = [s for s in SCHEMAS if s.get("function", {}).get("name") not in WRITE_TOOLS]
 
 # ── Path helpers ───────────────────────────────────────────────────────────────
 def res_to_fs(path: str) -> Path:
@@ -594,6 +629,7 @@ def run_agent(task: str, model: str, confirm_writes: bool, dry_run: bool) -> dic
     ]
     iteration = 0
     nudges = 0
+    audit_reprompts = 0
     tools_used = False
     write_used = False
     actions: list[str] = []
@@ -606,7 +642,18 @@ def run_agent(task: str, model: str, confirm_writes: bool, dry_run: bool) -> dic
 
     while iteration < MAX_ITERS:
         print(f"\n[Omniscience turn {iteration + 1}/{MAX_ITERS}]")
-        message = chat_completion(messages, SCHEMAS, model)
+        # In audit mode, once the read budget is spent (or a re-prompt has fired),
+        # withhold tools so the model is structurally forced to emit a text answer
+        # — small models otherwise loop on read_file forever and never report.
+        force_text = is_audit and (iteration >= AUDIT_TOOL_BUDGET or audit_reprompts > 0)
+        if force_text:
+            print("  🔒 audit: tools withheld — model must report findings now.")
+            turn_tools = []
+        elif is_audit:
+            turn_tools = AUDIT_SCHEMAS  # read-only: writes structurally impossible
+        else:
+            turn_tools = SCHEMAS
+        message = chat_completion(messages, turn_tools, model)
         messages.append(message)
 
         tool_call_list = message.get("tool_calls", [])
@@ -627,6 +674,23 @@ def run_agent(task: str, model: str, confirm_writes: bool, dry_run: bool) -> dic
                     "Emit replace_lines or replace_in_file RIGHT NOW."
                 })
                 continue
+            # Audit tasks: reject chat-assistant drift and force the findings format.
+            final = message.get("content", "") or ""
+            if is_audit and not _audit_output_ok(final) and audit_reprompts < MAX_AUDIT_REPROMPTS:
+                audit_reprompts += 1
+                print(f"  ⚡ Audit re-prompt {audit_reprompts}/{MAX_AUDIT_REPROMPTS}: "
+                      "drift detected — forcing findings format.")
+                messages.append({"role": "user", "content":
+                    "STOP. That was a DRIFT response — you summarized code, offered help, or "
+                    "described the design instead of auditing. That is a failure.\n"
+                    "Do NOT summarize. Do NOT offer further help. Do NOT describe what files do.\n"
+                    "Output ONLY genuine bugs you can point to, one per line, each EXACTLY as:\n"
+                    "  path/to/File.gd:LINE — what is actually wrong\n"
+                    "Use line numbers from files you have already read. If you genuinely found "
+                    "no bugs, output this single line and nothing else:\n"
+                    "  AUDIT RESULT: no issues found"
+                })
+                continue
             break  # Answered in plain text — done.
 
         tool_results = []
@@ -641,7 +705,12 @@ def run_agent(task: str, model: str, confirm_writes: bool, dry_run: bool) -> dic
             is_write = name in WRITE_TOOLS
             tools_used = True
 
-            if is_write and dry_run:
+            if is_write and is_audit:
+                # Audits are read-only by contract. Refuse any write attempt outright.
+                result = _err("AUDIT MODE: write tools are disabled. Report findings as "
+                              "text only (path:LINE — desc) or 'AUDIT RESULT: no issues found'.")
+                print(f"  🚫 {name} — blocked (audit is read-only)")
+            elif is_write and dry_run:
                 result = _err("Dry-run mode: write operations are disabled.")
                 print(f"  🚫 {name}({call_summary(args)}) — blocked (dry-run)")
             elif is_write and confirm_writes:

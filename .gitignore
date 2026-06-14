@@ -9,3 +9,4 @@
 
 # Omniscience RAG index (regenerated locally)
 addons/omniscience/rag/index.json
+__pycache__/
