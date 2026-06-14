@@ -2,6 +2,12 @@
 
 ---
 
+## [Iteration 144] 2026-06-14 — Fix #099: fire-destroyed buildings keep is_on_fire=true causing perpetual redraw
+
+- What changed: GameState fire damage tick now sets building["is_on_fire"] = false immediately when tick_fire() returns true. Previously the ruin stayed with is_on_fire=true indefinitely — BuildingLayer saw _has_fire=true forever and called queue_redraw() every frame, and BuildingRenderer rendered the ruin with a permanent fire overlay.
+- Scene test: ALL_SCENES_OK
+- Issues resolved: #099
+
 ## [Iteration 143] 2026-06-14 — Fix #098: Taxation Bumps edict doubles bribe cost when tax_rate < 0
 
 - What changed: TaxSystem.calculate_daily_gold() applied edict_tax_mult before the `if tax_rate > 0` branch, causing "Taxation Bumps" (tax_multiplier=2.0) to double the gold spent on bribes when tax_rate was negative. Moved edict multiplier application inside the positive-tax branch only. Bribe path is unchanged.
