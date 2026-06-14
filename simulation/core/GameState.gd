@@ -793,7 +793,13 @@ func _cmd_activate_edict(cmd: Dictionary) -> bool:
 			var events: Array = [mods["instant_event"]]
 			PopularityEngine.apply_tick(players[pid], events)
 		if mods.has("summon_peasants"):
-			players[pid]["population"] = players[pid].get("population", 0) + mods["summon_peasants"]
+			var _sp_count: int = mods["summon_peasants"]
+			var _sp_kx: int = players[pid].get("keep_x", 0)
+			var _sp_ky: int = players[pid].get("keep_y", 0)
+			for _sp_i in range(_sp_count):
+				var _sp_uid: int = _next_unit_id
+				_next_unit_id += 1
+				players[pid]["units"].append(UnitState.create("armed_peasant", pid, _sp_kx, _sp_ky, _sp_uid))
 			players[pid]["popularity"] = maxf(0.0, players[pid].get("popularity", 50.0) + mods.get("popularity_delta", 0))
 		elif mods.has("popularity_delta"):
 			players[pid]["popularity"] = maxf(0.0, players[pid].get("popularity", 50.0) + mods["popularity_delta"])

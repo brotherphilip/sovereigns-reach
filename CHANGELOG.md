@@ -2,6 +2,19 @@
 
 ---
 
+## [Iteration 121] 2026-06-14 — Fix #076: levy_summons edict created workers instead of armed_peasant units
+
+- Delegated to: Supervisor
+- What changed: GameState.gd — `summon_peasants` activation handler now creates `UnitState.create("armed_peasant", ...)` entries (one per count) and appends to `players[pid]["units"]`, using `_next_unit_id` for each. Population is no longer incremented.
+- Before: `players[pid]["population"] += 50` — population tracks workers, not combatants. Players spending 6 edict points + −50 popularity received 50 extra farm workers with zero military impact.
+- After: 50 `armed_peasant` unit dictionaries are created at the player's keep position and appended to their units list. Popularity −50 still applied. The edict now functions as a desperation surge of combat units.
+- Scene test: ALL_SCENES_OK
+- Issues resolved: #076
+- Issues discovered: none
+- Supervisor correction: none
+
+---
+
 ## [Iteration 120] 2026-06-14 — Fix #075: storage_expansions edict granary bonus never applied
 
 - Delegated to: Supervisor

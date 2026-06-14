@@ -3,6 +3,10 @@
 <!-- Format: ## [ID] Title | Severity: Blocker/High/Medium/Low | Status: Open/In Progress/Resolved/Byproduct -->
 <!-- Severities: Blocker=crashes/data loss, High=broken feature, Medium=wrong behavior, Low=polish/text -->
 
+## [076] levy_summons edict adds population instead of creating armed_peasant units | Severity: High | Status: Resolved
+`levy_summons` edict (6 pts, "Instantly summons 50 Armed Peasants", -50 popularity, 48-day cooldown) fires the `summon_peasants: 50` modifier. GameState activation handler incremented `player["population"]` by 50 instead of creating actual unit dictionaries. Population tracks workers, not military units — adding 50 workers gives no combat power. `armed_peasant` is a valid unit type in UnitRegistry. The edict's steep cost (6 pts + −50 popularity + 48-day cooldown) makes sense only for 50 combat-ready units, not 50 extra farmers.
+Resolution: `summon_peasants` handler now creates 50 `UnitState.create("armed_peasant", ...)` dictionaries using `_next_unit_id` (incremented per unit) and appends them to `players[pid]["units"]`. Popularity delta still applied. Scene test: ALL_SCENES_OK.
+
 ## [075] storage_expansions edict granary_capacity_bonus never read from EdictSystem — edict is completely inert | Severity: Medium | Status: Resolved
 `storage_expansions` edict (3 pts, passive, "Granaries hold 20% more food") defines `{"storage_capacity_bonus": 0.2, "granary_capacity_bonus": 0.2}`. `FoodSystem.get_granary_capacity()` reads `granary_capacity_bonus` only from `TechTree.get_all_modifiers(player)` — never from `EdictSystem.get_active_modifiers()`. Players spending 3 edict points saw zero change in granary cap. `storage_capacity_bonus` has no consumer anywhere.
 Resolution: Added `EdictSystem` preload to `FoodSystem.gd`; `get_granary_capacity()` now accumulates `granary_capacity_bonus` additively from both TechTree and EdictSystem. `storage_capacity_bonus` is not consumed anywhere (dead design artifact) but is harmless. Scene test: ALL_SCENES_OK.
