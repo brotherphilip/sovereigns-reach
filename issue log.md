@@ -3,6 +3,10 @@
 <!-- Format: ## [ID] Title | Severity: Blocker/High/Medium/Low | Status: Open/In Progress/Resolved/Byproduct -->
 <!-- Severities: Blocker=crashes/data loss, High=broken feature, Medium=wrong behavior, Low=polish/text -->
 
+## [088] MilestoneSystem first_farm check excludes hops_farm — milestone never triggers when hops_farm is built first | Severity: Low | Status: Resolved
+MilestoneSystem.check() grants the "first_farm" milestone when a player has a building of type "wheat_farm", "pig_farm", or "dairy_farm". BuildingRegistry also defines "hops_farm" (Category.FOOD, "Hops Farm") which is unlocked by the `crop_tiers` tech. A player who researches crop_tiers and builds a hops_farm as their first food building never earns the first_farm milestone. GameState.FARM_TYPES already includes "hops_farm" alongside the other farm types.
+Resolution: Added "hops_farm" to the in-array check in MilestoneSystem.check() line 34. Scene test: ALL_SCENES_OK.
+
 ## [087] CapitalSystem border_radius_bonus (level 5) never applied — shire build radius unchanged after Level 5 upgrade | Severity: Low | Status: Resolved
 CapitalSystem LEVEL_BUFFS[5] grants `border_radius_bonus: 0.2` (20% wider shire build zone). PlacementValidator read `shire["influence_radius"]` (always 30 tiles) but never read CapitalSystem buffs. A level 5 capital upgrade (massively expensive) should expand the build radius to 36 tiles.
 Resolution: PlacementValidator preloads CapitalSystem and applies `border_radius_bonus` to the base `influence_radius` via `int(ceil(radius * (1.0 + bonus)))` before the distance check. 30 → 36 tiles at level 5. Scene test: ALL_SCENES_OK.
