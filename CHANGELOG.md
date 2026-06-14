@@ -2,6 +2,12 @@
 
 ---
 
+## [Iteration 136] 2026-06-14 — Fix #091: HP bar uses definition base HP instead of building max_hp
+
+- What changed: BuildingRenderer.get_hp_bar() now reads building.get("max_hp", defn.get("hp", 100)) instead of defn.get("hp", 100). Tech-boosted walls (fix #084) have max_hp=325; HP bar now shows the correct ratio against the actual max rather than the base definition HP.
+- Scene test: ALL_SCENES_OK
+- Issues resolved: #091
+
 ## [Iteration 135] 2026-06-14 — Fix #090: gold_changed not emitted after market or donation transactions
 
 - What changed: _cmd_buy_resource, _cmd_sell_resource, and _cmd_donate_to_capital now capture old_gold before the operation and emit EventBus.gold_changed(pid, old_gold, new_gold) on success. HUD gold display now updates immediately after market transactions instead of waiting for the next tax tick.
