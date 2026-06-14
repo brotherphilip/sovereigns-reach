@@ -2,6 +2,33 @@
 
 ---
 
+## [Iteration 172] 2026-06-14 — Bespoke per-type models for every finished building
+
+User request: redo all finished builds of each building type into a detailed, fitting,
+art-styled version — each must actually look like the thing it is.
+
+- New view/micro/BuildingModels.gd: a low-poly iso model library with one bespoke
+  drawing per building type, composed from shaded primitives (box / hip & gable roofs
+  / cylinder / cone / posts / props). Each of the 40 types reads as itself, e.g.:
+  village_hall (timber hall + banner), keep & great_tower (stone keep, courses,
+  crenellations, turret + flag), church/cathedral (steep slate roof + bell tower +
+  cross, rose window), windmill (tapered tower + turning sails), mill/bakery (tiled
+  roof + smoking chimney + oven glow), well (roofed stone ring + bucket), market
+  (striped stalls + crates), granary (domed silo + sacks), barracks (longhouse +
+  war banners + weapon rack), blacksmith/armorer (forge chimney + glowing anvil),
+  stone_quarry (open pit + cut blocks + crane), iron_mine (mound + timbered adit +
+  minecart), pitch_rig (derrick over a tar pool), farms (orchard rows, wheat field +
+  scarecrow, hop trellises, animal pens with fences + critters), gatehouse (archway +
+  portcullis), palisade (sharpened stakes), watchtower (stilted roofed platform), etc.
+  Animated where it adds life: windmill sails, forge/bakery glow, keep flag, pitch pump.
+- BuildingLayer._draw_building now dispatches FINISHED buildings (built==true) to
+  BuildingModels.draw_finished; under-construction keeps the rising-massing + scaffold
+  stage. Materials palette still feeds wall/roof/trim per type.
+- Verified on Xvfb: montage of all 40 types renders without errors; each is
+  recognizable at gameplay zoom. Full suite green.
+
+---
+
 ## [Iteration 171] 2026-06-14 — Starting villagers spawn on grass + light river-flow shader
 
 User requests: (1) the starting citizens must spawn on empty grass tiles (the random

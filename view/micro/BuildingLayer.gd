@@ -16,6 +16,7 @@ const CAT_COLORS: Array = [
 
 const BuildingRegistry = preload("res://simulation/buildings/BuildingRegistry.gd")
 const BuildingRenderer  = preload("res://view/micro/BuildingRenderer.gd")
+const BuildingModels    = preload("res://view/micro/BuildingModels.gd")
 
 var _buildings:       Array = []
 var _enemy_buildings: Array = []
@@ -140,94 +141,67 @@ func _draw_building(b: Dictionary, is_enemy: bool) -> void:
 
 	var center: Vector2 = (top + bot) * 0.5
 
-	# ── Shadow ────────────────────────────────────────────────────────────────
-	var shadow_off := Vector2(3.0, 5.0)
-	draw_colored_polygon(PackedVector2Array([
-		top + shadow_off, right + shadow_off,
-		bot + shadow_off, left + shadow_off,
-	]), Color(0.0, 0.0, 0.0, 0.22))
+	var ridge_h: float = 0.0   # label/alert vertical spacing
 
-	# A bare/low foundation reads as a stone plinth before walls rise.
-	if prog < 0.12:
-		draw_colored_polygon(PackedVector2Array([top, right, bot, left]),
-			Color(0.55, 0.52, 0.47))
-
-	# Lifted versions (wall tops)
+	# Lifted wall-top corners (construction massing + the HP bar reference these).
 	var top_up:   Vector2 = top   + Vector2(0, -wall_height)
 	var right_up: Vector2 = right + Vector2(0, -wall_height)
 	var bot_up:   Vector2 = bot   + Vector2(0, -wall_height)
 	var left_up:  Vector2 = left  + Vector2(0, -wall_height)
 
-	if wall_height > 1.0:
-		# ── Left wall (top–left face) ──────────────────────────────────────────
-		draw_colored_polygon(PackedVector2Array([left, top, top_up, left_up]),
-			wall_col.darkened(0.32))
-		# ── Right wall (top–right face) ────────────────────────────────────────
-		draw_colored_polygon(PackedVector2Array([top, right, right_up, top_up]),
-			wall_col.darkened(0.14))
-		# Foundation course (lighter stone band along the ground).
-		var sill: float = -minf(wall_height * 0.16, 4.0)
-		draw_line(left + Vector2(0, sill), top + Vector2(0, sill), wall_col.lightened(0.12), 1.2)
-		draw_line(top + Vector2(0, sill), right + Vector2(0, sill), wall_col.lightened(0.18), 1.2)
-		# Timber-frame bands across both faces for texture.
-		for f in [0.42, 0.74]:
-			if wall_height * f < 3.0:
-				continue
-			var by: float = -wall_height * f
-			draw_line(left + Vector2(0, by), top + Vector2(0, by), trim_col, 0.9)
-			draw_line(top + Vector2(0, by), right + Vector2(0, by), trim_col, 0.9)
-		draw_polyline(PackedVector2Array([left, top, top_up, left_up, left]),
-			Color(0, 0, 0, 0.35), 0.5)
-		draw_polyline(PackedVector2Array([top, right, right_up, top_up, top]),
-			Color(0, 0, 0, 0.35), 0.5)
-		# Door + windows once the walls are tall enough to carry them.
-		if prog > 0.45 or built:
-			_draw_wall_details(top, right, left, wall_height, trim_col)
+	if built:
+		# ── Finished: bespoke per-type model that looks like the thing it is ────
+		BuildingModels.draw_finished(self, btype, cat, w, h, top, right, bot, left,
+			wall_col, roof_base, trim_col, Time.get_ticks_msec() * 0.001)
+		draw_polyline(PackedVector2Array([top, right, bot, left, top]),
+			Color(0, 0, 0, 0.16), 0.6)
+	else:
+		# ── Under construction: structure rises within the scaffolding ──────────
+		var shadow_off := Vector2(3.0, 5.0)
+		draw_colored_polygon(PackedVector2Array([
+			top + shadow_off, right + shadow_off,
+			bot + shadow_off, left + shadow_off,
+		]), Color(0.0, 0.0, 0.0, 0.22))
 
-	# ── Roof ────────────────────────────────────────────────────────────────────
-	var ridge_h: float = 0.0
-	var ridge_apex: Vector2 = (top_up + bot_up) * 0.5
-	if show_roof:
-		ridge_h = (clampf(full_height * 0.18, 4.0, 12.0) if cat == 2
-			else clampf(full_height * 0.40, 8.0, 24.0))
-		ridge_apex = (top_up + bot_up) * 0.5 + Vector2(0, -ridge_h)
-		# Flat top diamond underneath the pitch (eaves).
-		draw_colored_polygon(PackedVector2Array([top_up, right_up, bot_up, left_up]),
-			roof_base.darkened(0.10))
-		# Pitched roof faces (two shaded slopes).
-		draw_colored_polygon(PackedVector2Array([left_up, bot_up, ridge_apex]),
-			roof_base.darkened(0.12))
-		draw_colored_polygon(PackedVector2Array([top_up, right_up, ridge_apex]),
-			roof_base.lightened(0.10))
-		draw_polyline(PackedVector2Array([left_up, ridge_apex, bot_up]), Color(0, 0, 0, 0.3), 0.5)
-		draw_polyline(PackedVector2Array([top_up, ridge_apex, right_up]), Color(0, 0, 0, 0.3), 0.5)
-		# ── Per-type distinctive features ──────────────────────────────────────
-		_draw_building_topper(btype, cat, w, h, wall_col,
-			top, right, bot, left, top_up, right_up, bot_up, left_up, ridge_apex, center)
-	elif wall_height > 1.0:
-		# Open top while building — a dark interior cap so the box reads as roofless.
-		draw_colored_polygon(PackedVector2Array([top_up, right_up, bot_up, left_up]),
-			Color(0.18, 0.15, 0.12, 0.85))
+		if prog < 0.12:
+			draw_colored_polygon(PackedVector2Array([top, right, bot, left]),
+				Color(0.55, 0.52, 0.47))
 
-	# ── Under-construction scaffolding (poles rise to the *target* height) ──────
-	if not built:
+		if wall_height > 1.0:
+			draw_colored_polygon(PackedVector2Array([left, top, top_up, left_up]),
+				wall_col.darkened(0.32))
+			draw_colored_polygon(PackedVector2Array([top, right, right_up, top_up]),
+				wall_col.darkened(0.14))
+			var sill: float = -minf(wall_height * 0.16, 4.0)
+			draw_line(left + Vector2(0, sill), top + Vector2(0, sill), wall_col.lightened(0.12), 1.2)
+			draw_line(top + Vector2(0, sill), right + Vector2(0, sill), wall_col.lightened(0.18), 1.2)
+			draw_polyline(PackedVector2Array([left, top, top_up, left_up, left]), Color(0, 0, 0, 0.35), 0.5)
+			draw_polyline(PackedVector2Array([top, right, right_up, top_up, top]), Color(0, 0, 0, 0.35), 0.5)
+
+		if show_roof:
+			ridge_h = clampf(full_height * 0.40, 8.0, 24.0)
+			var ridge_apex: Vector2 = (top_up + bot_up) * 0.5 + Vector2(0, -ridge_h)
+			draw_colored_polygon(PackedVector2Array([top_up, right_up, bot_up, left_up]), roof_base.darkened(0.10))
+			draw_colored_polygon(PackedVector2Array([left_up, bot_up, ridge_apex]), roof_base.darkened(0.12))
+			draw_colored_polygon(PackedVector2Array([top_up, right_up, ridge_apex]), roof_base.lightened(0.10))
+		elif wall_height > 1.0:
+			draw_colored_polygon(PackedVector2Array([top_up, right_up, bot_up, left_up]),
+				Color(0.18, 0.15, 0.12, 0.85))
+
 		var wood := Color(0.64, 0.46, 0.25, 0.95)
 		var sh: float = full_height + 5.0
 		for corner in [top, right, bot, left]:
 			draw_line(corner, corner + Vector2(0, -sh), wood, 1.3)
-		# Two horizontal lifts of planking around the frame.
 		for band in [0.45, 0.85]:
 			var by: float = -full_height * band
 			draw_line(top + Vector2(0, by), right + Vector2(0, by), wood, 1.0)
 			draw_line(right + Vector2(0, by), bot + Vector2(0, by), wood, 1.0)
 			draw_line(bot + Vector2(0, by), left + Vector2(0, by), wood, 1.0)
 			draw_line(left + Vector2(0, by), top + Vector2(0, by), wood, 1.0)
-		# A diagonal brace for that under-construction look.
 		draw_line(left, top + Vector2(0, -full_height), wood.darkened(0.1), 0.9)
 
-	# ── Outline ───────────────────────────────────────────────────────────────
-	draw_polyline(PackedVector2Array([top, right, bot, left, top]),
-		Color.WHITE.darkened(0.4), 0.8)
+		draw_polyline(PackedVector2Array([top, right, bot, left, top]),
+			Color.WHITE.darkened(0.4), 0.8)
 
 	# ── Label ─────────────────────────────────────────────────────────────────
 	var name_str: String = defn.get("name", btype).left(12)
