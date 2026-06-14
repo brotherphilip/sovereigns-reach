@@ -670,6 +670,15 @@ func _cmd_place_building(cmd: Dictionary) -> bool:
 	if _grid != null:
 		building["terrain_yield"] = PlacementValidator.get_terrain_yield(btype, gx, gy, _grid)
 
+	# Apply wall_hp_bonus from advanced_masonry tech to defense structures.
+	var _placed_defn: Dictionary = BuildingRegistry.lookup(btype)
+	if _placed_defn.get("is_wall", false) or _placed_defn.get("is_tower", false):
+		var _wall_bonus: float = TechTree.get_all_modifiers(player).get("wall_hp_bonus", 0.0)
+		if _wall_bonus > 0.0:
+			var _boosted_hp: int = int(ceil(float(building["max_hp"]) * (1.0 + _wall_bonus)))
+			building["hp"] = _boosted_hp
+			building["max_hp"] = _boosted_hp
+
 	# Deduct cost
 	PlacementValidator.deduct_cost(btype, player)
 

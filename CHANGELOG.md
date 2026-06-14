@@ -2,6 +2,12 @@
 
 ---
 
+## [Iteration 129] 2026-06-14 — Fix #084: wall_hp_bonus from advanced_masonry never applied to placed walls
+
+- What changed: GameState._cmd_place_building() now checks if the new building has `is_wall` or `is_tower` flag and applies `TechTree.get_all_modifiers(player)["wall_hp_bonus"]` to both `hp` and `max_hp` before adding the building to the player's list. Stone walls: 250 → 325 HP; great towers: 500 → 650 HP after advanced_masonry research.
+- Scene test: ALL_SCENES_OK
+- Issues resolved: #084
+
 ## [Iteration 128] 2026-06-14 — Fix #083: shire biome bonuses never applied to building production
 
 - What changed: GameState._tick_player_economy() now resolves the player's shire biome bonuses once per player per tick before the building loop. farm_yield_bonus applies to all farm types; mining_speed_bonus applies to iron_mine and stone_quarry; trade_fee_bonus applies to trading_post gold output. All applied via int(ceil(amount * (1 + bonus))), consistent with existing bonus stacking pattern.
