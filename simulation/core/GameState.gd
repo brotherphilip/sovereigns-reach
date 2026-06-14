@@ -178,6 +178,11 @@ func _make_player(player_id: int, player_name: String, start_x: int, start_y: in
 		"active_edicts": [],
 		"edict_points": 0,
 
+		# Faith (GDD §3.3) — accumulates from churches/cathedrals/monks; spent on Blessings
+		"faith": 0.0,
+		"faith_cap": 0.0,
+		"blessing_until": 0,
+
 		# Vision
 		"fog_of_war": {},        # "x,y" -> true for revealed tiles
 
@@ -325,11 +330,22 @@ func _tick_player_economy(player: Dictionary, tick: int) -> void:
 		if church_coverage >= 0.3 and _social_rng.randf() < (church_coverage - 0.3) * 0.1:
 			events.append("wedding_event")
 
+		# Faith accrual + Blessing (GDD §3.3). Churches, cathedrals and monks build
+		# Faith; at the threshold a Blessing fires a popularity spike and grants a
+		# window of divine fire protection (applied in the ignition loop below).
+		var _faith_result: Dictionary = ReligionSystem.tick_faith(player, tick)
+		if _faith_result.get("blessing", false):
+			events.append("blessing")
+			EventBus.blessing_bestowed.emit(player.get("id", 0), _faith_result.get("spent", 0.0))
+
 		# Fire ignition from weather (DROUGHT / STORM have fire_risk > 0)
 		var fire_risk: float = weather.get("effects", {}).get("fire_risk", 0.0)
 		if fire_risk > 0.0:
 			var _fire_edict_mods: Dictionary = EdictSystem.get_active_modifiers(player)
 			fire_risk = maxf(0.0, fire_risk * (1.0 - _fire_edict_mods.get("fire_risk_reduction", 0.0)))
+			# Divine fire protection from an active Blessing.
+			if ReligionSystem.is_blessing_active(player, tick):
+				fire_risk = maxf(0.0, fire_risk * (1.0 - ReligionSystem.BLESSING_FIRE_REDUCTION))
 		if fire_risk > 0.0:
 			for building in player.get("buildings", []):
 				if not building is Dictionary or not building.get("is_active", true):

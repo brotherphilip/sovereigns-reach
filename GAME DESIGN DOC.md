@@ -165,6 +165,14 @@ Calculation: P=ΔF+ΔA+ΔR−T±E
 3.3.3 Marriage Events: (1) Churches randomly host weddings. (2) Gives temporary popularity spike. (3) Pauses worker for a minute. (4) Adds to overall Prestige. (5) Visible animation plays.
 3.3.4 Blessing Rates: (1) Priests walk the streets. (2) Bless individual peasants. (3) Temporarily boosts worker speed. (4) Distance from church matters. (5) Monks can also bless.
 3.3.5 Tech Prerequisites: (1) Religion is locked early. (2) Requires Statecraft research. (3) Upgrades increase radius. (4) Upgrades reduce stone cost. (5) Vital for high tax builds.  
+
+3.3.IMPL Implemented (ReligionSystem.gd / GameState / PopularityEngine):
+- Coverage (ΔR): sum(church/cathedral radius ÷ 4) ÷ hovel count, clamped 0–1, ×10 popularity; updated every tick. Church radius 12, cathedral 30. Locked behind the `monastic_orders` tech.
+- Faith resource: active churches (+3/day), cathedrals (+8/day, scaled 0.5–1.0 by staffing) and each living Monk (+2/day) accrue Faith, scaled by coverage, up to a cap (church 30, cathedral 80). Stored in player.faith / faith_cap.
+- Blessing: when Faith reaches 40 it is spent automatically, firing a +6 popularity event and a 3-game-day window of divine fire protection (−50% ignition risk). Emits EventBus.blessing_bestowed; exposed to the HUD as faith / faith_cap / blessing_active.
+- Marriage events (3.3.3): implemented as random church popularity spikes (+4) scaling with coverage above 30%.
+- Monk (3.3.4 "Monks can also bless"): now contributes Faith; street-walking/per-peasant blessing and radius/cost tech upgrades remain future work.
+
 3.4 Taxation Variables (T)
 
 3.4.1 Gold Extraction: (1) Taxes pull gold from peasants. (2) Positive taxes hurt popularity. (3) Negative taxes (bribes) boost it. (4) Zero taxes are neutral. (5) Vault holds the gold.
@@ -387,6 +395,14 @@ Calculation: P=ΔF+ΔA+ΔR−T±E
 3.3.3 Marriage Events: (1) Churches randomly host weddings. (2) Gives temporary popularity spike. (3) Pauses worker for a minute. (4) Adds to overall Prestige. (5) Visible animation plays.
 3.3.4 Blessing Rates: (1) Priests walk the streets. (2) Bless individual peasants. (3) Temporarily boosts worker speed. (4) Distance from church matters. (5) Monks can also bless.
 3.3.5 Tech Prerequisites: (1) Religion is locked early. (2) Requires Statecraft research. (3) Upgrades increase radius. (4) Upgrades reduce stone cost. (5) Vital for high tax builds.  
+
+3.3.IMPL Implemented (ReligionSystem.gd / GameState / PopularityEngine):
+- Coverage (ΔR): sum(church/cathedral radius ÷ 4) ÷ hovel count, clamped 0–1, ×10 popularity; updated every tick. Church radius 12, cathedral 30. Locked behind the `monastic_orders` tech.
+- Faith resource: active churches (+3/day), cathedrals (+8/day, scaled 0.5–1.0 by staffing) and each living Monk (+2/day) accrue Faith, scaled by coverage, up to a cap (church 30, cathedral 80). Stored in player.faith / faith_cap.
+- Blessing: when Faith reaches 40 it is spent automatically, firing a +6 popularity event and a 3-game-day window of divine fire protection (−50% ignition risk). Emits EventBus.blessing_bestowed; exposed to the HUD as faith / faith_cap / blessing_active.
+- Marriage events (3.3.3): implemented as random church popularity spikes (+4) scaling with coverage above 30%.
+- Monk (3.3.4 "Monks can also bless"): now contributes Faith; street-walking/per-peasant blessing and radius/cost tech upgrades remain future work.
+
 3.4 Taxation Variables (T)
 
 3.4.1 Gold Extraction: (1) Taxes pull gold from peasants. (2) Positive taxes hurt popularity. (3) Negative taxes (bribes) boost it. (4) Zero taxes are neutral. (5) Vault holds the gold.

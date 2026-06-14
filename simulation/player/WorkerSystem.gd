@@ -119,17 +119,5 @@ static func calculate_inn_coverage(player: Dictionary, buildings: Array) -> floa
 	# Each inn covers approximately 4 hovels in range at full capacity
 	return clampf(float(inn_count * 4) / float(hovel_count), 0.0, 1.0)
 
-# Calculate church/cathedral coverage similarly
-static func calculate_religion_coverage(buildings: Array) -> float:
-	var coverage_sum: float = 0.0
-	var hovel_count: int = 0
-	for building in buildings:
-		var btype: String = building.get("type", "")
-		if btype in ["church", "cathedral"] and building.get("is_active", true):
-			var radius: int = BuildingRegistry.coverage_radius(btype)
-			coverage_sum += radius * 0.5
-		elif btype == "hovel":
-			hovel_count += 1
-	if hovel_count == 0:
-		return 0.0
-	return clampf(coverage_sum / float(hovel_count), 0.0, 1.0)
+# Religion coverage now lives solely in ReligionSystem.compute_religion_coverage
+# (this was an unused duplicate with a divergent formula — removed, audit Part 5).

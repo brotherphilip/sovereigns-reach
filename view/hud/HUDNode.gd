@@ -12,6 +12,7 @@ const TechTree = preload("res://simulation/tech/TechTree.gd")
 const EdictSystem = preload("res://simulation/edicts/EdictSystem.gd")
 const NotificationFeed = preload("res://view/hud/NotificationFeed.gd")
 const WeatherSystem = preload("res://simulation/world/WeatherSystem.gd")
+const ReligionSystem = preload("res://simulation/economy/ReligionSystem.gd")
 
 signal build_requested(building_type: String)
 signal tech_research_requested(tech_id: String)
@@ -48,6 +49,7 @@ var _ale_label: Label = null
 var _day_label: Label = null
 var _weather_label: Label = null
 var _prestige_label: Label = null
+var _faith_label: Label = null
 
 # Right panel controls
 var _pop_bar: ProgressBar = null
@@ -89,6 +91,9 @@ func _ready() -> void:
 	EventBus.popularity_changed.connect(func(_a,_b,_c): _refresh_right_panel())
 	EventBus.gold_changed.connect(_on_gold_changed)
 	EventBus.milestone_earned.connect(_on_milestone_earned)
+	EventBus.blessing_bestowed.connect(func(_pid, _spent): show_notification(
+		"A Blessing is bestowed upon your realm — popularity rises and your buildings are warded against fire.",
+		5.0, Color(0.85, 0.9, 1.0)))
 
 func _on_tick(tick: int) -> void:
 	_refresh_top_bar()
@@ -236,7 +241,8 @@ func _build_top_bar(vp: Vector2) -> void:
 	_ale_label     = _add_label(_top_bar, "Ale: 0",      Vector2(x, 8));     x += 90
 	_day_label     = _add_label(_top_bar, "Day 0",       Vector2(x, 8), 13, Color.LIGHT_YELLOW); x += 90
 	_weather_label = _add_label(_top_bar, "Clear",       Vector2(x, 8), 12, Color.LIGHT_CYAN); x += 160
-	_prestige_label = _add_label(_top_bar, "Prestige: 0", Vector2(x, 8), 12, Color(0.95, 0.8, 0.3))
+	_prestige_label = _add_label(_top_bar, "Prestige: 0", Vector2(x, 8), 12, Color(0.95, 0.8, 0.3)); x += 130
+	_faith_label = _add_label(_top_bar, "Faith: 0", Vector2(x, 8), 12, Color(0.75, 0.85, 1.0))
 
 func _refresh_top_bar() -> void:
 	if GameState.players.size() == 0:
@@ -259,6 +265,12 @@ func _refresh_top_bar() -> void:
 	_weather_label.tooltip_text = HUDController.get_weather_tooltip(GameState.weather)
 	if _prestige_label != null:
 		_prestige_label.text = "Prestige: %d" % int(p.get("prestige", 0.0))
+	if _faith_label != null:
+		var _blessed: bool = int(p.get("blessing_until", 0)) > SimulationClock.current_tick
+		_faith_label.text = "Faith: %d/%d%s" % [int(p.get("faith", 0.0)), int(p.get("faith_cap", 0.0)),
+			"  ✝" if _blessed else ""]
+		_faith_label.modulate = Color(1.0, 0.95, 0.5) if _blessed else Color.WHITE
+		_faith_label.tooltip_text = "Faith from churches, cathedrals and monks. At %d Faith a Blessing fires: +6 popularity and 3 days of fire protection." % int(ReligionSystem.BLESSING_THRESHOLD)
 	var _crit: Array   = HUDController.get_critical_resources(p)
 	var _alert: Color  = Color(1.0, 0.28, 0.28)
 	var _norm: Color   = Color.WHITE

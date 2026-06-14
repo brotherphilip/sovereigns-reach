@@ -2,6 +2,18 @@
 
 ---
 
+## [Iteration 157] 2026-06-14 — Faith & Religion system fully fleshed out + minimap runtime fix
+
+- Mode: feature development (supervisor direct; `/loop` system-flesh-out directive).
+- System chosen: Religion/Faith (§3.3) — previously the thinnest system (coverage→popularity only); the Monk unit did nothing and a duplicate coverage function lived in WorkerSystem.
+- Added a full Faith economy in ReligionSystem.gd: churches/cathedrals/monks accrue Faith (capped by holy buildings), scaled by staffing and coverage; at the threshold a Blessing auto-fires a +6 popularity event and a 3-day window of −50% fire-ignition protection. The Monk unit now has a purpose (prays for Faith).
+- Cross-system wiring: GameState player fields (faith/faith_cap/blessing_until) + day-boundary tick + Blessing fire protection in the ignition loop; PopularityEngine `blessing` event (+6); EventBus.blessing_bestowed signal; HUDController exposes faith/faith_cap/blessing_active.
+- Consolidation: removed the dead duplicate WorkerSystem.calculate_religion_coverage (audit Part 5); ReligionSystem.compute_religion_coverage is now the single source.
+- Docs: GDD §3.3 annotated with a 3.3.IMPL implementation block (both copies).
+- Tests: new tests/TestPhase11.gd (20 assertions — coverage, capacity, generation, blessing, HUD, live day-boundary integration). Full suite green (703 assertions, 0 fail).
+- Bug fixed this iteration: view/micro/Minimap.gd used Godot-3 `draw_circle(x, y, r, color)` (4 calls), which failed to compile and broke the entire city view at runtime — caught only by launching the actual gameplay scene; fixed to the Godot-4 `draw_circle(Vector2, r, color)` signature.
+- Verified visually: gameplay scene rendered headless on an isolated Xvfb display (no interference with the host); minimap + HUD + city render, commands work end-to-end.
+
 ## [Iteration 156] 2026-06-14 — Clean audit via hardened pipeline (anti-drift fix validated)
 
 - Delegated to: Omniscience (qwen3-coder:30b) — audit task

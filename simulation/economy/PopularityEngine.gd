@@ -60,6 +60,7 @@ const EVENT_POPULARITY_DELTA: Dictionary = {
 	"drought":            -3,
 	"festival":           +8,   # Royal Edict bonus (fired via instant_event)
 	"wedding_event":      +4,   # Church random event
+	"blessing":           +6,   # Faith Blessing (GDD §3.3) — spent accumulated Faith
 }
 
 # Returns the full popularity delta for one game-day tick.

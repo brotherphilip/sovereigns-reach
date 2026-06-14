@@ -1,12 +1,14 @@
 # Loop State — Sovereign's Reach
 
-mode: phase
+notes: FEATURE FLESH-OUT (iter 157) 2026-06-14 — Religion/Faith system fully built out (was thinnest: coverage→popularity only, Monk did nothing). Added Faith economy (churches/cathedrals/monks accrue capped Faith scaled by staffing+coverage) + auto-Blessing (+6 popularity, 3-day −50% fire protection) in ReligionSystem.gd; wired GameState (faith/faith_cap/blessing_until + day-boundary tick + ignition protection), PopularityEngine (blessing event), EventBus (blessing_bestowed), HUDController (faith/faith_cap/blessing_active). Removed dead dup WorkerSystem.calculate_religion_coverage. GDD §3.3 updated (3.3.IMPL, both copies). New TestPhase11.gd (20 tests). Bug found+fixed by ACTUALLY RUNNING the game: view/micro/Minimap.gd used Godot-3 draw_circle(x,y,r,color) → failed to compile → broke entire city view at runtime (headless boot/unit tests never loaded it). Visually verified via isolated Xvfb (no host interference). Full suite green (703 assertions).
+
+mode: feature-flesh-out
 active_issue: none
-last_issue_fixed: 035
+last_issue_fixed: minimap-draw_circle (Godot3 API in view/micro/Minimap.gd)
 active_phase: complete
 phase_plan_exists: true
 last_iteration: 2026-06-14
-iteration_count: 156
+iteration_count: 157
 last_issue_fixed: 106
 omni_fail_streak: 0
 omniscience_perf: fail iter2-3, partial iter4-6 — recurring truncation bug (model cuts off new_text mid-line). Logic is often correct but always needs supervisor wiring/cleanup. Decode bug patched iter5. Iter7: Supervisor wrote directly (large file, many callsites — safer than delegation).

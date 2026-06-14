@@ -8,6 +8,7 @@ const BuildingRegistry   = preload("res://simulation/buildings/BuildingRegistry.
 const BuildingState      = preload("res://simulation/buildings/BuildingState.gd")
 const PlacementValidator = preload("res://simulation/buildings/PlacementValidator.gd")
 const WorkerSystem       = preload("res://simulation/player/WorkerSystem.gd")
+const ReligionSystem     = preload("res://simulation/economy/ReligionSystem.gd")
 const WorldGrid          = preload("res://simulation/world/WorldGrid.gd")
 const ShireMap           = preload("res://simulation/world/ShireMap.gd")
 
@@ -483,12 +484,12 @@ func test_workers_inn_coverage_with_inn() -> void:
 func test_workers_religion_coverage_church() -> void:
 	var buildings: Array = [BuildingState.create("church", 0, 10, 10, 1)]
 	buildings[0]["is_active"] = true
-	var coverage = WorkerSystem.calculate_religion_coverage(buildings)
+	var coverage = ReligionSystem.compute_religion_coverage({"buildings": buildings})
 	# No hovels → no coverage denominator
 	expect("church with no hovels = 0.0", coverage == 0.0)
 	# Add a hovel
 	buildings.append(BuildingState.create("hovel", 0, 5, 5, 2))
-	coverage = WorkerSystem.calculate_religion_coverage(buildings)
+	coverage = ReligionSystem.compute_religion_coverage({"buildings": buildings})
 	expect("church with 1 hovel has coverage > 0", coverage > 0.0)
 
 # ============ GameState Phase 3 commands ============
