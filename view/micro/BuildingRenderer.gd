@@ -56,7 +56,7 @@ static func get_visual_state(building: Dictionary) -> Dictionary:
 static func get_hp_bar(building: Dictionary) -> float:
 	var hp: int    = building.get("hp", 1)
 	var defn: Dictionary = BuildingRegistry.lookup(building.get("type", ""))
-	var max_hp: int = defn.get("hp", 100)
+	var max_hp: int = building.get("max_hp", defn.get("hp", 100))
 	if max_hp <= 0:
 		return 1.0
 	return clampf(float(hp) / float(max_hp), 0.0, 1.0)

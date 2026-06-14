@@ -3,6 +3,10 @@
 <!-- Format: ## [ID] Title | Severity: Blocker/High/Medium/Low | Status: Open/In Progress/Resolved/Byproduct -->
 <!-- Severities: Blocker=crashes/data loss, High=broken feature, Medium=wrong behavior, Low=polish/text -->
 
+## [091] BuildingRenderer.get_hp_bar uses definition base HP instead of building max_hp — HP bar wrong for tech-boosted walls | Severity: Low | Status: Resolved
+BuildingRenderer.get_hp_bar() computes `hp / defn.get("hp", 100)` — dividing current HP by the base definition HP. After fix #084, walls placed with advanced_masonry research have building["max_hp"] = 325 (stone wall), not 250. A stone wall damaged to 200 HP shows 200/250 = 80% on the bar instead of the correct 200/325 = 62%. The bar appears less damaged than actual. Same issue for great towers (500→650 base).
+Resolution: Changed get_hp_bar() denominator from `defn.get("hp", 100)` to `building.get("max_hp", defn.get("hp", 100))` — uses the building's stored max_hp if present, falls back to definition for unmodified buildings. Scene test: ALL_SCENES_OK.
+
 ## [090] gold_changed signal never emitted after market buy/sell or capital donation — HUD gold display lags until next tax tick | Severity: Medium | Status: Resolved
 EventBus.gold_changed is connected by HUDNode._refresh_top_bar() and TutorialSystem._on_gold_changed(). It is only emitted from GameState._tick_player_economy() when taxes are collected. Commands _cmd_buy_resource, _cmd_sell_resource, and _cmd_donate_to_capital all modify player["gold"] but never emit gold_changed — so after a market transaction or donation the gold label shows the pre-transaction amount until the next day's tax tick fires.
 Resolution: In _cmd_buy_resource, _cmd_sell_resource, and _cmd_donate_to_capital, capture player["gold"] before the operation, then after a successful operation emit EventBus.gold_changed(pid, old_gold, new_gold). Scene test: ALL_SCENES_OK.
