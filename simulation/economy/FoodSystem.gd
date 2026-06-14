@@ -103,7 +103,8 @@ static func apply_granary_cap(player: Dictionary) -> void:
 # Returns how many distinct food types the player has in stock (for variety bonus calculation)
 static func get_food_variety_count(player: Dictionary) -> int:
 	var count: int = 0
-	for v in player.get("food", {}).values():
-		if v > 0:
+	var food: Dictionary = player.get("food", {})
+	for ftype in FOOD_CONSUMPTION_ORDER:
+		if food.get(ftype, 0) > 0:
 			count += 1
 	return count
