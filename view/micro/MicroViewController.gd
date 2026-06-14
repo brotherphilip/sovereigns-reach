@@ -45,16 +45,20 @@ static func screen_to_grid(screen_x: int, screen_y: int, rotation: int = 0) -> D
 # player: player Dictionary.
 # Returns {"valid": bool, "reason": String}.
 static func get_build_preview(building_type: String, gx: int, gy: int,
-		player: Dictionary, world: Dictionary) -> Dictionary:
+		player: Dictionary, world: Dictionary, live_grid: Object = null) -> Dictionary:
 	const PlacementValidator = preload("res://simulation/buildings/PlacementValidator.gd")
-	const BuildingRegistry   = preload("res://simulation/buildings/BuildingRegistry.gd")
 	const WorldGrid          = preload("res://simulation/world/WorldGrid.gd")
 
-	if not world.has("grid"):
-		return {"valid": true, "reason": ""}  # No grid available (test mode)
-
-	var grid: WorldGrid = WorldGrid.new()
-	grid.deserialize(world["grid"])
+	# Prefer the caller's live WorldGrid (GameState._grid). Deserialising the whole
+	# 200×200 grid on every mouse-move — as this used to — caused heavy build-mode
+	# stutter; only fall back to that when no live grid is supplied (e.g. tests).
+	var grid: Object = live_grid
+	if grid == null:
+		if not world.has("grid"):
+			return {"valid": true, "reason": ""}  # No grid available (test mode)
+		var rebuilt: WorldGrid = WorldGrid.new()
+		rebuilt.deserialize(world["grid"])
+		grid = rebuilt
 	var result: Dictionary = PlacementValidator.validate(building_type, gx, gy, grid, player, world)
 	return {"valid": result.get("ok", false), "reason": result.get("message", "")}
 

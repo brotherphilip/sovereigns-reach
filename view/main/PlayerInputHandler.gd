@@ -84,7 +84,8 @@ func _try_place_building(grid_pos: Vector2i) -> void:
 
 func _get_build_preview(gx: int, gy: int, player: Dictionary) -> Dictionary:
 	const MVC = preload("res://view/micro/MicroViewController.gd")
-	return MVC.get_build_preview(_build_mode_type, gx, gy, player, GameState.world)
+	# Pass the live grid so the preview doesn't re-deserialise the whole map each frame.
+	return MVC.get_build_preview(_build_mode_type, gx, gy, player, GameState.world, GameState._grid)
 
 func _try_select(grid_pos: Vector2i, world_pos: Vector2) -> void:
 	if GameState.players.size() == 0:
