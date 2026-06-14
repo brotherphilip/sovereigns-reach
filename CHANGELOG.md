@@ -2,6 +2,12 @@
 
 ---
 
+## [Iteration 142] 2026-06-14 — Fix #097: ale stock prevents starvation detection in FoodSystem and PopularityEngine
+
+- What changed: FoodSystem.get_total_food() now sums only FOOD_CONSUMPTION_ORDER types (apples/bread/cheese/meat), excluding ale. PopularityEngine._food_score() starvation check now iterates FOOD_VARIETY_BONUS keys instead of food.values(). Previously, stockpiled ale (stored in player["food"]["ale"]) kept get_total_food() > 0 and suppressed the -20 popularity starvation penalty indefinitely — despite no actual food being available. Both fixes now consistently exclude ale from the food total.
+- Scene test: ALL_SCENES_OK
+- Issues resolved: #097
+
 ## [Iteration 141] 2026-06-14 — Fix #096: donate_to_capital deducts resources before shire lookup
 
 - What changed: GameState._cmd_donate_to_capital() now finds the player's shire before deducting resources. Previously, if player["shire_id"]==-1 (set by siege capture when all shires lost), resources were deducted then the function returned false — silent resource loss. Added early `return false` when no shire found, moved all resource changes after shire is confirmed.
