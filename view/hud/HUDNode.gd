@@ -194,9 +194,13 @@ func _make_panel(rect: Rect2) -> Panel:
 	p.position = rect.position
 	p.size     = rect.size
 	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.08, 0.10, 0.14, 0.90)
-	style.border_width_bottom = 1
-	style.border_color = Color(0.3, 0.35, 0.4, 0.8)
+	style.bg_color = Color(0.13, 0.10, 0.07, 0.94)        # warm parchment-dark
+	style.set_corner_radius_all(7)
+	style.set_border_width_all(2)
+	style.border_color = Color(0.74, 0.57, 0.26, 0.95)    # gold trim
+	style.shadow_color = Color(0.0, 0.0, 0.0, 0.45)
+	style.shadow_size = 7
+	style.set_content_margin_all(6)
 	p.add_theme_stylebox_override("panel", style)
 	add_child(p)
 	return p
@@ -218,14 +222,25 @@ func _add_button(parent: Control, text: String, pos: Vector2, sz: Vector2,
 	btn.text = text
 	btn.position = pos
 	btn.size = sz
-	btn.add_theme_font_size_override("font_size", 11)
+	btn.add_theme_font_size_override("font_size", 12)
+	btn.add_theme_color_override("font_color", Color(0.93, 0.88, 0.74))
+	btn.add_theme_color_override("font_hover_color", Color(1.0, 0.95, 0.7))
 	if tooltip != "":
 		btn.tooltip_text = tooltip
-	var hover_sty := StyleBoxFlat.new()
-	hover_sty.bg_color = Color(0.30, 0.38, 0.55, 0.82)
-	hover_sty.set_border_width_all(1)
-	hover_sty.border_color = Color(0.55, 0.65, 0.90, 0.9)
+	var normal_sty := StyleBoxFlat.new()
+	normal_sty.bg_color = Color(0.18, 0.14, 0.09, 0.95)
+	normal_sty.set_corner_radius_all(5)
+	normal_sty.set_border_width_all(1)
+	normal_sty.border_color = Color(0.55, 0.43, 0.20, 0.9)
+	normal_sty.set_content_margin_all(4)
+	btn.add_theme_stylebox_override("normal", normal_sty)
+	var hover_sty := normal_sty.duplicate()
+	hover_sty.bg_color = Color(0.33, 0.25, 0.12, 0.98)
+	hover_sty.border_color = Color(0.86, 0.68, 0.30, 1.0)
 	btn.add_theme_stylebox_override("hover", hover_sty)
+	var pressed_sty := normal_sty.duplicate()
+	pressed_sty.bg_color = Color(0.12, 0.09, 0.05, 1.0)
+	btn.add_theme_stylebox_override("pressed", pressed_sty)
 	btn.pressed.connect(callback)
 	parent.add_child(btn)
 	return btn

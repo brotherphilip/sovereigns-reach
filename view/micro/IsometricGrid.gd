@@ -13,19 +13,19 @@ const HALF_H: float = TILE_H * 0.5
 
 const HoverOverlay = preload("res://view/micro/GridHoverOverlay.gd")
 
-# Terrain palette (WorldGrid.Terrain enum 0–10) — cohesive, slightly richer tones.
+# Terrain palette (WorldGrid.Terrain enum 0–10) — vivid, high-contrast tones.
 const TERRAIN_COLORS: Array = [
-	Color(0.46, 0.69, 0.42),  # 0 GRASS
-	Color(0.20, 0.44, 0.23),  # 1 FOREST
-	Color(0.53, 0.53, 0.57),  # 2 MOUNTAIN
-	Color(0.26, 0.53, 0.86),  # 3 RIVER
-	Color(0.47, 0.53, 0.31),  # 4 MARSH
-	Color(0.40, 0.40, 0.43),  # 5 ROCK
-	Color(0.60, 0.41, 0.29),  # 6 ORE_VEIN
-	Color(0.62, 0.79, 0.49),  # 7 VALLEY
-	Color(0.45, 0.74, 0.82),  # 8 COASTAL
-	Color(0.80, 0.69, 0.49),  # 9 ROAD
-	Color(0.39, 0.32, 0.27),  # 10 RUIN
+	Color(0.38, 0.71, 0.34),  # 0 GRASS — lush meadow green
+	Color(0.12, 0.40, 0.17),  # 1 FOREST — deep green
+	Color(0.56, 0.57, 0.64),  # 2 MOUNTAIN — cool slate
+	Color(0.16, 0.50, 0.93),  # 3 RIVER — vivid blue
+	Color(0.44, 0.52, 0.24),  # 4 MARSH — olive
+	Color(0.43, 0.43, 0.48),  # 5 ROCK — grey
+	Color(0.66, 0.43, 0.26),  # 6 ORE_VEIN — rust
+	Color(0.58, 0.82, 0.40),  # 7 VALLEY — bright lush
+	Color(0.33, 0.73, 0.88),  # 8 COASTAL — shallow water
+	Color(0.84, 0.71, 0.47),  # 9 ROAD — sand path
+	Color(0.41, 0.33, 0.28),  # 10 RUIN — char brown
 ]
 
 var _camera: Camera2D = null   # kept for API compatibility (culling no longer needed)

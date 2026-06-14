@@ -32,48 +32,7 @@ func _build_ui() -> void:
 	if vp == Vector2.ZERO:
 		vp = Vector2(1280, 720)
 
-	# Semi-transparent center panel
-	var panel := Panel.new()
-	panel.position = Vector2(vp.x * 0.5 - 200, vp.y * 0.3)
-	panel.size     = Vector2(400, 340)
-	var style := StyleBoxFlat.new()
-	style.bg_color    = Color(0.08, 0.10, 0.07, 0.86)
-	style.set_border_width_all(2)
-	style.border_color = Color(0.55, 0.45, 0.20, 0.9)
-	style.corner_radius_top_left    = 6
-	style.corner_radius_top_right   = 6
-	style.corner_radius_bottom_left = 6
-	style.corner_radius_bottom_right = 6
-	panel.add_theme_stylebox_override("panel", style)
-	canvas.add_child(panel)
-
-	# Title
-	var title := Label.new()
-	title.text = "Sovereign's Reach"
-	title.position = Vector2(0, 24)
-	title.size = Vector2(400, 60)
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 28)
-	title.add_theme_color_override("font_color", Color(0.91, 0.76, 0.26))
-	panel.add_child(title)
-
-	var subtitle := Label.new()
-	subtitle.text = "A Medieval Kingdom Builder"
-	subtitle.position = Vector2(0, 76)
-	subtitle.size = Vector2(400, 24)
-	subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	subtitle.add_theme_font_size_override("font_size", 12)
-	subtitle.add_theme_color_override("font_color", Color(0.70, 0.64, 0.46))
-	panel.add_child(subtitle)
-
-	# Divider
-	var div := ColorRect.new()
-	div.color    = Color(0.55, 0.45, 0.20, 0.5)
-	div.position = Vector2(30, 110)
-	div.size     = Vector2(340, 1)
-	panel.add_child(div)
-
-	# Buttons
+	# Buttons list (decides panel height so nothing clips).
 	var has_save: bool = SaveManager.save_exists(SaveManager.DEFAULT_SAVE_PATH)
 	var buttons: Array = []
 	if has_save:
@@ -83,16 +42,71 @@ func _build_ui() -> void:
 		["Load Game", _on_load_game],
 		["Quit",      _on_quit],
 	])
-	var btn_y: float = 130.0
+	var n_rows: int = buttons.size() + 1  # +1 for difficulty
+	const PW: float = 480.0
+	const ROW_H: float = 62.0
+	const BTN_TOP: float = 188.0
+	var ph: float = BTN_TOP + n_rows * ROW_H + 28.0
+
+	# Center panel — warm parchment-dark with a heavy gold frame and shadow.
+	var panel := Panel.new()
+	panel.position = Vector2(vp.x * 0.5 - PW * 0.5, vp.y * 0.5 - ph * 0.5)
+	panel.size     = Vector2(PW, ph)
+	var style := StyleBoxFlat.new()
+	style.bg_color     = Color(0.13, 0.10, 0.07, 0.96)
+	style.set_border_width_all(3)
+	style.border_color = Color(0.80, 0.62, 0.28, 1.0)
+	style.set_corner_radius_all(12)
+	style.shadow_color = Color(0.0, 0.0, 0.0, 0.6)
+	style.shadow_size  = 14
+	panel.add_theme_stylebox_override("panel", style)
+	canvas.add_child(panel)
+
+	# Title (with a drop shadow for weight)
+	var title_shadow := Label.new()
+	title_shadow.text = "Sovereign's Reach"
+	title_shadow.position = Vector2(3, 41)
+	title_shadow.size = Vector2(PW, 60)
+	title_shadow.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title_shadow.add_theme_font_size_override("font_size", 42)
+	title_shadow.add_theme_color_override("font_color", Color(0.0, 0.0, 0.0, 0.55))
+	panel.add_child(title_shadow)
+	var title := Label.new()
+	title.text = "Sovereign's Reach"
+	title.position = Vector2(0, 38)
+	title.size = Vector2(PW, 60)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 42)
+	title.add_theme_color_override("font_color", Color(0.96, 0.80, 0.32))
+	panel.add_child(title)
+
+	var subtitle := Label.new()
+	subtitle.text = "A Medieval Kingdom Builder"
+	subtitle.position = Vector2(0, 104)
+	subtitle.size = Vector2(PW, 24)
+	subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	subtitle.add_theme_font_size_override("font_size", 14)
+	subtitle.add_theme_color_override("font_color", Color(0.74, 0.66, 0.48))
+	panel.add_child(subtitle)
+
+	# Gold divider
+	var div := ColorRect.new()
+	div.color    = Color(0.72, 0.56, 0.26, 0.7)
+	div.position = Vector2(40, 150)
+	div.size     = Vector2(PW - 80, 2)
+	panel.add_child(div)
+
+	var bx: float = (PW - 360.0) * 0.5
+	var btn_y: float = BTN_TOP
 	for b in buttons:
-		var btn := _make_menu_button(b[0], Vector2(80, btn_y), Vector2(240, 46), b[1])
+		var btn := _make_menu_button(b[0], Vector2(bx, btn_y), Vector2(360, 50), b[1])
 		panel.add_child(btn)
-		btn_y += 60.0
+		btn_y += ROW_H
 
 	# Difficulty selector — cycles PEACEFUL -> NORMAL -> HARD -> SIEGE_LORD
-	_diff_btn = _make_menu_button("Difficulty: " + DifficultySystem.level_name(DifficultySystem.current), Vector2(80, btn_y), Vector2(240, 46), _on_cycle_difficulty)
+	_diff_btn = _make_menu_button("Difficulty: " + DifficultySystem.level_name(DifficultySystem.current), Vector2(bx, btn_y), Vector2(360, 50), _on_cycle_difficulty)
 	panel.add_child(_diff_btn)
-	btn_y += 60.0
+	btn_y += ROW_H
 
 	# Version
 	var ver := Label.new()
@@ -109,7 +123,23 @@ func _make_menu_button(text: String, pos: Vector2, sz: Vector2,
 	btn.text     = text
 	btn.position = pos
 	btn.size     = sz
-	btn.add_theme_font_size_override("font_size", 15)
+	btn.add_theme_font_size_override("font_size", 17)
+	btn.add_theme_color_override("font_color", Color(0.94, 0.88, 0.72))
+	btn.add_theme_color_override("font_hover_color", Color(1.0, 0.96, 0.74))
+	btn.add_theme_color_override("font_pressed_color", Color(0.85, 0.70, 0.40))
+	var normal := StyleBoxFlat.new()
+	normal.bg_color = Color(0.20, 0.15, 0.09, 0.96)
+	normal.set_corner_radius_all(7)
+	normal.set_border_width_all(2)
+	normal.border_color = Color(0.58, 0.45, 0.22, 0.95)
+	btn.add_theme_stylebox_override("normal", normal)
+	var hover := normal.duplicate()
+	hover.bg_color = Color(0.36, 0.27, 0.13, 1.0)
+	hover.border_color = Color(0.90, 0.72, 0.34, 1.0)
+	btn.add_theme_stylebox_override("hover", hover)
+	var pressed := normal.duplicate()
+	pressed.bg_color = Color(0.14, 0.10, 0.06, 1.0)
+	btn.add_theme_stylebox_override("pressed", pressed)
 	btn.pressed.connect(callback)
 	return btn
 
