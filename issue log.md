@@ -3,6 +3,10 @@
 <!-- Format: ## [ID] Title | Severity: Blocker/High/Medium/Low | Status: Open/In Progress/Resolved/Byproduct -->
 <!-- Severities: Blocker=crashes/data loss, High=broken feature, Medium=wrong behavior, Low=polish/text -->
 
+## [085] TechTree armor_forging unit_armor_rating never applied — recruited units have base defense despite 300-prestige armor research | Severity: Medium | Status: Resolved
+TechTree "armor_forging" (300 prestige) grants `unit_armor_rating: 0.25` (unit armor +25%). UnitState.apply_damage() subtracts the unit's `defense` stat from incoming damage, but `_cmd_recruit_unit()` never read TechTree modifiers when initializing unit stats. A swordsman always started with defense: 12 regardless of whether armor_forging was researched.
+Resolution: After `UnitState.create()` in `_cmd_recruit_unit`, applies `int(float(unit["defense"]) * unit_armor_rating)` as an additive defense bonus. Swordsman defense: 12 → 15 with armor_forging researched. Scene test: ALL_SCENES_OK.
+
 ## [084] TechTree advanced_masonry wall_hp_bonus never applied — stone walls and great towers placed after research have default HP | Severity: Medium | Status: Resolved
 TechTree "advanced_masonry" (800 prestige) grants `wall_hp_bonus: 0.3` (wall HP +30%). `GameState._cmd_place_building()` called `BuildingState.create()` which reads HP from `BuildingRegistry` and never reads TechTree modifiers. Stone walls placed after researching advanced_masonry had 250 HP instead of 325; great towers had 500 instead of 650. The player paid 800 prestige for a defensive bonus that was silently ignored.
 Resolution: In `_cmd_place_building()`, after terrain yield is set and before cost deduction, checks if the building has `is_wall` or `is_tower` flag and applies `TechTree.get_all_modifiers(player)["wall_hp_bonus"]` via `int(ceil(max_hp * (1.0 + bonus)))` to both `hp` and `max_hp`. Only applies to newly-placed walls (not retroactive). Scene test: ALL_SCENES_OK.

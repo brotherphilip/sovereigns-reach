@@ -2,6 +2,12 @@
 
 ---
 
+## [Iteration 130] 2026-06-14 — Fix #085: unit_armor_rating from armor_forging never applied to recruited unit defense
+
+- What changed: `_cmd_recruit_unit()` now reads `TechTree.get_all_modifiers(player)["unit_armor_rating"]` after `UnitState.create()` and adds `int(base_defense * bonus)` to the unit's defense stat. Swordsman: defense 12 → 15; halberdier: 10 → 12 after armor_forging is researched.
+- Scene test: ALL_SCENES_OK
+- Issues resolved: #085
+
 ## [Iteration 129] 2026-06-14 — Fix #084: wall_hp_bonus from advanced_masonry never applied to placed walls
 
 - What changed: GameState._cmd_place_building() now checks if the new building has `is_wall` or `is_tower` flag and applies `TechTree.get_all_modifiers(player)["wall_hp_bonus"]` to both `hp` and `max_hp` before adding the building to the player's list. Stone walls: 250 → 325 HP; great towers: 500 → 650 HP after advanced_masonry research.

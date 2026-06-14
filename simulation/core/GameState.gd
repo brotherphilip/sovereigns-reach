@@ -906,6 +906,10 @@ func _cmd_recruit_unit(cmd: Dictionary) -> bool:
 	var uid: int = _next_unit_id
 	_next_unit_id += 1
 	var unit: Dictionary = UnitState.create(unit_type, pid, player.get("keep_x", 0), player.get("keep_y", 0), uid)
+	# Apply unit_armor_rating from armor_forging tech: boosts defense by the rated fraction.
+	var _armor_bonus: float = TechTree.get_all_modifiers(player).get("unit_armor_rating", 0.0)
+	if _armor_bonus > 0.0 and unit.has("defense"):
+		unit["defense"] = unit["defense"] + int(float(unit["defense"]) * _armor_bonus)
 	player["units"].append(unit)
 	return true
 
