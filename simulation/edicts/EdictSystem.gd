@@ -166,9 +166,9 @@ const EDICTS: Dictionary = {
 		"cost_points": 3,
 		"duration_ticks": 1,
 		"cooldown_ticks": TICKS_PER_GAME_DAY * 7,
-		"modifiers": {"popularity_delta": 8},
+		"modifiers": {"instant_event": "festival"},
 		"requires_tech": "royal_edicts",
-		"description": "Decrees a day of feasting — instantly grants +8 popularity. GDD §3.5.2.",
+		"description": "Decrees a day of feasting — fires a festival event (+8 popularity). GDD §3.5.2.",
 	},
 	"royal_harvest": {
 		"name": "Royal Harvest",

@@ -6,6 +6,7 @@ extends SceneTree
 const UnitRegistry  = preload("res://simulation/units/UnitRegistry.gd")
 const UnitState     = preload("res://simulation/units/UnitState.gd")
 const Pathfinder    = preload("res://simulation/pathfinding/Pathfinder.gd")
+const WorldGrid     = preload("res://simulation/world/WorldGrid.gd")
 const CombatSystem  = preload("res://simulation/combat/CombatSystem.gd")
 const AIFaction     = preload("res://simulation/ai/AIFaction.gd")
 const BanditKing    = preload("res://simulation/ai/BanditKing.gd")
@@ -424,6 +425,9 @@ func _test_gamestate_integration() -> void:
 	ok("gold deducted for recruitment", int(p.get("gold", 200)) < 200)
 
 	# 5. ISSUE_MOVE_ORDER changes unit order
+	# A real grid is required so pathfinding produces a non-empty path; without
+	# one the movement tick would immediately clear the order back to IDLE.
+	_gs._grid = WorldGrid.new(120, 120)  # all-grass, fully passable
 	var uid: int = p["units"][0].get("id", -1)
 	_cq.enqueue(CT_ISSUE_MOVE_ORDER, {"unit_id": uid, "target_x": 99, "target_y": 99}, 0)
 	_sc._advance_tick()

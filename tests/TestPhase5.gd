@@ -287,8 +287,8 @@ func test_tech_get_all_modifiers_stacks() -> void:
 	TechTree.research(p, "crop_tiers")
 	TechTree.research(p, "farming_speed")
 	var mods = TechTree.get_all_modifiers(p)
-	expect("farming_speed modifier present", mods.has("harvest_rate_bonus"))
-	expect("harvest_rate_bonus = 0.2", absf(mods["harvest_rate_bonus"] - 0.2) < 0.01)
+	expect("farming_speed modifier present", mods.has("farm_yield_bonus"))
+	expect("farm_yield_bonus = 0.2", absf(mods["farm_yield_bonus"] - 0.2) < 0.01)
 
 # ============ PrestigeSystem ============
 
@@ -563,7 +563,7 @@ func test_edict_get_modifiers_stacks() -> void:
 	EdictSystem.activate(p, "iron_tariffs", 0)
 	var mods = EdictSystem.get_active_modifiers(p)
 	expect("agrarian_subsidies modifier present", mods.has("orchard_yield_bonus"))
-	expect("iron_tariffs modifier present", mods.has("cart_speed_bonus"))
+	expect("iron_tariffs modifier present", mods.has("trade_income_bonus"))
 
 func test_edict_levy_summons_instant_effects() -> void:
 	var p = _make_edict_player(20)

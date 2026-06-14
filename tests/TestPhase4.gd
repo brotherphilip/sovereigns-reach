@@ -519,7 +519,7 @@ func test_gs_buy_resource_via_command() -> void:
 	_gs.players[0]["buildings"] = [market]
 	_gs.world["market_prices"] = {"wood": 3}
 	var wood_before = _gs.players[0]["resources"]["wood"]
-	_cq.enqueue(CT_BUY_RESOURCE, {"resource": "wood", "quantity": 10}, 0)
+	_cq.enqueue(CT_BUY_RESOURCE, {"resource": "wood", "amount": 10}, 0)
 	_sc.set_speed(1)
 	_sc._advance_tick()
 	_sc.set_speed(0)
@@ -532,7 +532,7 @@ func test_gs_sell_resource_via_command() -> void:
 	var market = BuildingState.create("market", 0, 15, 15, 3)
 	_gs.players[0]["buildings"] = [market]
 	_gs.world["market_prices"] = {"wood": 3}
-	_cq.enqueue(CT_SELL_RESOURCE, {"resource": "wood", "quantity": 10}, 0)
+	_cq.enqueue(CT_SELL_RESOURCE, {"resource": "wood", "amount": 10}, 0)
 	_sc.set_speed(1)
 	_sc._advance_tick()
 	_sc.set_speed(0)

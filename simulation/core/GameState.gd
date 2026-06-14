@@ -128,6 +128,10 @@ func _assign_starting_shire(player_id: int, start_x: int, start_y: int) -> void:
 		if shire is Dictionary and shire.get("id", -1) == best_id:
 			shire["owner_id"] = player_id
 			shire["owner_is_player"] = true
+			# Grant the free level-0→1 capital so the claimed shire provides its
+			# baseline buffs immediately (the 0→1 upgrade has no resource cost).
+			if shire.get("capital_level", 0) < 1:
+				shire["capital_level"] = 1
 			break
 
 func _make_player(player_id: int, player_name: String, start_x: int, start_y: int) -> Dictionary:
@@ -834,8 +838,14 @@ func _cmd_donate_to_capital(cmd: Dictionary) -> bool:
 			return false
 		player["resources"][resource] = has - amount
 	CapitalSystem.record_donation(player, target_shire, resource, amount)
-	# Auto-upgrade capital when cumulative donations meet the threshold
-	if CapitalSystem.can_upgrade(target_shire, world)["ok"]:
+	# Auto-upgrade capital when cumulative donations meet the threshold.
+	# Skip levels whose upgrade cost is empty (the free 0→1 step) so a fresh
+	# donation isn't immediately consumed by a no-cost upgrade — that step is
+	# granted on shire claim instead. See audit item: donation persistence.
+	var _cap_level: int = target_shire.get("capital_level", 0)
+	var _has_real_cost: bool = _cap_level < CapitalSystem.UPGRADE_COSTS.size() \
+		and not CapitalSystem.UPGRADE_COSTS[_cap_level].is_empty()
+	if _has_real_cost and CapitalSystem.can_upgrade(target_shire, world)["ok"]:
 		CapitalSystem.upgrade(target_shire, world)
 	if resource == "gold":
 		EventBus.gold_changed.emit(pid, old_gold, player.get("gold", 0))

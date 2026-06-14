@@ -70,12 +70,25 @@ static func get_sell_price(resource: String, world: Dictionary) -> int:
 	return world.get("market_prices", {}).get(resource, BASE_PRICES.get(resource, 5))
 
 # Returns true if the player is embargoed by any AI faction (prices rise).
+# Looks the GameState autoload up at runtime via the scene tree instead of
+# referencing it as a compile-time global identifier — that keeps this helper
+# compilable when preloaded in isolation (e.g. headless unit tests where the
+# autoload singleton is not yet registered). See audit item S12.
 static func is_embargoed(player: Dictionary) -> bool:
-	for f in GameState.ai_factions:
+	for f in _get_ai_factions():
 		if f is Dictionary and f.get("is_alive", false):
 			if player.get("id", 0) in f.get("embargoed_players", []):
 				return true
 	return false
+
+# Resolves GameState.ai_factions at runtime; returns [] if the autoload is absent.
+static func _get_ai_factions() -> Array:
+	var loop: MainLoop = Engine.get_main_loop()
+	if loop is SceneTree:
+		var gs: Node = (loop as SceneTree).root.get_node_or_null("GameState")
+		if gs != null:
+			return gs.ai_factions
+	return []
 
 # Executes a BUY_RESOURCE transaction. Returns dict with "ok", "message", "cost".
 # Requires player to have gold and a market building.

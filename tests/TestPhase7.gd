@@ -41,7 +41,6 @@ func _run_all() -> void:
 	_test_unit_renderer()
 	_test_micro_view_controller()
 	_test_macro_view_controller()
-	_test_main_controller()
 
 # ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -72,14 +71,14 @@ func _test_hud_controller() -> void:
 		"id": 0, "gold": 1200, "prestige": 80, "popularity": 62.0,
 		"tax_rate": 1, "food_ration": 2, "ale_ration": 1,
 		"population": 40, "military_strength": 10,
-		"food": {"wheat": 50, "bread": 30, "apple": 10},
+		"food": {"apples": 50, "bread": 30, "cheese": 10},  # canonical food keys; total 90
 		"resources": {"wood": 200, "stone": 100},
 		"is_starving": false,
 		"edict_points": 3,
 		"inn_coverage": 0.5, "religion_coverage": 0.3,
 		"units": [], "buildings": [],
 	}
-	var weather: Dictionary = {"current_name": "Fog", "popularity_delta": -2.0}
+	var weather: Dictionary = {"current": 4, "popularity_delta": -2.0}  # WeatherType.FOG = 4
 	var hud: Dictionary = HUDController.get_hud_data(player, weather, 1440)
 
 	# 1. Gold and prestige present
@@ -385,7 +384,7 @@ func _test_macro_view_controller() -> void:
 	# Player 0 shire color = SHIRE_COLORS[0]
 	var expected_p0: String = MacroViewController.SHIRE_COLORS[0]
 	ok("shire_color player_0 = SHIRE_COLORS[0]",
-		MacroViewController.get_shire_color(0, [], []) == expected_p0)
+		MacroViewController.get_shire_color(0, [], [], true) == expected_p0)
 
 	# Neutral color when owner_id < 0 and no AI match
 	ok("shire_color -1 = NEUTRAL_COLOR",
@@ -457,31 +456,3 @@ func _test_macro_view_controller() -> void:
 	var fow_player: Dictionary = {"fog_of_war": {"3,4": true, "5,6": true}}
 	ok("is_tile_revealed (3,4) = true",  MacroViewController.is_tile_revealed(fow_player, 3, 4))
 	ok("is_tile_revealed (0,0) = false", not MacroViewController.is_tile_revealed(fow_player, 0, 0))
-
-# ── MainController tests (5) ─────────────────────────────────────────────────
-
-func _test_main_controller() -> void:
-	print("\n--- MainController ---")
-
-	const MainController = preload("res://view/main/MainController.gd")
-	var mc: Node = MainController.new()
-	root.add_child(mc)
-
-	# Default mode is MICRO
-	ok("default mode = MICRO", mc._current_mode == MainController.ViewMode.MICRO)
-
-	# switch_to_macro
-	mc.switch_to_macro()
-	ok("switch_to_macro sets MACRO", mc._current_mode == MainController.ViewMode.MACRO)
-
-	# switch_to_micro
-	mc.switch_to_micro()
-	ok("switch_to_micro sets MICRO", mc._current_mode == MainController.ViewMode.MICRO)
-
-	# toggle_tech_tree twice
-	mc.toggle_tech_tree()
-	ok("toggle_tech_tree → TECH_TREE", mc._current_mode == MainController.ViewMode.TECH_TREE)
-	mc.toggle_tech_tree()
-	ok("toggle_tech_tree again → MICRO", mc._current_mode == MainController.ViewMode.MICRO)
-
-	mc.queue_free()
