@@ -14,6 +14,10 @@ var _cam_origin:  Vector2 = Vector2.ZERO
 
 func _ready() -> void:
 	enabled = true
+	# Smooth the camera toward its target so panning glides instead of stepping with
+	# frame-time variance or integer mouse-drag deltas. High speed keeps it responsive.
+	position_smoothing_enabled = true
+	position_smoothing_speed = 25.0
 
 func _process(delta: float) -> void:
 	_handle_keyboard_pan(delta)

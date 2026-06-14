@@ -71,7 +71,7 @@ func _draw_tile(gx: int, gy: int) -> void:
 	# Subtle deterministic per-tile variation so large fields don't look flat.
 	var n: float = sin(float(gx) * 12.9898 + float(gy) * 78.233)
 	n = n - floor(n)                      # fract → 0..1
-	var shade: float = 0.94 + 0.12 * n    # ±6% brightness
+	var shade: float = 0.97 + 0.06 * n    # ±3% brightness — subtle, less pan shimmer
 	var fill := Color(base.r * shade, base.g * shade, base.b * shade, 1.0)
 	var cx: float = (gx - gy) * HALF_W
 	var cy: float = (gx + gy) * HALF_H

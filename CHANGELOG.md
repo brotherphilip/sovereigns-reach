@@ -2,6 +2,22 @@
 
 ---
 
+## [Iteration 163] 2026-06-14 — Smooth camera (fix "jittery/snapping" panning)
+
+- User report: camera feels jittery/snappy when panning. Diagnosed empirically:
+  a 0.4px camera pan changes the rendered frame, proving the camera renders
+  sub-pixel-smooth — there is NO pixel snapping. The perceived "snapping" is
+  edge-shimmer (temporal aliasing of the sharp iso tiles, amplified by the
+  per-tile brightness variation) plus frame-time/mouse-step granularity.
+- Fix: Camera2D position smoothing (enabled, speed 25) so panning glides instead
+  of stepping with frame-time variance or integer mouse-drag deltas. Renderer-
+  agnostic.
+- Softened the per-tile terrain brightness variation (±6% → ±3%) to cut the
+  tile-grid shimmer that reads as jitter.
+- Note: true edge anti-aliasing (MSAA/FXAA) is unavailable in the GL Compatibility
+  renderer (both require Forward+/Vulkan). Switching renderers is a deliberate
+  project decision left to the user; not changed here.
+
 ## [Iteration 162] 2026-06-14 — Bespoke building models + unit-type silhouettes
 
 - Mode: visual remaster (loop).
