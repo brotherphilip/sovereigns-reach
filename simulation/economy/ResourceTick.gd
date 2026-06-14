@@ -157,7 +157,7 @@ static func tick_food_consumption(player: Dictionary, current_tick: int) -> Dict
 	var remaining: float = daily_demand
 
 	# Distribute consumption across food types (peasants eat all available)
-	for food_type in ["bread", "meat", "cheese", "apples"]:  # Priority order
+	for food_type in ["apples", "bread", "cheese", "meat"]:  # cheapest first — GDD §3.1.2
 		var available: int = food.get(food_type, 0)
 		if available <= 0 or remaining <= 0:
 			continue

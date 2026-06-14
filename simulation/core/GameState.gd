@@ -347,7 +347,7 @@ func _tick_player_economy(player: Dictionary, tick: int) -> void:
 			var extra: int = maxi(0, int(float(population) * food_drain))
 			if extra > 0:
 				var food_dict: Dictionary = player.get("food", {})
-				for food_type in ["bread", "meat", "cheese", "apples"]:
+				for food_type in ["apples", "bread", "cheese", "meat"]:  # cheapest first — GDD §3.1.2
 					if extra <= 0:
 						break
 					var available: int = food_dict.get(food_type, 0)

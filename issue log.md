@@ -3,6 +3,10 @@
 <!-- Format: ## [ID] Title | Severity: Blocker/High/Medium/Low | Status: Open/In Progress/Resolved/Byproduct -->
 <!-- Severities: Blocker=crashes/data loss, High=broken feature, Medium=wrong behavior, Low=polish/text -->
 
+## [089] Food consumption order inverted — bread consumed before apples, violating GDD §3.1.2 cheapest-first rule | Severity: Medium | Status: Resolved
+ResourceTick.tick_food_consumption() drains food in order `["bread", "meat", "cheese", "apples"]` — consuming the most processed, most valuable food first and leaving raw apples last. GDD §3.1.2 explicitly states "cheapest first": apples → bread → cheese → meat. FoodSystem.FOOD_CONSUMPTION_ORDER correctly defines this order and cites the same §3.1.2. The weather extra-drain in GameState._tick_player_economy() uses the same inverted order. Effect: players burn through bread/meat faster than intended, starving sooner and wasting processed food.
+Resolution: Changed consumption order in ResourceTick.tick_food_consumption() and GameState weather extra-drain to `["apples", "bread", "cheese", "meat"]`, matching FoodSystem.FOOD_CONSUMPTION_ORDER. Scene test: ALL_SCENES_OK.
+
 ## [088] MilestoneSystem first_farm check excludes hops_farm — milestone never triggers when hops_farm is built first | Severity: Low | Status: Resolved
 MilestoneSystem.check() grants the "first_farm" milestone when a player has a building of type "wheat_farm", "pig_farm", or "dairy_farm". BuildingRegistry also defines "hops_farm" (Category.FOOD, "Hops Farm") which is unlocked by the `crop_tiers` tech. A player who researches crop_tiers and builds a hops_farm as their first food building never earns the first_farm milestone. GameState.FARM_TYPES already includes "hops_farm" alongside the other farm types.
 Resolution: Added "hops_farm" to the in-array check in MilestoneSystem.check() line 34. Scene test: ALL_SCENES_OK.
