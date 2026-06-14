@@ -50,6 +50,7 @@ func _run_all() -> void:
 	_test_medium_fixes()
 	_test_keep_diplomacy_save()
 	_test_ai_unit_id_uniqueness()
+	_test_serialization_roundtrip()
 
 func ok(label: String, cond: bool) -> void:
 	if cond:
@@ -425,3 +426,36 @@ func _test_ai_unit_id_uniqueness() -> void:
 	# A freshly recruited unit must not reuse the survivor's id.
 	AIFaction.recruit_unit(f, "armed_peasant")
 	ok("recruited id does not collide after purge", f["units"][1]["id"] != survivor_id)
+
+# ─── Full serialization round-trip with new state ──────────────────────────────
+
+func _test_serialization_roundtrip() -> void:
+	print("\n--- Serialization round-trip (training + AI) ---")
+	var p: Dictionary = _fresh_player(60)
+	_give_barracks(p)
+	# A unit in the training queue.
+	_cq.enqueue(CT_RECRUIT_UNIT, {"unit_type": "armed_peasant"}, 0)
+	_sc._advance_tick()
+	# An AI faction with a recruited unit (exercises next_unit_id).
+	var fid: int = _gs.add_ai_faction(AIFaction.ARCHETYPE_BANDIT, 55, 55)
+	_gs.ai_factions[fid]["gold"] = 500
+	AIFaction.recruit_unit(_gs.ai_factions[fid], "armed_peasant")
+
+	# Serialize → JSON string → parse → deserialize (the real save path).
+	var snap: Dictionary = _gs.serialize()
+	var json_str: String = JSON.stringify(snap)
+	var parsed = JSON.parse_string(json_str)
+	ok("serialized state is JSON round-trippable", parsed is Dictionary)
+	_gs.players.clear()
+	_gs.ai_factions.clear()
+	_gs.deserialize(parsed)
+
+	ok("player restored after load", _gs.players.size() == 1)
+	ok("training unit survives round-trip",
+		_gs.players[0]["units"][0].get("order") == UnitState.ORDER_TRAINING)
+	ok("ai faction restored after load", _gs.ai_factions.size() == 1)
+	ok("faction next_unit_id survives round-trip",
+		int(_gs.ai_factions[0].get("next_unit_id", 0)) > 0)
+	# The simulation continues without error after a load.
+	_sc._advance_tick()
+	ok("simulation advances after load", true)
