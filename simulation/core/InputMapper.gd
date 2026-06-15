@@ -78,11 +78,11 @@ func _toggle_pause() -> void:
 		_enqueue_speed(SimulationClock.SPEED_PAUSED)
 
 func _enqueue_speed(speed: int) -> void:
-	CommandQueue.enqueue(
-		CommandQueue.CommandType.SET_GAME_SPEED,
-		{"speed": speed},
-		player_id
-	)
+	# Apply directly, NOT via the CommandQueue: the queue only drains in
+	# SimulationClock._advance_tick, which is skipped while paused, so a queued
+	# resume could never run and pause would softlock the game. Speed is a local
+	# clock concern, not deterministic sim state.
+	SimulationClock.set_speed(speed)
 
 func _toggle_view() -> void:
 	var new_mode: String = "macro" if _view_mode == "micro" else "micro"

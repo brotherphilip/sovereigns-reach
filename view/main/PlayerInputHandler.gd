@@ -265,7 +265,12 @@ func set_ale_ration(level: int) -> void:
 	CommandQueue.enqueue(CT_SET_ALE_RATION, {"level": level}, 0)
 
 func set_game_speed(speed: int) -> void:
-	CommandQueue.enqueue(CT_SET_GAME_SPEED, {"speed": speed}, 0)
+	# Apply directly, NOT via the CommandQueue. The queue is only drained inside
+	# SimulationClock._advance_tick, which doesn't run while paused — so a queued
+	# "resume" command could never process and pausing would softlock the game.
+	# Speed is a local presentation concern (real-time→tick mapping), not part of
+	# the deterministic sim command stream, so setting the clock directly is correct.
+	SimulationClock.set_speed(speed)
 
 func save_game() -> void:
 	CommandQueue.enqueue(CT_SAVE_GAME, {}, 0)

@@ -26,6 +26,49 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 2 — 2026-06-16
+
+### What happened when I played
+- Re-launched fresh to do a *managed* playthrough. First confirmed the unmanaged baseline: the
+  iter-1 game, left running ~20 min, ended **"The people have revolted! Day 56 reached"** — keep
+  intact (King's Peace + 48-day siege assembly held), death by **starvation→popularity collapse**.
+  Confirms the food/popularity spiral is the killer, not the siege.
+- Tried to manage: clicked **Pause** first (to build without real-time bleeding during my slow tool
+  calls)… then **could not un-pause by any means** — speed buttons, then keyboard 1/2/3, all dead.
+  The sim sat frozen at Day 0 / Food 200 indefinitely.
+
+### Why a 20-minute life doesn't happen — THE headline bug this iter
+- **[CRITICAL BUG] Pausing softlocks the game.** Speed changes were routed through the CommandQueue
+  (`PlayerInputHandler.set_game_speed` / `InputMapper._enqueue_speed` → `CT_SET_GAME_SPEED`). The
+  queue is **only drained inside `SimulationClock._advance_tick`, which doesn't run while paused.**
+  So Pause applies (a tick drains it → speed 0), but every subsequent Resume command sits in the
+  queue forever — **no ticks, so it can never drain.** A player who pauses (the most natural action
+  in a management game) can never resume → game bricked → 20-minute run impossible. This survived
+  ~170 prior iterations because headless tests and the dev-screenshot path never pause-then-resume
+  via the real input; only *actually playing as a human* surfaced it.
+
+### Changes made this iteration
+- **PlayerInputHandler.set_game_speed** and **InputMapper._enqueue_speed**: apply
+  `SimulationClock.set_speed(speed)` **directly**, bypassing the tick-drained CommandQueue. Speed is
+  a local presentation concern (real-time→tick mapping), not deterministic sim state, so direct
+  application is architecturally correct. The `CT_SET_GAME_SPEED` command + handler stay intact for
+  any direct enqueuers (TestPhase1 covers that path).
+
+### Verified this iteration (real game on Xvfb :99)
+- Pause at **Day 1** → click Resume (5×) → advanced to **Day 4**, Food 175→154. Pause/resume works.
+- Full test suite still green (TestPhase1 queue→handler path intact, TestPhase7 HUD 93/0).
+
+### Also observed / backlog refinement
+- **[MODEL CORRECTION]** `population` syncs to the ~8 living villagers each day (the starting "50" is
+  transient), so real food draw is ~4/day, not 25. One orchard (~8/day) over-feeds the village. The
+  earlier "need 5-6 orchards" worry was wrong; feeding is easy. The **8-villager workforce vs the
+  displayed population** is still a fiction/UX wart (HUD says "Pop: 50" then it visibly isn't).
+- **[UX] Build mode eats clicks**: while placing, left-clicks on the speed bar are consumed as
+  placement attempts — need to right-click/Esc to exit first. Minor, but a new player will be
+  confused. Consider auto-exiting build mode when clicking HUD chrome, or a clearer build-mode
+  indicator/cursor.
+- Health still locked at 25 from day 1 (malnutrition, carried over from iter-1 backlog).
+
 ## Iteration 1 — 2026-06-15
 
 ### What happened when I played
