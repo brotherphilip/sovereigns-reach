@@ -38,6 +38,9 @@ var _selection_panel: Panel = null
 var _tech_panel: Panel = null
 var _edict_panel: Panel = null
 var _notification_feed: NotificationFeed = null
+var _objective_panel: Panel = null
+var _objective_label: Label = null
+var _objective_progress: Label = null
 var _was_starving: bool = false
 var _had_disease: bool  = false
 
@@ -95,6 +98,7 @@ func _ready() -> void:
 	EventBus.popularity_changed.connect(func(_a,_b,_c): _refresh_right_panel())
 	EventBus.gold_changed.connect(_on_gold_changed)
 	EventBus.milestone_earned.connect(_on_milestone_earned)
+	EventBus.objective_updated.connect(_on_objective_updated)
 	EventBus.blessing_bestowed.connect(func(_pid, _spent): show_notification(
 		"A Blessing is bestowed upon your realm — popularity rises and your buildings are warded against fire.",
 		5.0, Color(0.85, 0.9, 1.0)))
@@ -128,6 +132,13 @@ func _on_milestone_earned(_player_id: int, milestone_id: String, prestige_bonus:
 	const MilestoneSystem = preload("res://simulation/core/MilestoneSystem.gd")
 	var label: String = MilestoneSystem.get_label(milestone_id)
 	show_notification("Milestone: %s  (+%.0f prestige)" % [label, prestige_bonus], 6.0, Color(1.0, 0.85, 0.2))
+
+func _on_objective_updated(index: int, total: int, text: String) -> void:
+	if _objective_label != null:
+		_objective_label.text = text
+	if _objective_progress != null:
+		# All done → show full; else show how many are behind us.
+		_objective_progress.text = "(%d/%d)" % [mini(index, total), total]
 
 func _on_gold_changed(_player_id: int, old_amount: int, new_amount: int) -> void:
 	_refresh_top_bar()
@@ -163,6 +174,16 @@ func _build_all_panels() -> void:
 
 	_right_panel = _make_panel(Rect2(vp.x - 220, 40, 218, 240))
 	_build_right_panel()
+
+	# Standing objective panel — the player's current goal, just below the realm panel.
+	_objective_panel = _make_panel(Rect2(vp.x - 220, 286, 218, 86))
+	_add_label(_objective_panel, "OBJECTIVE", Vector2(8, 6), 11, Color(1.0, 0.85, 0.35))
+	_objective_progress = _add_label(_objective_panel, "", Vector2(150, 6), 10, Color(0.7, 0.8, 0.95))
+	_objective_label = _add_label(_objective_panel, "Found your seat — build a Village Hall.",
+		Vector2(8, 26), 12, Color(0.93, 0.92, 0.85))
+	_objective_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_objective_label.custom_minimum_size = Vector2(202, 52)
+	_objective_label.size = Vector2(202, 52)
 
 	_bottom_bar = _make_panel(Rect2(0, vp.y - 36, vp.x, 34))
 	_build_bottom_bar(vp)

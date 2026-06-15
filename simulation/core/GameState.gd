@@ -21,6 +21,7 @@ const WildlifeSystem   = preload("res://simulation/world/WildlifeSystem.gd")
 const CitizenSystem    = preload("res://simulation/world/CitizenSystem.gd")
 const PeopleSystem     = preload("res://simulation/world/PeopleSystem.gd")
 const WorldEventSystem = preload("res://simulation/world/WorldEventSystem.gd")
+const ObjectiveSystem  = preload("res://simulation/core/ObjectiveSystem.gd")
 # Phase 5
 const TechTree         = preload("res://simulation/tech/TechTree.gd")
 const PrestigeSystem   = preload("res://simulation/tech/PrestigeSystem.gd")
@@ -1117,6 +1118,14 @@ func simulate_tick(tick: int) -> void:
 		# its villagers visibly work, just like the player's.
 		if spectator_mode:
 			_auto_manage_ai_town()
+
+		# Standing objectives — the player's running sense of direction toward Day 100.
+		if not spectator_mode:
+			var obj: Dictionary = ObjectiveSystem.evaluate(players[0], world, day)
+			for done_o in obj.get("newly_completed", []):
+				EventBus.realm_notice.emit("✓ Objective complete: " + String(done_o.get("text", "")), "good")
+			if not obj.get("newly_completed", []).is_empty() or day == 1:
+				EventBus.objective_updated.emit(int(obj["index"]), int(obj["total"]), String(obj["text"]))
 
 		# Telegraph the end of the establishment grace (King's Peace) so the player has
 		# fair warning to raise defences before rival lords are free to march on them.

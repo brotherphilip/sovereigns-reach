@@ -68,6 +68,8 @@ signal season_changed(season: int, season_name: String)
 signal world_event(event_data: Dictionary)
 # The outcome of a player's decision on a choice-event — a one-off notification line.
 signal realm_notice(text: String, tone: String)
+# Standing objective changed (player's current goal). index/total for "(3/6)" display.
+signal objective_updated(index: int, total: int, text: String)
 
 # --- World ---
 signal shire_ownership_changed(shire_id: int, old_owner: int, new_owner: int)

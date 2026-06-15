@@ -26,6 +26,40 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 9 — 2026-06-16  (direction: a standing Objective tracker)
+
+### Why
+Across the playthroughs the realm survives and now has events/decisions, but a new player still
+lacks a clear, *standing* answer to "what should I be doing, and where is this all going?" Milestones
+fire and vanish; the tutorial's hints are sequential and transient. The 20-minute goal itself was
+never shown. A persistent objective tracker gives constant direction — and naming "rule to Day 100"
+as the final objective makes the loop's own goal legible to the player.
+
+### What I added — ObjectiveSystem + HUD panel
+- **`simulation/core/ObjectiveSystem.gd`**: an ordered, forward-looking objective list (distinct from
+  backward-looking milestones), each with an `is_complete` check against live state:
+  1. Found your seat — build a Village Hall  2. Feed your people — Orchard + Granary
+  3. Grow your village to 20 souls  4. Weather your first winter (Day 48)
+  5. Ready your defences — Barracks/Wall/Tower (← doubles as military onboarding)
+  6. **Endure — rule your realm to Day 100 (20 minutes)** (the loop goal, made explicit).
+  `evaluate()` tracks completion in `world["objectives_done"]`, reports newly-completed + the current.
+- **GameState**: evaluates objectives each game-day; fires `EventBus.realm_notice` ("✓ Objective
+  complete: …") per new completion and `EventBus.objective_updated(index,total,text)` on change.
+- **HUDNode**: a persistent "OBJECTIVE (n/6)" panel below the realm panel, always showing the current
+  goal; updates on `objective_updated`.
+- **TestObjectives.gd** (22 tests): definitions, every completion check (incl. unbuilt sites don't
+  count, military/defense both satisfy "ready_for_war"), and `evaluate()` progression/idempotency.
+
+### Verified live (real clicks)
+Opened the game → panel reads "OBJECTIVE — Found your seat — build a Village Hall." Built a Hall →
+panel advanced to "OBJECTIVE **(1/6)** — Feed your people — build an Orchard and a Granary." End to
+end on screen. Full suite green.
+
+### Backlog / next
+- More objectives / branching once the basics land; tie some to events.
+- Military still has no hand-holding beyond the objective text — a barracks/recruit nudge could help.
+- Worker labour cap; build-mode eats HUD clicks; more event content.
+
 ## Iteration 8 — 2026-06-16  (longer real playthrough → diplomacy that makes sense)
 
 ### Played (real clicks) — the LATE game I'd never reached
