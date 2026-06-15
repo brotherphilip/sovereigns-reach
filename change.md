@@ -26,6 +26,33 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 18 — 2026-06-16  (market/trade verified + clearer trade buttons)
+
+### Checked + played
+- First confirmed no OTHER panel shares the iter-14 refresh-before-visible bug — only Tech & Edicts
+  had it (now fixed); trade lives in the always-visible selection panel.
+- Played the untested **market/trade** path with real clicks: built a Hall + **Market** (animated
+  stalls), selected it → Buy/Sell buttons per resource appeared. **Sold 10 wood → Wood 280→270,
+  Gold 490→520** (+30, 3g each). Trade works end-to-end.
+
+### Finding + change
+- **[UX] Cryptic buy buttons.** The buy button read "→ WO" (price-trend glyph + 2-letter code) with
+  no "Buy" — next to a "Sell" button, a player can't tell it's the buy action without hovering.
+- **HUDNode**: relabeled to **"Buy WD ↑"** (explicit action + resource + price-trend glyph) and
+  **"Sell WD"** (resource added for symmetry), with slightly wider buttons. The price trend (↑ pricey
+  / ↓ cheap / → normal) is preserved for at-a-glance trading.
+
+Full suite green; build renders clean.
+
+### Status note (18 iterations in)
+Core systems are now all verified working through the real UI: economy/food, housing/growth,
+military (build/recruit/command/combat), tech research, edicts (incl. an early one), trade, events,
+decisions, objectives. The 20-minute life is achievable and the systems are legible.
+
+### Backlog / next
+- A natural fresh-eyes full playthrough for remaining feel/onboarding gaps; late-game popularity
+  smoothing; the world-map/strategic layer (largely unplayed as the human); more content.
+
 ## Iteration 17 — 2026-06-16  (an early morale edict — the Edicts panel finally does something)
 
 ### Finding

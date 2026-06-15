@@ -743,17 +743,19 @@ func _add_market_actions(_building: Dictionary) -> void:
 			"→ at normal price"
 		)
 		var buy_btn := Button.new()
-		buy_btn.text = "%s %s" % [trend, r.left(2).to_upper()]
+		# "Buy WD ↑" — explicit action + price-trend glyph (↑ pricey / ↓ cheap / → normal),
+		# so it's not a cryptic "→ WO" the player can't tell from the Sell button.
+		buy_btn.text = "Buy %s %s" % [r.left(2).to_upper(), trend]
 		buy_btn.add_theme_font_size_override("font_size", 9)
-		buy_btn.custom_minimum_size = Vector2(52, 22)
+		buy_btn.custom_minimum_size = Vector2(64, 22)
 		var hist_tip: String = HUDController.get_market_history_tooltip(r, world)
 		buy_btn.tooltip_text = "Buy 10 %s · Cost: %s each\n%s\n%s" % [r, mp["buy"], trend_note, hist_tip]
 		buy_btn.pressed.connect(func(): trade_buy_requested.emit(r, 10))
 		_sel_actions.add_child(buy_btn)
 		var sell_btn := Button.new()
-		sell_btn.text = "Sell"
+		sell_btn.text = "Sell %s" % r.left(2).to_upper()
 		sell_btn.add_theme_font_size_override("font_size", 9)
-		sell_btn.custom_minimum_size = Vector2(34, 22)
+		sell_btn.custom_minimum_size = Vector2(52, 22)
 		sell_btn.tooltip_text = "Sell 10 %s · Receive: %s each\n%s\n%s" % [r, mp["sell"], trend_note, hist_tip]
 		sell_btn.pressed.connect(func(): trade_sell_requested.emit(r, 10))
 		_sel_actions.add_child(sell_btn)
