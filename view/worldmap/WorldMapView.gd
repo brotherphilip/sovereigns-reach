@@ -15,14 +15,25 @@ var _city_list:    Array = []
 var _road_list:    Array = []
 var _faction_list: Array = []
 var _deposit_list: Array = []
+var _army_list:    Array = []
+var _legend:       Array = []
 
 func apply_data(world_map_data: Dictionary) -> void:
 	_data         = world_map_data
-	_city_list    = WorldMapController.get_city_render_list(_data)
 	_road_list    = WorldMapController.get_road_render_list(_data)
 	_faction_list = WorldMapController.get_faction_territory_list(_data)
 	_deposit_list = WorldMapController.get_resource_deposit_list(_data)
 	mouse_filter  = Control.MOUSE_FILTER_STOP
+	refresh()
+
+# Re-read the dynamic strategic state (ownership, garrisons, armies, legend). Cheap
+# enough to call every strategic day so campaigns are seen unfolding live.
+func refresh() -> void:
+	if _data.is_empty():
+		return
+	_city_list = WorldMapController.get_city_render_list(_data)
+	_army_list = WorldMapController.get_army_render_list(_data)
+	_legend    = WorldMapController.get_kingdom_legend(_data)
 	queue_redraw()
 
 func _draw() -> void:
@@ -34,6 +45,8 @@ func _draw() -> void:
 	_draw_roads()
 	_draw_resource_deposits()
 	_draw_cities()
+	_draw_armies()
+	_draw_legend()
 
 func _input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.pressed \
@@ -161,29 +174,108 @@ func _draw_cities() -> void:
 		var p:    Vector2 = c["pos"]
 		var col:  Color   = Color.from_string(c["faction_color"], Color.GRAY)
 		var tier: int     = c.get("tier", 0)
-		var is_player: bool = c.get("is_player_start", false)
+		var is_player_owned: bool = c.get("is_player_owned", false)
+		var is_start: bool = c.get("is_player_start", false)
 		var is_hovered: bool = c.get("id", -1) == _hovered_city_id
 
-		# Player start gold ring
-		if is_player:
+		# Player-owned cities get a gold ring so the realm reads at a glance.
+		if is_player_owned:
 			draw_arc(p, 20.0, 0, TAU, 24, Color(0.95, 0.78, 0.10, 0.85), 3.0)
 
 		# Hover highlight
 		if is_hovered:
 			draw_arc(p, 18.0, 0, TAU, 24, Color.WHITE.darkened(0.1), 2.0)
 
-		_draw_castle_icon(p, col, tier, is_player)
+		_draw_castle_icon(p, col, tier, is_player_owned)
+
+		# Development pips (filled = developed) beneath the castle.
+		_draw_development_pips(p, c.get("development", 0), col)
 
 		# City name
-		var name_col: Color = Color(0.15, 0.10, 0.05) if not is_player else Color(0.60, 0.45, 0.10)
-		draw_string(ThemeDB.fallback_font, p + Vector2(-30, 20), c.get("name", ""),
+		var name_col: Color = Color(0.15, 0.10, 0.05) if not is_player_owned else Color(0.60, 0.45, 0.10)
+		var label: String = c.get("name", "")
+		if is_start:
+			label += " ★"
+		draw_string(ThemeDB.fallback_font, p + Vector2(-30, 20), label,
 			HORIZONTAL_ALIGNMENT_LEFT, -1, 9, name_col)
 
-		# Pop/troop count (only for capitals or player start)
-		if c.get("is_capital", false) or is_player:
-			var info: String = "%d pop · %d troops" % [c.get("population", 0), c.get("troop_count", 0)]
-			draw_string(ThemeDB.fallback_font, p + Vector2(-30, 30), info,
-				HORIZONTAL_ALIGNMENT_LEFT, -1, 8, Color(0.30, 0.22, 0.12, 0.8))
+		# Garrison strength on every city (the defenders that campaigns fight).
+		var ginfo: String = "⚔ %d" % c.get("garrison", 0)
+		draw_string(ThemeDB.fallback_font, p + Vector2(-30, 30), ginfo,
+			HORIZONTAL_ALIGNMENT_LEFT, -1, 8, Color(0.30, 0.22, 0.12, 0.85))
+
+func _draw_development_pips(p: Vector2, development: int, col: Color) -> void:
+	var n: int = clampi(development, 0, 10)
+	var shown: int = mini(n, 5)  # cap the row; 1 pip per 2 dev beyond 5
+	var step: float = 4.0
+	var total_w: float = float(shown) * step
+	var x0: float = p.x - total_w * 0.5
+	for i in range(shown):
+		var lit: bool = true
+		var pc: Color = col.lightened(0.2) if lit else Color(0.4, 0.4, 0.4, 0.5)
+		draw_rect(Rect2(x0 + i * step, p.y + 7.0, 2.5, 2.5), pc)
+
+# ── Armies on the march ─────────────────────────────────────────────────────────
+
+func _draw_armies() -> void:
+	for a in _army_list:
+		var p: Vector2 = a["pos"]
+		var col: Color = Color.from_string(a["color_hex"], Color.GRAY)
+		# March line to the target.
+		if a.get("moving", false):
+			var to: Vector2 = a["to"]
+			draw_line(p, to, Color(col.r, col.g, col.b, 0.55), 1.5)
+			# Arrowhead.
+			var dir: Vector2 = (to - p)
+			if dir.length() > 1.0:
+				dir = dir.normalized()
+				var perp: Vector2 = dir.orthogonal() * 4.0
+				var tip: Vector2 = p.lerp(to, 0.55)
+				draw_colored_polygon(PackedVector2Array([
+					tip + dir * 6.0, tip - dir * 2.0 + perp, tip - dir * 2.0 - perp,
+				]), Color(col.r, col.g, col.b, 0.8))
+		# Army banner: a small shield with its troop count.
+		draw_circle(p, 7.0, Color(0.10, 0.08, 0.06, 0.85))
+		draw_circle(p, 6.0, col)
+		draw_circle(p, 6.0, col.darkened(0.4))
+		draw_string(ThemeDB.fallback_font, p + Vector2(-6, -9),
+			str(a.get("size", 0)), HORIZONTAL_ALIGNMENT_LEFT, -1, 8,
+			Color(0.05, 0.04, 0.03))
+		draw_string(ThemeDB.fallback_font, p + Vector2(-5, 4),
+			str(a.get("size", 0)), HORIZONTAL_ALIGNMENT_LEFT, -1, 8,
+			Color(0.97, 0.95, 0.88))
+
+# ── Kingdom legend ──────────────────────────────────────────────────────────────
+
+func _draw_legend() -> void:
+	if _legend.is_empty():
+		return
+	var pad: float = 8.0
+	var row_h: float = 18.0
+	var panel_w: float = 196.0
+	var panel_h: float = pad * 2.0 + float(_legend.size()) * row_h + 18.0
+	var origin := Vector2(size.x - panel_w - 10.0, 46.0)
+	draw_rect(Rect2(origin, Vector2(panel_w, panel_h)), Color(0.08, 0.10, 0.07, 0.86))
+	draw_rect(Rect2(origin, Vector2(panel_w, panel_h)), Color(0.55, 0.45, 0.20, 0.7), false, 1.0)
+	draw_string(ThemeDB.fallback_font, origin + Vector2(pad, 14.0), "Kingdoms",
+		HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(0.91, 0.76, 0.26))
+	var y: float = origin.y + 20.0 + pad
+	for k in _legend:
+		var col: Color = Color.from_string(k["color_hex"], Color.GRAY)
+		var alive: bool = k.get("is_alive", true)
+		# Colour swatch.
+		draw_rect(Rect2(origin.x + pad, y - 8.0, 10.0, 10.0), col if alive else col.darkened(0.5))
+		var nm: String = k.get("name", "")
+		if k.get("is_player", false):
+			nm += " (You)"
+		var txt_col: Color = Color(0.88, 0.82, 0.64) if alive else Color(0.5, 0.45, 0.4)
+		var line: String = nm if alive else nm + " ✝"
+		draw_string(ThemeDB.fallback_font, Vector2(origin.x + pad + 16.0, y + 2.0), line,
+			HORIZONTAL_ALIGNMENT_LEFT, -1, 10, txt_col)
+		var stats: String = "%d⌂ %d⚔" % [k.get("city_count", 0), k.get("army_size", 0)]
+		draw_string(ThemeDB.fallback_font, Vector2(origin.x + panel_w - 56.0, y + 2.0), stats,
+			HORIZONTAL_ALIGNMENT_LEFT, -1, 9, txt_col)
+		y += row_h
 
 func _draw_castle_icon(p: Vector2, faction_col: Color, tier: int, is_player: bool) -> void:
 	var scale: float = 8.0 + tier * 4.0  # tier 0=8, 1=12, 2=16, 3=20

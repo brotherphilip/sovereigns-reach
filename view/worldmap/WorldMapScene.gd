@@ -8,6 +8,15 @@ var _world_view: Control = null
 
 var _loading_canvas: CanvasLayer = null
 
+# "Watch the campaign" live strategic ticker.
+var _watching: bool = false
+var _watch_accum: float = 0.0
+var _watch_speed: int = 1               # 1 = 1 day / WATCH_INTERVAL; 2,4 faster
+var _watch_btn: Button = null
+var _watch_speed_btn: Button = null
+var _day_label: Label = null
+const WATCH_INTERVAL: float = 0.45      # real seconds per strategic day at speed 1
+
 func _ready() -> void:
 	_show_loading()
 	# Defer actual build one frame so the loading screen renders first
@@ -34,11 +43,58 @@ func _init_and_build() -> void:
 		var seed_val: int = GameState.server_config.get("map_seed", 42)
 		GameState.world["world_map"] = WorldMapData.generate(seed_val)
 
+	# Promote the static map into a living strategic state (idempotent) so the
+	# campaign sim has owners, garrisons and kingdoms to work with.
+	GameState.ensure_strategic_initialized()
+
 	_build_scene()
 	SimulationClock.set_speed(SimulationClock.SPEED_PAUSED)
+
+	# Dev/headless hook: jump straight into spectating a developed rival city.
+	# (Returns early — that flow changes scene itself.)
+	if OS.get_environment("SR_SPECTATE") != "":
+		_dev_jump_to_spectator()
+		return
+
+	# Reveal the map: drop the loading overlay now that the scene is built.
 	if _loading_canvas:
 		_loading_canvas.queue_free()
 		_loading_canvas = null
+
+	# Dev/headless hook: auto-run the campaign watcher (used for screenshots).
+	if OS.get_environment("SR_AUTOWATCH") != "":
+		_watch_speed = 4
+		_on_toggle_watch()
+
+func _dev_jump_to_spectator() -> void:
+	var cs: Array = GameState.world.get("world_map", {}).get("cities", [])
+	if cs.size() < 3:
+		return
+	GameState.world["player_seat_city_id"] = cs[0].get("id", 0)
+	var target_id: int = cs[2].get("id", 2)
+	GameState.world["selected_city_id"] = target_id
+	for c in cs:
+		if c.get("id", -1) == target_id:
+			c["development"] = 8  # show a sizeable, walled town
+			break
+	get_tree().change_scene_to_file("res://view/cityview/CityViewScene.tscn")
+
+# Drive the strategic campaign simulation while "watching", and keep the view in
+# sync. The in-game clock stays paused on the map; we advance the strategic layer
+# directly so rivals visibly grow, march and conquer.
+func _process(delta: float) -> void:
+	if not _watching or _world_view == null:
+		return
+	_watch_accum += delta * float(_watch_speed)
+	var advanced: bool = false
+	while _watch_accum >= WATCH_INTERVAL:
+		_watch_accum -= WATCH_INTERVAL
+		GameState.advance_strategic_day()
+		advanced = true
+	if advanced:
+		_world_view.refresh()
+		if _day_label != null:
+			_day_label.text = "Campaign day %d" % GameState.strategic_day()
 
 func _build_scene() -> void:
 	var data: Dictionary = GameState.world["world_map"]
@@ -95,6 +151,32 @@ func _build_scene() -> void:
 	menu_btn.add_theme_font_size_override("font_size", 12)
 	menu_btn.pressed.connect(_on_main_menu)
 	top_bar.add_child(menu_btn)
+
+	# "Watch the campaign" controls — run the strategic AI live on the map.
+	_watch_btn = Button.new()
+	_watch_btn.text     = "▶ Watch Campaign"
+	_watch_btn.position = Vector2(vp.x - 270, 4)
+	_watch_btn.size     = Vector2(150, 28)
+	_watch_btn.add_theme_font_size_override("font_size", 12)
+	_watch_btn.pressed.connect(_on_toggle_watch)
+	top_bar.add_child(_watch_btn)
+
+	_watch_speed_btn = Button.new()
+	_watch_speed_btn.text     = "1×"
+	_watch_speed_btn.position = Vector2(vp.x - 312, 4)
+	_watch_speed_btn.size     = Vector2(36, 28)
+	_watch_speed_btn.add_theme_font_size_override("font_size", 12)
+	_watch_speed_btn.pressed.connect(_on_cycle_watch_speed)
+	top_bar.add_child(_watch_speed_btn)
+
+	_day_label = Label.new()
+	_day_label.text     = "Campaign day %d" % GameState.strategic_day()
+	_day_label.position = Vector2(vp.x - 470, 8)
+	_day_label.size     = Vector2(150, 22)
+	_day_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_day_label.add_theme_font_size_override("font_size", 12)
+	_day_label.add_theme_color_override("font_color", Color(0.80, 0.74, 0.54))
+	top_bar.add_child(_day_label)
 
 	var last_city_id: int = GameState.world.get("selected_city_id", -1)
 	if last_city_id >= 0:
@@ -161,6 +243,16 @@ func _fade_to_scene(path: String) -> void:
 	var tween: Tween = create_tween()
 	tween.tween_property(fade, "color", Color(0, 0, 0, 1), 0.35)
 	tween.tween_callback(func(): get_tree().change_scene_to_file(path))
+
+func _on_toggle_watch() -> void:
+	_watching = not _watching
+	if _watch_btn != null:
+		_watch_btn.text = "⏸ Pause Campaign" if _watching else "▶ Watch Campaign"
+
+func _on_cycle_watch_speed() -> void:
+	_watch_speed = 1 if _watch_speed >= 4 else _watch_speed * 2
+	if _watch_speed_btn != null:
+		_watch_speed_btn.text = "%d×" % _watch_speed
 
 func _on_main_menu() -> void:
 	get_tree().change_scene_to_file("res://view/menu/MainMenuScene.tscn")

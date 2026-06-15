@@ -87,6 +87,17 @@ static func issue_attack_order(unit: Dictionary, tx: int, ty: int, target_id: in
 	unit["target_y"] = ty
 	unit["target_id"] = target_id
 
+# Set a patrol order looping between two waypoints (a = origin, b = far point).
+# The unit engages any enemy that strays into its aggro radius, then resumes.
+static func issue_patrol_order(unit: Dictionary, ax: int, ay: int, bx: int, by: int) -> void:
+	unit["order"] = ORDER_PATROL
+	unit["patrol_a"] = [ax, ay]
+	unit["patrol_b"] = [bx, by]
+	unit["patrol_to_b"] = true
+	unit["target_x"] = bx
+	unit["target_y"] = by
+	unit["target_id"] = -1
+
 # Step the unit one tile along a path (list of [x, y] pairs).
 # Returns true if a move happened.
 static func advance_along_path(unit: Dictionary, path: Array) -> bool:

@@ -64,8 +64,12 @@ func _test_world_grid() -> void:
 	_ok(grid.get_terrain(10, 10) == WorldGrid.Terrain.FOREST, "set/get terrain FOREST")
 
 	grid.set_terrain(20, 20, WorldGrid.Terrain.RIVER)
-	_ok(not grid.is_passable(20, 20, WorldGrid.PASSABLE_FOOT),    "river not passable on foot")
+	# Water is now wadeable on foot (but very slow); horses/carts still can't ford.
+	_ok(grid.is_passable(20, 20, WorldGrid.PASSABLE_FOOT),        "river wadeable on foot")
 	_ok(not grid.is_passable(20, 20, WorldGrid.PASSABLE_CAVALRY), "river not passable for cavalry")
+	_ok(grid.get_move_cost(20, 20) > 3.0,                         "river greatly slows movement")
+	grid.set_terrain(21, 21, WorldGrid.Terrain.MOUNTAIN)
+	_ok(not grid.is_passable(21, 21, WorldGrid.PASSABLE_FOOT),    "mountain fully blocks foot")
 
 	grid.set_terrain(5, 5, WorldGrid.Terrain.ROAD)
 	_ok(grid.get_move_cost(5, 5) < 1.0, "road move cost < 1.0 (faster than grass)")

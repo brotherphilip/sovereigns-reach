@@ -30,11 +30,11 @@ const PASSABLE_SIEGE: int   = 0b00001000  # siege engines (flat terrain only)
 # Terrain passability table [terrain] -> passability_bitmask
 const TERRAIN_PASSABILITY: Dictionary = {
 	Terrain.GRASS:    PASSABLE_FOOT | PASSABLE_CAVALRY | PASSABLE_CART | PASSABLE_SIEGE,
-	Terrain.FOREST:   PASSABLE_FOOT,
-	Terrain.MOUNTAIN: 0,  # solid mass — armies must route around it
-	Terrain.RIVER:    0,
+	Terrain.FOREST:   PASSABLE_FOOT,                       # passable, ~half speed
+	Terrain.MOUNTAIN: 0,  # solid mass — fully blocks movement
+	Terrain.RIVER:    PASSABLE_FOOT,                       # wadeable on foot, very slow
 	Terrain.MARSH:    PASSABLE_FOOT,
-	Terrain.ROCK:     0,  # solid boulders — block movement
+	Terrain.ROCK:     0,  # solid boulders — fully blocks movement
 	Terrain.ORE_VEIN: PASSABLE_FOOT,
 	Terrain.VALLEY:   PASSABLE_FOOT | PASSABLE_CAVALRY | PASSABLE_CART | PASSABLE_SIEGE,
 	Terrain.COASTAL:  PASSABLE_FOOT | PASSABLE_CAVALRY | PASSABLE_CART,
@@ -42,14 +42,16 @@ const TERRAIN_PASSABILITY: Dictionary = {
 	Terrain.RUIN:     PASSABLE_FOOT | PASSABLE_CAVALRY,
 }
 
-# Movement cost multipliers for pathfinding (lower = faster travel)
+# Movement cost multipliers for pathfinding (lower = faster travel). Drives both
+# A* route choice AND per-tile movement speed, so units crawl through water and
+# slow through forest while preferring open ground and roads.
 const TERRAIN_MOVE_COST: Dictionary = {
 	Terrain.GRASS:    1.0,
-	Terrain.FOREST:   2.5,
-	Terrain.MOUNTAIN: 99.0,  # impassable solid mass
-	Terrain.RIVER:    99.0,
-	Terrain.MARSH:    2.0,
-	Terrain.ROCK:     99.0,   # impassable boulders
+	Terrain.FOREST:   2.0,    # trees ≈ half speed
+	Terrain.MOUNTAIN: 99.0,   # blocked
+	Terrain.RIVER:    5.0,    # water greatly slows
+	Terrain.MARSH:    3.0,
+	Terrain.ROCK:     99.0,   # blocked
 	Terrain.ORE_VEIN: 2.0,
 	Terrain.VALLEY:   1.0,
 	Terrain.COASTAL:  1.2,
@@ -212,6 +214,24 @@ func count_terrain_in_radius(cx: int, cy: int, radius: int, terrain: Terrain) ->
 			count += 1
 	return count
 
+# Allocation-free presence check within a radius (early-exits on first match).
+# Hot path for map generation — avoids the Array/Dictionary churn of
+# count_terrain_in_radius when only "is any nearby?" is needed.
+func _has_terrain_near(cx: int, cy: int, radius: int, terrain: int) -> bool:
+	var r2: int = radius * radius
+	var y0: int = maxi(0, cy - radius)
+	var y1: int = mini(height, cy + radius + 1)
+	var x0: int = maxi(0, cx - radius)
+	var x1: int = mini(width, cx + radius + 1)
+	for y in range(y0, y1):
+		var row: int = y * width
+		var dy: int = y - cy
+		for x in range(x0, x1):
+			var dx: int = x - cx
+			if dx * dx + dy * dy <= r2 and _terrain[row + x] == terrain:
+				return true
+	return false
+
 # --- Map generation (seeded procedural) ---
 
 func generate(seed_value: int, shire_count: int = 8) -> void:
@@ -318,7 +338,7 @@ func _place_resource_nodes(rng: RandomNumberGenerator) -> void:
 	for y in range(height):
 		for x in range(width):
 			if get_terrain(x, y) == Terrain.GRASS:
-				if count_terrain_in_radius(x, y, 3, Terrain.RIVER) > 0 and rng.randf() < 0.15:
+				if _has_terrain_near(x, y, 3, Terrain.RIVER) and rng.randf() < 0.15:
 					set_terrain(x, y, Terrain.MARSH)
 
 func _place_valleys(rng: RandomNumberGenerator) -> void:

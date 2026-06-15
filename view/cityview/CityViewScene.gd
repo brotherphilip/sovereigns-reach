@@ -30,6 +30,7 @@ var _citizen_layer: Node2D      = null
 var _hud:           CanvasLayer = null
 var _macro_view:    CanvasLayer = null
 var _input_handler: Node        = null
+var _spectator:     bool        = false  # viewing another faction's city (read-only)
 
 func _ready() -> void:
 	_resolve_city()
@@ -61,6 +62,7 @@ func _resolve_city() -> void:
 # ── Simulation init ───────────────────────────────────────────────────────────
 
 func _init_simulation() -> void:
+	GameState.spectator_mode = false
 	GameState.setup_world(_map_seed, DEFAULT_SHIRE_COUNT)
 	# No cleared "starting zone": just spawn the player on nearby buildable land so
 	# their first Hall can be placed. No terrain is altered.
@@ -74,8 +76,23 @@ func _init_simulation() -> void:
 	p["resources"]["iron"]      = 50
 	p["food"]["apples"]         = 100
 	p["population"]             = 50
-	GameState.add_ai_faction("bandit_king",   20,  20)
-	GameState.add_ai_faction("ashen_barony", 180, 180)
+
+	# Playable seat vs. spectator. The first city the player enters becomes their
+	# hand-built seat; entering any OTHER city shows a generated, growing town.
+	var selected: int = GameState.world.get("selected_city_id", -1)
+	var seat: int = GameState.world.get("player_seat_city_id", -1)
+	if seat < 0 and selected >= 0 and GameState.world.has("world_map"):
+		GameState.world["player_seat_city_id"] = selected
+		seat = selected
+	_spectator = selected >= 0 and selected != seat and GameState.world.has("world_map")
+
+	if _spectator:
+		# Showcase the selected city, sized to its strategic development.
+		GameState.enter_spectator_city(selected, _keep_x, _keep_y, _map_seed)
+	else:
+		# Your own seat: rival raiders may still threaten it.
+		GameState.add_ai_faction("bandit_king",   20,  20)
+		GameState.add_ai_faction("ashen_barony", 180, 180)
 
 # Move the start position to the nearest buildable (grass/valley) tile so the
 # player's first Hall can be placed there — without clearing any terrain.
@@ -165,11 +182,99 @@ func _build_scene() -> void:
 	_input_handler.name = "InputHandler"
 	add_child(_input_handler)
 	_input_handler.setup(_iso_grid, _camera, _unit_layer)
-	_input_handler.set_building_layer(_bld_layer)
+	# Spectator view is read-only: no building placement.
+	if not _spectator:
+		_input_handler.set_building_layer(_bld_layer)
 	_input_handler.set_animal_layer(_animal_layer)
 
 	# "World Map" return button (added to a small persistent overlay)
 	_add_world_map_button()
+
+	if _spectator:
+		_add_spectator_banner()
+
+	# Dev/headless hook: spawn a showcase army + an approaching enemy warband to
+	# verify unit bodies, animations, pathfinding and auto-combat in the real game.
+	if OS.get_environment("SR_SPAWN_UNITS") != "":
+		_dev_spawn_units()
+
+func _dev_spawn_units() -> void:
+	var US = preload("res://simulation/units/UnitState.gd")
+	GameState.prepare_starting_area(_keep_x, _keep_y, 18)
+	var types := [
+		"peasant","scout","monk","merchant","settler",
+		"armed_peasant","archer","ladderman","tunneler","militia",
+		"crossbowman","pikeman","swordsman","captain","halberdier",
+		"battering_ram","catapult","trebuchet","siege_tower","mantlet",
+	]
+	# Tidy 5-wide block of every type, west of the keep.
+	for i in types.size():
+		var gx: int = _keep_x - 10 + (i % 5) * 2
+		var gy: int = _keep_y - 4 + (i / 5) * 2
+		var u: Dictionary = US.create(types[i], 0, gx, gy, GameState._next_unit_id)
+		GameState._next_unit_id += 1
+		GameState.players[0]["units"].append(u)
+	# A small enemy warband to the east — they will deploy, march in and be fought.
+	if GameState.ai_factions.is_empty():
+		GameState.add_ai_faction("bandit_king", _keep_x + 14, _keep_y)
+	var fac: Dictionary = GameState.ai_factions[0]
+	for j in range(6):
+		var ex: int = _keep_x + 13 + (j % 3)
+		var ey: int = _keep_y - 2 + (j / 3) * 2
+		var foe_type: String = ["armed_peasant", "archer", "militia"][j % 3]
+		fac["units"].append(US.create(foe_type, fac.get("id", 0), ex, ey, fac.get("id", 0) * 10000 + 500 + j))
+	# SR_SPAWN_UNITS=march → send the showcase on a long cross-terrain march so we
+	# can watch them wade water, slow through forest, route around mountains, and
+	# never freeze (auto-unstick). Formation spread fans them out.
+	if OS.get_environment("SR_SPAWN_UNITS") == "march":
+		var tgtx: int = clampi(_keep_x + 30, 2, 197)
+		var tgty: int = clampi(_keep_y + 24, 2, 197)
+		for u in GameState.players[0].get("units", []):
+			GameState._cmd_issue_move_order({"player_id": 0, "payload":
+				{"unit_id": u.get("id"), "target_x": tgtx, "target_y": tgty}})
+
+func _add_spectator_banner() -> void:
+	var overlay := CanvasLayer.new()
+	overlay.name  = "SpectatorBanner"
+	overlay.layer = 11
+	add_child(overlay)
+	var vp: Vector2 = get_viewport().get_visible_rect().size
+	if vp == Vector2.ZERO: vp = Vector2(1280, 720)
+
+	var city: Dictionary = GameState.get_city(GameState.world.get("selected_city_id", -1))
+	var wm: Dictionary = GameState.world.get("world_map", {})
+	var owner_fid: int = city.get("owner_faction_id", city.get("faction_id", -1))
+	var fac_name: String = "Unclaimed"
+	var fac_col := Color(0.85, 0.78, 0.55)
+	for f in wm.get("factions", []):
+		if f is Dictionary and f.get("id", -1) == owner_fid:
+			fac_name = f.get("name", fac_name)
+			fac_col = Color.from_string(f.get("color_hex", "#888888"), fac_col)
+			break
+	var dev: int = int(city.get("development", city.get("tier", 0)))
+	var garrison: int = int(city.get("garrison", 0))
+
+	var panel := Panel.new()
+	panel.position = Vector2(vp.x * 0.5 - 230, 8)
+	panel.size     = Vector2(460, 40)
+	var sty := StyleBoxFlat.new()
+	sty.bg_color = Color(0.08, 0.10, 0.07, 0.9)
+	sty.set_border_width_all(2)
+	sty.border_color = fac_col
+	sty.set_corner_radius_all(6)
+	panel.add_theme_stylebox_override("panel", sty)
+	overlay.add_child(panel)
+
+	var lbl := Label.new()
+	lbl.text = "👁 Viewing %s — %s  ·  Development %d  ·  ⚔ %d garrison" % [
+		city.get("name", "City"), fac_name, dev, garrison]
+	lbl.position = Vector2(0, 0)
+	lbl.size     = Vector2(460, 40)
+	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lbl.vertical_alignment   = VERTICAL_ALIGNMENT_CENTER
+	lbl.add_theme_font_size_override("font_size", 14)
+	lbl.add_theme_color_override("font_color", Color(0.93, 0.86, 0.64))
+	panel.add_child(lbl)
 
 func _add_minimap() -> void:
 	var overlay := CanvasLayer.new()

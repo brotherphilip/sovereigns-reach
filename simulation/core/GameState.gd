@@ -37,6 +37,13 @@ const CombatSystem     = preload("res://simulation/combat/CombatSystem.gd")
 const MilestoneSystem  = preload("res://simulation/core/MilestoneSystem.gd")
 const Pathfinder       = preload("res://simulation/pathfinding/Pathfinder.gd")
 const DiplomacySystem  = preload("res://simulation/ai/DiplomacySystem.gd")
+# Strategic / campaign layer — world-map kingdoms (city growth, building,
+# armies, campaigns, diplomacy). See docs/STRATEGIC_AI_PLAN.md.
+const StrategicSim     = preload("res://simulation/strategic/StrategicSim.gd")
+const CampaignMap      = preload("res://simulation/strategic/CampaignMap.gd")
+const KingdomEconomy   = preload("res://simulation/strategic/KingdomEconomy.gd")
+const CampaignSystem   = preload("res://simulation/strategic/CampaignSystem.gd")
+const CityGenerator    = preload("res://simulation/world/CityGenerator.gd")
 # All fields are plain Dictionary/Array/int/float/bool — JSON-serializable.
 # Never stores Godot objects (Vector2, Node, etc.) to ensure network/save readiness.
 # The View layer reads from here; it never writes here directly.
@@ -76,6 +83,13 @@ var _citizen_rng: RandomNumberGenerator = null
 # Campfire — lit once the village hall is built. Villagers gather around it and
 # new recruits muster there. Serializable: {"active": bool, "x": float, "y": float}.
 var campfire: Dictionary = {"active": false}
+
+# Spectator view: when true, players[0] is a generated showcase of another faction's
+# city (not the player's playable seat). Its economy is not ticked; it only grows
+# as its strategic development rises. Transient — never serialized.
+var spectator_mode: bool = false
+var _spectator_city_id: int = -1
+var _spectator_last_dev: int = -1
 
 func _ready() -> void:
 	_init_default_state()
@@ -584,18 +598,138 @@ func _get_player_capital_buff(player: Dictionary) -> Dictionary:
 			return CapitalSystem.get_capital_buffs(shire)
 	return {}
 
-func _tick_player_unit_movement(player: Dictionary, tick: int) -> void:
-	const TICKS_PER_DAY: int = SimulationClock.TICKS_PER_GAME_DAY
-	for unit in player.get("units", []):
+# How far an idle/patrolling unit will notice and engage an enemy.
+const AGGRO_RADIUS: int = 9
+
+# Generic per-force unit tick. `owner` is the player or AI-faction dict that owns
+# the units; `enemies` is the precomputed list of hostile unit dicts; `rally` is
+# where idle units should advance to (AI raiders) or Vector2i(-1,-1) to hold.
+func _tick_force_units(owner: Dictionary, units: Array, enemies: Array, tick: int, rally: Vector2i) -> void:
+	const TPD: int = SimulationClock.TICKS_PER_GAME_DAY
+	for unit in units:
 		if not (unit is Dictionary and unit.get("is_alive", false)):
+			continue
+		# Auto-unstick: a unit standing on a now-blocked or built-over tile (or one
+		# that's wedged and can't path) relocates to the nearest open cell instead
+		# of freezing in place.
+		if _tile_blocked_for_foot(unit.get("pos_x", 0), unit.get("pos_y", 0)):
+			_unstick(owner, unit)
 			continue
 		match unit.get("order", ""):
 			UnitState.ORDER_MOVE:
-				_tick_unit_move(player, unit, tick, TICKS_PER_DAY)
+				_tick_unit_move(owner, unit, tick, TPD)
 			UnitState.ORDER_ATTACK:
-				_tick_unit_attack(player, unit, tick, TICKS_PER_DAY)
+				_tick_unit_attack(owner, unit, tick, TPD, enemies)
+			UnitState.ORDER_PATROL:
+				_tick_unit_patrol(owner, unit, tick, TPD, enemies)
 			UnitState.ORDER_TRAINING:
-				_tick_unit_training(player, unit)
+				_tick_unit_training(owner, unit)
+			_:
+				_tick_unit_idle(owner, unit, tick, TPD, enemies, rally)
+
+# Backward-compatible shim (player units, hold position, defend if attacked).
+func _tick_player_unit_movement(player: Dictionary, tick: int) -> void:
+	_tick_force_units(player, player.get("units", []),
+		_enemies_of_player(player.get("id", -1)), tick, Vector2i(-1, -1))
+
+# ── Enemy resolution ─────────────────────────────────────────────────────────
+
+# All hostile deployable units a given player can fight (AI factions + rivals).
+func _enemies_of_player(pid: int) -> Array:
+	var out: Array = []
+	for fac in ai_factions:
+		if fac is Dictionary and fac.get("is_alive", false):
+			for u in fac.get("units", []):
+				if u is Dictionary and u.get("is_alive", false) and UnitState.is_deployable(u):
+					out.append(u)
+	for p in players:
+		if p is Dictionary and p.get("id", -1) != pid:
+			for u in p.get("units", []):
+				if u is Dictionary and u.get("is_alive", false) and UnitState.is_deployable(u):
+					out.append(u)
+	return out
+
+# All hostile deployable player units an AI faction can fight.
+func _enemies_of_faction() -> Array:
+	var out: Array = []
+	for p in players:
+		if p is Dictionary and p.get("is_alive", false):
+			for u in p.get("units", []):
+				if u is Dictionary and u.get("is_alive", false) and UnitState.is_deployable(u):
+					out.append(u)
+	return out
+
+func _find_in(units: Array, target_id: int) -> Dictionary:
+	if target_id < 0:
+		return {}
+	for u in units:
+		if u is Dictionary and u.get("id", -1) == target_id and u.get("is_alive", false):
+			return u
+	return {}
+
+# Nearest live enemy within `radius` tiles (Chebyshev via squared compare), or {}.
+func _nearest_enemy(ux: int, uy: int, enemies: Array, radius: int) -> Dictionary:
+	var best: Dictionary = {}
+	var best_d: int = radius * radius + 1
+	for e in enemies:
+		var dx: int = e.get("pos_x", 0) - ux
+		var dy: int = e.get("pos_y", 0) - uy
+		var d: int = dx * dx + dy * dy
+		if d <= radius * radius and d < best_d:
+			best_d = d
+			best = e
+	return best
+
+# ── Idle / patrol behaviour ──────────────────────────────────────────────────
+
+# Idle combat units defend themselves: they auto-acquire a nearby foe, resume a
+# patrol route, or (AI raiders) march on their rally point.
+func _tick_unit_idle(owner: Dictionary, unit: Dictionary, tick: int, tpd: int, enemies: Array, rally: Vector2i) -> void:
+	if tick % maxi(1, tpd / 4) != 0:
+		return
+	if unit.get("attack", 0) > 0:
+		var tgt: Dictionary = _nearest_enemy(unit.get("pos_x", 0), unit.get("pos_y", 0), enemies, AGGRO_RADIUS)
+		if not tgt.is_empty():
+			UnitState.issue_attack_order(unit, tgt.get("pos_x", 0), tgt.get("pos_y", 0), tgt.get("id", -1))
+			return
+	if unit.has("patrol_a"):
+		unit["order"] = UnitState.ORDER_PATROL
+		return
+	# Rally march (AI raiders advancing on the enemy seat).
+	if rally.x >= 0 and _grid != null:
+		var dd: int = maxi(absi(rally.x - unit.get("pos_x", 0)), absi(rally.y - unit.get("pos_y", 0)))
+		if dd > 2:
+			var path: Array = Pathfinder.find_path(_grid, unit.get("pos_x", 0), unit.get("pos_y", 0), rally.x, rally.y)
+			if not path.is_empty():
+				unit["order"] = UnitState.ORDER_MOVE
+				unit["move_path"] = path
+				unit["target_x"] = rally.x
+				unit["target_y"] = rally.y
+
+# Patrol between two waypoints; break off to fight any foe that wanders too close.
+func _tick_unit_patrol(owner: Dictionary, unit: Dictionary, tick: int, tpd: int, enemies: Array) -> void:
+	var tgt: Dictionary = _nearest_enemy(unit.get("pos_x", 0), unit.get("pos_y", 0), enemies, AGGRO_RADIUS)
+	if not tgt.is_empty():
+		# Keep patrol_a/b so the idle tick resumes the route after the kill.
+		UnitState.issue_attack_order(unit, tgt.get("pos_x", 0), tgt.get("pos_y", 0), tgt.get("id", -1))
+		return
+	var to_b: bool = unit.get("patrol_to_b", true)
+	var wp: Array = unit.get("patrol_b", []) if to_b else unit.get("patrol_a", [])
+	if wp.size() < 2:
+		unit["order"] = UnitState.ORDER_IDLE
+		return
+	var wx: int = wp[0]
+	var wy: int = wp[1]
+	if maxi(absi(wx - unit.get("pos_x", 0)), absi(wy - unit.get("pos_y", 0))) == 0:
+		unit["patrol_to_b"] = not to_b
+		return
+	if _grid == null:
+		return
+	unit["target_x"] = wx
+	unit["target_y"] = wy
+	var path: Array = Pathfinder.find_path(_grid, unit.get("pos_x", 0), unit.get("pos_y", 0), wx, wy)
+	if not path.is_empty():
+		_advance_step(owner, unit, path[0][0], path[0][1], tpd)
 
 # S2: advance a unit's barracks training. Required time scales down with the
 # training_rate_bonus tech modifier (GDD §7.3 / training_speed tech). On
@@ -624,26 +758,105 @@ func _unit_step_ticks(player: Dictionary, unit: Dictionary, ticks_per_day: int) 
 	var effective_speed: float = float(maxi(1, speed)) * (1.0 + tech_speed_bonus) * maxf(0.1, army_speed_mult) * maxf(0.1, weather_penalty)
 	return maxi(1, int(float(ticks_per_day) / effective_speed))
 
-func _tick_unit_move(player: Dictionary, unit: Dictionary, tick: int, ticks_per_day: int) -> void:
+# Terrain speed multiplier for the tile being entered: water crawls (×5), forest
+# slows (×2), roads speed up (×0.5). Clamped so blocked tiles (×99) don't appear.
+func _terrain_factor(x: int, y: int) -> float:
+	if _grid == null:
+		return 1.0
+	return clampf(_grid.get_move_cost(x, y), 0.4, 8.0)
+
+# Cooldown-based step. Honors per-unit speed AND the entered tile's terrain cost,
+# so a single mover slows down in forest/water without changing the tick cadence
+# elsewhere. Returns true on the tick it actually moves.
+func _advance_step(owner: Dictionary, unit: Dictionary, nx: int, ny: int, tpd: int) -> bool:
+	var cd: int = unit.get("step_cd", 0)
+	if cd > 0:
+		unit["step_cd"] = cd - 1
+		return false
+	unit["pos_x"] = nx
+	unit["pos_y"] = ny
+	var base: int = _unit_step_ticks(owner, unit, tpd)
+	var eff: int = maxi(1, int(round(float(base) * _terrain_factor(nx, ny))))
+	unit["step_cd"] = eff - 1
+	return true
+
+# True if foot units cannot stand on (x,y): out of bounds, impassable terrain
+# (mountain/rock), or occupied by a building.
+func _tile_blocked_for_foot(x: int, y: int) -> bool:
+	if _grid == null:
+		return false
+	if not _grid.in_bounds(x, y):
+		return true
+	if not _grid.is_passable(x, y, WorldGrid.PASSABLE_FOOT):
+		return true
+	return _grid.get_building_at(x, y) != 0
+
+# Spiral out for the nearest open, walkable, unbuilt cell; (-1,-1) if none near.
+func _nearest_free_cell(x: int, y: int) -> Vector2i:
+	if _grid == null:
+		return Vector2i(x, y)
+	for r in range(1, 24):
+		for dy in range(-r, r + 1):
+			for dx in range(-r, r + 1):
+				if maxi(absi(dx), absi(dy)) != r:
+					continue
+				if not _tile_blocked_for_foot(x + dx, y + dy):
+					return Vector2i(x + dx, y + dy)
+	return Vector2i(-1, -1)
+
+# Free a trapped unit by sending it to the nearest open cell. A unit standing ON a
+# blocked tile is moved there immediately (otherwise the per-tick stuck check would
+# loop forever); a unit that simply can't path to its goal walks there normally.
+func _unstick(owner: Dictionary, unit: Dictionary) -> void:
+	var here_blocked: bool = _tile_blocked_for_foot(unit.get("pos_x", 0), unit.get("pos_y", 0))
+	var fc: Vector2i = _nearest_free_cell(unit.get("pos_x", 0), unit.get("pos_y", 0))
+	if fc.x < 0:
+		return
+	unit["target_id"] = -1
+	unit["step_cd"] = 0
+	if here_blocked:
+		# Immediate escape — can't safely path out of an impassable cell.
+		unit["pos_x"] = fc.x
+		unit["pos_y"] = fc.y
+		unit["order"] = UnitState.ORDER_IDLE
+		unit["move_path"] = []
+		return
+	if _grid != null:
+		var path: Array = Pathfinder.find_path(_grid, unit.get("pos_x", 0), unit.get("pos_y", 0), fc.x, fc.y)
+		if not path.is_empty():
+			unit["order"] = UnitState.ORDER_MOVE
+			unit["move_path"] = path
+			unit["target_x"] = fc.x
+			unit["target_y"] = fc.y
+			return
+	unit["pos_x"] = fc.x
+	unit["pos_y"] = fc.y
+	unit["order"] = UnitState.ORDER_IDLE
+	unit["move_path"] = []
+
+func _tick_unit_move(owner: Dictionary, unit: Dictionary, tick: int, ticks_per_day: int) -> void:
 	var path: Array = unit.get("move_path", [])
 	if path.is_empty():
+		# Reached the goal, or couldn't get anywhere. If not at the target and
+		# currently wedged, unstick; otherwise settle to idle.
+		if (unit.get("pos_x", 0) != unit.get("target_x", 0) or unit.get("pos_y", 0) != unit.get("target_y", 0)) \
+				and _tile_blocked_for_foot(unit.get("pos_x", 0), unit.get("pos_y", 0)):
+			_unstick(owner, unit)
+			return
 		unit["order"] = UnitState.ORDER_IDLE
 		return
-	if tick % _unit_step_ticks(player, unit, ticks_per_day) != 0:
-		return
-	unit["pos_x"] = path[0][0]
-	unit["pos_y"] = path[0][1]
-	path.remove_at(0)
-	unit["move_path"] = path
-	if path.is_empty():
-		unit["order"] = UnitState.ORDER_IDLE
+	if _advance_step(owner, unit, path[0][0], path[0][1], ticks_per_day):
+		path.remove_at(0)
+		unit["move_path"] = path
+		if path.is_empty():
+			unit["order"] = UnitState.ORDER_IDLE
 
 # S1: ORDER_ATTACK execution. The unit chases its target_id; once within weapon
 # range it strikes on a fixed cadence, and the target retaliates. Resolves to
 # IDLE when the target dies or can no longer be found.
-func _tick_unit_attack(player: Dictionary, unit: Dictionary, tick: int, ticks_per_day: int) -> void:
-	var target: Dictionary = _find_enemy_unit_by_id(player.get("id", -1), unit.get("target_id", -1))
-	if target.is_empty() or not target.get("is_alive", false):
+func _tick_unit_attack(owner: Dictionary, unit: Dictionary, tick: int, ticks_per_day: int, enemies: Array) -> void:
+	var target: Dictionary = _find_in(enemies, unit.get("target_id", -1))
+	if target.is_empty():
 		unit["order"] = UnitState.ORDER_IDLE
 		unit["target_id"] = -1
 		return
@@ -651,30 +864,42 @@ func _tick_unit_attack(player: Dictionary, unit: Dictionary, tick: int, ticks_pe
 	var ty: int = target.get("pos_y", unit.get("pos_y", 0))
 	unit["target_x"] = tx
 	unit["target_y"] = ty
-	# Chebyshev distance (8-directional grid). Melee (range 0) engages adjacent.
-	var dist: int = maxi(absi(tx - unit.get("pos_x", 0)), absi(ty - unit.get("pos_y", 0)))
-	var engage_dist: int = maxi(1, unit.get("range", 0))
-	if dist > engage_dist:
-		# Out of range: step toward the target's live position.
-		if tick % _unit_step_ticks(player, unit, ticks_per_day) != 0 or _grid == null:
+	var ux: int = unit.get("pos_x", 0)
+	var uy: int = unit.get("pos_y", 0)
+	var dist: int = maxi(absi(tx - ux), absi(ty - uy))
+	var rng: int = unit.get("range", 0)
+	var engage_dist: int = maxi(1, rng)
+
+	# Ranged kiting: if a melee foe closes to point-blank, back off one tile while
+	# still loosing a shot, so archers/crossbowmen don't get pinned in melee.
+	if rng >= 2 and dist <= 1 and target.get("range", 0) == 0:
+		var rx: int = ux + signi(ux - tx)
+		var ry: int = uy + signi(uy - ty)
+		if not _tile_blocked_for_foot(rx, ry):
+			if _advance_step(owner, unit, rx, ry, ticks_per_day):
+				dist = maxi(absi(tx - rx), absi(ty - ry))
+	elif dist > engage_dist:
+		# Out of range: pathfind one step toward the target's live position
+		# (terrain-aware cooldown stepping).
+		if _grid == null:
 			return
-		var path: Array = Pathfinder.find_path(_grid, unit.get("pos_x", 0), unit.get("pos_y", 0), tx, ty)
+		var path: Array = Pathfinder.find_path(_grid, ux, uy, tx, ty)
 		if not path.is_empty():
-			unit["pos_x"] = path[0][0]
-			unit["pos_y"] = path[0][1]
+			_advance_step(owner, unit, path[0][0], path[0][1], ticks_per_day)
 		return
+
 	# In range: strike on a steady cadence (~8 strikes per game-day).
 	if tick % maxi(1, ticks_per_day / 8) != 0:
 		return
 	var result: Dictionary = CombatSystem.calculate_damage(unit, target)
 	if result.get("killed", false):
-		EventBus.unit_killed.emit(target.get("id", -1), player.get("id", 0), "combat")
-		player["total_kills"] = player.get("total_kills", 0) + 1
+		EventBus.unit_killed.emit(target.get("id", -1), owner.get("id", 0), "combat")
+		owner["total_kills"] = owner.get("total_kills", 0) + 1
 		unit["order"] = UnitState.ORDER_IDLE
 		unit["target_id"] = -1
 		return
-	# Surviving target retaliates — but only if the attacker is within ITS reach.
-	# This lets ranged units (e.g. archers) safely strike melee targets from afar.
+	# Surviving target retaliates — but only if the attacker is within ITS reach,
+	# so ranged units can safely strike melee targets from afar.
 	var target_reach: int = maxi(1, target.get("range", 0))
 	if target.get("attack", 0) > 0 and dist <= target_reach:
 		var retal: Dictionary = CombatSystem.calculate_damage(target, unit)
@@ -745,6 +970,14 @@ func apply_command(command: Dictionary) -> void:
 			success = _cmd_research_tech(command)
 		CommandQueue.CommandType.DIPLOMACY_RESPONSE:
 			success = _cmd_diplomacy_response(command)
+		CommandQueue.CommandType.DEVELOP_CITY:
+			success = _cmd_develop_city(command)
+		CommandQueue.CommandType.RAISE_ARMY:
+			success = _cmd_raise_army(command)
+		CommandQueue.CommandType.LAUNCH_CAMPAIGN:
+			success = _cmd_launch_campaign(command)
+		CommandQueue.CommandType.STRATEGIC_DIPLOMACY:
+			success = _cmd_strategic_diplomacy(command)
 		CommandQueue.CommandType.SAVE_GAME:
 			EventBus.save_requested.emit()
 			success = true
@@ -764,8 +997,24 @@ func simulate_tick(tick: int) -> void:
 	for player in players:
 		if not player.get("is_alive", false):
 			continue
+		# In spectator mode the showcased town (player 0) isn't economically driven —
+		# it only grows via strategic development — but its citizens still wander/build.
+		if spectator_mode and player.get("id", -1) == 0:
+			_tick_player_unit_movement(player, tick)
+			continue
 		_tick_player_economy(player, tick)
 		_tick_player_unit_movement(player, tick)
+
+	# AI-faction units act on the grid too: idle raiders march on the player's
+	# seat (rally point) and skirmish any defenders they meet — visible enemy AI.
+	if not spectator_mode and not ai_factions.is_empty():
+		var rally := Vector2i(-1, -1)
+		if not players.is_empty():
+			rally = Vector2i(players[0].get("keep_x", 100), players[0].get("keep_y", 100))
+		var player_enemies: Array = _enemies_of_faction()
+		for fac in ai_factions:
+			if fac is Dictionary and fac.get("is_alive", false):
+				_tick_force_units(fac, fac.get("units", []), player_enemies, tick, rally)
 
 	# Wildlife roams every tick (smooth) and flees nearby units / the tracked cursor.
 	if not wildlife.is_empty():
@@ -896,6 +1145,175 @@ func simulate_tick(tick: int) -> void:
 			if not any_alive:
 				faction["is_alive"] = false
 				EventBus.ai_faction_defeated.emit(faction.get("id", -1))
+
+		# Strategic / campaign layer: the world-map kingdoms grow, build, raise
+		# armies, wage campaigns and conduct diplomacy each game-day.
+		_tick_strategic_layer()
+
+		# City generation feedback: a spectated town gains buildings as its strategic
+		# development rises; the player's own seat feeds its built-up state back to
+		# the world map so playing it advances the realm.
+		if spectator_mode:
+			_tick_spectator_growth()
+		elif world.has("world_map") and not world["world_map"].is_empty():
+			_update_seat_development()
+
+# Advance the world-map strategic simulation one game-day and forward outcomes to
+# EventBus. Driven both by the in-city day boundary (above) and by the world-map
+# "watch the campaign" view (advance_strategic_day) — a single strategic_day
+# counter keeps the RNG seed consistent no matter which path advances time.
+func advance_strategic_day() -> void:
+	_tick_strategic_layer()
+
+# Lazily promote the static world map into a living strategic state. Safe to call
+# repeatedly; returns true once a world map exists and is initialised.
+func ensure_strategic_initialized() -> bool:
+	return CampaignMap.ensure_initialized(world, players)
+
+func strategic_day() -> int:
+	return world.get("world_map", {}).get("strategic_day", 0)
+
+# --- City generation: spectator towns + seat feedback ---
+
+# Populate players[0] with a generated showcase of another faction's city, sized
+# to its current strategic development. Called by CityViewScene when viewing a
+# city that is not the player's playable seat. center_x/center_y is the (snapped)
+# town centre on the freshly-generated city grid; seed_val matches that grid.
+func enter_spectator_city(city_id: int, center_x: int, center_y: int, seed_val: int) -> void:
+	spectator_mode = true
+	_spectator_city_id = city_id
+	ensure_strategic_initialized()
+	var city: Dictionary = CampaignMap.city_by_id(world, city_id)
+	var dev: int = int(city.get("development", city.get("tier", 0)))
+	_spectator_last_dev = dev
+	# Generate the town fully standing (prev_dev == dev → all built).
+	var res: Dictionary = CityGenerator.building_dicts(
+		center_x, center_y, _grid, seed_val, dev, 0, _next_building_id, dev)
+	var blds: Array = res["buildings"]
+	_next_building_id = res["next_id"]
+	if not players.is_empty():
+		players[0]["buildings"] = blds
+	_register_buildings_in_grid(blds)
+	# Re-people the town: more souls for a bigger settlement.
+	var count: int = clampi(8 + dev * 2, 8, 30)
+	citizens = []
+	_next_citizen_id = 1
+	if _citizen_rng == null:
+		_citizen_rng = RandomNumberGenerator.new()
+		_citizen_rng.seed = server_config.get("map_seed", 12345) ^ 0xC1721E
+	_next_citizen_id = CitizenSystem.spawn(
+		citizens, count, float(center_x), float(center_y), _citizen_rng, _next_citizen_id)
+	_snap_citizens_to_grass()
+
+func _register_buildings_in_grid(blds: Array) -> void:
+	if _grid == null:
+		return
+	for b in blds:
+		if not b is Dictionary:
+			continue
+		var defn: Dictionary = BuildingRegistry.lookup(b.get("type", ""))
+		var w: int = defn.get("width", 1)
+		var h: int = defn.get("height", 1)
+		var gx: int = b.get("grid_x", 0)
+		var gy: int = b.get("grid_y", 0)
+		var bid: int = b.get("id", 0)
+		for dy in range(h):
+			for dx in range(w):
+				_grid.set_building_at(gx + dx, gy + dy, bid)
+
+# While spectating, append newly-unlocked buildings (as UNBUILT) when the town's
+# strategic development rises, so the builder pawns visibly raise them.
+func _tick_spectator_growth() -> void:
+	if _spectator_city_id < 0 or players.is_empty():
+		return
+	var city: Dictionary = CampaignMap.city_by_id(world, _spectator_city_id)
+	if city.is_empty():
+		return
+	var dev: int = int(city.get("development", city.get("tier", 0)))
+	if dev <= _spectator_last_dev:
+		return
+	# Regenerate and take only the buildings unlocked since the last dev level.
+	var center: Vector2i = _spectator_center()
+	var res: Dictionary = CityGenerator.building_dicts(
+		center.x, center.y, _grid, server_config.get("map_seed", 12345),
+		dev, 0, _next_building_id, _spectator_last_dev)
+	var existing: Dictionary = {}
+	for b in players[0].get("buildings", []):
+		if b is Dictionary:
+			existing["%d,%d" % [b.get("grid_x", 0), b.get("grid_y", 0)]] = true
+	var added: Array = []
+	for b in res["buildings"]:
+		var key: String = "%d,%d" % [b.get("grid_x", 0), b.get("grid_y", 0)]
+		if existing.has(key):
+			continue
+		if not b.get("built", true):  # only the freshly-unlocked, under-construction ones
+			added.append(b)
+	if added.is_empty():
+		_spectator_last_dev = dev
+		return
+	# Re-id the added buildings off the live counter and register them.
+	for b in added:
+		b["id"] = _next_building_id
+		_next_building_id += 1
+		players[0]["buildings"].append(b)
+	_register_buildings_in_grid(added)
+	_spectator_last_dev = dev
+
+func _spectator_center() -> Vector2i:
+	# The village hall anchors the town centre.
+	for b in players[0].get("buildings", []):
+		if b is Dictionary and b.get("type", "") in ["village_hall", "keep"]:
+			return Vector2i(b.get("grid_x", 100), b.get("grid_y", 100))
+	if not players.is_empty():
+		return Vector2i(players[0].get("keep_x", 100), players[0].get("keep_y", 100))
+	return Vector2i(100, 100)
+
+# The player's hand-built seat advances its world-map development from how built-up
+# it is, so playing your city grows your standing in the wider campaign.
+func _update_seat_development() -> void:
+	if players.is_empty():
+		return
+	var seat_id: int = world.get("player_seat_city_id", -1)
+	if seat_id < 0:
+		return
+	var built_count: int = 0
+	for b in players[0].get("buildings", []):
+		if b is Dictionary and b.get("built", true):
+			built_count += 1
+	var implied: int = CityGenerator.development_from_building_count(built_count)
+	var city: Dictionary = CampaignMap.city_by_id(world, seat_id)
+	if city.is_empty():
+		return
+	if implied > int(city.get("development", 0)):
+		city["development"] = implied
+
+func _tick_strategic_layer() -> void:
+	if not world.has("world_map") or world["world_map"].is_empty():
+		return
+	var wm: Dictionary = world["world_map"]
+	var sday: int = wm.get("strategic_day", 0) + 1
+	wm["strategic_day"] = sday
+	var results: Array = StrategicSim.tick_day(world, players, sday * SimulationClock.TICKS_PER_GAME_DAY)
+	for r in results:
+		if not r is Dictionary:
+			continue
+		var fid: int = r.get("faction_id", -1)
+		for ev in r.get("events", []):
+			match ev:
+				"army_raised":     EventBus.army_raised.emit(fid, -1, 0)
+				"campaign_launched": EventBus.campaign_launched.emit(fid, -1, -1)
+				"city_developed":  EventBus.city_developed.emit(fid, -1, 0)
+				"kingdom_defeated": EventBus.kingdom_defeated.emit(fid)
+		for b in r.get("battles", []):
+			if not b is Dictionary:
+				continue
+			var cid: int = b.get("city_id", -1)
+			var afid: int = b.get("attacker_fid", -1)
+			var dfid: int = b.get("defender_fid", -1)
+			var captured: bool = b.get("captured", false)
+			EventBus.battle_resolved.emit(cid, afid, dfid, captured)
+			if captured:
+				EventBus.city_captured.emit(cid, dfid, afid)
 
 # --- Command handlers ---
 
@@ -1215,6 +1633,65 @@ func _cmd_research_tech(cmd: Dictionary) -> bool:
 	var result: Dictionary = TechTree.research(players[pid], tech_id)
 	return result.get("ok", false)
 
+# --- Strategic / campaign command handlers (player parity) ---
+# These let the human player do, on the world map, exactly what the AI kingdoms
+# do — develop cities, raise armies, launch campaigns, conduct diplomacy — by
+# routing through the same shared primitives (CampaignSystem / KingdomEconomy).
+
+# The kingdom the human player commands (their faction on the world map).
+func _player_kingdom() -> Dictionary:
+	if not world.has("world_map") or world["world_map"].is_empty():
+		return {}
+	CampaignMap.ensure_initialized(world, players)
+	return CampaignMap.kingdom_by_id(world, CampaignMap.player_faction_id(world))
+
+func _cmd_develop_city(cmd: Dictionary) -> bool:
+	var k: Dictionary = _player_kingdom()
+	if k.is_empty():
+		return false
+	var city_id: int = cmd["payload"].get("city_id", -1)
+	if KingdomEconomy.develop_city(world, k, city_id):
+		var c: Dictionary = CampaignMap.city_by_id(world, city_id)
+		EventBus.city_developed.emit(k.get("id", -1), city_id, c.get("development", 0))
+		return true
+	return false
+
+func _cmd_raise_army(cmd: Dictionary) -> bool:
+	var k: Dictionary = _player_kingdom()
+	if k.is_empty():
+		return false
+	var city_id: int = cmd["payload"].get("city_id", -1)
+	var size: int = cmd["payload"].get("size", 0)
+	var aid: int = CampaignSystem.raise_army(world, k, city_id, size)
+	if aid >= 0:
+		EventBus.army_raised.emit(k.get("id", -1), city_id, size)
+		return true
+	return false
+
+func _cmd_launch_campaign(cmd: Dictionary) -> bool:
+	var k: Dictionary = _player_kingdom()
+	if k.is_empty():
+		return false
+	var army_id: int = cmd["payload"].get("army_id", -1)
+	var target_city_id: int = cmd["payload"].get("target_city_id", -1)
+	if CampaignSystem.launch_campaign(world, k, army_id, target_city_id):
+		EventBus.campaign_launched.emit(k.get("id", -1), army_id, target_city_id)
+		return true
+	return false
+
+func _cmd_strategic_diplomacy(cmd: Dictionary) -> bool:
+	var k: Dictionary = _player_kingdom()
+	if k.is_empty():
+		return false
+	var other_fid: int = cmd["payload"].get("faction_id", -1)
+	var action: String = cmd["payload"].get("action", "")  # "truce" | "war"
+	var other: Dictionary = CampaignMap.kingdom_by_id(world, other_fid)
+	if other.is_empty() or action == "":
+		return false
+	k.get("relations", {})[str(other_fid)] = action
+	other.get("relations", {})[str(k.get("id", -1))] = action
+	return true
+
 # Places each starting villager on a distinct empty grass/valley tile near the keep
 # (the random spawn offset can otherwise land them on water, forest or rock).
 func _snap_citizens_to_grass() -> void:
@@ -1364,14 +1841,48 @@ func _cmd_issue_move_order(cmd: Dictionary) -> bool:
 		if unit is Dictionary and unit.get("id", -1) == uid:
 			if not UnitState.is_deployable(unit):
 				return false  # units still in the barracks queue can't take orders
-			UnitState.issue_move_order(unit, tx, ty)
+			# Formation spread: if another of this player's units already sits on or
+			# is heading to the target tile, fan out to the nearest free one so a
+			# group doesn't pile onto a single square.
+			var dest: Vector2i = _spread_target(pid, tx, ty, uid)
+			UnitState.issue_move_order(unit, dest.x, dest.y)
 			if _grid != null:
 				unit["move_path"] = Pathfinder.find_path(
-					_grid, unit.get("pos_x", 0), unit.get("pos_y", 0), tx, ty)
+					_grid, unit.get("pos_x", 0), unit.get("pos_y", 0), dest.x, dest.y)
 			else:
 				unit["move_path"] = []
 			return true
 	return false
+
+# Find the nearest tile to (tx,ty) not already occupied or targeted by another of
+# this player's units — spreads a moving group into a loose formation.
+func _spread_target(pid: int, tx: int, ty: int, mover_uid: int) -> Vector2i:
+	var claimed: Dictionary = {}
+	for u in players[pid].get("units", []):
+		if not (u is Dictionary and u.get("is_alive", false)):
+			continue
+		if u.get("id", -1) == mover_uid:
+			continue
+		claimed["%d,%d" % [u.get("pos_x", 0), u.get("pos_y", 0)]] = true
+		if u.get("order", "") == UnitState.ORDER_MOVE:
+			claimed["%d,%d" % [u.get("target_x", 0), u.get("target_y", 0)]] = true
+	if not claimed.has("%d,%d" % [tx, ty]):
+		return Vector2i(tx, ty)
+	for r in range(1, 8):
+		for dy in range(-r, r + 1):
+			for dx in range(-r, r + 1):
+				if maxi(absi(dx), absi(dy)) != r:
+					continue
+				var x: int = tx + dx
+				var y: int = ty + dy
+				if claimed.has("%d,%d" % [x, y]):
+					continue
+				if _grid != null and (not _grid.in_bounds(x, y) \
+						or not _grid.is_passable(x, y, WorldGrid.PASSABLE_FOOT) \
+						or _grid.get_building_at(x, y) != 0):
+					continue
+				return Vector2i(x, y)
+	return Vector2i(tx, ty)
 
 func _cmd_issue_attack_order(cmd: Dictionary) -> bool:
 	var pid: int = cmd["player_id"]

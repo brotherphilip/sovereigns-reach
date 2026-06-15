@@ -43,6 +43,14 @@ signal ai_envoy_sent(faction_id: int, demand: Dictionary)
 signal ai_faction_defeated(faction_id: int)
 signal ai_border_changed(faction_id: int, new_tiles: Array)
 
+# --- Strategic / campaign layer (world-map kingdoms) ---
+signal city_captured(city_id: int, old_faction_id: int, new_faction_id: int)
+signal city_developed(faction_id: int, city_id: int, new_level: int)
+signal army_raised(faction_id: int, city_id: int, size: int)
+signal campaign_launched(faction_id: int, army_id: int, target_city_id: int)
+signal battle_resolved(city_id: int, attacker_faction_id: int, defender_faction_id: int, captured: bool)
+signal kingdom_defeated(faction_id: int)
+
 # --- Weather ---
 signal weather_changed(new_weather: String, duration_ticks: int)
 signal weather_effect_applied(effect_type: String, magnitude: float)

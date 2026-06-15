@@ -184,23 +184,24 @@ func _test_pathfinder() -> void:
 	ok("4-tile straight path length=4", p2.size() == 4)
 	ok("last step is goal", p2[p2.size()-1][0] == 4 and p2[p2.size()-1][1] == 0)
 
-	# 4. Path around a river obstacle (terrain 3 = RIVER = impassable)
-	# River at x=2 for rows y=1..3; row y=0 is grass (gap to route through)
+	# 4. Path around an impassable mountain obstacle (terrain 2 = MOUNTAIN).
+	# Mountain at x=2 for rows y=1..3; row y=0 is grass (gap to route through).
+	# (Rivers are now wadeable-but-slow, so mountains are the hard blockers.)
 	var grid_obs := _make_flat_grid(5, 4, 0)
 	for ry in range(1, 4):
-		grid_obs["tiles"][ry][2] = 3
+		grid_obs["tiles"][ry][2] = 2
 	# Path from (0,2) to (4,2) — must detour via y=0
 	var p3 := Pathfinder.find_path_dict(grid_obs, 0, 2, 4, 2, Pathfinder.PASS_FOOT)
-	ok("path exists around river", p3.size() > 0)
-	# Verify no step passes through the blocked river tiles (y=1..3, x=2)
-	var avoids_river := true
+	ok("path exists around mountain", p3.size() > 0)
+	# Verify no step passes through the blocked mountain tiles (y=1..3, x=2)
+	var avoids_obstacle := true
 	for step in p3:
 		if step[0] == 2 and step[1] >= 1 and step[1] <= 3:
-			avoids_river = false
-	ok("path avoids river tiles", avoids_river)
+			avoids_obstacle = false
+	ok("path avoids impassable mountain tiles", avoids_obstacle)
 
-	# 5. Fully blocked (surrounded by river) returns []
-	var grid_blocked := _make_flat_grid(3, 3, 3)  # all river
+	# 5. Fully blocked (surrounded by mountains) returns []
+	var grid_blocked := _make_flat_grid(3, 3, 2)  # all mountain
 	grid_blocked["tiles"][1][1] = 0               # only center is grass
 	var p4 := Pathfinder.find_path_dict(grid_blocked, 1, 1, 0, 0, Pathfinder.PASS_FOOT)
 	ok("fully blocked target returns []", p4.size() == 0)

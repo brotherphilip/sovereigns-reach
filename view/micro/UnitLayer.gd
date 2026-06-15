@@ -15,6 +15,7 @@ const PLAYER_COLORS: Array = [
 ]
 
 const UnitRenderer = preload("res://view/micro/UnitRenderer.gd")
+const UnitArt      = preload("res://view/micro/UnitArt.gd")
 
 var _player_units: Array = []
 var _ai_units: Array = []
@@ -33,7 +34,10 @@ func _ready() -> void:
 	EventBus.simulation_tick.connect(_on_tick)
 
 func _process(_delta: float) -> void:
-	if _selected_unit_id >= 0 or not _damage_popups.is_empty() or not _hit_flash.is_empty() or not _death_anims.is_empty():
+	# Units are continuously animated (limbs swing, archers draw, siege arms wind),
+	# so redraw every frame whenever any are present.
+	if not _player_units.is_empty() or not _ai_units.is_empty() \
+			or not _damage_popups.is_empty() or not _death_anims.is_empty():
 		queue_redraw()
 
 func _on_tick(_tick: int) -> void:
@@ -120,76 +124,47 @@ func _draw_unit(unit: Dictionary, is_enemy: bool) -> void:
 		draw_line(Vector2(cx + 5, cy - 5), Vector2(cx - 5, cy + 5), Color(0.3, 0.3, 0.3), 2.0)
 		return
 
-	var fill: Color
-	if is_enemy:
-		fill = Color(0.90, 0.20, 0.20)
-	else:
-		var oid: int = unit.get("owner_id", 0)
-		fill = PLAYER_COLORS[mini(oid, PLAYER_COLORS.size() - 1)]
-
 	var morale_ratio: float = 1.0
 	if not is_enemy:
 		var morale: int = unit.get("morale", 100)
 		morale_ratio = float(morale) / float(maxi(unit.get("max_morale", 100), 1))
-		if morale_ratio < 0.35:
-			fill = fill.lerp(Color(0.30, 0.35, 0.82), 0.38)
 
-	# Hit-flash: briefly lerp toward white when HP just dropped
+	# Team tint: enemies red, players their faction color. Low morale shifts blue.
+	var team: Color
+	if is_enemy:
+		team = Color(0.82, 0.24, 0.22)
+	else:
+		var oid: int = unit.get("owner_id", 0)
+		team = PLAYER_COLORS[mini(oid, PLAYER_COLORS.size() - 1)]
+		if morale_ratio < 0.35:
+			team = team.lerp(Color(0.30, 0.35, 0.82), 0.4)
+
+	# Hit-flash: white pop when HP just dropped.
 	var uid: int = unit.get("id", -1)
+	var flash: float = 0.0
 	if uid >= 0 and _hit_flash.has(uid):
 		var flash_age: float = float(Time.get_ticks_msec() - _hit_flash[uid]) / float(_FLASH_LIFE_MS)
-		fill = fill.lerp(Color.WHITE, maxf(0.0, 1.0 - flash_age))
+		flash = maxf(0.0, 1.0 - flash_age)
 
-	# Selection ring (player units only) — pulsing glow
-	if not is_enemy and unit.get("id", -1) == _selected_unit_id:
-		var t: float      = Time.get_ticks_msec() * 0.004
-		var pulse: float  = 0.45 + 0.30 * sin(t)
-		var ring_r: float = UNIT_RADIUS + 3.0 + 2.0 * sin(t * 1.3)
-		draw_circle(Vector2(cx, cy), ring_r, Color(1.0, 1.0, 0.2, pulse))
+	# Selection ring (player units only) — pulsing glow under the feet.
+	if not is_enemy and uid == _selected_unit_id:
+		var ts: float     = Time.get_ticks_msec() * 0.004
+		var pulse: float  = 0.45 + 0.30 * sin(ts)
+		var ring_r: float = 9.0 + 2.0 * sin(ts * 1.3)
+		draw_circle(Vector2(cx, cy + 1.0), ring_r, Color(1.0, 1.0, 0.2, pulse))
+		draw_arc(Vector2(cx, cy + 1.0), ring_r, 0, TAU, 18, Color(1.0, 1.0, 0.4, pulse + 0.2), 1.2)
 
-	# Little standing figure (shadow + torso + head) instead of a flat disc.
-	var r: float = UNIT_RADIUS
-	var body_h: float = r * 1.7
-	draw_circle(Vector2(cx, cy + r * 0.35), r * 0.85, Color(0.0, 0.0, 0.0, 0.20))  # ground shadow
-	# Walking legs — swing while the unit is moving/charging.
-	var ord: String = unit.get("order", "")
-	var gait: float = sin(Time.get_ticks_msec() * 0.011) if (ord == "move" or ord == "attack") else 0.0
-	draw_line(Vector2(cx, cy - r * 0.1), Vector2(cx - r * 0.3 + gait * r * 0.45, cy + r * 0.45), fill.darkened(0.35), 1.8)
-	draw_line(Vector2(cx, cy - r * 0.1), Vector2(cx + r * 0.3 - gait * r * 0.45, cy + r * 0.45), fill.darkened(0.35), 1.8)
-	var torso := PackedVector2Array([
-		Vector2(cx - r * 0.55, cy),       Vector2(cx + r * 0.55, cy),
-		Vector2(cx + r * 0.70, cy - body_h), Vector2(cx - r * 0.70, cy - body_h),
-	])
-	draw_colored_polygon(torso, fill)
-	draw_polyline(PackedVector2Array([torso[0], torso[1], torso[2], torso[3], torso[0]]),
-		Color(0.0, 0.0, 0.0, 0.45), 0.8)
-	var head_c := Vector2(cx, cy - body_h - r * 0.45)
-	draw_circle(head_c, r * 0.5, fill.lightened(0.18))
-	draw_arc(head_c, r * 0.5, 0, TAU, 10, Color(0.0, 0.0, 0.0, 0.40), 0.8)
+	# Detailed, animated per-type body (feet at the tile centre).
+	var now_s: float = Time.get_ticks_msec() * 0.001
+	UnitArt.draw_unit(self, Vector2(cx, cy), unit, team, now_s, flash)
 
-	# Per-type silhouette accessory so unit types read at a glance.
-	var hx: float = cx + r * 0.95
-	match unit.get("type", ""):
-		"archer", "crossbowman":
-			draw_arc(Vector2(hx, cy - body_h * 0.5), r * 0.95, -PI * 0.5, PI * 0.5, 8, Color(0.52, 0.36, 0.18), 1.3)
-		"swordsman", "militia":
-			draw_line(Vector2(hx, cy), Vector2(hx, cy - body_h - r * 0.9), Color(0.86, 0.86, 0.92), 1.6)
-			draw_line(Vector2(hx - 2.5, cy - body_h * 0.7), Vector2(hx + 2.5, cy - body_h * 0.7), Color(0.6, 0.5, 0.3), 1.2)
-		"pikeman", "halberdier":
-			draw_line(Vector2(hx, cy + 2.0), Vector2(hx, cy - body_h - r * 2.2), Color(0.55, 0.40, 0.20), 1.4)
-		"captain":
-			draw_colored_polygon(PackedVector2Array([
-				head_c + Vector2(0, -r * 0.5), head_c + Vector2(r * 1.0, -r * 0.95), head_c + Vector2(0, -r * 1.15),
-			]), Color(0.96, 0.80, 0.22))
-		"battering_ram", "catapult", "trebuchet", "siege_tower", "mantlet":
-			draw_circle(Vector2(cx, cy + r * 0.3), r * 0.5, Color(0.30, 0.25, 0.18))
-
-	# HP bar above unit
+	# HP bar floating above the (now taller) figure.
 	var hp: int     = unit.get("hp", 1)
 	var max_hp: int = unit.get("max_hp", 1)
 	var ratio: float = float(hp) / float(maxi(max_hp, 1))
+	var bar_y: float = cy - 28.0
 	if ratio < 0.99:
-		var bw: float = UNIT_RADIUS * 2.5
+		var bw: float = 16.0
 		var bar_col: Color
 		if is_enemy:
 			bar_col = Color(0.9, 0.4, 0.1)
@@ -197,15 +172,10 @@ func _draw_unit(unit: Dictionary, is_enemy: bool) -> void:
 			bar_col = Color(0.2, 0.9, 0.2).lerp(Color(0.95, 0.85, 0.05), 1.0 - clampf(ratio * 2.0 - 1.0, 0.0, 1.0))
 		else:
 			bar_col = Color(0.95, 0.85, 0.05).lerp(Color(0.95, 0.15, 0.1), 1.0 - clampf(ratio * 2.0, 0.0, 1.0))
-		draw_rect(Rect2(cx - bw * 0.5, cy - UNIT_RADIUS - 7, bw, 3), Color(0.3, 0.1, 0.1))
-		draw_rect(Rect2(cx - bw * 0.5, cy - UNIT_RADIUS - 7, bw * ratio, 3), bar_col)
+		draw_rect(Rect2(cx - bw * 0.5, bar_y, bw, 2.6), Color(0.18, 0.06, 0.06))
+		draw_rect(Rect2(cx - bw * 0.5, bar_y, bw * ratio, 2.6), bar_col)
 
-	# Unit type label
-	var label: String = unit.get("type", "?").left(3).to_upper()
-	draw_string(ThemeDB.fallback_font, Vector2(cx - 8, cy + 4), label,
-		HORIZONTAL_ALIGNMENT_LEFT, -1, 7, Color.WHITE)
-
-	# Morale warning symbol — blue ↓ above unit when morale is critically low
+	# Morale warning — blue ↓ above unit when morale is critically low.
 	if not is_enemy and morale_ratio < 0.35:
-		draw_string(ThemeDB.fallback_font, Vector2(cx - 3, cy - UNIT_RADIUS - 10),
+		draw_string(ThemeDB.fallback_font, Vector2(cx - 3, bar_y - 4.0),
 			"↓", HORIZONTAL_ALIGNMENT_LEFT, -1, 9, Color(0.55, 0.55, 1.0, 0.9))

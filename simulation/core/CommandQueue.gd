@@ -46,6 +46,13 @@ enum CommandType {
 
 	# Diplomacy
 	DIPLOMACY_RESPONSE,
+
+	# Strategic / campaign layer (world-map kingdoms). Appended last so existing
+	# CommandType integer values stay stable for saves & tests.
+	DEVELOP_CITY,
+	RAISE_ARMY,
+	LAUNCH_CAMPAIGN,
+	STRATEGIC_DIPLOMACY,
 }
 
 var _queue: Array[Dictionary] = []
