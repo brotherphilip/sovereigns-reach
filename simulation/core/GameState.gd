@@ -1143,7 +1143,7 @@ func simulate_tick(tick: int) -> void:
 			if pop_now < 35.0 and not world.get("restless_warned", false):
 				world["restless_warned"] = true
 				EventBus.realm_notice.emit(
-					"⚠ Your people grow restless — lower taxes, raise a Church or Inn, or proclaim a Festival (once Royal Edicts is researched) to lift their spirits.",
+					"⚠ Your people grow restless — proclaim a Village Feast (Edicts), lower taxes, or raise a Church or Inn to lift their spirits.",
 					"bad")
 			elif pop_now >= 45.0 and world.get("restless_warned", false):
 				world["restless_warned"] = false
@@ -1742,7 +1742,7 @@ func _cmd_activate_edict(cmd: Dictionary) -> bool:
 			var before_pop: float = players[pid].get("popularity", 50.0)
 			var after_pop: float = PopularityEngine.apply_instant_event(players[pid], mods["instant_event"])
 			if pid == 0 and after_pop != before_pop:
-				EventBus.realm_notice.emit("🎉 A Festival is decreed — the people rejoice (popularity %+d)." % int(round(after_pop - before_pop)), "good")
+				EventBus.realm_notice.emit("🎉 Feasting fills the streets — the people rejoice (popularity %+d)." % int(round(after_pop - before_pop)), "good")
 		if mods.has("summon_peasants"):
 			var _sp_count: int = mods["summon_peasants"]
 			var _sp_kx: int = players[pid].get("keep_x", 0)

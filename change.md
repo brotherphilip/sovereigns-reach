@@ -26,6 +26,32 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 17 — 2026-06-16  (an early morale edict — the Edicts panel finally does something)
+
+### Finding
+**Every one of the 20 edicts requires tech** (mostly Royal Edicts = 300+ prestige). So a new player's
+Edicts panel is entirely **Locked** — the whole royal-decree fantasy is inaccessible for ~40 days,
+and the restless-people advice ("hold a feast") can't be followed when it's actually needed.
+
+### Changes made
+- **New edict "Village Feast"** (EdictSystem): no tech, 2 edict points, 6-day cooldown, fires the new
+  `feast` instant event for **+6 popularity now**. Available from day ~1 (points accrue +2/day).
+- **PopularityEngine**: `feast` event = +6 (uses the iter-16 instant-event fix, so it lands in full).
+- **Restless warning** now leads with the always-available Village Feast.
+- **Notices made readable**: edict activation says "📜 Edict proclaimed: Village Feast" (not the raw
+  id); the celebration line is generic ("🎉 Feasting fills the streets — popularity +6").
+
+### Verified LIVE (real clicks)
+Fast-forwarded a few days, opened Edicts → an **"Available Edicts" section with "Village Feast —
+Activate (2P)"** (rest still Locked behind tech). Clicked Activate → "Edict proclaimed" + the feast
+applied (+6, probe-confirmed: popularity 45→51). The Edicts panel is now useful from the start.
+
+Full suite green.
+
+### Backlog / next
+- More no-tech basic edicts / content; the activate path is solid now.
+- Late-game popularity smoothing; move-order feedback; more events/objectives.
+
 ## Iteration 16 — 2026-06-16  (the Festival barely worked — fixed the popularity lever)
 
 ### Finding (via probe — the Festival is 400-prestige-gated, impractical to reach by clicks)

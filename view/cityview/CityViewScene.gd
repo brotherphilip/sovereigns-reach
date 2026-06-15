@@ -17,6 +17,7 @@ const CT_SELL_RESOURCE  = 6
 
 const AIFactionRef = preload("res://simulation/ai/AIFaction.gd")
 const UnitRegistry = preload("res://simulation/units/UnitRegistry.gd")
+const EdictSystemRef = preload("res://simulation/edicts/EdictSystem.gd")
 
 var _keep_x: int = DEFAULT_KEEP_X
 var _keep_y: int = DEFAULT_KEEP_Y
@@ -464,7 +465,8 @@ func _on_research_tech(tech_id: String) -> void:
 
 func _on_activate_edict(edict_id: String) -> void:
 	CommandQueue.enqueue(CT_ACTIVATE_EDICT, {"edict_id": edict_id}, 0)
-	_hud.show_notification("Edict activated: " + edict_id, 3.0)
+	var nm: String = EdictSystemRef.lookup(edict_id).get("name", edict_id)
+	_hud.show_notification("📜 Edict proclaimed: " + nm, 3.0)
 
 func _on_trade_buy(resource: String, amount: int) -> void:
 	CommandQueue.enqueue(CT_BUY_RESOURCE, {"resource": resource, "amount": amount}, 0)

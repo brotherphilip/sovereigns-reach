@@ -11,6 +11,21 @@ enum PolicyCategory { ECONOMY, MILITARY, LOGISTICS, CAPITAL }
 const TICKS_PER_GAME_DAY: int = 240
 
 const EDICTS: Dictionary = {
+	# A basic morale decree available from the START (no tech) — every other edict is
+	# gated behind Royal Edicts (300+ prestige), so without this the whole edict system
+	# is inaccessible early and the "throw a feast to calm your people" advice (the
+	# restless-people warning) is unreachable exactly when a struggling ruler needs it.
+	"village_feast": {
+		"name": "Village Feast",
+		"category": PolicyCategory.ECONOMY, "type": EdictType.ACTIVE,
+		"cost_points": 2,
+		"duration_ticks": 1,
+		"cooldown_ticks": TICKS_PER_GAME_DAY * 6,
+		"modifiers": {"instant_event": "feast"},
+		"requires_tech": "",
+		"description": "Throw open the stores for a day of feasting (+6 popularity, now).",
+	},
+
 	# ── §7.2 Economy Policies ─────────────────────────────────────────────
 	"agrarian_subsidies": {
 		"name": "Agrarian Subsidies",

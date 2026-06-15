@@ -59,6 +59,7 @@ const EVENT_POPULARITY_DELTA: Dictionary = {
 	"rain":               -1,
 	"drought":            -3,
 	"festival":           +8,   # Royal Edict bonus (fired via instant_event)
+	"feast":              +6,   # Village Feast — the early, no-tech morale edict
 	"wedding_event":      +4,   # Church random event
 	"blessing":           +6,   # Faith Blessing (GDD §3.3) — spent accumulated Faith
 }
