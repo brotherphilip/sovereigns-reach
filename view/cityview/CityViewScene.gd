@@ -16,6 +16,7 @@ const CT_BUY_RESOURCE   = 5
 const CT_SELL_RESOURCE  = 6
 
 const AIFactionRef = preload("res://simulation/ai/AIFaction.gd")
+const UnitRegistry = preload("res://simulation/units/UnitRegistry.gd")
 
 var _keep_x: int = DEFAULT_KEEP_X
 var _keep_y: int = DEFAULT_KEEP_Y
@@ -423,6 +424,11 @@ func _connect_signals() -> void:
 	EventBus.realm_notice.connect(func(text: String, tone: String):
 		var c: Color = Color(0.55, 0.9, 0.45) if tone == "good" else (Color(1.0, 0.5, 0.4) if tone == "bad" else Color(0.95, 0.85, 0.45))
 		_hud.show_notification("📜 " + text, 7.0, c))
+	# A unit that finished its training at the barracks is now ready for battle.
+	EventBus.unit_spawned.connect(func(unit: Dictionary):
+		if unit.get("owner_id", -1) == 0:
+			var nm: String = UnitRegistry.lookup(unit.get("type", "")).get("name", unit.get("type", "soldier"))
+			_hud.show_notification("⚔ %s is trained and ready for battle." % nm, 5.0, Color(0.6, 0.85, 1.0)))
 
 	set_process_input(true)
 

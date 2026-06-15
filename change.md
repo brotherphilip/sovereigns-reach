@@ -26,6 +26,34 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 13 — 2026-06-16  (the military loop, played — and silent recruiting fixed)
+
+### Played (real clicks) — the hands-on military loop
+Launched a real game, built a Hall + **Barracks** (grey keep with red banners), selected the barracks,
+and recruited 3 Armed Peasants. It **works**: gold dropped correctly (500 → 475 = 10 barracks +
+3×5 recruits), and the soldiers spawned as units with the iter-12 **blue team rings** by the campfire
+muster point. The recruit→spawn→combat loop is functional and now legible.
+
+### Finding
+- **[UX] Recruiting is completely silent.** `_cmd_recruit_unit` appends the unit and returns — it
+  emits **no signal and no notice**, and CityViewScene never wired `unit_spawned` to anything. You
+  click "Recruit", gold drops, and… nothing. You have to hunt the map to find where your soldier
+  appeared (the campfire, it turns out — not the barracks). No confirmation it even worked.
+
+### Change made
+- **GameState._cmd_recruit_unit**: on a player recruit, fire a `realm_notice` — "⚔ <Unit> mustered by
+  the campfire — ready for your orders" (instant units) or "⚔ <Unit> began training at the barracks"
+  (trained units). Verified via probe: recruiting an Armed Peasant fires the notice and deducts gold.
+- **CityViewScene**: wire `unit_spawned` (fired when a unit finishes training) → "⚔ <Unit> is trained
+  and ready for battle." So the player gets both the muster confirmation and the ready-for-war beat.
+
+Full suite green.
+
+### Backlog / next
+- Test select→move→attack command of your soldiers, and whether auto-aggro defends the keep well.
+- Punchier clash feedback; a recruited-unit rally flag at the campfire.
+- Late-game popularity smoothing; tribute pause; more event/objective content.
+
 ## Iteration 12 — 2026-06-16  (combat readability: friend-or-foe at a glance)
 
 ### Why / what I played

@@ -2033,6 +2033,14 @@ func _cmd_recruit_unit(cmd: Dictionary) -> bool:
 		unit["order"] = UnitState.ORDER_TRAINING
 		unit["ticks_in_training"] = 0
 	player["units"].append(unit)
+	# Feedback: recruiting was silent (no signal, no notice) so the player couldn't tell
+	# it worked or where the soldier appeared. Tell them, and where to find them.
+	if pid == 0:
+		var uname: String = defn.get("name", unit_type)
+		if defn.get("train_ticks", 0) > 0:
+			EventBus.realm_notice.emit("⚔ %s began training at the barracks." % uname, "neutral")
+		else:
+			EventBus.realm_notice.emit("⚔ %s mustered by the campfire — ready for your orders." % uname, "good")
 	return true
 
 func _cmd_issue_move_order(cmd: Dictionary) -> bool:
