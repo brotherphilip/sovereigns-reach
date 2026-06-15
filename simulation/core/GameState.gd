@@ -1737,8 +1737,12 @@ func _cmd_activate_edict(cmd: Dictionary) -> bool:
 		# Handle instant effects
 		var mods: Dictionary = result.get("modifiers", {})
 		if mods.has("instant_event"):
-			var events: Array = [mods["instant_event"]]
-			PopularityEngine.apply_tick(players[pid], events)
+			# Land the decree's FULL one-off effect (a Festival = +8 now), not the
+			# ×0.05-smoothed per-tick version that made it a meaningless +0.4.
+			var before_pop: float = players[pid].get("popularity", 50.0)
+			var after_pop: float = PopularityEngine.apply_instant_event(players[pid], mods["instant_event"])
+			if pid == 0 and after_pop != before_pop:
+				EventBus.realm_notice.emit("🎉 A Festival is decreed — the people rejoice (popularity %+d)." % int(round(after_pop - before_pop)), "good")
 		if mods.has("summon_peasants"):
 			var _sp_count: int = mods["summon_peasants"]
 			var _sp_kx: int = players[pid].get("keep_x", 0)

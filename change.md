@@ -26,6 +26,32 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 16 — 2026-06-16  (the Festival barely worked — fixed the popularity lever)
+
+### Finding (via probe — the Festival is 400-prestige-gated, impractical to reach by clicks)
+Set up a player with Royal Edicts unlocked + edict points and activated **Festival Decree** — the
+exact lever the iter-11 restless-people warning sends players to. Its description promises **+8
+popularity**, but it delivered **+0.4**. Cause: `_cmd_activate_edict` routed the festival's
+`instant_event` through `PopularityEngine.apply_tick`, which **scales the delta by ×0.05** (the
+per-tick smoothing for *continuous* daily pressure). So a one-off decree of +8 became +0.4 — a
+meaningless nudge. The morale lever I recommend was effectively broken.
+
+### Changes made
+- **PopularityEngine.apply_instant_event(player, event_id)**: applies an event's FULL one-off delta
+  immediately (clamped), distinct from the ×0.05-smoothed `apply_tick`.
+- **GameState._cmd_activate_edict**: instant-event edicts now use `apply_instant_event`, so a Festival
+  lands its whole +8. Plus a "🎉 A Festival is decreed — the people rejoice (popularity +8)" notice.
+- Verified via probe: Festival now moves popularity 45.0 → 53.1 (was → 45.4). Full suite green.
+
+### Note
+This closes the edict half of the progression loop (research → unlock → use): research works (iter
+15), edicts now actually do what they say. Reaching the Festival in real play needs 400 prestige
+(scouting_vision + royal_edicts) — steep; consider a cheaper early morale edict in a later round.
+
+### Backlog / next
+- A cheaper/earlier morale edict so the "hold a Festival" advice is reachable when restless (~day 75).
+- More content/feel polish; late-game popularity smoothing; move-order feedback.
+
 ## Iteration 15 — 2026-06-16  (progression loop verified live + rewarding research feedback)
 
 ### Played (real clicks) — closing the loop on the iter-14 panel fix

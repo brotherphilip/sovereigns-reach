@@ -117,6 +117,15 @@ static func apply_tick(player: Dictionary, events: Array) -> float:
 	player["popularity"] = new_pop
 	return new_pop
 
+# Apply a one-off event's FULL popularity delta immediately (e.g. a Festival = +8 now).
+# apply_tick smooths by ×0.05 for continuous daily pressure; an INSTANT decree must land
+# its whole effect, or a Festival nudges popularity by +0.4 instead of the +8 it promises.
+static func apply_instant_event(player: Dictionary, event_id: String) -> float:
+	var delta: float = EVENT_POPULARITY_DELTA.get(event_id, 0.0)
+	var new_pop: float = clampf(player.get("popularity", 50.0) + delta, 0.0, 100.0)
+	player["popularity"] = new_pop
+	return new_pop
+
 # Check if the player is at desertion risk (GDD §3.5.1)
 static func is_desertion_risk(player: Dictionary) -> bool:
 	return player.get("popularity", 50) < 20.0
