@@ -26,6 +26,34 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 11 — 2026-06-16  ✅ 20-MINUTE LIFE CONFIRMED END-TO-END (incl. war)
+
+### The headline
+A **full-game probe** (real `GameState`, both AI factions, sieges, weather, events, objectives,
+births) playing a managed game — Hall + Orchard + Granary + 2 Hovels — **survived all the way to
+Day 100 (20 minutes) with the keep intact**:
+- Keep HP 500 → 200 (the Ashen Barony's siege assembled ~Day 78 and landed a couple of 150-HP hits,
+  but 3–4 are needed to fell it, so it held); no revolt, no starvation.
+- Population grew **14 → 25** (the iter-10 housing fix carrying it past the "20 souls" objective).
+- Food stayed healthy (189–195, dipping only in deep winter). **The loop's goal is met.**
+
+### The remaining concern (and fix)
+- **Late-game popularity erodes**: 52 (Day 40) → 23 (Day 100), driven by the war (siege/raid events)
+  and a town outgrowing its services (no church/inn). It survives to Day 100 but would drift toward
+  revolt beyond it, and nothing told the player how to arrest the slide.
+- **Fix — a "restless people" warning**: when popularity crosses below 35, a one-time `realm_notice`
+  fires — "⚠ Your people grow restless — hold a Festival (Edicts), lower taxes, or raise a Church or
+  Inn to lift their spirits." Re-arms only after popularity recovers above 45, so a slow drift is
+  never silent and the player knows the levers. (Verified firing in the full-game probe.)
+
+Full suite green.
+
+### Backlog / next
+- Late-game popularity could also be eased structurally (slightly soften per-event siege popularity
+  hits, or scale service expectations gentler) if the warning + player action proves insufficient.
+- Pause/deadline-timer for tribute demands (like decisions). Worker labour cap. Build-mode eats HUD
+  clicks. Keep adding event/objective content.
+
 ## Iteration 10 — 2026-06-16  (full-life attempt → fix: the village couldn't grow)
 
 ### Played (real clicks) — pushing for a full 20-minute life

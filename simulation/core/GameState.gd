@@ -1134,6 +1134,20 @@ func simulate_tick(tick: int) -> void:
 				"⚔ The King's Peace has ended — rival lords may now march on your realm. Raise walls and a garrison while you can.",
 				"bad")
 
+		# Restless-people warning: popularity erodes in the late game (war, a growing
+		# town outpacing its churches/inns). Tell the player HOW to lift spirits once,
+		# when it crosses below the threshold, and re-arm only after it recovers — so a
+		# slow drift toward revolt is never silent.
+		if not spectator_mode:
+			var pop_now: float = float(players[0].get("popularity", 50.0))
+			if pop_now < 35.0 and not world.get("restless_warned", false):
+				world["restless_warned"] = true
+				EventBus.realm_notice.emit(
+					"⚠ Your people grow restless — hold a Festival (Edicts), lower taxes, or raise a Church or Inn to lift their spirits.",
+					"bad")
+			elif pop_now >= 45.0 and world.get("restless_warned", false):
+				world["restless_warned"] = false
+
 		# Realm events: a flavourful daily happening (merchant, foraging, wolves…) that
 		# keeps the kingdom alive between the big beats. Player's own seat only.
 		if not spectator_mode:
