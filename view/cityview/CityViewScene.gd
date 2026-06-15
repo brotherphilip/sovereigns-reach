@@ -418,7 +418,11 @@ func _connect_signals() -> void:
 	# Onboarding hints (the real runtime entry — GameBootstrap is unused here).
 	TutorialSystem.tutorial_hint.connect(func(msg: String): _hud.show_notification("📖 " + msg, 9.0))
 	# Realm events — flavourful daily happenings surfaced in the notification feed.
+	# (Choice events are handled by the EventChoicePanel instead; see _on_world_event.)
 	EventBus.world_event.connect(_on_world_event)
+	EventBus.realm_notice.connect(func(text: String, tone: String):
+		var c: Color = Color(0.55, 0.9, 0.45) if tone == "good" else (Color(1.0, 0.5, 0.4) if tone == "bad" else Color(0.95, 0.85, 0.45))
+		_hud.show_notification("📜 " + text, 7.0, c))
 
 	set_process_input(true)
 
@@ -432,6 +436,9 @@ func _toggle_macro_view() -> void:
 	if ctrl: ctrl.visible = not ctrl.visible
 
 func _on_world_event(ev: Dictionary) -> void:
+	# Choice events are shown by the EventChoicePanel as a decision popup, not here.
+	if ev.get("choices", []) is Array and not (ev.get("choices", []) as Array).is_empty():
+		return
 	var tone: String = ev.get("tone", "neutral")
 	var col: Color = Color(0.55, 0.9, 0.45) if tone == "good" else (Color(1.0, 0.5, 0.4) if tone == "bad" else Color(0.95, 0.85, 0.45))
 	var icon: String = "✨" if tone == "good" else ("⚠" if tone == "bad" else "🕊")

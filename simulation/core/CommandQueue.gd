@@ -53,6 +53,7 @@ enum CommandType {
 	RAISE_ARMY,
 	LAUNCH_CAMPAIGN,
 	STRATEGIC_DIPLOMACY,
+	RESOLVE_EVENT_CHOICE,   # player picked an option on a World Event (= int 31)
 }
 
 var _queue: Array[Dictionary] = []

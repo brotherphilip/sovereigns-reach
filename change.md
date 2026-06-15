@@ -26,6 +26,42 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 6 — 2026-06-16  (content: World Events become DECISIONS)
+
+### Why
+Iter 5 gave the realm a pulse (auto-resolving events). The natural next beat for "more fun / more
+human experience" is turning happenings *to* you into things you *decide* — the step from spectator
+to ruler. The framework was already built to carry choices.
+
+### What I added — player-choice events
+- **WorldEventSystem**: events may now carry a `choices` array (each `{label, effect}`) instead of a
+  flat `effect`. `tick()` defers a choice event's effect until the player decides; new helpers
+  `has_choices()`, `event_by_id()`, and `resolve(player, id, index)` apply the chosen option.
+  **5 decision events** with real trade-offs: A Baron's Offer (loan: +150 gold/−6 pop vs decline:
+  +10 prestige), Brigands on the Road (pay toll vs drive off: −food/+pop), Refugees at the Gate
+  (welcome: +2 villagers/−food/+pop vs turn away: −pop), A Traveling Scholar (host: −gold/+prestige),
+  A Hooded Stranger (buy the 'relic': −gold/+food vs refuse: +pop).
+- **Command-routed** for determinism (mirrors the tribute panel): new `CommandQueue.RESOLVE_EVENT_CHOICE`
+  (=31, appended so existing values stay stable). `GameState._cmd_resolve_event_choice` applies the
+  effect, enacts a villager spawn for "welcome refugees/wanderer", and emits `EventBus.realm_notice`.
+- **EventChoicePanel.gd** (new HUD popup, modelled on DiplomacyPanel): hidden until a choice-event
+  fires, shows the title/story + a button per option; a click enqueues the command and dismisses.
+  The popup *persists* until you decide (won't vanish like a notification). Plain events still flow
+  to the notification feed; `_on_world_event` skips choice events so the two never collide.
+- **Tests**: TestWorldEvents extended to 27 (choice well-formedness, deferred effect, resolve applies
+  the right option, invalid-resolve no-ops, refugees report spawn). Integration probe: the full
+  command path works (refugees → +2 villagers, loan accept → +150 gold, realm_notice fired). Scene
+  loads clean with the new panel (SR_SHOT, no parse errors). Full suite green.
+
+### Note
+Visual catch of the live popup was blocked by recurring Xvfb interactive flakiness (display dies on
+launch), but the panel reuses the exact verified DiplomacyPanel pattern and the scene loads error-free.
+
+### Backlog / next
+- Auto-pause (or a soft timeout/default) when a decision popup is up, so it isn't missed at 5× speed.
+- Keep adding events (seasonal, building-specific, threat telegraphs); more multi-step decisions.
+- Still open: ale-ration-vs-0-ale mismatch; worker labour cap; build-mode eats HUD clicks.
+
 ## Iteration 5 — 2026-06-16  (content: World Events — the realm feels alive)
 
 ### Why

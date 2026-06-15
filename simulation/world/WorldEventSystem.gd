@@ -95,7 +95,86 @@ const EVENTS: Array = [
 		"text": "A feud between two families spills into the square and sours the mood.",
 		"effect": {"popularity": -4},
 	},
+
+	# ── Choice events ─────────────────────────────────────────────────────────────
+	# These carry a `choices` array instead of an `effect`; the realm waits on YOUR
+	# decision (a popup) and the chosen option's effect is applied via a command.
+	{
+		"id": "barons_loan", "tone": "neutral", "weight": 7, "min_day": 6,
+		"title": "A Baron's Offer",
+		"text": "A neighbouring baron offers a loan of coin — generous, but you would be beholden to him.",
+		"choices": [
+			{"label": "Accept the loan (+150 gold, −6 popularity)", "effect": {"gold": 150, "popularity": -6}},
+			{"label": "Decline — we stand on our own (+10 prestige)", "effect": {"prestige": 10}},
+		],
+	},
+	{
+		"id": "bandit_toll", "tone": "bad", "weight": 7, "min_day": 8,
+		"title": "Brigands on the Road",
+		"text": "Brigands have blocked the trade road and demand 40 gold to let your carts pass.",
+		"choices": [
+			{"label": "Pay the toll (−40 gold)", "effect": {"gold": -40}},
+			{"label": "Refuse and drive them off (−20 food, +6 popularity)", "effect": {"food": -20, "popularity": 6}},
+		],
+	},
+	{
+		"id": "refugees_at_gate", "tone": "neutral", "weight": 7, "min_day": 5,
+		"title": "Refugees at the Gate",
+		"text": "A band of folk fleeing a burned village beg shelter within your walls.",
+		"choices": [
+			{"label": "Welcome them (+2 villagers, −25 food, +6 popularity)", "effect": {"spawn_citizens": 2, "food": -25, "popularity": 6}},
+			{"label": "Turn them away (−4 popularity)", "effect": {"popularity": -4}},
+		],
+	},
+	{
+		"id": "traveling_scholar", "tone": "good", "weight": 6, "min_day": 7,
+		"title": "A Traveling Scholar",
+		"text": "A learned scholar seeks your hospitality, offering rare knowledge in return.",
+		"choices": [
+			{"label": "Host the scholar (−25 gold, +25 prestige)", "effect": {"gold": -25, "prestige": 25}},
+			{"label": "Send him on his way", "effect": {}},
+		],
+	},
+	{
+		"id": "mysterious_relic", "tone": "neutral", "weight": 5, "min_day": 9,
+		"title": "A Hooded Stranger",
+		"text": "A hooded pedlar offers a 'holy relic' said to bless the harvest — for a price.",
+		"choices": [
+			{"label": "Buy the relic (−35 gold, +40 food)", "effect": {"gold": -35, "food": 40}},
+			{"label": "A swindle — refuse (+4 popularity)", "effect": {"popularity": 4}},
+		],
+	},
 ]
+
+# Whether an event waits on a player decision (has choices) rather than auto-resolving.
+static func has_choices(event: Dictionary) -> bool:
+	return event.has("choices") and event["choices"] is Array and not event["choices"].is_empty()
+
+# Look up an event definition by id (for resolving a deferred choice).
+static func event_by_id(event_id: String) -> Dictionary:
+	for e in EVENTS:
+		if e.get("id", "") == event_id:
+			return e
+	return {}
+
+# Apply the chosen option of a choice-event. Returns {"summary": String,
+# "spawn_citizens": int, "tone": String} for the caller to surface / enact.
+static func resolve(player: Dictionary, event_id: String, choice_index: int) -> Dictionary:
+	var ev: Dictionary = event_by_id(event_id)
+	if ev.is_empty() or not has_choices(ev):
+		return {}
+	var choices: Array = ev["choices"]
+	if choice_index < 0 or choice_index >= choices.size():
+		return {}
+	var choice: Dictionary = choices[choice_index]
+	var effect: Dictionary = choice.get("effect", {})
+	var summary: String = _apply_effect(player, effect)
+	return {
+		"summary": summary,
+		"spawn_citizens": int(effect.get("spawn_citizens", 0)),
+		"tone": ev.get("tone", "neutral"),
+		"label": choice.get("label", ""),
+	}
 
 # Roll for a daily event. Mutates `player` (resource/popularity/prestige deltas) and
 # returns the chosen event dict (with an added "summary" line) for the view, or {} if
@@ -128,9 +207,11 @@ static func tick(player: Dictionary, world: Dictionary, rng: RandomNumberGenerat
 			break
 
 	world["last_event_day"] = day
-	var summary: String = _apply_effect(player, chosen.get("effect", {}))
 	var result: Dictionary = chosen.duplicate(true)
-	result["summary"] = summary
+	# Choice events defer their effect until the player decides (via resolve()); plain
+	# events apply immediately and carry a "+50 food" summary for the notification.
+	if not has_choices(chosen):
+		result["summary"] = _apply_effect(player, chosen.get("effect", {}))
 	return result
 
 # Applies the bounded stat deltas to the player and returns a short "+50 food" summary.

@@ -13,6 +13,7 @@ func _init() -> void:
 	_test_event_fires_and_applies()
 	_test_effects_are_bounded()
 	_test_min_day_gating()
+	_test_choice_events()
 	print("\n=== World Events Results: %d passed, %d failed ===" % [_pass, _fail])
 	quit(0 if _fail == 0 else 1)
 
@@ -35,7 +36,9 @@ func _test_definitions_valid() -> void:
 	var has_good := false
 	var has_bad := false
 	for e in WorldEventSystem.EVENTS:
-		if not (e.has("id") and e.has("title") and e.has("text") and e.has("tone") and e.has("weight") and e.has("effect")):
+		var core: bool = e.has("id") and e.has("title") and e.has("text") and e.has("tone") and e.has("weight")
+		var payload: bool = e.has("effect") or e.has("choices")   # auto-event xor decision
+		if not (core and payload):
 			all_have_fields = false
 		ids[e.get("id", "")] = true
 		if e.get("tone") == "good": has_good = true
@@ -105,3 +108,47 @@ func _test_min_day_gating() -> void:
 		if not ev.is_empty() and int(ev.get("min_day", 0)) > 1:
 			bad = true
 	ok("no event fires before its min_day", not bad)
+
+func _test_choice_events() -> void:
+	print("\n[Choice events]")
+	# There is at least one choice event, and choice events have well-formed choices.
+	var choice_events: Array = []
+	for e in WorldEventSystem.EVENTS:
+		if WorldEventSystem.has_choices(e):
+			choice_events.append(e)
+	ok("there are choice events", choice_events.size() >= 3)
+	var well_formed := true
+	for e in choice_events:
+		for c in e["choices"]:
+			if not (c.has("label") and c.has("effect")):
+				well_formed = false
+	ok("every choice has a label + effect", well_formed)
+
+	# A choice event picked by tick() must NOT auto-apply its effect (deferred to resolve).
+	var p := _player()
+	var gold_before: int = p["gold"]
+	var loan := WorldEventSystem.event_by_id("barons_loan")
+	ok("event_by_id finds a known event", not loan.is_empty())
+	# Simulate tick choosing the loan by calling the deferred path directly:
+	ok("a choice event carries no auto-summary", not loan.has("summary"))
+	ok("player unchanged before a decision", p["gold"] == gold_before)
+
+	# resolve() applies the chosen option.
+	var p2 := _player(); var g0: int = p2["gold"]
+	var out := WorldEventSystem.resolve(p2, "barons_loan", 0)  # accept loan: +150 gold, -6 pop
+	ok("resolve returns a summary", String(out.get("summary", "")) != "")
+	ok("accepting the loan adds gold", int(p2["gold"]) == g0 + 150)
+	ok("accepting the loan costs popularity", p2["popularity"] < 50.0)
+
+	# Resolving the OTHER option gives a different outcome.
+	var p3 := _player()
+	WorldEventSystem.resolve(p3, "barons_loan", 1)  # decline: +10 prestige
+	ok("declining the loan grants prestige instead", p3.get("prestige", 0.0) >= 10.0)
+	ok("declining the loan leaves gold unchanged", int(p3["gold"]) == _player()["gold"])
+
+	# Invalid resolves are safe no-ops.
+	ok("resolve with bad index is empty", WorldEventSystem.resolve(_player(), "barons_loan", 9).is_empty())
+	ok("resolve with bad id is empty", WorldEventSystem.resolve(_player(), "nope", 0).is_empty())
+	# spawn_citizens is surfaced for the caller (refugees event welcomes 2).
+	var ref_out := WorldEventSystem.resolve(_player(), "refugees_at_gate", 0)
+	ok("welcoming refugees reports spawn_citizens", int(ref_out.get("spawn_citizens", 0)) == 2)

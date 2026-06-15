@@ -192,6 +192,11 @@ func _build_all_panels() -> void:
 	diplomacy_panel.position = Vector2(vp.x * 0.5 - 160, vp.y * 0.32)
 	add_child(diplomacy_panel)
 
+	# Event choice panel (decisions on World Events) — hidden until a choice-event fires
+	var event_panel := preload("res://view/hud/EventChoicePanel.gd").new()
+	event_panel.position = Vector2(vp.x * 0.5 - 180, vp.y * 0.28)
+	add_child(event_panel)
+
 func _make_panel(rect: Rect2) -> Panel:
 	var p := Panel.new()
 	p.position = rect.position

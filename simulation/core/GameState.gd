@@ -1027,6 +1027,8 @@ func apply_command(command: Dictionary) -> void:
 			success = _cmd_launch_campaign(command)
 		CommandQueue.CommandType.STRATEGIC_DIPLOMACY:
 			success = _cmd_strategic_diplomacy(command)
+		CommandQueue.CommandType.RESOLVE_EVENT_CHOICE:
+			success = _cmd_resolve_event_choice(command)
 		CommandQueue.CommandType.SAVE_GAME:
 			EventBus.save_requested.emit()
 			success = true
@@ -1749,6 +1751,29 @@ func _cmd_diplomacy_response(cmd: Dictionary) -> bool:
 		DiplomacySystem.accept(players[pid], payload.get("demands", {}), faction)
 	else:
 		DiplomacySystem.refuse(players[pid], faction)
+	return true
+
+# Player picked an option on a World Event (choice popup). Applies the chosen effect,
+# enacts a "wanderer/refugees join" spawn if any, and announces the outcome.
+func _cmd_resolve_event_choice(cmd: Dictionary) -> bool:
+	var pid: int = cmd["player_id"]
+	if not _valid_player(pid):
+		return false
+	var payload: Dictionary = cmd["payload"]
+	var outcome: Dictionary = WorldEventSystem.resolve(
+		players[pid], payload.get("event_id", ""), int(payload.get("choice_index", -1)))
+	if outcome.is_empty():
+		return false
+	var spawn_n: int = int(outcome.get("spawn_citizens", 0))
+	if spawn_n > 0 and pid == 0:
+		_next_citizen_id = CitizenSystem.spawn(citizens, spawn_n,
+			float(players[0].get("keep_x", 100)), float(players[0].get("keep_y", 100)),
+			_citizen_rng, _next_citizen_id)
+		_snap_citizens_to_grass()
+		players[0]["population"] = PeopleSystem.living_count(citizens)
+	# The choice label already describes the outcome ("Accept the loan (+150 gold…)"),
+	# so the notice is just a confirmation of what the lord decreed.
+	EventBus.realm_notice.emit("You decreed: " + String(outcome.get("label", "your will")), outcome.get("tone", "neutral"))
 	return true
 
 func _cmd_research_tech(cmd: Dictionary) -> bool:

@@ -64,7 +64,10 @@ signal season_changed(season: int, season_name: String)
 # --- Realm events ---
 # A flavourful daily event befell the realm (see WorldEventSystem). Carries the full
 # event dict: id, title, text, tone ("good"/"bad"/"neutral"), summary ("+50 food").
+# Choice events carry a "choices" array and wait on the player's decision.
 signal world_event(event_data: Dictionary)
+# The outcome of a player's decision on a choice-event — a one-off notification line.
+signal realm_notice(text: String, tone: String)
 
 # --- World ---
 signal shire_ownership_changed(shire_id: int, old_owner: int, new_owner: int)
