@@ -214,6 +214,9 @@ func _build_scene() -> void:
 	# Dev/headless hook: a staffed town to verify job workers walking to buildings.
 	if OS.get_environment("SR_WORKERS") != "":
 		_dev_spawn_workers()
+	# Dev hook: pop the "20 minutes reached" reign-milestone overlay shortly after boot.
+	if OS.get_environment("SR_REIGN") != "":
+		_dev_reign_preview()
 	# Dev hook: jump the calendar to a chosen season (0=spring..3=autumn..) for previews.
 	if OS.get_environment("SR_SEASON") != "":
 		var s: int = int(OS.get_environment("SR_SEASON"))
@@ -221,6 +224,10 @@ func _build_scene() -> void:
 	# Dev hook: render for SR_SHOT_DELAY seconds then save a PNG to SR_SHOT and quit.
 	if OS.get_environment("SR_SHOT") != "":
 		_dev_screenshot(OS.get_environment("SR_SHOT"))
+
+func _dev_reign_preview() -> void:
+	await get_tree().create_timer(2.0).timeout
+	_show_reign_milestone(100)
 
 func _dev_screenshot(path: String) -> void:
 	var delay: float = 12.0
@@ -422,6 +429,8 @@ func _connect_signals() -> void:
 	# Realm events — flavourful daily happenings surfaced in the notification feed.
 	# (Choice events are handled by the EventChoicePanel instead; see _on_world_event.)
 	EventBus.world_event.connect(_on_world_event)
+	# The 20-minute goal reached — a triumphant (dismissible) moment.
+	EventBus.sovereign_reign_reached.connect(_show_reign_milestone)
 	EventBus.realm_notice.connect(func(text: String, tone: String):
 		var c: Color = Color(0.55, 0.9, 0.45) if tone == "good" else (Color(1.0, 0.5, 0.4) if tone == "bad" else Color(0.95, 0.85, 0.45))
 		_hud.show_notification("📜 " + text, 7.0, c))
@@ -515,6 +524,64 @@ func _on_popularity_changed(_pid: int, _old: float, new_val: float) -> void:
 		_show_game_over(false, "The people have revolted! Your reign is over.")
 
 var _game_over_shown: bool = false
+
+var _reign_celebrated_shown: bool = false
+
+# Reaching Day 100 (20 minutes) is the goal of a life — recognise it with a triumphant
+# moment that HOLDS time, then lets the sovereign keep ruling (it is NOT game over).
+func _show_reign_milestone(_day: int) -> void:
+	if _reign_celebrated_shown: return
+	_reign_celebrated_shown = true
+	var prev_speed: int = SimulationClock.game_speed
+	SimulationClock.set_speed(SimulationClock.SPEED_PAUSED)
+
+	var overlay := CanvasLayer.new()
+	overlay.name  = "ReignMilestoneOverlay"
+	overlay.layer = 21
+	add_child(overlay)
+
+	var bg := ColorRect.new()
+	bg.color = Color(0.0, 0.0, 0.0, 0.6)
+	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	overlay.add_child(bg)
+
+	var panel := Panel.new()
+	panel.position = Vector2(320, 205)
+	panel.size     = Vector2(640, 290)
+	var style := StyleBoxFlat.new()
+	style.bg_color     = Color(0.13, 0.10, 0.06, 0.98)
+	style.set_border_width_all(3)
+	style.border_color = Color(0.95, 0.80, 0.32)
+	style.set_corner_radius_all(10)
+	style.shadow_color = Color(0, 0, 0, 0.6); style.shadow_size = 16
+	panel.add_theme_stylebox_override("panel", style)
+	overlay.add_child(panel)
+
+	var title := Label.new()
+	title.text = "⚜  A SOVEREIGN'S REIGN  ⚜"
+	title.position = Vector2(20, 26); title.size = Vector2(600, 46)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 27)
+	title.add_theme_color_override("font_color", Color(1.0, 0.86, 0.36))
+	panel.add_child(title)
+
+	var msg := Label.new()
+	msg.text = "One hundred days of unbroken rule — a full twenty minutes upon the throne.\nYour people prosper, your walls stand, and your name will be remembered.\n\nLong may you reign.   (+200 prestige)"
+	msg.position = Vector2(30, 90); msg.size = Vector2(580, 140)
+	msg.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	msg.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	msg.add_theme_font_size_override("font_size", 15)
+	msg.add_theme_color_override("font_color", Color(0.93, 0.92, 0.85))
+	panel.add_child(msg)
+
+	var btn := Button.new()
+	btn.text = "Continue Ruling"
+	btn.position = Vector2(250, 234); btn.size = Vector2(140, 38)
+	btn.add_theme_font_size_override("font_size", 14)
+	btn.pressed.connect(func():
+		overlay.queue_free()
+		SimulationClock.set_speed(prev_speed if prev_speed > 0 else SimulationClock.SPEED_NORMAL))
+	panel.add_child(btn)
 
 func _show_game_over(victory: bool, message: String) -> void:
 	if _game_over_shown: return

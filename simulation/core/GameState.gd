@@ -1119,6 +1119,14 @@ func simulate_tick(tick: int) -> void:
 		if spectator_mode:
 			_auto_manage_ai_town()
 
+		# The 20-minute goal: reaching Day 100 alive is the whole point of a "life". Mark
+		# the achievement once — a triumphant moment + a fame reward — then let the
+		# sovereign keep ruling (this is NOT a game-over; the realm endures).
+		if not spectator_mode and day >= 100 and not world.get("reign_celebrated", false):
+			world["reign_celebrated"] = true
+			players[0]["prestige"] = float(players[0].get("prestige", 0.0)) + 200.0
+			EventBus.sovereign_reign_reached.emit(day)
+
 		# Standing objectives — the player's running sense of direction toward Day 100.
 		if not spectator_mode:
 			var obj: Dictionary = ObjectiveSystem.evaluate(players[0], world, day)

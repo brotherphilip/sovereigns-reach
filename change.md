@@ -26,6 +26,30 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 20 — 2026-06-16  ⚜ THE GOAL HAS A PAYOFF NOW (Day-100 reign milestone)
+
+### Finding
+Reaching **Day 100 (20 minutes) — the entire point of "a life"** — had **no payoff**: just one of
+six small objective-complete notices, then the game droned on. The only "VICTORY" screen is for
+military conquest (vanquish all enemies). The achievement the whole loop is built around went
+completely unrecognised.
+
+### Change made (fitting for iteration 20)
+- **GameState**: when the player reaches Day 100 alive (own seat, once), award **+200 prestige** and
+  emit `EventBus.sovereign_reign_reached`. NOT a game-over — the realm endures.
+- **CityViewScene**: a triumphant, gold-bordered, **dismissible** overlay — "⚜ A SOVEREIGN'S REIGN ⚜
+  — One hundred days of unbroken rule, a full twenty minutes upon the throne… Long may you reign.
+  (+200 prestige)" with a **"Continue Ruling"** button that resumes play. Holds time while shown.
+- New `SR_REIGN` dev hook to preview the overlay on boot.
+
+### Verified
+- Probe: signal fires exactly once at Day 100; prestige jumps +200 (220→420). Suite green.
+- Live (SR_REIGN): the overlay renders beautifully (title, message, Continue Ruling button).
+
+### Milestone note (20 iterations)
+From iter 1's "can't survive 5 minutes" to here: a 20-minute life is reachable, every core system
+works through the real UI, and reaching the goal is now a celebrated moment. The loop did its job.
+
 ## Iteration 19 — 2026-06-16  (world map: city hover-details that actually show)
 
 ### Played (real clicks) — the strategic layer, finally

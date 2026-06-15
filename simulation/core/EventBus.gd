@@ -70,6 +70,8 @@ signal world_event(event_data: Dictionary)
 signal realm_notice(text: String, tone: String)
 # Standing objective changed (player's current goal). index/total for "(3/6)" display.
 signal objective_updated(index: int, total: int, text: String)
+# The player has ruled to Day 100 — twenty unbroken minutes, the loop's goal. Fired once.
+signal sovereign_reign_reached(day: int)
 
 # --- World ---
 signal shire_ownership_changed(shire_id: int, old_owner: int, new_owner: int)
