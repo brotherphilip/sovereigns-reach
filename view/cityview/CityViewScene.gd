@@ -417,6 +417,8 @@ func _connect_signals() -> void:
 
 	# Onboarding hints (the real runtime entry — GameBootstrap is unused here).
 	TutorialSystem.tutorial_hint.connect(func(msg: String): _hud.show_notification("📖 " + msg, 9.0))
+	# Realm events — flavourful daily happenings surfaced in the notification feed.
+	EventBus.world_event.connect(_on_world_event)
 
 	set_process_input(true)
 
@@ -428,6 +430,14 @@ func _input(event: InputEvent) -> void:
 func _toggle_macro_view() -> void:
 	var ctrl := _macro_view.get_node_or_null("MacroMapControl")
 	if ctrl: ctrl.visible = not ctrl.visible
+
+func _on_world_event(ev: Dictionary) -> void:
+	var tone: String = ev.get("tone", "neutral")
+	var col: Color = Color(0.55, 0.9, 0.45) if tone == "good" else (Color(1.0, 0.5, 0.4) if tone == "bad" else Color(0.95, 0.85, 0.45))
+	var icon: String = "✨" if tone == "good" else ("⚠" if tone == "bad" else "🕊")
+	var summary: String = ev.get("summary", "")
+	var tail: String = ("  (%s)" % summary) if summary != "" else ""
+	_hud.show_notification("%s %s — %s%s" % [icon, ev.get("title", "An event"), ev.get("text", ""), tail], 8.0, col)
 
 func _on_entity_selected(entity_type: String, entity_data: Dictionary) -> void:
 	match entity_type:

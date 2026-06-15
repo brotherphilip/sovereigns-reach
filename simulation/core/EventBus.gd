@@ -61,6 +61,11 @@ signal weather_effect_applied(effect_type: String, magnitude: float)
 # Fired on the game-day the season index changes (spring/summer/autumn/winter).
 signal season_changed(season: int, season_name: String)
 
+# --- Realm events ---
+# A flavourful daily event befell the realm (see WorldEventSystem). Carries the full
+# event dict: id, title, text, tone ("good"/"bad"/"neutral"), summary ("+50 food").
+signal world_event(event_data: Dictionary)
+
 # --- World ---
 signal shire_ownership_changed(shire_id: int, old_owner: int, new_owner: int)
 # A terrain tile was repainted at runtime (e.g. a path laid) — chunks repaint.

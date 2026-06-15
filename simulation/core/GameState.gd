@@ -20,6 +20,7 @@ const ShireMap         = preload("res://simulation/world/ShireMap.gd")
 const WildlifeSystem   = preload("res://simulation/world/WildlifeSystem.gd")
 const CitizenSystem    = preload("res://simulation/world/CitizenSystem.gd")
 const PeopleSystem     = preload("res://simulation/world/PeopleSystem.gd")
+const WorldEventSystem = preload("res://simulation/world/WorldEventSystem.gd")
 # Phase 5
 const TechTree         = preload("res://simulation/tech/TechTree.gd")
 const PrestigeSystem   = preload("res://simulation/tech/PrestigeSystem.gd")
@@ -1114,6 +1115,20 @@ func simulate_tick(tick: int) -> void:
 		# its villagers visibly work, just like the player's.
 		if spectator_mode:
 			_auto_manage_ai_town()
+
+		# Realm events: a flavourful daily happening (merchant, foraging, wolves…) that
+		# keeps the kingdom alive between the big beats. Player's own seat only.
+		if not spectator_mode:
+			var revent: Dictionary = WorldEventSystem.tick(players[0], world, _social_rng, day)
+			if not revent.is_empty():
+				var spawn_n: int = int(revent.get("effect", {}).get("spawn_citizens", 0))
+				if spawn_n > 0:
+					_next_citizen_id = CitizenSystem.spawn(citizens, spawn_n,
+						float(players[0].get("keep_x", 100)), float(players[0].get("keep_y", 100)),
+						_citizen_rng, _next_citizen_id)
+					_snap_citizens_to_grass()
+					players[0]["population"] = PeopleSystem.living_count(citizens)
+				EventBus.world_event.emit(revent)
 
 	# Phase 6: tick AI factions each game-day
 	if tick > 0 and tick % SimulationClock.TICKS_PER_GAME_DAY == 0:

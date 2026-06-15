@@ -26,6 +26,41 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 5 — 2026-06-16  (content: World Events — the realm feels alive)
+
+### Why
+With survival to 20 min now solid *and* forgiving (iters 1–4), the loop pivots to the directive's
+other axes — **more fun / more content / more sense**. The clearest gap I'd observed playing: the
+early-to-mid game is **thin to *do*** — build three buildings, then watch meters. Milestones already
+fire as notifications, but there was **no random-event system** at all; the only "events" were
+weather, AI tribute and sieges. A management game lives on its moment-to-moment happenings.
+
+### What I added — a data-driven World Events system
+- **`simulation/world/WorldEventSystem.gd`**: each game-day, after a 5-day cooldown, a 34% chance a
+  flavourful event befalls the realm — drawn from a weighted, `min_day`-gated pool. Effects are
+  **bounded and clamped** (an event can never push a resource below 0 or popularity into instant
+  revolt) and **lean positive** so the realm feels alive and rewarding to tend, not punished.
+  Starter pack (12 events): Wandering Merchant (+gold), Bountiful Foraging / Boar Hunt (+food),
+  Traveling Minstrels / Village Wedding (+popularity), A Weary Traveler (**a villager joins**),
+  Storm-Felled Timber (+wood), A Good Omen (+prestige); and bounded setbacks — Wolves in the Night
+  (−food), Cart Overturns (−wood), Coin Goes Missing (−gold), A Bitter Quarrel (−popularity).
+  Each carries evocative title + story text. **Data-driven**: new events are one dict entry, so
+  *content compounds* in future iterations — and the framework already returns the whole event dict,
+  so a player-**choice** popup can be layered on later.
+- **GameState**: ticks events on the day boundary (own seat only); a "wanderer joins" event spawns a
+  real villager (snapped to grass, population re-synced). Emits `EventBus.world_event(event_data)`.
+- **CityViewScene**: surfaces each event in the notification feed with tone-coloured text + icon
+  (✨ good / ⚠ bad / 🕊 neutral) and the effect summary.
+- **TestWorldEvents.gd** (14 tests): definitions valid, cooldown + boundary, fires & applies,
+  effects bounded (no underflow / no instant-revolt), `min_day` gating. Plus an integration probe:
+  8 events over 60 days in a real `GameState` run, good cadence, correct summaries. Full suite green.
+
+### Backlog / next
+- **Player-choice events**: layer an Accept/Decline-style popup (like DiplomacyPanel) onto select
+  events for real decisions ("a baron offers a loan", "bandits demand a toll").
+- Keep adding events each iteration (seasonal events, building-specific events, threat telegraphs).
+- Still open: ale-ration-vs-0-ale mismatch; worker labour cap; build-mode eats HUD clicks.
+
 ## Iteration 4 — 2026-06-16  (real-click playthrough + forgiving food)
 
 ### What I did
