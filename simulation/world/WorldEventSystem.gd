@@ -144,6 +144,36 @@ const EVENTS: Array = [
 			{"label": "A swindle — refuse (+4 popularity)", "effect": {"popularity": 4}},
 		],
 	},
+	{
+		"id": "spring_lambs", "tone": "good", "weight": 8, "min_day": 2,
+		"title": "The Ewes Have Lambed",
+		"text": "Spring brings a strong crop of lambs — fresh meat and milk for the village.",
+		"effect": {"food": 30},
+	},
+	{
+		"id": "master_craftsman", "tone": "good", "weight": 6, "min_day": 5,
+		"title": "A Master Craftsman",
+		"text": "A renowned craftsman settles in your town, drawing trade and quiet renown.",
+		"effect": {"prestige": 15, "gold": 30},
+	},
+	{
+		"id": "knight_errant", "tone": "neutral", "weight": 6, "min_day": 8,
+		"title": "A Knight Errant",
+		"text": "A wandering knight offers his sword and his fame to your house for a season — at a price.",
+		"choices": [
+			{"label": "Take him into service (−80 gold, +18 prestige)", "effect": {"gold": -80, "prestige": 18}},
+			{"label": "Thank him and decline (+2 popularity)", "effect": {"popularity": 2}},
+		],
+	},
+	{
+		"id": "poachers_caught", "tone": "neutral", "weight": 6, "min_day": 7,
+		"title": "Poachers in the Wood",
+		"text": "Your foresters have caught hungry poachers taking deer from your land. Justice is yours to give.",
+		"choices": [
+			{"label": "Hang them — let justice be seen (−3 popularity, +10 prestige)", "effect": {"popularity": -3, "prestige": 10}},
+			{"label": "Show mercy — they were starving (+6 popularity)", "effect": {"popularity": 6}},
+		],
+	},
 ]
 
 # Whether an event waits on a player decision (has choices) rather than auto-resolving.

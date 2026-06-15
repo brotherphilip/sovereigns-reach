@@ -11,6 +11,7 @@ var _title: Label = null
 var _body: RichTextLabel = null
 var _btn_box: VBoxContainer = null
 var _current_id: String = ""
+var _prev_speed: int = 1   # speed to restore after the player decides
 
 func _ready() -> void:
 	visible = false
@@ -74,6 +75,10 @@ func _on_world_event(ev: Dictionary) -> void:
 	# Size the panel to its content and reveal it.
 	_panel.size.y = 96.0 + choices.size() * 30.0
 	visible = true
+	# A decree deserves the lord's full attention: hold time while you decide (and
+	# restore the prior speed afterwards) so a decision is never missed at fast-forward.
+	_prev_speed = SimulationClock.game_speed
+	SimulationClock.set_speed(SimulationClock.SPEED_PAUSED)
 
 func _choose(index: int) -> void:
 	CommandQueue.enqueue(CT_RESOLVE_EVENT_CHOICE, {
@@ -81,3 +86,5 @@ func _choose(index: int) -> void:
 		"choice_index": index,
 	}, 0)
 	visible = false
+	# Resume the realm at whatever speed it was running before the decree.
+	SimulationClock.set_speed(_prev_speed if _prev_speed > 0 else SimulationClock.SPEED_NORMAL)

@@ -26,6 +26,44 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 7 — 2026-06-16  (decision polish + more content; harness fixed; LIVE verified)
+
+### Harness breakthrough
+The interactive Xvfb path (real xdotool clicks) that kept dying in iters 5–6 was just **leftover
+display state from rapid relaunch cycles**. With a full clean (`pkill godot+Xvfb`, remove the :99
+lock, wait 2s) and a single launch per iteration, `DISPLAY=:99` is reliably drivable again. So this
+round I **played for real** and visually verified iters 5–7 end-to-end.
+
+### Played (real clicks) — what I confirmed live
+- World Events fire and surface (saw "Wandering Merchant", events raised gold 500→620 over ~25 days).
+- A **decision popup** appeared mid-fast-forward ("⚜ Brigands on the Road — 40 gold to let your carts
+  pass" with two option buttons), and resolving one applied the effect + a "You decreed…" notice
+  (clicked an option → gold −35 exactly, food +40, notice shown). Iters 5 & 6 = confirmed working.
+- Health now reads **50** on a fresh village (iter-4 fix confirmed on the live HUD, not just tests).
+
+### The gap I felt while playing → this iteration's fix
+At 5× speed a decision popup is **easy to blow past** — the realm keeps moving while you're meant to
+be deciding. A ruler's decree should command attention.
+- **Auto-pause on decisions** (EventChoicePanel): when a choice event fires, hold time
+  (`SimulationClock.set_speed(PAUSED)`); restore the prior speed when the player chooses. Events only
+  fire on unpaused day-boundaries, so the captured speed is always valid to restore.
+  **Verified live**: a "Knight Errant" decision froze the game at Day 9 across 24s of frames; clicking
+  "Take him into service" applied −80 gold / +18 prestige and the game resumed (Day 9→11).
+- **+4 events** (content compounds): The Ewes Have Lambed (+food), A Master Craftsman (+prestige/gold),
+  A Knight Errant (hire vs decline), and **Poachers in the Wood** — a moral choice (hang them for
+  +prestige/−popularity, or show mercy for +popularity). 21 events total now.
+
+TestWorldEvents still 27/27; full suite green; build verified rendering + driven live.
+
+### Note / non-issue
+- The iter-4 "ale ration Half but 0 ale" worry is a **non-issue**: `_ale_score` is gated by
+  `inn_coverage` (0 without an inn), so ale ration has zero popularity effect early. No fix needed.
+
+### Backlog / next
+- More content: seasonal-flavoured events, building/threat-tied events, multi-step decisions.
+- Visible objective/goal tracker (milestones are transient); telegraph the post-grace first raid.
+- Worker labour cap; build-mode eats HUD clicks.
+
 ## Iteration 6 — 2026-06-16  (content: World Events become DECISIONS)
 
 ### Why
