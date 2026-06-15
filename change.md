@@ -26,6 +26,36 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 12 — 2026-06-16  (combat readability: friend-or-foe at a glance)
+
+### Why / what I played
+Survival to Day 100 is solved, so the loop turns to *fun*. The biggest untested experience is
+**combat** — and a siege *will* come. I launched with the `SR_SPAWN_UNITS` showcase (player army +
+enemy warband) and watched a real battle on Xvfb.
+
+### What I saw
+- **Combat works**: units march and engage, **arrows fly** (projectile system), siege engines
+  (catapult/ram/mantlet) render and animate. Mechanically sound.
+- **[UX] You can't tell friend from foe.** Every unit's tunic is coloured by its TYPE (peasant brown,
+  scout green, militia grey…); the team tint (blue=yours, red=enemy) was only a minor accent buried
+  in the figure. In a melee you genuinely cannot tell your soldiers from raiders — a serious problem
+  for a castle-defence game.
+
+### Change made
+- **UnitLayer**: draw a **team-coloured disc + ring under each unit's feet** — bright blue for your
+  troops, red for the enemy (the standard RTS convention). Verified live with `SR_SPAWN_UNITS`: your
+  units (soldiers + all three siege engines) now wear unmistakable blue rings; enemy units use the
+  same draw with the red team colour. Battlefield is readable at a glance.
+
+Full suite green (view-only change); build launched + rendered clean with the showcase.
+
+### Backlog / next
+- Try the real recruit→command→defend loop through the UI (barracks + soldiers vs the post-grace
+  siege) and improve it if clunky.
+- Combat feedback (clash flashes, casualty markers) could be punchier.
+- Late-game popularity smoothing if the iter-11 warning proves insufficient; tribute pause; more
+  event/objective content.
+
 ## Iteration 11 — 2026-06-16  ✅ 20-MINUTE LIFE CONFIRMED END-TO-END (incl. war)
 
 ### The headline

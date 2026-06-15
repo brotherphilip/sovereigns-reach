@@ -203,6 +203,13 @@ func _draw_unit(unit: Dictionary, is_enemy: bool) -> void:
 		if morale_ratio < 0.35:
 			team = team.lerp(Color(0.30, 0.35, 0.82), 0.4)
 
+	# Team disc under the feet — instant friend/foe read on a crowded battlefield
+	# (blue ring = yours, red ring = foe). Unit tunics are TYPE-coloured, so without
+	# this you can't tell your soldiers from raiders in a melee.
+	var team_bright: Color = team.lerp(Color.WHITE, 0.15)
+	draw_circle(Vector2(cx, cy + 1.5), 8.0, Color(team.r, team.g, team.b, 0.32))
+	draw_arc(Vector2(cx, cy + 1.5), 8.0, 0.0, TAU, 20, Color(team_bright.r, team_bright.g, team_bright.b, 1.0), 2.2)
+
 	# Hit-flash: white pop when HP just dropped.
 	var uid: int = unit.get("id", -1)
 	var flash: float = 0.0
