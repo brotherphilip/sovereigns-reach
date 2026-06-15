@@ -25,8 +25,12 @@ const CONCEPTION_CHANCE: float = 0.05   # per fertile housed couple per day
 const OLD_DEATH_CHANCE: float  = 0.02   # per day once OLD (variance around the cap)
 const SAFETY_MAX_PEOPLE: int   = 150    # performance ceiling regardless of housing
 
-# Housing the keep itself provides before any home is built.
-const BASE_HOUSING: int = 8
+# Housing the hall/keep itself provides before any hovel is built. Must comfortably
+# exceed the STARTING villager count (~14) with a little headroom, or the founding
+# village is overcrowded from day one and can NEVER grow until the player happens to
+# build hovels — a silent dead-end. With headroom the village grows a little on its
+# own, then hovels (rooms) carry it further. (See "Grow your village" objective.)
+const BASE_HOUSING: int = 16
 const HOME_TYPES: Array = ["hovel"]
 
 # Skin spectrum: 0.0 = a light dark-brown, 1.0 = fair.

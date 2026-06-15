@@ -26,6 +26,38 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 10 — 2026-06-16  (full-life attempt → fix: the village couldn't grow)
+
+### Played (real clicks) — pushing for a full 20-minute life
+Built Hall + Orchard + Granary through the UI, took a Knight Errant into service, **paid** an Ashen
+Barony tribute of "30 gold, 12 iron" (iter-8 fix confirmed live — payable now, not ale), and
+fast-forwarded to **Day 42**: thriving (Food 193–200/200, Prestige 455, Health 50). Survival is
+robust hands-on. The objective panel had advanced to "(2/6) Grow your village to 20 souls."
+
+### Why a 20-minute life stalls (the finding)
+- **[MAKES-NO-SENSE BUG] The village can't grow.** At Day 42 population was still **14** — the
+  starting count. Births gate purely on housing headroom (`living_count < cap`), and `BASE_HOUSING`
+  was **8** while the village **starts with ~14 villagers** → overcrowded from day one, so it can
+  NEVER grow until the player happens to build hovels. Nothing tells them this, and the "Grow to 20"
+  objective gave no hint. A silent dead-end on a core progression path.
+- (Minor) A tribute's 7-day deadline can lapse while you're busy, because the DiplomacyPanel doesn't
+  pause like the EventChoicePanel does. Logged for later.
+
+### Changes made this iteration
+- **PeopleSystem.BASE_HOUSING 8 → 16**: the hall/keep now shelters the founding village (~14) with a
+  little headroom, so it grows a little on its own; hovels (rooms) carry it further. Probe: population
+  14 → 16 on base housing, → 19 by Day 60 with two hovels (cap 24). Steady, not glacial.
+- **ObjectiveSystem**: "Grow your village to 20 souls" → "…— build Hovels to house new families" so
+  the player knows HOW to grow past the base.
+- `_get_population_cap` (the separate abstract cap used by TestPhase10) is independent of
+  `BASE_HOUSING`, so nothing else shifted. Full suite green.
+
+### Backlog / next
+- Consider pausing (or a clear deadline timer) for tribute demands too, like decisions.
+- Population growth is steady but slowish (~1 per 10–15 days) — fine for now; revisit if "grow to 20"
+  feels long. Reach Day 100 in one continuous real session to fully close the loop.
+- Worker labour cap; build-mode eats HUD clicks; more event content.
+
 ## Iteration 9 — 2026-06-16  (direction: a standing Objective tracker)
 
 ### Why
