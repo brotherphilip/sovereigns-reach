@@ -3,6 +3,7 @@ extends Control
 # Accepts WorldMapController render lists; emits city_clicked(city_id).
 
 signal city_clicked(city_id: int)
+signal city_hovered(city_id: int)   # -1 when the cursor leaves all cities
 
 const WorldMapController = preload("res://view/worldmap/WorldMapController.gd")
 const WorldMapData       = preload("res://simulation/world/WorldMapData.gd")
@@ -58,6 +59,7 @@ func _input(event: InputEvent) -> void:
 		var hov: int = WorldMapController.find_city_near(_data, event.position, 24.0)
 		if hov != _hovered_city_id:
 			_hovered_city_id = hov
+			city_hovered.emit(hov)
 			queue_redraw()
 
 # ── Background (procedural biome continent) ────────────────────────────────────

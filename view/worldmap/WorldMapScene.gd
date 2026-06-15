@@ -218,7 +218,7 @@ func _build_scene() -> void:
 
 	var info_lbl := Label.new()
 	info_lbl.name     = "InfoLabel"
-	info_lbl.text     = "Hover or click a city to see details"
+	info_lbl.text     = "Hover a city to see details · Click it to enter and rule it"
 	info_lbl.position = Vector2(8, 6)
 	info_lbl.size     = Vector2(264, 70)
 	info_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -226,8 +226,9 @@ func _build_scene() -> void:
 	info_lbl.add_theme_color_override("font_color", Color(0.80, 0.74, 0.54))
 	info_panel.add_child(info_lbl)
 
-	# Connect hover → info panel
+	# Connect hover → info panel (show the hovered city's details)
 	_world_view.mouse_entered.connect(_on_mouse_entered_map)
+	_world_view.city_hovered.connect(_on_city_hovered)
 
 func _on_city_clicked(city_id: int) -> void:
 	GameState.world["selected_city_id"] = city_id
@@ -273,3 +274,31 @@ func _on_main_menu() -> void:
 
 func _on_mouse_entered_map() -> void:
 	pass  # hover handled in WorldMapView via _input
+
+# Populate the info panel with the hovered city's details (was: hover only highlighted
+# the city, the panel never actually showed anything — "Hover to see details" was a lie).
+func _on_city_hovered(city_id: int) -> void:
+	var canvas: CanvasLayer = get_node_or_null("HUD")
+	if canvas == null: return
+	var info: Label = canvas.get_node_or_null("InfoPanel/InfoLabel")
+	if info == null: return
+	if city_id < 0:
+		info.text = "Hover a city to see details · Click it to enter and rule it"
+		info.add_theme_color_override("font_color", Color(0.80, 0.74, 0.54))
+		return
+	var city: Dictionary = GameState.get_city(city_id)
+	if city.is_empty(): return
+	var wm: Dictionary = GameState.world.get("world_map", {})
+	var owner_fid: int = int(city.get("owner_faction_id", city.get("faction_id", -1)))
+	var fac_name: String = "Unclaimed"
+	var fac_col: Color = Color(0.85, 0.78, 0.55)
+	for f in wm.get("factions", []):
+		if f is Dictionary and f.get("id", -1) == owner_fid:
+			fac_name = f.get("name", fac_name)
+			fac_col = Color.from_string(f.get("color_hex", "#cccccc"), fac_col)
+			break
+	var dev: int = int(city.get("development", city.get("tier", 0)))
+	var gar: int = int(city.get("garrison", 0))
+	info.text = "%s — %s\nDevelopment %d · Garrison ⚔ %d\n(click to enter)" % [
+		city.get("name", "City"), fac_name, dev, gar]
+	info.add_theme_color_override("font_color", fac_col)

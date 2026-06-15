@@ -26,6 +26,36 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 19 — 2026-06-16  (world map: city hover-details that actually show)
+
+### Played (real clicks) — the strategic layer, finally
+Launched from the **main menu** (lovely sunset title) → New Game → **World Map**. It renders richly: a
+procedural biome continent, 5 competing kingdoms (legend: Crimson Throne, Azure Dominion, **Emerald
+March (You)**, Violet Pact, Amber Hold — you hold 12 cities), city banners with garrison counts,
+roads. Clicked a city → it **entered the CityViewScene** at that city's coords (the first city you
+enter becomes your playable seat). Strategic→tactical bridge works.
+
+### Finding
+- **[MAKES-NO-SENSE] The city detail panel never shows anything.** The bottom panel said "Hover or
+  click a city to see details", but hovering only **highlighted the city visually** — `WorldMapView`
+  tracked `_hovered_city_id` and redrew, but never populated the InfoLabel. And clicking *enters* the
+  city (doesn't show details). So "hover to see details" was a promise the game never kept, and the
+  two on-screen hints contradicted each other.
+
+### Changes made
+- **WorldMapView**: new `city_hovered(city_id)` signal, emitted when the hovered city changes.
+- **WorldMapScene**: `_on_city_hovered` populates the info panel with the city's **name, owner kingdom
+  (in that kingdom's colour), development, and garrison** — and clears to a prompt when you leave.
+  Verified live: hovering shows "Cresthollow — Emerald March · Development 2 · Garrison ⚔ 8" in green
+  (so you can spot YOUR cities by colour).
+- Fixed the contradictory hint text → "Hover a city to see details · Click it to enter and rule it".
+
+Full suite green; world map renders + hover verified live.
+
+### Backlog / next
+- The strategic actions (develop city / raise army / launch campaign / diplomacy) as the human are
+  still largely unexercised — a future deep-dive. More content; late-game popularity smoothing.
+
 ## Iteration 18 — 2026-06-16  (market/trade verified + clearer trade buttons)
 
 ### Checked + played
