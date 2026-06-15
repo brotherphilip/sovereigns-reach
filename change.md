@@ -26,6 +26,48 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 4 — 2026-06-16  (real-click playthrough + forgiving food)
+
+### What I did
+Honoured the "play as a human" directive: a genuine **click-driven playthrough** on Xvfb (launch
+once, keep alive; pause → build → resume in bursts). Built hall + orchard + granary entirely through
+the real UI and fast-forwarded with the speed controls, watching the HUD.
+
+### What I saw
+- **Build loop works end-to-end on screen**: placed the Hall (campfire lit, villagers gathered),
+  then an Apple Orchard (visible field of apple trees) and a Granary — all auto-staffed and producing
+  (validates iter-3's sim fixes through the real input path).
+- **BUT it slowly starved.** Food: 200 → 117 (day 11) → 80 (day 26) → 77 (day 38) → **22 (day 57,
+  red)**, trending to 0 around day ~65. Popularity drifted 50 → 48.
+- Root cause (confirmed with a spread-geometry probe): in the probe's *tight* cluster one orchard
+  thrives (food ~180), but with **realistic spread placement** (orchard east, granary far SE — long
+  hauls) the hauling throughput halves and **one orchard starves by day 50** (revolt ~day 90). A new
+  player who builds one orchard and spreads buildings out slowly starves — punishing and non-obvious.
+
+### Changes made this iteration
+- **ResourceTick**: `apple_orchard` output **5 → 10**. Tuned empirically (spread-geometry probe: 8
+  still touches 0; 10 holds min-food 107, food 114 & popularity 59 at day 100). One staffed orchard
+  now reliably feeds the founding village regardless of how far the granary is placed.
+- **DiseaseSystem**: fixed the alarming, unfixable **Health 25** on a fresh village. Base 40 → 50 and
+  the malnutrition penalty now triggers only at **variety 0** (no food at all), not variety < 2 — a
+  founding village living on a single staple (apples) is simple, not malnourished (every other food
+  is tech-gated and unreachable on day 1). Fresh village now reads **~50** ("okay, improvable").
+- **TestPhase12**: malnutrition test now uses variety 0; added a test that a single staple is NOT
+  malnutrition. Full suite green (22 suites).
+
+### Result
+A managed game (hall + 1 orchard + granary) now survives 100 days **comfortably** even with sloppy
+building placement — food holds a real buffer instead of bleeding to zero. Fresh-village health no
+longer reads as a phantom crisis.
+
+### Backlog / next
+- **[UX] Ale ration defaults to "Half" but you produce 0 ale** (no brewery yet) → a standing
+  mismatch that may nick popularity and confuse. Default ale ration to None until ale exists, or
+  surface "no ale" clearly.
+- **[FUN/CONTENT] The early game is thin to *do*** — build 3 buildings, then watch. Needs more
+  moment-to-moment engagement: events/decisions, visible goals/milestones, a reason to keep acting.
+- Worker labour cap (iter-3 backlog); build-mode eats HUD clicks (iter-2); deeper winter-at-scale.
+
 ## Iteration 3 — 2026-06-16  ⭐ 20-MINUTE GOAL REACHED (managed game)
 
 ### What I did

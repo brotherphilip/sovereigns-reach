@@ -51,9 +51,12 @@ func _run() -> void:
 	ok("well-sanitised realm is healthy", DiseaseSystem.compute_health(healthy, {"current": 0}) >= 95.0)
 	var h_winter := DiseaseSystem.compute_health(healthy, {"current": WeatherSystem.WeatherType.SNOW})
 	ok("winter lowers health", h_winter < DiseaseSystem.compute_health(healthy, {"current": 0}))
-	var starving := _player(8, 2); starving["food"] = {"apples": 1}  # variety < 2
-	ok("malnutrition lowers health",
+	var starving := _player(8, 2); starving["food"] = {}  # variety 0 — no food at all = malnutrition
+	ok("malnutrition (no food) lowers health",
 		DiseaseSystem.compute_health(starving, {"current": 0}) < DiseaseSystem.compute_health(healthy, {"current": 0}))
+	var single_staple := _player(8, 2); single_staple["food"] = {"apples": 30}  # variety 1
+	ok("a single staple is NOT malnutrition (founding village)",
+		DiseaseSystem.compute_health(single_staple, {"current": 0}) == DiseaseSystem.compute_health(healthy, {"current": 0}))
 
 	print("\n--- Crowding risk ---")
 	ok("crowded + no sanitation = risk", DiseaseSystem.is_crowding_risk(_player(8)))

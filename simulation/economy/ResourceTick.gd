@@ -55,7 +55,7 @@ const PRODUCTION_OUTPUTS: Dictionary = {
 	"stone_quarry":      {"stone": 1},
 	"iron_mine":         {"iron": 1},
 	"pitch_rig":         {"pitch": 1},
-	"apple_orchard":     {"apples": 5},   # staple early food — ~8/day staffed; 3-4 orchards feed a starting village
+	"apple_orchard":     {"apples": 10},  # staple early food — sized so ONE staffed orchard reliably feeds the founding village even with long hauls to a far-placed granary (hauling throughput is distance-sensitive; a new player shouldn't slowly starve just for spreading buildings out)
 	"pig_farm":          {"meat": 1, "leather": 1},   # pigs yield meat + hides (leather source)
 	"dairy_farm":        {"cheese": 1},
 	"hops_farm":         {"hops": 2},

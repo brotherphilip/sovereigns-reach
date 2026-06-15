@@ -30,7 +30,11 @@ const DEATH_FACTOR: float    = 0.04   # peasants lost/day = pop × severity% × 
 const WINTER_HEALTH_PENALTY: float = 15.0
 const MALNUTRITION_PENALTY: float  = 15.0
 const HEALTH_SANITATION_WEIGHT: float = 60.0
-const HEALTH_BASE: float = 40.0
+# Base health of a settlement with no sanitation works yet. Moderate (not 40) so a
+# brand-new village — which can't build wells/apothecaries on day 1 — reads as "okay,
+# improvable" (~50) instead of an alarming, unfixable crisis (was 25). Wells/apothecaries
+# still carry it to 100.
+const HEALTH_BASE: float = 50.0
 
 # ── Coverage helpers ──────────────────────────────────────────────────────────
 
@@ -78,7 +82,10 @@ static func compute_health(player: Dictionary, weather: Dictionary = {}) -> floa
 	var h: float = HEALTH_BASE + HEALTH_SANITATION_WEIGHT * sanitation_coverage(player)
 	if int(weather.get("current", -1)) == WeatherSystem.WeatherType.SNOW:
 		h -= WINTER_HEALTH_PENALTY
-	if _food_variety(player) < 2 and player.get("population", 0) > 0:
+	# Malnutrition = literally NO food (variety 0). A founding village living on a single
+	# staple (apples) is simple, not malnourished — penalising variety<2 from day 1 (when
+	# every other food is tech-gated and unreachable) just pinned health at an unfixable 25.
+	if _food_variety(player) < 1 and player.get("population", 0) > 0:
 		h -= MALNUTRITION_PENALTY
 	return clampf(h, 0.0, 100.0)
 
