@@ -8,6 +8,29 @@ const UnitRegistry  = preload("res://simulation/units/UnitRegistry.gd")
 const UnitState     = preload("res://simulation/units/UnitState.gd")
 const CombatSystem  = preload("res://simulation/combat/CombatSystem.gd")
 const DifficultySystem = preload("res://simulation/core/DifficultySystem.gd")
+const ResourceTick     = preload("res://simulation/economy/ResourceTick.gd")
+const BuildingRegistry = preload("res://simulation/buildings/BuildingRegistry.gd")
+
+# Order in which each archetype erects production buildings (cycled). The AI earns
+# ONLY from these, at the same per-building rates the player gets — no free income.
+# Includes hovels (housing — its workforce can't grow without homes) and food farms
+# (it must feed that workforce), so a rival builds a balanced economy like the player.
+const BUILD_PRIORITY: Dictionary = {
+	"bandit_king":   ["apple_orchard", "woodcutter_camp", "hovel", "wheat_farm", "trading_post", "hovel", "woodcutter_camp"],
+	"merchant_prince": ["apple_orchard", "trading_post", "hovel", "woodcutter_camp", "market", "hovel", "wheat_farm"],
+	"ironhand":      ["apple_orchard", "woodcutter_camp", "hovel", "iron_mine", "stone_quarry", "hovel", "blacksmith", "trading_post"],
+	"ashen_barony":  ["apple_orchard", "woodcutter_camp", "hovel", "iron_mine", "trading_post", "hovel", "stone_quarry"],
+}
+const MAX_FACTION_BUILDINGS: int = 22
+
+# Food/gold routing for abstract faction stores.
+const _FOOD_GOODS: Array = ["apples", "bread", "cheese", "meat", "ale"]
+
+# Workforce / housing economy (abstract mirror of the player's).
+const FOOD_PER_CAPITA: float = 0.5     # food units eaten per worker per day
+const BASE_HOUSING: int = 8            # the faction's keep shelters this many
+const HOVEL_ROOMS: int = 4
+const START_WORKFORCE: int = 10
 
 const TICKS_PER_DAY: int = 240
 
@@ -49,7 +72,7 @@ static func make_faction(id: int, name: String, archetype: String,
 		"next_unit_id": id * 10000 + 1,  # monotonic per-faction unit id counter
 		"tribute_demands": [],     # Array of {player_id, resource, amount, deadline_tick}
 		"last_attack_tick": 0,
-		"population": 100,
+		"population": START_WORKFORCE,
 		# Economy sim bookkeeping
 		"daily_income_gold": 0,
 		"daily_income_wood": 0,
@@ -70,7 +93,8 @@ static func tick(faction: Dictionary, world: Dictionary, tick: int) -> Array:
 	if tick > 0 and tick % TICKS_PER_DAY == 0:
 		faction["days_alive"] = faction.get("days_alive", 0) + 1
 
-		# Accumulate resources based on archetype income rates
+		# Erect a production building if affordable, then earn only from what's built.
+		_build_economy(faction)
 		_process_economy(faction)
 
 		# Advance siege assembly
@@ -105,28 +129,97 @@ static func tick(faction: Dictionary, world: Dictionary, tick: int) -> Array:
 
 # ── Economy simulation ────────────────────────────────────────────────────────
 
+# A faction earns ONLY from production buildings that are STAFFED by its workforce, at
+# the same per-worker rates the player gets. Workers are assigned building-by-building
+# until the workforce runs out — so unstaffed buildings produce nothing, and a rival
+# that hasn't grown a workforce (needs housing + food) earns little. Buildings produce
+# nothing while their input is short, and the workforce is then fed and may grow.
 static func _process_economy(faction: Dictionary) -> void:
-	# Simple flat income — archetypes override by modifying daily_income_* before calling this
-	var arch: String = faction.get("archetype", "")
-	var wood_rate:  int = faction.get("daily_income_wood", 0)
-	var iron_rate:  int = faction.get("daily_income_iron", 0)
-	var gold_rate:  int = faction.get("daily_income_gold", 0)
+	var res: Dictionary = faction.get("resources", {})
+	var food: Dictionary = faction.get("food", {})
+	var pool: int = int(faction.get("population", 0))   # workers available today
+	for b in faction.get("buildings", []):
+		var btype: String = b if b is String else (b.get("type", "") if b is Dictionary else "")
+		if btype == "" or not ResourceTick.PRODUCTION_OUTPUTS.has(btype):
+			continue   # not a producer (hovel, market…) — no goods, no worker draw
+		if pool <= 0:
+			break      # no workers left — remaining buildings stand idle
+		var maxw: int = maxi(1, int(BuildingRegistry.lookup(btype).get("max_workers", 1)))
+		var staff: int = mini(maxw, pool)
+		# Processors can't run without their input (scaled to the crew on hand).
+		var inputs: Dictionary = ResourceTick.daily_input(btype, staff)
+		var short: bool = false
+		for r in inputs:
+			if int(res.get(r, 0)) < int(inputs[r]):
+				short = true
+				break
+		if short:
+			continue   # idle for lack of materials — keep the workers free
+		pool -= staff
+		for r in inputs:
+			res[r] = int(res.get(r, 0)) - int(inputs[r])
+		for g in ResourceTick.daily_output(btype, staff):
+			var amt: int = int(ResourceTick.daily_output(btype, staff)[g])
+			if g == "gold":
+				faction["gold"] = faction.get("gold", 0) + amt
+			elif g in _FOOD_GOODS:
+				food[g] = int(food.get(g, 0)) + amt
+			else:
+				res[g] = int(res.get(g, 0)) + amt
+	faction["resources"] = res
+	faction["food"] = food
+	_feed_and_grow(faction)
 
-	# Defaults if archetype hasn't overridden
-	if wood_rate == 0 and iron_rate == 0 and gold_rate == 0:
-		match arch:
-			ARCHETYPE_BANDIT:
-				wood_rate = 30; gold_rate = 10
-			ARCHETYPE_MERCHANT:
-				gold_rate = 80; wood_rate = 10; iron_rate = 5
-			ARCHETYPE_IRONHAND:
-				iron_rate = 25; wood_rate = 15; gold_rate = 30
-			ARCHETYPE_ASHEN_BARONY:
-				iron_rate = 20; wood_rate = 20; gold_rate = 50
+# The workforce eats daily; if fed and there's a free room it grows, otherwise it
+# starves and shrinks — the same housing+food pressure the player's population faces.
+static func _feed_and_grow(faction: Dictionary) -> void:
+	var pop: int = int(faction.get("population", 0))
+	var food: Dictionary = faction.get("food", {})
+	var remaining: int = int(ceil(float(pop) * FOOD_PER_CAPITA))
+	for ft in ["apples", "bread", "cheese", "meat"]:
+		if remaining <= 0:
+			break
+		var take: int = mini(int(food.get(ft, 0)), remaining)
+		food[ft] = int(food.get(ft, 0)) - take
+		remaining -= take
+	faction["food"] = food
+	if remaining > 0:
+		faction["population"] = maxi(1, pop - maxi(1, remaining / 2))   # famine
+	elif pop < _ai_housing_cap(faction):
+		faction["population"] = pop + 1                                  # housed & fed → grow
 
-	faction["resources"]["wood"]  = faction["resources"].get("wood",  0) + wood_rate
-	faction["resources"]["iron"]  = faction["resources"].get("iron",  0) + iron_rate
-	faction["gold"] = faction.get("gold", 0) + gold_rate
+static func _ai_housing_cap(faction: Dictionary) -> int:
+	var cap: int = BASE_HOUSING
+	for b in faction.get("buildings", []):
+		var btype: String = b if b is String else (b.get("type", "") if b is Dictionary else "")
+		if btype == "hovel":
+			cap += HOVEL_ROOMS
+	return cap
+
+# Erect one production building per day if affordable, following the archetype's
+# priority cycle. Buildings cost the standard BuildingRegistry resources.
+static func _build_economy(faction: Dictionary) -> void:
+	var blds: Array = faction.get("buildings", [])
+	if blds.size() >= MAX_FACTION_BUILDINGS:
+		return
+	var order: Array = BUILD_PRIORITY.get(faction.get("archetype", ""), [])
+	if order.is_empty():
+		return
+	var btype: String = order[blds.size() % order.size()]
+	var cost: Dictionary = BuildingRegistry.lookup(btype).get("cost", {})
+	var res: Dictionary = faction.get("resources", {})
+	for r in cost:
+		var have: int = faction.get("gold", 0) if r == "gold" else int(res.get(r, 0))
+		if have < int(cost[r]):
+			return  # can't afford yet — wait until production allows it
+	for r in cost:
+		if r == "gold":
+			faction["gold"] = faction.get("gold", 0) - int(cost[r])
+		else:
+			res[r] = int(res.get(r, 0)) - int(cost[r])
+	faction["resources"] = res
+	blds.append(btype)
+	faction["buildings"] = blds
 
 # ── Threat level ──────────────────────────────────────────────────────────────
 

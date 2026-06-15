@@ -11,16 +11,28 @@ const T_RIVER: int = 3
 const T_ROCK: int = 5
 const T_COASTAL: int = 8
 
+const SeasonSystem = preload("res://simulation/world/SeasonSystem.gd")
+
 var _x0: int = 0
 var _y0: int = 0
 var _x1: int = 0
 var _y1: int = 0
+var _season: int = SeasonSystem.Season.SUMMER
+
+func _ready() -> void:
+	if EventBus.has_signal("season_changed"):
+		EventBus.season_changed.connect(func(_s, _n): queue_redraw())
+	if EventBus.has_signal("terrain_painted"):
+		EventBus.terrain_painted.connect(func(x, y):
+			if x >= _x0 and x < _x1 and y >= _y0 and y < _y1:
+				queue_redraw())
 
 func setup(x0: int, y0: int, x1: int, y1: int) -> void:
 	_x0 = x0; _y0 = y0; _x1 = x1; _y1 = y1
 	queue_redraw()
 
 func _draw() -> void:
+	_season = int(GameState.world.get("season", SeasonSystem.Season.SUMMER))
 	for gy in range(_y0, _y1):
 		for gx in range(_x0, _x1):
 			_draw_decor(gx, gy)
@@ -51,7 +63,17 @@ func _draw_forest(cx: float, cy: float, gx: int, gy: int) -> void:
 
 func _draw_one_tree(cx: float, cy: float, s: float, hue: float) -> void:
 	draw_rect(Rect2(cx - 1.6 * s, cy - 4.0 * s, 3.2 * s, 9.0 * s), Color(0.40, 0.26, 0.14))
-	var dark: Color = Color(0.10, 0.34, 0.14).lerp(Color(0.17, 0.43, 0.13), hue)
+	if _season == SeasonSystem.Season.WINTER:
+		# Bare, snow-dusted crown.
+		draw_line(Vector2(cx, cy - 4.0 * s), Vector2(cx - 4.0 * s, cy - 12.0 * s), Color(0.36, 0.24, 0.14), 1.4 * s)
+		draw_line(Vector2(cx, cy - 6.0 * s), Vector2(cx + 4.0 * s, cy - 13.0 * s), Color(0.36, 0.24, 0.14), 1.4 * s)
+		draw_circle(Vector2(cx, cy - 14.0 * s), 2.4 * s, Color(0.90, 0.93, 0.98, 0.85))
+		return
+	var dark: Color
+	match _season:
+		SeasonSystem.Season.SPRING: dark = Color(0.28, 0.56, 0.22).lerp(Color(0.40, 0.64, 0.22), hue)
+		SeasonSystem.Season.AUTUMN: dark = Color(0.55, 0.38, 0.14).lerp(Color(0.68, 0.50, 0.16), hue)
+		_:                          dark = Color(0.10, 0.34, 0.14).lerp(Color(0.17, 0.43, 0.13), hue)
 	var lite: Color = dark.lightened(0.16)
 	draw_circle(Vector2(cx, cy - 9.0 * s), 8.0 * s, dark)
 	draw_circle(Vector2(cx - 3.0 * s, cy - 13.0 * s), 6.0 * s, dark)

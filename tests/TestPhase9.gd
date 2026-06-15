@@ -157,6 +157,27 @@ func _test_worldmapdata() -> void:
 	var deser: Dictionary = WorldMapData.deserialize(ser)
 	_ok(deser["cities"].size() == cities.size(), "serialize/deserialize round-trip preserves city count")
 
+	# ── Biome continent ───────────────────────────────────────────────────────
+	var biome: Dictionary = data.get("biome", {})
+	_ok(not biome.is_empty(), "data has a biome field")
+	_ok(biome.get("tiles", PackedByteArray()).size() == WorldMapData.BIOME_COLS * WorldMapData.BIOME_ROWS,
+		"biome tiles cover the whole grid")
+	_ok(biome.get("territory", PackedByteArray()).size() == WorldMapData.BIOME_COLS * WorldMapData.BIOME_ROWS,
+		"territory grid covers the whole grid")
+	# Every city sits on non-sea, non-mountain land.
+	var on_land: bool = true
+	for c in cities:
+		var b: int = WorldMapData.biome_at(biome, c["pos_x"], c["pos_y"])
+		if b == WorldMapData.B_SEA or b == WorldMapData.B_MOUNTAIN:
+			on_land = false
+	_ok(on_land, "no city sits on sea or mountain")
+	# Some sea exists (it's a continent, not a full grid of land).
+	var sea_cells: int = 0
+	for t in biome["tiles"]:
+		if t == WorldMapData.B_SEA:
+			sea_cells += 1
+	_ok(sea_cells > 100, "the map has an ocean around the continent (got %d sea cells)" % sea_cells)
+
 # ── WorldMapController ────────────────────────────────────────────────────────
 
 func _test_worldmapcontroller() -> void:
@@ -208,6 +229,13 @@ func _test_worldmapcontroller() -> void:
 	# find_city_near: far-away point returns -1
 	var far_id: int = WorldMapController.find_city_near(data, Vector2(-999, -999), 5.0)
 	_ok(far_id == -1, "find_city_near returns -1 for out-of-range point")
+
+	# Army size bands: 0:1-10, 1:11-30, 2:31-60, 3:61-100, 4:100+ (boundary values).
+	_ok(WorldMapController.size_band(1) == 0 and WorldMapController.size_band(10) == 0, "1-10 → band 0")
+	_ok(WorldMapController.size_band(11) == 1 and WorldMapController.size_band(30) == 1, "11-30 → band 1")
+	_ok(WorldMapController.size_band(31) == 2 and WorldMapController.size_band(60) == 2, "31-60 → band 2")
+	_ok(WorldMapController.size_band(61) == 3 and WorldMapController.size_band(100) == 3, "61-100 → band 3")
+	_ok(WorldMapController.size_band(101) == 4 and WorldMapController.size_band(500) == 4, "100+ → band 4")
 
 # ── ShireMap 60 ───────────────────────────────────────────────────────────────
 

@@ -1,6 +1,8 @@
 extends RefCounted
-const EdictSystem = preload("res://simulation/edicts/EdictSystem.gd")
-const TechTree    = preload("res://simulation/tech/TechTree.gd")
+const EdictSystem      = preload("res://simulation/edicts/EdictSystem.gd")
+const TechTree         = preload("res://simulation/tech/TechTree.gd")
+const SeasonSystem     = preload("res://simulation/world/SeasonSystem.gd")
+const BuildingRegistry = preload("res://simulation/buildings/BuildingRegistry.gd")
 # Handles per-tick resource production and consumption for all buildings.
 # Called from GameState.simulate_tick() once per simulation tick.
 # GDD §5.2–5.4 (Building Roster), §4.2–4.4 (Tech Tree production bonuses).
@@ -70,6 +72,78 @@ const PRODUCTION_OUTPUTS: Dictionary = {
 	"trading_post":      {"gold": 3},
 }
 
+# Farm buildings (terrain/weather/season sensitive).
+const FARM_TYPES: Array = ["apple_orchard", "wheat_farm", "hops_farm", "pig_farm", "dairy_farm"]
+
+const _TICKS_PER_DAY: int = 240
+
+# A building's daily OUTPUT at standard rates, scaled by the number of workers staffing
+# it (default = full staff). The same per-worker production the player's buildings get —
+# used by the AI's building economy, so an UNSTAFFED building produces nothing.
+static func daily_output(btype: String, workers: int = -1) -> Dictionary:
+	return _daily_amounts(PRODUCTION_OUTPUTS.get(btype, {}), btype, workers)
+
+# A building's daily INPUT consumption (processors), scaled by staffing.
+static func daily_input(btype: String, workers: int = -1) -> Dictionary:
+	return _daily_amounts(PRODUCTION_INPUTS.get(btype, {}), btype, workers)
+
+static func _daily_amounts(table: Dictionary, btype: String, workers: int = -1) -> Dictionary:
+	var interval: int = PRODUCTION_INTERVALS.get(btype, 0)
+	if table.is_empty() or interval <= 0:
+		return {}
+	var max_w: int = maxi(1, BuildingRegistry.lookup(btype).get("max_workers", 1))
+	var w: int = max_w if workers < 0 else clampi(workers, 0, max_w)
+	if w <= 0:
+		return {}   # no workers → no production
+	var cycles: float = float(_TICKS_PER_DAY) / float(interval)
+	var result: Dictionary = {}
+	for res in table:
+		result[res] = maxi(1, int(round(float(table[res]) * float(w) * cycles)))
+	return result
+
+# A "chain" building is one whose goods are now produced by physical haul trips
+# (gather/fetch → process → deliver) rather than abstract interval ticks. Everything in
+# PRODUCTION_OUTPUTS except trading_post (gold caravans stay interval-based income).
+static func is_chain(btype: String) -> bool:
+	return PRODUCTION_OUTPUTS.has(btype) and btype != "trading_post"
+
+# Output ONE worker delivers per completed haul trip, with the same yield multipliers
+# the old interval production applied (terrain, tech, edict, season, weather farm mult).
+# Used by the hauler at the deposit step — the only place chain output is credited.
+static func per_worker_output(building: Dictionary, player: Dictionary, season: int = 0, farm_mult: float = 1.0) -> Dictionary:
+	var btype: String = building.get("type", "")
+	var outputs: Dictionary = PRODUCTION_OUTPUTS.get(btype, {})
+	if outputs.is_empty():
+		return {}
+	var edict_mods: Dictionary = EdictSystem.get_active_modifiers(player)
+	var food_bonus: float = edict_mods.get("food_production_bonus", 0.0)
+	var orchard_yield_bonus: float = edict_mods.get("orchard_yield_bonus", 0.0)
+	var tech_mods: Dictionary = TechTree.get_all_modifiers(player)
+	var farm_yield_bonus: float = tech_mods.get("farm_yield_bonus", 0.0)
+	var mining_rate_bonus: float = tech_mods.get("mining_rate_bonus", 0.0)
+	var season_mult: float = SeasonSystem.harvest_yield_mult(btype, season)
+	var result: Dictionary = {}
+	for res in outputs:
+		var amount: float = float(outputs[res])   # per worker, per trip
+		if btype in ["apple_orchard", "wheat_farm", "hops_farm"]:
+			amount *= building.get("terrain_yield", 1.0)
+		if food_bonus > 0.0 and res in ["apples", "meat", "cheese", "wheat", "hops", "flour", "bread"]:
+			amount *= (1.0 + food_bonus)
+		if farm_yield_bonus > 0.0 and btype in FARM_TYPES:
+			amount *= (1.0 + farm_yield_bonus)
+		if orchard_yield_bonus > 0.0 and btype == "apple_orchard":
+			amount *= (1.0 + orchard_yield_bonus)
+		if mining_rate_bonus > 0.0 and btype in ["stone_quarry", "iron_mine"]:
+			amount *= (1.0 + mining_rate_bonus)
+		if season_mult != 1.0:
+			amount *= season_mult
+		if farm_mult != 1.0 and btype in FARM_TYPES:
+			amount *= farm_mult
+		var amt: int = int(ceil(amount))
+		if amt > 0:
+			result[res] = amt
+	return result
+
 # Per-tick food consumption per peasant (GDD §3.1.3 granary distribution)
 const FOOD_CONSUMPTION_PER_PEASANT_PER_DAY: float = 0.5
 
@@ -121,11 +195,18 @@ static func tick_building(building: Dictionary, player: Dictionary, current_tick
 	var tech_mods: Dictionary = TechTree.get_all_modifiers(player)
 	var farm_yield_bonus: float = tech_mods.get("farm_yield_bonus", 0.0)
 	var mining_rate_bonus: float = tech_mods.get("mining_rate_bonus", 0.0)
+	# Crops only fruit & get picked in their harvest season; off-season the field is
+	# tended (workers still animate) but yields nothing. Year-round producers (animals,
+	# industry) are unaffected. Stacks with weather (drought/snow already zero yields).
+	var season: int = SeasonSystem.season_at_tick(current_tick)
+	var season_mult: float = SeasonSystem.harvest_yield_mult(btype, season)
 	for res in outputs:
 		var amount: int = outputs[res] * workers
 		if btype in ["apple_orchard", "wheat_farm", "hops_farm"]:
 			var yield_mult: float = building.get("terrain_yield", 1.0)
 			amount = int(ceil(amount * yield_mult))
+		if season_mult != 1.0:
+			amount = int(ceil(float(amount) * season_mult))
 		if food_bonus > 0.0 and res in ["apples", "meat", "cheese", "wheat", "hops", "flour", "bread"]:
 			amount = int(ceil(float(amount) * (1.0 + food_bonus)))
 		if farm_yield_bonus > 0.0 and btype in ["apple_orchard", "wheat_farm", "hops_farm", "pig_farm", "dairy_farm"]:

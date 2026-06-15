@@ -3,6 +3,7 @@ extends Control
 # Toggled visible via Tab key or HUD button. Rendered as a full-screen overlay.
 
 const MacroViewController = preload("res://view/macro/MacroViewController.gd")
+const WorldMapController  = preload("res://view/worldmap/WorldMapController.gd")
 
 const SHIRE_ALPHA: float = 0.55
 const MAP_MARGIN: int = 40
@@ -90,7 +91,7 @@ func _draw_player_banners() -> void:
 	for banner in banners:
 		var sp: Vector2 = _map_to_screen(banner.get("pos_x", 0), banner.get("pos_y", 0))
 		var col: Color  = Color.from_string(banner.get("color", "#88ff88"), Color.GREEN)
-		_draw_banner(sp, col, "P%d (%d)" % [banner.get("player_id", 0), banner.get("unit_count", 0)])
+		_draw_banner(sp, col, "P%d" % banner.get("player_id", 0), banner.get("unit_count", 0))
 
 func _draw_ai_banners() -> void:
 	var fog_active: bool = GameState.weather.get("effects", {}).get("fog_army_ui", false)
@@ -110,15 +111,26 @@ func _draw_ai_banners() -> void:
 			var pulse: float = 0.55 + 0.45 * sin(t * 3.0)
 			draw_circle(sp, 14.0, Color(1.0, 0.1, 0.1, 0.25 * pulse))
 			draw_arc(sp, 14.0, 0.0, TAU, 24, Color(1.0, 0.15, 0.15, 0.75 * pulse), 2.0)
-		_draw_banner(sp, col, "%s (%d)" % [banner.get("archetype", "?").left(6), banner.get("unit_count", 0)])
+		_draw_banner(sp, col, banner.get("archetype", "?").left(6), banner.get("unit_count", 0))
 
-func _draw_banner(sp: Vector2, col: Color, label: String) -> void:
-	# Draw a flag pole + flag
-	draw_line(sp, sp + Vector2(0, -24), col.darkened(0.3), 2.0)
-	var flag := PackedVector2Array([sp + Vector2(0, -24), sp + Vector2(16, -18), sp + Vector2(0, -12)])
-	draw_colored_polygon(flag, col)
-	draw_string(ThemeDB.fallback_font, sp + Vector2(-15, 8), label,
-		HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color.WHITE)
+func _draw_banner(sp: Vector2, col: Color, label: String, count: int = 0) -> void:
+	# A heraldic standard whose pole height + number of pennants grow with the host's
+	# strength (size bands shared with the world map), so army scale reads at a glance.
+	var band: int = WorldMapController.size_band(count)
+	var pole_h: float = 16.0 + float(band) * 4.0
+	var flag_w: float = 12.0 + float(band) * 3.0
+	var flag_h: float = 6.0 + float(band) * 1.5
+	var pennants: int = band + 1
+	var top := sp + Vector2(0, -pole_h)
+	draw_line(sp, top, col.darkened(0.3), 2.0)
+	for i in range(pennants):
+		var fy: float = top.y + float(i) * (flag_h + 1.5)
+		var base := Vector2(top.x, fy)
+		draw_colored_polygon(PackedVector2Array([
+			base, base + Vector2(flag_w, flag_h * 0.5), base + Vector2(0, flag_h),
+		]), col)
+	draw_string(ThemeDB.fallback_font, sp + Vector2(-15, 10),
+		"%s (%d)" % [label, count], HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color.WHITE)
 
 func _draw_army_routes() -> void:
 	var tents: Array = MacroViewController.get_siege_tent_data(GameState.ai_factions)

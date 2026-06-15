@@ -78,7 +78,8 @@ func _rebuild() -> void:
 	for fac in GameState.ai_factions:
 		if fac is Dictionary:
 			for bld in fac.get("buildings", []):
-				if bld is Dictionary and GameState.visibility.has("%d,%d" % [bld.get("grid_x", 0), bld.get("grid_y", 0)]):
+				# Fog of war disabled for now: show all enemy buildings.
+				if bld is Dictionary:
 					_enemy_buildings.append(bld)
 
 func _draw() -> void:
@@ -101,6 +102,16 @@ func _draw_building(b: Dictionary, is_enemy: bool) -> void:
 	var gx: int       = b.get("grid_x", 0)
 	var gy: int       = b.get("grid_y", 0)
 	var btype: String = b.get("type", "")
+	# A path-in-progress is just a marked tile being paved — not a structure.
+	if BuildingRegistry.is_path(btype):
+		var pcx: float = (gx - gy) * HALF_W
+		var pcy: float = (gx + gy) * HALF_H
+		var prog: float = clampf(float(b.get("build_progress", 0.0)) / maxf(1.0, float(b.get("build_required", 1.0))), 0.0, 1.0)
+		var pcol := Color(0.78, 0.70, 0.48, 0.35 + 0.5 * prog)   # paving fills in as it's built
+		draw_colored_polygon(PackedVector2Array([
+			Vector2(pcx, pcy - HALF_H), Vector2(pcx + HALF_W, pcy),
+			Vector2(pcx, pcy + HALF_H), Vector2(pcx - HALF_W, pcy)]), pcol)
+		return
 	var defn: Dictionary  = BuildingRegistry.lookup(btype)
 	var w: int        = defn.get("width",  1)
 	var h: int        = defn.get("height", 1)
@@ -152,7 +163,8 @@ func _draw_building(b: Dictionary, is_enemy: bool) -> void:
 	if built:
 		# ── Finished: bespoke per-type model that looks like the thing it is ────
 		BuildingModels.draw_finished(self, btype, cat, w, h, top, right, bot, left,
-			wall_col, roof_base, trim_col, Time.get_ticks_msec() * 0.001)
+			wall_col, roof_base, trim_col, Time.get_ticks_msec() * 0.001,
+			int(GameState.world.get("season", 2)))
 		draw_polyline(PackedVector2Array([top, right, bot, left, top]),
 			Color(0, 0, 0, 0.16), 0.6)
 	else:

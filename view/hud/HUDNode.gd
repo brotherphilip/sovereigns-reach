@@ -9,6 +9,8 @@ const TechTreePanelController = preload("res://view/hud/TechTreePanelController.
 const EdictPanelController = preload("res://view/hud/EdictPanelController.gd")
 const BuildingRegistry = preload("res://simulation/buildings/BuildingRegistry.gd")
 const TechTree = preload("res://simulation/tech/TechTree.gd")
+const StorageSystem = preload("res://simulation/economy/StorageSystem.gd")
+const FoodSystem = preload("res://simulation/economy/FoodSystem.gd")
 const EdictSystem = preload("res://simulation/edicts/EdictSystem.gd")
 const NotificationFeed = preload("res://view/hud/NotificationFeed.gd")
 const WeatherSystem = preload("res://simulation/world/WeatherSystem.gd")
@@ -44,6 +46,7 @@ var _gold_label: Label = null
 var _wood_label: Label = null
 var _stone_label: Label = null
 var _iron_label: Label = null
+var _storage_label: Label = null
 var _food_label: Label = null
 var _ale_label: Label = null
 var _day_label: Label = null
@@ -253,6 +256,7 @@ func _build_top_bar(vp: Vector2) -> void:
 	_wood_label    = _add_label(_top_bar, "Wood: 0",     Vector2(x, 8));     x += 90
 	_stone_label   = _add_label(_top_bar, "Stone: 0",    Vector2(x, 8));     x += 90
 	_iron_label    = _add_label(_top_bar, "Iron: 0",     Vector2(x, 8));     x += 90
+	_storage_label = _add_label(_top_bar, "Stock: 0/0",  Vector2(x, 8), 12, Color(0.82, 0.76, 0.6)); x += 120
 	_food_label    = _add_label(_top_bar, "Food: 0",     Vector2(x, 8));     x += 110
 	_ale_label     = _add_label(_top_bar, "Ale: 0",      Vector2(x, 8));     x += 90
 	_day_label     = _add_label(_top_bar, "Day 0",       Vector2(x, 8), 13, Color.LIGHT_YELLOW); x += 90
@@ -274,7 +278,10 @@ func _refresh_top_bar() -> void:
 	_wood_label.text    = "Wood: %d" % int(res.get("wood", 0))
 	_stone_label.text   = "Stone: %d" % int(res.get("stone", 0))
 	_iron_label.text    = "Iron: %d" % int(res.get("iron", 0))
-	_food_label.text    = "Food: %d" % total_food
+	if _storage_label != null:
+		_storage_label.text = "Stock: %d/%d" % [StorageSystem.get_stored(p), StorageSystem.get_capacity(p)]
+		_storage_label.tooltip_text = "Raw goods stored vs. stockpile capacity. Build stockpiles to store more; production stops when full."
+	_food_label.text    = "Food: %d/%d" % [total_food, FoodSystem.get_granary_capacity(p)]
 	_ale_label.text     = "Ale: %d" % total_ale
 	_day_label.text     = "Day %d" % SimulationClock.game_day()
 	var _wicon: String = HUDController.get_weather_icon(GameState.weather)

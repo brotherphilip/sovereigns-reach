@@ -115,7 +115,10 @@ func _test_performance() -> void:
 	var p := Pathfinder.find_path_dict(g, 0, 0, 149, 149, Pathfinder.PASS_FOOT)
 	var ms := (Time.get_ticks_usec() - t0) / 1000.0
 	ok("solves 150x150 corner path", p.size() == 149 and p[p.size()-1] == [149, 149])
-	ok("completes quickly (<150ms), got %.1fms" % ms, ms < 150.0)
+	# The road-aware (admissible) heuristic is intentionally weaker than a grass-only
+	# one, so this worst-case full-map open path explores more nodes. Real paths are
+	# short city hops; the budget here is generous for the rare cross-map query.
+	ok("completes quickly (<450ms), got %.1fms" % ms, ms < 450.0)
 	# A path forced into a long detour by a near-full wall with a single gap.
 	var g2 := _flat(120, 120, 0)
 	for y in range(0, 118):

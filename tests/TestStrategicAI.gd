@@ -37,8 +37,44 @@ func _init() -> void:
 	_run_pure_sim()
 	_run_determinism()
 	_run_live_integration()
+	_test_ai_building_economy()
 	print("\n=== Strategic AI Results: %d passed, %d failed ===" % [_pass, _fail])
 	quit(0 if _fail == 0 else 1)
+
+# A faction earns ONLY from the production buildings it builds, at player rates.
+func _test_ai_building_economy() -> void:
+	print("\n── AI building economy ──")
+	var AIFaction = preload("res://simulation/ai/AIFaction.gd")
+	var BanditKing = preload("res://simulation/ai/BanditKing.gd")
+	var ResourceTick = preload("res://simulation/economy/ResourceTick.gd")
+	# A faction with no buildings earns nothing.
+	var empty = AIFaction.make_faction(9, "Empty", "bandit_king", 0, 0)
+	empty["buildings"] = []
+	var w0 = int(empty["resources"].get("wood", 0))
+	var g0 = int(empty.get("gold", 0))
+	AIFaction._process_economy(empty)
+	ok("a buildingless faction earns no goods", int(empty["resources"].get("wood", 0)) == w0 and int(empty.get("gold", 0)) == g0)
+	# Buildings with NO workforce produce nothing — the core fairness fix.
+	var unstaffed = AIFaction.make_faction(6, "NoWorkers", "bandit_king", 0, 0)
+	unstaffed["buildings"] = ["woodcutter_camp", "woodcutter_camp"]
+	unstaffed["population"] = 0
+	unstaffed["resources"] = {"wood": 0}
+	AIFaction._process_economy(unstaffed)
+	ok("unstaffed buildings produce nothing (no workforce)", int(unstaffed["resources"].get("wood", 0)) == 0)
+	# Fully-staffed income matches the summed per-building daily output at standard rates.
+	var f = AIFaction.make_faction(8, "Builders", "bandit_king", 0, 0)
+	f["buildings"] = ["woodcutter_camp", "woodcutter_camp"]
+	f["population"] = 10   # plenty to fully staff both camps
+	f["resources"] = {"wood": 0}
+	AIFaction._process_economy(f)
+	var expected = 2 * int(ResourceTick.daily_output("woodcutter_camp").get("wood", 0))
+	ok("staffed income == Σ buildings' daily_output (player rate)", int(f["resources"].get("wood", 0)) == expected)
+	# Over time, a bandit actually erects buildings and accrues goods.
+	var b = BanditKing.make(7, 50, 50)
+	for day in range(30):
+		AIFaction.tick(b, {}, day * 240)
+	ok("the AI built a production economy", b.get("buildings", []).size() > 0)
+	ok("and accrued goods from it", int(b["resources"].get("wood", 0)) > 0)
 
 # ── helpers ──────────────────────────────────────────────────────────────────
 

@@ -8,6 +8,8 @@ extends RefCounted
 # stateless static helpers. Footprint is given by the iso corners top/right/bot/left
 # (screen space); +Y is down, "up" is Vector2(0,-h). Front faces meet at `bot`.
 
+const SeasonSystem = preload("res://simulation/world/SeasonSystem.gd")
+
 # ── Shared palette ──────────────────────────────────────────────────────────────
 const WOOD    := Color(0.55, 0.40, 0.25)
 const WOOD_D  := Color(0.40, 0.28, 0.16)
@@ -125,7 +127,7 @@ static func _win(ci: CanvasItem, p: Vector2, col: Color = GLASS) -> void:
 
 static func draw_finished(ci: CanvasItem, btype: String, cat: int, w: int, h: int,
 		t: Vector2, r: Vector2, b: Vector2, l: Vector2,
-		wall: Color, roof: Color, trim: Color, time: float) -> void:
+		wall: Color, roof: Color, trim: Color, time: float, season: int = SeasonSystem.Season.SUMMER) -> void:
 	var ctr := (t + b) * 0.5
 	_shadow(ci, t, r, b, l)
 	match btype:
@@ -142,11 +144,11 @@ static func draw_finished(ci: CanvasItem, btype: String, cat: int, w: int, h: in
 		"iron_mine":         _mine(ci, t, r, b, l, ctr)
 		"pitch_rig":         _pitch_rig(ci, t, r, b, l, ctr, time)
 		"stockpile":         _stockpile(ci, t, r, b, l, ctr)
-		"apple_orchard":     _orchard(ci, t, r, b, l, true)
+		"apple_orchard":     _orchard(ci, t, r, b, l, season)
 		"pig_farm":          _pen(ci, t, r, b, l, ctr, Color(0.86, 0.62, 0.62))
 		"dairy_farm":        _dairy(ci, t, r, b, l, ctr)
-		"wheat_farm":        _wheat(ci, t, r, b, l, ctr)
-		"hops_farm":         _hops(ci, t, r, b, l)
+		"wheat_farm":        _wheat(ci, t, r, b, l, ctr, season)
+		"hops_farm":         _hops(ci, t, r, b, l, season)
 		"mill":              _windmill(ci, t, r, b, l, ctr, time)
 		"bakery":            _bakery(ci, t, r, b, l, ctr, time)
 		"brewery":           _brewery(ci, t, r, b, l, ctr)
@@ -322,20 +324,47 @@ static func _stockpile(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Ve
 
 # ── FOOD ─────────────────────────────────────────────────────────────────────────
 
-static func _orchard(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vector2, apples: bool) -> void:
-	ci.draw_colored_polygon(PackedVector2Array([t, r, b, l]), Color(0.40, 0.56, 0.30))  # tended ground
-	var ctr := (t + b) * 0.5
-	for off in [Vector2(-12, 0), Vector2(12, 0), Vector2(0, -8), Vector2(0, 8), Vector2(0, 0)]:
-		_tree(ci, ctr + off, apples)
+# A real grove: trees laid out in rows across the whole footprint, each rendered in
+# its seasonal stage (bare winter → budding spring → leafy summer → fruiting autumn).
+static func _orchard(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vector2, season: int) -> void:
+	# Ground tinted for the season (lush in spring/summer, golden autumn, pale winter).
+	var ground := Color(0.40, 0.56, 0.30) * SeasonSystem.ground_tint(season)
+	ci.draw_colored_polygon(PackedVector2Array([t, r, b, l]), ground)
+	var stage: int = SeasonSystem.growth_stage(season)
+	# Lay a grid of trees across the parallelogram l→t (one axis) and l→b (the other),
+	# painter-ordered back-to-front so nearer trees overlap farther ones correctly.
+	var ex := t - l
+	var ey := b - l
+	var rows: Array[float] = [0.18, 0.40, 0.62, 0.84]
+	for v in rows:
+		for u in rows:
+			var base: Vector2 = l + ex * u + ey * v
+			_tree(ci, base, stage, season)
 
-static func _tree(ci: CanvasItem, base: Vector2, fruit: bool) -> void:
+# One tree at its seasonal growth stage. 0 bare, 1 budding, 2 leafy, 3 fruiting.
+static func _tree(ci: CanvasItem, base: Vector2, stage: int, season: int) -> void:
 	ci.draw_line(base, base + Vector2(0, -7), WOOD_D, 1.8)
-	ci.draw_circle(base + Vector2(0, -11), 5.0, LEAF_D)
-	ci.draw_circle(base + Vector2(-2, -13), 3.5, LEAF)
-	ci.draw_circle(base + Vector2(2.5, -12), 3.2, LEAF)
-	if fruit:
-		ci.draw_circle(base + Vector2(-2, -10), 1.0, RED)
+	if stage == 0:
+		# Winter — bare branches, a touch of frost.
+		ci.draw_line(base + Vector2(0, -6), base + Vector2(-3, -11), WOOD_D, 1.0)
+		ci.draw_line(base + Vector2(0, -6), base + Vector2(3, -10), WOOD_D, 1.0)
+		ci.draw_line(base + Vector2(0, -4), base + Vector2(-2, -8), WOOD_D, 0.8)
+		ci.draw_circle(base + Vector2(0, -11), 1.4, Color(0.86, 0.90, 0.95, 0.8))
+		return
+	var canopy := SeasonSystem.foliage_tint(season)
+	var rad: float = 3.4 if stage == 1 else 5.0   # budding crowns are smaller
+	ci.draw_circle(base + Vector2(0, -11), rad, canopy.darkened(0.25))
+	ci.draw_circle(base + Vector2(-2, -13), rad * 0.7, canopy)
+	ci.draw_circle(base + Vector2(2.5, -12), rad * 0.64, canopy.lightened(0.08))
+	if stage == 1:
+		# Spring blossom.
+		ci.draw_circle(base + Vector2(-1, -12), 0.9, Color(0.98, 0.92, 0.95))
+		ci.draw_circle(base + Vector2(2, -13), 0.8, Color(0.98, 0.88, 0.92))
+	elif stage == 3:
+		# Autumn fruit.
+		ci.draw_circle(base + Vector2(-2, -10), 1.1, RED)
 		ci.draw_circle(base + Vector2(3, -13), 1.0, RED)
+		ci.draw_circle(base + Vector2(1, -14), 1.0, RED.lightened(0.1))
 
 static func _pen(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vector2, ctr: Vector2, animal: Color) -> void:
 	ci.draw_colored_polygon(PackedVector2Array([t, r, b, l]), DIRT)
@@ -357,27 +386,43 @@ static func _dairy(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vector
 	_fence(ci, b.lerp(l, 0.0), r)
 	_critter(ci, b.lerp(r, 0.55) + Vector2(0, 4), Color(0.90, 0.88, 0.84))  # cow
 
-static func _wheat(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vector2, ctr: Vector2) -> void:
-	ci.draw_colored_polygon(PackedVector2Array([t, r, b, l]), Color(0.83, 0.69, 0.30))  # golden field
+static func _wheat(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vector2, ctr: Vector2, season: int) -> void:
+	var stage: int = SeasonSystem.growth_stage(season)
+	# Field colour tracks the crop: winter stubble, spring sprouts, summer green, gold autumn.
+	var field := Color(0.83, 0.69, 0.30)
+	match stage:
+		0: field = Color(0.62, 0.56, 0.40)   # ploughed / stubble
+		1: field = Color(0.55, 0.70, 0.34)   # green sprouts
+		2: field = Color(0.50, 0.66, 0.28)   # tall green
+		3: field = Color(0.86, 0.70, 0.26)   # ripe gold
+	ci.draw_colored_polygon(PackedVector2Array([t, r, b, l]), field)
+	var row_col := field.darkened(0.22)
 	for i in range(1, 6):
 		var f := float(i) / 6.0
-		ci.draw_line(l.lerp(t, f), b.lerp(r, f), Color(0.70, 0.56, 0.22), 0.8)
+		ci.draw_line(l.lerp(t, f), b.lerp(r, f), row_col, 0.8)
 	# scarecrow
 	var sc := ctr + Vector2(0, -2)
 	_post(ci, sc, 12.0, WOOD_D, 1.4)
 	ci.draw_line(sc + Vector2(-6, -8), sc + Vector2(6, -8), WOOD_D, 1.2)
 	ci.draw_circle(sc + Vector2(0, -13), 2.4, Color(0.78, 0.66, 0.40))
 
-static func _hops(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vector2) -> void:
-	ci.draw_colored_polygon(PackedVector2Array([t, r, b, l]), Color(0.44, 0.56, 0.30))
-	var ctr := (t + b) * 0.5
+static func _hops(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vector2, season: int) -> void:
+	var stage: int = SeasonSystem.growth_stage(season)
+	ci.draw_colored_polygon(PackedVector2Array([t, r, b, l]),
+		Color(0.44, 0.56, 0.30) * SeasonSystem.ground_tint(season))
+	var bine := SeasonSystem.foliage_tint(season)
 	for f in [0.25, 0.5, 0.75]:
 		var a := l.lerp(t, f); var bb := b.lerp(r, f)
 		ci.draw_line(a, bb, WOOD_D, 0.8)  # trellis row
 		for g in [0.2, 0.5, 0.8]:
 			var p: Vector2 = a.lerp(bb, g)
 			var tp := _post(ci, p, 13.0, Color(0.30, 0.46, 0.20), 1.0)
-			ci.draw_circle(tp + Vector2(0, 2), 2.4, LEAF)
+			if stage == 0:
+				continue                                   # winter: bare poles
+			var climb: float = 0.5 if stage == 1 else 1.0  # spring bines half-grown
+			ci.draw_circle(tp + Vector2(0, 2), 2.4 * climb + 1.2, bine)
+			if stage == 3:
+				ci.draw_circle(tp + Vector2(0, 4), 1.0, bine.lightened(0.2))  # ripe cones
 
 static func _windmill(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vector2, ctr: Vector2, time: float) -> void:
 	# tapered round stone tower

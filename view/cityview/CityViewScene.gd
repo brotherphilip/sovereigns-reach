@@ -149,6 +149,11 @@ func _build_scene() -> void:
 	_unit_layer.name = "UnitLayer"
 	_world_root.add_child(_unit_layer)
 
+	# Arrows/bolts/stones fly over the units when ranged troops loose a volley.
+	var projectile_layer := preload("res://view/micro/ProjectileLayer.gd").new()
+	projectile_layer.name = "ProjectileLayer"
+	_world_root.add_child(projectile_layer)
+
 	_animal_layer = preload("res://view/micro/AnimalLayer.gd").new()
 	_animal_layer.name = "AnimalLayer"
 	_world_root.add_child(_animal_layer)
@@ -197,6 +202,73 @@ func _build_scene() -> void:
 	# verify unit bodies, animations, pathfinding and auto-combat in the real game.
 	if OS.get_environment("SR_SPAWN_UNITS") != "":
 		_dev_spawn_units()
+	# Dev/headless hook: a staffed town to verify job workers walking to buildings.
+	if OS.get_environment("SR_WORKERS") != "":
+		_dev_spawn_workers()
+	# Dev hook: jump the calendar to a chosen season (0=spring..3=autumn..) for previews.
+	if OS.get_environment("SR_SEASON") != "":
+		var s: int = int(OS.get_environment("SR_SEASON"))
+		GameState.world["calendar_offset_days"] = s * 12   # DAYS_PER_SEASON
+	# Dev hook: render for SR_SHOT_DELAY seconds then save a PNG to SR_SHOT and quit.
+	if OS.get_environment("SR_SHOT") != "":
+		_dev_screenshot(OS.get_environment("SR_SHOT"))
+
+func _dev_screenshot(path: String) -> void:
+	var delay: float = 12.0
+	if OS.get_environment("SR_SHOT_DELAY") != "":
+		delay = float(OS.get_environment("SR_SHOT_DELAY"))
+	await get_tree().create_timer(delay).timeout
+	await RenderingServer.frame_post_draw
+	var img: Image = get_viewport().get_texture().get_image()
+	img.save_png(path)
+	print("[CityView] screenshot saved: %s" % path)
+	get_tree().quit()
+
+func _dev_spawn_workers() -> void:
+	var BState = preload("res://simulation/buildings/BuildingState.gd")
+	var BReg = preload("res://simulation/buildings/BuildingRegistry.gd")
+	GameState.prepare_starting_area(_keep_x, _keep_y, 16)
+	# A ring of staffed worker-buildings of varied trades around the keep.
+	var types := ["apple_orchard", "wheat_farm", "woodcutter_camp", "blacksmith",
+		"brewery", "bakery", "church", "watchtower", "iron_mine", "market"]
+	var n := types.size()
+	for i in n:
+		var ang: float = TAU * float(i) / float(n)
+		var defn: Dictionary = BReg.lookup(types[i])
+		var gx: int = clampi(_keep_x + int(round(cos(ang) * 9.0)), 2, 196)
+		var gy: int = clampi(_keep_y + int(round(sin(ang) * 9.0)), 2, 196)
+		var b: Dictionary = BState.create(types[i], 0, gx, gy, GameState._next_building_id)
+		GameState._next_building_id += 1
+		b["built"] = true
+		b["workers"] = defn.get("max_workers", 1)
+		GameState.players[0]["buildings"].append(b)
+		var w: int = defn.get("width", 1); var h: int = defn.get("height", 1)
+		var field: bool = defn.get("field", false)
+		for dy in range(h):
+			for dx in range(w):
+				if GameState._grid != null:
+					GameState._grid.set_building_at(gx + dx, gy + dy, b["id"])
+					GameState._grid.set_field_at(gx + dx, gy + dy, field)
+	# Three ADJACENT orchards (the reported glitch scenario) to verify workers
+	# path around the cluster and don't jam on the shared edges.
+	for k in range(3):
+		var ogx: int = clampi(_keep_x - 12 + k * 2, 2, 196)
+		var ogy: int = clampi(_keep_y + 6, 2, 196)
+		var ob: Dictionary = BState.create("apple_orchard", 0, ogx, ogy, GameState._next_building_id)
+		GameState._next_building_id += 1
+		ob["built"] = true
+		ob["workers"] = 2
+		GameState.players[0]["buildings"].append(ob)
+		for dy in range(2):
+			for dx in range(2):
+				if GameState._grid != null:
+					GameState._grid.set_building_at(ogx + dx, ogy + dy, ob["id"])
+					GameState._grid.set_field_at(ogx + dx, ogy + dy, true)
+	# Plenty of villager stock to staff them all.
+	GameState.citizens = []
+	GameState._next_citizen_id = 1
+	GameState._next_citizen_id = preload("res://simulation/world/CitizenSystem.gd").spawn(
+		GameState.citizens, 40, float(_keep_x), float(_keep_y), GameState._citizen_rng, GameState._next_citizen_id)
 
 func _dev_spawn_units() -> void:
 	var US = preload("res://simulation/units/UnitState.gd")

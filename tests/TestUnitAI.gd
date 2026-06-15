@@ -12,16 +12,22 @@ var _gs: Node = null
 var _t: int = 0
 var _pass := 0
 var _fail := 0
+var _projectiles: Array = []   # captured EventBus.projectile_fired events
 
 func _init() -> void:
 	await process_frame
 	_gs = root.get_node_or_null("GameState")
 	if _gs == null:
 		print("FATAL: no GameState"); quit(1); return
+	var eb: Node = root.get_node_or_null("EventBus")
+	if eb != null:
+		eb.projectile_fired.connect(func(fx, fy, tx, ty, kind):
+			_projectiles.append({"fx": fx, "fy": fy, "tx": tx, "ty": ty, "kind": kind}))
 	_gs.setup_world(77, 4)
 	_test_auto_aggro_and_combat()
 	_test_attack_move_chase()
 	_test_ranged_kiting()
+	_test_ranged_projectile()
 	_test_patrol_cycle()
 	_test_formation_spread()
 	_test_ai_faction_march()
@@ -102,6 +108,33 @@ func _test_ranged_kiting() -> void:
 	var dist: int = maxi(abs(archer.get("pos_x", 0) - foe.get("pos_x", 0)),
 		abs(archer.get("pos_y", 0) - foe.get("pos_y", 0)))
 	ok("archer backed off from point-blank (dist > 1)", dist > 1)
+
+# ── 3b. Ranged units loose visible projectiles; melee does not ──────────────────
+
+func _test_ranged_projectile() -> void:
+	print("\n[Ranged projectiles]")
+	_arena(50, 50)
+	_gs.add_ai_faction("bandit_king", 60, 50)
+	var archer := _mk_player_unit("archer", 50, 50, 9301)
+	var foe := _mk_enemy_unit("settler", 55, 50, 0)   # in range (8), not point-blank
+	_projectiles.clear()
+	UnitState.issue_attack_order(archer, foe.get("pos_x", 55), foe.get("pos_y", 50), 0)
+	_run(120)
+	ok("archer loosed at least one arrow", _projectiles.size() > 0)
+	if _projectiles.size() > 0:
+		var p: Dictionary = _projectiles[0]
+		ok("arrow flew from the archer's tile", p["fx"] == 50 and p["fy"] == 50)
+		ok("arrow was an 'arrow' (pierce, range<10)", p["kind"] == "arrow")
+
+	# A melee duel must NOT emit projectiles.
+	_arena(70, 70)
+	_gs.add_ai_faction("bandit_king", 80, 70)
+	var sword := _mk_player_unit("swordsman", 70, 70, 9311)
+	var foe2 := _mk_enemy_unit("settler", 71, 70, 0)
+	_projectiles.clear()
+	UnitState.issue_attack_order(sword, foe2.get("pos_x", 71), foe2.get("pos_y", 70), 0)
+	_run(120)
+	ok("melee swordsman fired no projectiles", _projectiles.is_empty())
 
 # ── 4. Patrol loops between waypoints ───────────────────────────────────────────
 

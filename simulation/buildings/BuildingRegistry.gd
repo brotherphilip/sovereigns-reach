@@ -28,6 +28,19 @@ const TERRAIN_FLAT:    int = (1 << 0) | (1 << 7) | (1 << 8) | (1 << 9)  # grass|
 #       terrain_req, fire_risk, hp, requires_tech, produces, consumes,
 #       coverage_radius, description
 const BUILDINGS: Dictionary = {
+	# ── Infrastructure ────────────────────────────────────────────────────────
+	# A path is not a real structure: placing it paints a ROAD tile (units travel it
+	# at 2× speed and the pathfinder prefers it). Handled specially in GameState.
+	"path": {
+		"name": "Path", "category": Category.CIVIC,
+		"width": 1, "height": 1, "is_path": true,
+		"cost": {"wood": 1},
+		"max_workers": 0, "worker_slots": 0,
+		"terrain_req": TERRAIN_ANY, "fire_risk": 0.0, "hp": 1,
+		"requires_tech": [], "produces": {}, "consumes": {},
+		"coverage_radius": 0,
+		"description": "A paved track. Units walk it twice as fast and prefer it.",
+	},
 	# ── §5.1 Civic ──────────────────────────────────────────────────────────
 	"village_hall": {
 		"name": "Village Hall", "category": Category.CIVIC,
@@ -58,8 +71,9 @@ const BUILDINGS: Dictionary = {
 		"max_workers": 0, "worker_slots": 0,
 		"terrain_req": TERRAIN_ANY, "fire_risk": 0.04, "hp": 60,
 		"requires_tech": [], "produces": {"population_cap": 8}, "consumes": {},
+		"rooms": 4,   # houses families — total rooms cap how many people can be born
 		"coverage_radius": 0,
-		"description": "Increases max population. Disease risk if overcrowded.",
+		"description": "A family home (4 rooms). Build more to let the population grow.",
 	},
 	"market": {
 		"name": "Market", "category": Category.CIVIC,
@@ -157,7 +171,7 @@ const BUILDINGS: Dictionary = {
 	# ── §5.3 Food & Agriculture ──────────────────────────────────────────────
 	"apple_orchard": {
 		"name": "Apple Orchard", "category": Category.FOOD,
-		"width": 2, "height": 2,
+		"width": 2, "height": 2, "field": true,
 		"cost": {"wood": 5},
 		"max_workers": 2, "worker_slots": 2,
 		"terrain_req": TERRAIN_GRASS | TERRAIN_VALLEY, "fire_risk": 0.02, "hp": 40,
@@ -167,7 +181,7 @@ const BUILDINGS: Dictionary = {
 	},
 	"pig_farm": {
 		"name": "Pig Farm", "category": Category.FOOD,
-		"width": 2, "height": 2,
+		"width": 2, "height": 2, "field": true,
 		"cost": {"wood": 10},
 		"max_workers": 2, "worker_slots": 2,
 		"terrain_req": TERRAIN_GRASS, "fire_risk": 0.02, "hp": 50,
@@ -177,7 +191,7 @@ const BUILDINGS: Dictionary = {
 	},
 	"dairy_farm": {
 		"name": "Dairy Farm", "category": Category.FOOD,
-		"width": 2, "height": 2,
+		"width": 2, "height": 2, "field": true,
 		"cost": {"wood": 10},
 		"max_workers": 2, "worker_slots": 2,
 		"terrain_req": TERRAIN_GRASS, "fire_risk": 0.01, "hp": 50,
@@ -187,7 +201,7 @@ const BUILDINGS: Dictionary = {
 	},
 	"wheat_farm": {
 		"name": "Wheat Farm", "category": Category.FOOD,
-		"width": 3, "height": 3,
+		"width": 3, "height": 3, "field": true,
 		"cost": {"wood": 8},
 		"max_workers": 4, "worker_slots": 4,
 		"terrain_req": TERRAIN_GRASS | TERRAIN_VALLEY, "fire_risk": 0.04, "hp": 40,
@@ -197,7 +211,7 @@ const BUILDINGS: Dictionary = {
 	},
 	"hops_farm": {
 		"name": "Hops Farm", "category": Category.FOOD,
-		"width": 2, "height": 2,
+		"width": 2, "height": 2, "field": true,
 		"cost": {"wood": 8},
 		"max_workers": 2, "worker_slots": 2,
 		"terrain_req": TERRAIN_GRASS | TERRAIN_VALLEY, "fire_risk": 0.03, "hp": 40,
@@ -455,6 +469,23 @@ static func lookup(building_type: String) -> Dictionary:
 # Returns true if the building_type is a valid registered type
 static func is_valid_type(building_type: String) -> bool:
 	return BUILDINGS.has(building_type)
+
+# A "field" building (orchard/farm) — its footprint stays occupied for placement
+# but is walkable so workers toil among the rows/trees rather than just outside.
+static func is_field(building_type: String) -> bool:
+	return BUILDINGS.get(building_type, {}).get("field", false)
+
+# A "path" pseudo-building — placing it paints a ROAD tile rather than a structure.
+static func is_path(building_type: String) -> bool:
+	return BUILDINGS.get(building_type, {}).get("is_path", false)
+
+# Buildings that must keep a gap from each other. Paths and defensive works (walls,
+# towers, gatehouses — meant to sit flush in rings) are exempt.
+static func needs_spacing(building_type: String) -> bool:
+	var d: Dictionary = BUILDINGS.get(building_type, {})
+	if d.is_empty() or d.get("is_path", false):
+		return false
+	return d.get("category", -1) != Category.DEFENSE
 
 # Returns all building types in a given category
 static func get_by_category(category: Category) -> Array:

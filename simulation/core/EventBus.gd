@@ -36,6 +36,8 @@ signal unit_spawned(unit_data: Dictionary)
 signal unit_killed(unit_id: int, killer_id: int, cause: String)
 signal unit_moved(unit_id: int, from_x: int, from_y: int, to_x: int, to_y: int)
 signal unit_ordered(unit_id: int, order_type: String, payload: Dictionary)
+# A ranged unit loosed a projectile (arrow/bolt/stone) — the view animates the flight.
+signal projectile_fired(from_x: int, from_y: int, to_x: int, to_y: int, kind: String)
 
 # --- AI ---
 signal ai_siege_assembling(faction_id: int, target_player_id: int, eta_ticks: int)
@@ -55,8 +57,14 @@ signal kingdom_defeated(faction_id: int)
 signal weather_changed(new_weather: String, duration_ticks: int)
 signal weather_effect_applied(effect_type: String, magnitude: float)
 
+# --- Seasons / calendar ---
+# Fired on the game-day the season index changes (spring/summer/autumn/winter).
+signal season_changed(season: int, season_name: String)
+
 # --- World ---
 signal shire_ownership_changed(shire_id: int, old_owner: int, new_owner: int)
+# A terrain tile was repainted at runtime (e.g. a path laid) — chunks repaint.
+signal terrain_painted(x: int, y: int)
 signal fog_of_war_updated(player_id: int, revealed_tiles: Array)
 signal trade_route_updated(route_id: int, status: String)
 

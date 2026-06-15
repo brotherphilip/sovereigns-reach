@@ -87,6 +87,7 @@ var _elevation: PackedByteArray # 0–255 relative height (for visual layering)
 var _resource_density: PackedByteArray # 0–255 (how rich this resource tile is)
 var _building_id: PackedInt32Array   # 0 = empty, >0 = building occupies tile
 var _unit_id: PackedInt32Array       # 0 = empty, >0 = unit on tile
+var _field: PackedByteArray          # 1 = walkable "field" tile (orchard/farm rows)
 
 func _init(w: int = DEFAULT_WIDTH, h: int = DEFAULT_HEIGHT) -> void:
 	width = w
@@ -104,6 +105,8 @@ func _init(w: int = DEFAULT_WIDTH, h: int = DEFAULT_HEIGHT) -> void:
 	_building_id.resize(size)
 	_unit_id           = PackedInt32Array()
 	_unit_id.resize(size)
+	_field             = PackedByteArray()
+	_field.resize(size)
 	_terrain.fill(Terrain.GRASS)
 	_shire_id.fill(255)
 
@@ -165,6 +168,15 @@ func get_building_at(x: int, y: int) -> int:
 func set_building_at(x: int, y: int, building_id: int) -> void:
 	if in_bounds(x, y):
 		_building_id[_idx(x, y)] = building_id
+
+# "Field" tiles (orchards, farms) stay registered as buildings for placement
+# collision but are walkable so villagers can toil AMONG the rows/trees.
+func set_field_at(x: int, y: int, is_field: bool) -> void:
+	if in_bounds(x, y):
+		_field[_idx(x, y)] = 1 if is_field else 0
+
+func is_field_at(x: int, y: int) -> bool:
+	return in_bounds(x, y) and _field[_idx(x, y)] == 1
 
 func get_unit_at(x: int, y: int) -> int:
 	if not in_bounds(x, y):
@@ -385,3 +397,5 @@ func deserialize(data: Dictionary) -> void:
 	_building_id.resize(size)
 	_unit_id          = PackedInt32Array()
 	_unit_id.resize(size)
+	_field            = PackedByteArray()
+	_field.resize(size)

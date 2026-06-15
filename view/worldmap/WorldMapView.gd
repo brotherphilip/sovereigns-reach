@@ -60,56 +60,69 @@ func _input(event: InputEvent) -> void:
 			_hovered_city_id = hov
 			queue_redraw()
 
-# ── Background ────────────────────────────────────────────────────────────────
+# ── Background (procedural biome continent) ────────────────────────────────────
 
-const _BG_BLOBS: Array = [
-	[0.12, 0.18, 200, 140, Color(0.80, 0.74, 0.55, 0.5)],
-	[0.82, 0.10, 240, 100, Color(0.74, 0.68, 0.50, 0.5)],
-	[0.50, 0.88, 280,  90, Color(0.78, 0.72, 0.52, 0.5)],
-	[0.08, 0.72, 160, 140, Color(0.72, 0.66, 0.48, 0.5)],
-	[0.75, 0.58, 210, 120, Color(0.82, 0.76, 0.56, 0.5)],
-	[0.38, 0.25, 180,  80, Color(0.76, 0.70, 0.51, 0.5)],
-	[0.90, 0.80, 150, 170, Color(0.70, 0.64, 0.46, 0.5)],
-	[0.28, 0.65, 200, 110, Color(0.84, 0.78, 0.58, 0.4)],
-	[0.62, 0.42, 140, 100, Color(0.77, 0.71, 0.53, 0.4)],
-	[0.18, 0.45, 170,  80, Color(0.73, 0.67, 0.49, 0.5)],
-	[0.55, 0.55, 310, 150, Color(0.71, 0.65, 0.47, 0.3)],
-]
+const _SEA_DEEP: Color = Color(0.13, 0.27, 0.45)
+
+func _biome_color(b: int) -> Color:
+	match b:
+		WorldMapData.B_SEA:      return _SEA_DEEP
+		WorldMapData.B_COAST:    return Color(0.78, 0.72, 0.48)   # sandy shore
+		WorldMapData.B_PLAINS:   return Color(0.52, 0.66, 0.34)
+		WorldMapData.B_FOREST:   return Color(0.24, 0.45, 0.24)
+		WorldMapData.B_HILLS:    return Color(0.56, 0.54, 0.36)
+		WorldMapData.B_MOUNTAIN: return Color(0.52, 0.50, 0.53)
+		WorldMapData.B_RIVER:    return Color(0.28, 0.52, 0.78)
+	return _SEA_DEEP
 
 func _draw_background() -> void:
-	# Warm parchment base
-	draw_rect(Rect2(Vector2.ZERO, size), Color(0.87, 0.80, 0.62))
-	# Terrain variation blobs
-	for blob in _BG_BLOBS:
-		var cx: float  = blob[0] * size.x
-		var cy: float  = blob[1] * size.y
-		var rx: float  = blob[2]
-		var ry: float  = blob[3]
-		var col: Color = blob[4]
-		_draw_ellipse_poly(cx, cy, rx, ry, col)
-	# Vignette
-	draw_rect(Rect2(0, 0, size.x, 30), Color(0.60, 0.50, 0.30, 0.3))
-	draw_rect(Rect2(0, size.y - 30, size.x, 30), Color(0.60, 0.50, 0.30, 0.3))
+	# Ocean fills the whole panel; the continent sits in the 0..MAP_WIDTH×MAP_HEIGHT
+	# region (the same coordinate space the cities are placed in).
+	draw_rect(Rect2(Vector2.ZERO, size), _SEA_DEEP)
+	var biome: Dictionary = _data.get("biome", {})
+	if biome.is_empty():
+		return
+	var cols: int = biome["cols"]
+	var rows: int = biome["rows"]
+	var cw: float = biome["cell_w"]
+	var ch: float = biome["cell_h"]
+	var tiles: PackedByteArray = biome["tiles"]
+	# Slight overlap (+1px) avoids hairline seams between cells.
+	for gy in range(rows):
+		for gx in range(cols):
+			var b: int = tiles[gy * cols + gx]
+			if b == WorldMapData.B_SEA:
+				continue   # already the ocean base
+			draw_rect(Rect2(gx * cw, gy * ch, cw + 1.0, ch + 1.0), _biome_color(b))
 
-func _draw_ellipse_poly(cx: float, cy: float, rx: float, ry: float, col: Color) -> void:
-	var pts := PackedVector2Array()
-	var SIDES: int = 10
-	for i in range(SIDES):
-		var a: float = TAU * float(i) / float(SIDES)
-		pts.append(Vector2(cx + rx * cos(a), cy + ry * sin(a)))
-	draw_colored_polygon(pts, col)
-
-# ── Faction territories ────────────────────────────────────────────────────────
+# ── Faction territories (tint the land each kingdom holds) ─────────────────────
 
 func _draw_faction_territories() -> void:
+	var biome: Dictionary = _data.get("biome", {})
+	if not biome.is_empty() and biome.has("territory"):
+		var cols: int = biome["cols"]
+		var rows: int = biome["rows"]
+		var cw: float = biome["cell_w"]
+		var ch: float = biome["cell_h"]
+		var terr: PackedByteArray = biome["territory"]
+		for gy in range(rows):
+			for gx in range(cols):
+				var owner: int = terr[gy * cols + gx]
+				if owner == 0:
+					continue   # neutral / sea / mountain
+				var col: Color = _faction_color(owner - 1)
+				col.a = 0.22
+				draw_rect(Rect2(gx * cw, gy * ch, cw + 1.0, ch + 1.0), col)
+	# Faction name labels near each capital.
 	for f in _faction_list:
-		var col: Color = Color.from_string(f["color_hex"], Color.GRAY)
-		col.a = 0.16
-		draw_circle(f["center_pos"], f["radius"], col)
-		# Faction name label near capital
-		draw_string(ThemeDB.fallback_font, f["center_pos"] + Vector2(-40, f["radius"] + 14),
-			f.get("name", ""), HORIZONTAL_ALIGNMENT_LEFT, -1, 10,
-			Color.from_string(f["color_hex"], Color.GRAY).lightened(0.2))
+		draw_string(ThemeDB.fallback_font, f["center_pos"] + Vector2(-40, -f["radius"] * 0.0 - 24),
+			f.get("name", ""), HORIZONTAL_ALIGNMENT_LEFT, -1, 11,
+			Color.from_string(f["color_hex"], Color.GRAY).lightened(0.35))
+
+func _faction_color(faction_id: int) -> Color:
+	if faction_id >= 0 and faction_id < WorldMapData.FACTION_COLORS.size():
+		return Color.from_string(WorldMapData.FACTION_COLORS[faction_id], Color.GRAY)
+	return Color.GRAY
 
 # ── Roads ─────────────────────────────────────────────────────────────────────
 
@@ -225,7 +238,6 @@ func _draw_armies() -> void:
 		if a.get("moving", false):
 			var to: Vector2 = a["to"]
 			draw_line(p, to, Color(col.r, col.g, col.b, 0.55), 1.5)
-			# Arrowhead.
 			var dir: Vector2 = (to - p)
 			if dir.length() > 1.0:
 				dir = dir.normalized()
@@ -234,16 +246,38 @@ func _draw_armies() -> void:
 				draw_colored_polygon(PackedVector2Array([
 					tip + dir * 6.0, tip - dir * 2.0 + perp, tip - dir * 2.0 - perp,
 				]), Color(col.r, col.g, col.b, 0.8))
-		# Army banner: a small shield with its troop count.
-		draw_circle(p, 7.0, Color(0.10, 0.08, 0.06, 0.85))
-		draw_circle(p, 6.0, col)
-		draw_circle(p, 6.0, col.darkened(0.4))
-		draw_string(ThemeDB.fallback_font, p + Vector2(-6, -9),
-			str(a.get("size", 0)), HORIZONTAL_ALIGNMENT_LEFT, -1, 8,
-			Color(0.05, 0.04, 0.03))
-		draw_string(ThemeDB.fallback_font, p + Vector2(-5, 4),
-			str(a.get("size", 0)), HORIZONTAL_ALIGNMENT_LEFT, -1, 8,
-			Color(0.97, 0.95, 0.88))
+		_draw_army_marker(p, col, int(a.get("size_band", 0)), int(a.get("size", 0)))
+
+# A heraldic banner whose size and number of pennants grow with the host's strength,
+# so a lone raiding party and a great army read differently at a glance.
+# Band 0:1-10, 1:11-30, 2:31-60, 3:61-100, 4:100+.
+func _draw_army_marker(p: Vector2, col: Color, band: int, size_count: int) -> void:
+	var pole_h: float = 12.0 + float(band) * 4.0
+	var flag_w: float = 8.0 + float(band) * 2.0
+	var flag_h: float = 5.0 + float(band) * 1.2
+	var pennants: int = band + 1                 # 1..5 flags by band
+	var top := p + Vector2(0, -pole_h)
+	# Shadow + pole.
+	draw_line(p + Vector2(1, 1), top + Vector2(1, 1), Color(0, 0, 0, 0.35), 1.6)
+	draw_line(p, top, Color(0.22, 0.16, 0.10), 1.6)
+	# Stacked pennants flying from the pole.
+	for i in range(pennants):
+		var fy: float = top.y + float(i) * (flag_h + 1.5)
+		var base := Vector2(top.x, fy)
+		draw_colored_polygon(PackedVector2Array([
+			base, base + Vector2(flag_w, flag_h * 0.5), base + Vector2(0, flag_h),
+		]), col)
+		draw_polyline(PackedVector2Array([
+			base, base + Vector2(flag_w, flag_h * 0.5), base + Vector2(0, flag_h),
+		]), col.darkened(0.45), 1.0)
+	# Foot disc + troop count.
+	draw_circle(p, 3.0 + float(band) * 0.6, Color(0.10, 0.08, 0.06, 0.9))
+	draw_circle(p, 2.0 + float(band) * 0.6, col)
+	var label := Vector2(top.x + flag_w + 2.0, top.y - 1.0)
+	draw_string(ThemeDB.fallback_font, label + Vector2(1, 1), str(size_count),
+		HORIZONTAL_ALIGNMENT_LEFT, -1, 9, Color(0.05, 0.04, 0.03, 0.9))
+	draw_string(ThemeDB.fallback_font, label, str(size_count),
+		HORIZONTAL_ALIGNMENT_LEFT, -1, 9, Color(0.98, 0.96, 0.90))
 
 # ── Kingdom legend ──────────────────────────────────────────────────────────────
 

@@ -64,10 +64,20 @@ static func get_army_render_list(data: Dictionary) -> Array:
 				"to":    to_pos,
 				"moving": not path.is_empty(),
 				"size":  a.get("size", 0),
+				"size_band": size_band(a.get("size", 0)),
 				"color_hex": col_hex,
 				"owner": k.get("id", -1),
 			})
 	return result
+
+# Army strength → marker tier: 0:1-10, 1:11-30, 2:31-60, 3:61-100, 4:100+.
+# Shared by the world map and the in-session macro overlay so both read alike.
+static func size_band(size: int) -> int:
+	if size >= 101: return 4
+	if size >= 61:  return 3
+	if size >= 31:  return 2
+	if size >= 11:  return 1
+	return 0
 
 # Per-kingdom legend: name, colour, cities held, alive/defeated.
 static func get_kingdom_legend(data: Dictionary) -> Array:

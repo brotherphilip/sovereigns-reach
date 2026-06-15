@@ -17,7 +17,12 @@ enum ValidationResult {
 	OUTSIDE_BORDERS = 6,
 	INVALID_TYPE    = 7,
 	UNIQUE_EXISTS   = 8,
+	TOO_CLOSE       = 9,
 }
+
+# Required empty-tile gap between non-defensive buildings (so towns aren't a solid
+# block and paths can run between them). Walls/towers/gates and paths are exempt.
+const BUILDING_GAP: int = 2
 
 # Main validation entry point.
 # Returns {"ok": bool, "code": ValidationResult, "message": String}
@@ -47,6 +52,32 @@ static func validate(
 		for dx in range(w):
 			if grid.get_building_at(grid_x + dx, grid_y + dy) != 0:
 				return _fail(ValidationResult.OCCUPIED, "Tile (%d,%d) is occupied" % [grid_x+dx, grid_y+dy])
+
+	# Paths are laid as ROAD terrain — only on walkable land, never water/cliffs.
+	if BuildingRegistry.is_path(building_type):
+		var pt: int = grid.get_terrain(grid_x, grid_y)
+		if pt in [WorldGrid.Terrain.MOUNTAIN, WorldGrid.Terrain.ROCK, WorldGrid.Terrain.RIVER]:
+			return _fail(ValidationResult.WRONG_TERRAIN, "Can't lay a path on water or cliffs")
+
+	# Minimum spacing: keep a gap between non-defensive buildings so a town never
+	# becomes a solid block (defensive works and paths are exempt; see needs_spacing).
+	if BuildingRegistry.needs_spacing(building_type):
+		var gap: int = BUILDING_GAP
+		for b in player.get("buildings", []):
+			if not b is Dictionary:
+				continue
+			var bt: String = b.get("type", "")
+			if not BuildingRegistry.needs_spacing(bt):
+				continue
+			var bdef: Dictionary = BuildingRegistry.lookup(bt)
+			var bx: int = b.get("grid_x", 0)
+			var by: int = b.get("grid_y", 0)
+			var bw: int = bdef.get("width", 1)
+			var bh: int = bdef.get("height", 1)
+			# The new footprint expanded by `gap` must not touch an existing footprint.
+			if not (grid_x - gap > bx + bw - 1 or grid_x + w - 1 + gap < bx \
+					or grid_y - gap > by + bh - 1 or grid_y + h - 1 + gap < by):
+				return _fail(ValidationResult.TOO_CLOSE, "Too close to another building — leave a gap")
 
 	# Terrain requirements
 	var terrain_req: int = defn.get("terrain_req", 0)

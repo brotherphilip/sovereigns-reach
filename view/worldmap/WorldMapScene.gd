@@ -66,6 +66,20 @@ func _init_and_build() -> void:
 		_watch_speed = 4
 		_on_toggle_watch()
 
+	# Dev hook: render for SR_SHOT_DELAY seconds, save a PNG to SR_SHOT, then quit.
+	if OS.get_environment("SR_SHOT") != "":
+		_dev_screenshot(OS.get_environment("SR_SHOT"))
+
+func _dev_screenshot(path: String) -> void:
+	var delay: float = 6.0
+	if OS.get_environment("SR_SHOT_DELAY") != "":
+		delay = float(OS.get_environment("SR_SHOT_DELAY"))
+	await get_tree().create_timer(delay).timeout
+	await RenderingServer.frame_post_draw
+	get_viewport().get_texture().get_image().save_png(path)
+	print("[WorldMap] screenshot saved: %s" % path)
+	get_tree().quit()
+
 func _dev_jump_to_spectator() -> void:
 	var cs: Array = GameState.world.get("world_map", {}).get("cities", [])
 	if cs.size() < 3:

@@ -19,6 +19,7 @@ const WorldGrid        = preload("res://simulation/world/WorldGrid.gd")
 const ShireMap         = preload("res://simulation/world/ShireMap.gd")
 const WildlifeSystem   = preload("res://simulation/world/WildlifeSystem.gd")
 const CitizenSystem    = preload("res://simulation/world/CitizenSystem.gd")
+const PeopleSystem     = preload("res://simulation/world/PeopleSystem.gd")
 # Phase 5
 const TechTree         = preload("res://simulation/tech/TechTree.gd")
 const PrestigeSystem   = preload("res://simulation/tech/PrestigeSystem.gd")
@@ -44,6 +45,7 @@ const CampaignMap      = preload("res://simulation/strategic/CampaignMap.gd")
 const KingdomEconomy   = preload("res://simulation/strategic/KingdomEconomy.gd")
 const CampaignSystem   = preload("res://simulation/strategic/CampaignSystem.gd")
 const CityGenerator    = preload("res://simulation/world/CityGenerator.gd")
+const SeasonSystem     = preload("res://simulation/world/SeasonSystem.gd")
 # All fields are plain Dictionary/Array/int/float/bool — JSON-serializable.
 # Never stores Godot objects (Vector2, Node, etc.) to ensure network/save readiness.
 # The View layer reads from here; it never writes here directly.
@@ -206,7 +208,7 @@ func initialize_player(player_id: int, player_name: String, start_x: int, start_
 		citizens = []
 		_next_citizen_id = 1
 		_next_citizen_id = CitizenSystem.spawn(
-			citizens, 8, float(start_x), float(start_y), _citizen_rng, _next_citizen_id)
+			citizens, 14, float(start_x), float(start_y), _citizen_rng, _next_citizen_id)
 		_snap_citizens_to_grass()
 
 func _assign_starting_shire(player_id: int, start_x: int, start_y: int) -> void:
@@ -325,6 +327,26 @@ func _make_armory() -> Dictionary:
 		"plate_armor": 0,
 	}
 
+# A path-site that builders have finished becomes a ROAD tile; the placeholder
+# "path" building is then removed (no structure remains, just the paved terrain).
+func _convert_finished_paths(player: Dictionary) -> void:
+	var blds: Array = player.get("buildings", [])
+	var remaining: Array = []
+	var converted: bool = false
+	for b in blds:
+		if b is Dictionary and BuildingRegistry.is_path(b.get("type", "")) and b.get("built", false):
+			var gx: int = b.get("grid_x", 0)
+			var gy: int = b.get("grid_y", 0)
+			if _grid != null:
+				_grid.set_building_at(gx, gy, 0)
+				_grid.set_terrain(gx, gy, WorldGrid.Terrain.ROAD)
+			EventBus.terrain_painted.emit(gx, gy)
+			converted = true
+		else:
+			remaining.append(b)
+	if converted:
+		player["buildings"] = remaining
+
 func _tick_player_economy(player: Dictionary, tick: int) -> void:
 	# Resolve shire biome production bonuses once per player per tick (GDD §1.2.1).
 	var _biome_farm_bonus: float = 0.0
@@ -339,9 +361,14 @@ func _tick_player_economy(player: Dictionary, tick: int) -> void:
 				_biome_trade_bonus = _s.get("trade_fee_bonus", 0.0)
 				break
 
-	# Phase 2: resource production from all buildings
+	# Phase 2: resource production from all buildings. Chain buildings (gather/process
+	# producers) no longer auto-produce here — their output is credited only when a
+	# hauler physically delivers it (see CitizenSystem). Non-chain income (trading_post)
+	# still ticks here.
 	for building in player.get("buildings", []):
 		if not building is Dictionary or not building.get("is_active", true):
+			continue
+		if ResourceTick.is_chain(building.get("type", "")):
 			continue
 		var changes: Dictionary = ResourceTick.tick_building(building, player, tick)
 		if not changes.is_empty():
@@ -507,14 +534,10 @@ func _tick_player_economy(player: Dictionary, tick: int) -> void:
 		if old_pop != new_pop:
 			EventBus.popularity_changed.emit(player["id"], old_pop, new_pop)
 
-		# S4: population growth/decline (uses the freshly-updated popularity)
-		var pre_population: int = player.get("population", 0)
-		_tick_population_growth(player)
-		# S5: desertion — at rock-bottom popularity, soldiers and peasants flee.
+		# Population is now driven by the living-citizen lifecycle (births/aging/death —
+		# see the day-boundary people tick), not migration. Desertion still thins the army.
 		if PopularityEngine.is_desertion_risk(player):
 			_apply_desertion(player)
-		if player.get("population", 0) != pre_population:
-			EventBus.population_changed.emit(player["id"], pre_population, player.get("population", 0))
 
 		# Phase 5: Prestige generation
 		var prestige_result: Dictionary = PrestigeSystem.tick(player, world, tick)
@@ -695,16 +718,32 @@ func _tick_unit_idle(owner: Dictionary, unit: Dictionary, tick: int, tpd: int, e
 	if unit.has("patrol_a"):
 		unit["order"] = UnitState.ORDER_PATROL
 		return
-	# Rally march (AI raiders advancing on the enemy seat).
+	# Rally march (AI raiders advancing on the enemy seat). Each unit gets its own
+	# spot in a ring around the rally point so the warband fans out instead of
+	# stacking on a single tile.
 	if rally.x >= 0 and _grid != null:
-		var dd: int = maxi(absi(rally.x - unit.get("pos_x", 0)), absi(rally.y - unit.get("pos_y", 0)))
-		if dd > 2:
-			var path: Array = Pathfinder.find_path(_grid, unit.get("pos_x", 0), unit.get("pos_y", 0), rally.x, rally.y)
+		var goal: Vector2i = _rally_goal(rally, unit)
+		var dd: int = maxi(absi(goal.x - unit.get("pos_x", 0)), absi(goal.y - unit.get("pos_y", 0)))
+		if dd > 1:
+			var path: Array = Pathfinder.find_path(_grid, unit.get("pos_x", 0), unit.get("pos_y", 0), goal.x, goal.y)
 			if not path.is_empty():
 				unit["order"] = UnitState.ORDER_MOVE
 				unit["move_path"] = path
-				unit["target_x"] = rally.x
-				unit["target_y"] = rally.y
+				unit["target_x"] = goal.x
+				unit["target_y"] = goal.y
+
+# A distinct staging tile in a ring around the rally point (keyed by unit id) so a
+# rallying force spreads out instead of piling onto one square.
+func _rally_goal(rally: Vector2i, unit: Dictionary) -> Vector2i:
+	var uid: int = unit.get("id", 0)
+	var a: float = float(uid) * 2.39996323
+	for rad in [2, 3, 4, 5, 1]:
+		var gx: int = clampi(rally.x + int(round(cos(a) * float(rad))), 0, 199)
+		var gy: int = clampi(rally.y + int(round(sin(a) * float(rad))), 0, 199)
+		if _grid.in_bounds(gx, gy) and _grid.is_passable(gx, gy, WorldGrid.PASSABLE_FOOT) \
+				and _grid.get_building_at(gx, gy) == 0:
+			return Vector2i(gx, gy)
+	return rally
 
 # Patrol between two waypoints; break off to fight any foe that wanders too close.
 func _tick_unit_patrol(owner: Dictionary, unit: Dictionary, tick: int, tpd: int, enemies: Array) -> void:
@@ -891,6 +930,15 @@ func _tick_unit_attack(owner: Dictionary, unit: Dictionary, tick: int, ticks_per
 	# In range: strike on a steady cadence (~8 strikes per game-day).
 	if tick % maxi(1, ticks_per_day / 8) != 0:
 		return
+	# Ranged units loose a visible projectile from their tile to the target's; the
+	# damage still resolves this tick (kept deterministic) — the arrow is the visual.
+	if rng >= 2:
+		var kind: String = "arrow"
+		if unit.get("attack_type", "") == UnitRegistry.ATTACK_SIEGE:
+			kind = "stone"
+		elif rng >= 10:
+			kind = "bolt"
+		EventBus.projectile_fired.emit(ux, uy, tx, ty, kind)
 	var result: Dictionary = CombatSystem.calculate_damage(unit, target)
 	if result.get("killed", false):
 		EventBus.unit_killed.emit(target.get("id", -1), owner.get("id", 0), "combat")
@@ -994,6 +1042,16 @@ func simulate_tick(tick: int) -> void:
 			weather_event["duration_ticks"]
 		)
 
+	# Seasons advance with the calendar (240 ticks/day). Track the index and announce
+	# transitions so the view can re-tint terrain and the orchard art shifts stage.
+	# A dev calendar offset (set via the SR_SEASON hook) lets us preview any season.
+	var cal_day: int = SeasonSystem.day_of(tick) + int(world.get("calendar_offset_days", 0))
+	var season_now: int = SeasonSystem.current_season(cal_day)
+	if season_now != int(world.get("season", -1)):
+		world["season"] = season_now
+		world["season_day"] = cal_day
+		EventBus.season_changed.emit(season_now, SeasonSystem.season_name(season_now))
+
 	for player in players:
 		if not player.get("is_alive", false):
 			continue
@@ -1005,28 +1063,57 @@ func simulate_tick(tick: int) -> void:
 		_tick_player_economy(player, tick)
 		_tick_player_unit_movement(player, tick)
 
-	# AI-faction units act on the grid too: idle raiders march on the player's
-	# seat (rally point) and skirmish any defenders they meet — visible enemy AI.
+	# AI-faction units act on the grid. They hold at their camp normally and only
+	# MARCH on the player's seat once they've assembled a siege against them — so
+	# the early game isn't swarmed by raiders that wipe freshly-recruited units.
+	# (They still defend themselves via auto-aggro if the player attacks.)
 	if not spectator_mode and not ai_factions.is_empty():
-		var rally := Vector2i(-1, -1)
+		var keep := Vector2i(-1, -1)
 		if not players.is_empty():
-			rally = Vector2i(players[0].get("keep_x", 100), players[0].get("keep_y", 100))
+			keep = Vector2i(players[0].get("keep_x", 100), players[0].get("keep_y", 100))
 		var player_enemies: Array = _enemies_of_faction()
 		for fac in ai_factions:
-			if fac is Dictionary and fac.get("is_alive", false):
-				_tick_force_units(fac, fac.get("units", []), player_enemies, tick, rally)
+			if not (fac is Dictionary and fac.get("is_alive", false)):
+				continue
+			var sieging: bool = not fac.get("siege_assembly", {}).is_empty() \
+				and int(fac["siege_assembly"].get("target_player_id", -1)) == 0
+			var rally := keep if sieging else Vector2i(-1, -1)
+			_tick_force_units(fac, fac.get("units", []), player_enemies, tick, rally)
 
 	# Wildlife roams every tick (smooth) and flees nearby units / the tracked cursor.
 	if not wildlife.is_empty():
 		_next_animal_id = WildlifeSystem.tick(
 			wildlife, _gather_wildlife_threats(), _grid, _wildlife_rng, tick, _next_animal_id)
 
-	# Villager pawns wander and build placed structures (player 0).
+	# Villager pawns wander, build placed structures, and run the gather→process→deliver
+	# economy for player 0. Felled/spent resource tiles come back so we repaint them.
 	if not citizens.is_empty() and not players.is_empty():
-		CitizenSystem.tick(citizens, players[0].get("buildings", []), _citizen_rng, tick, _grid)
+		var farm_mult: float = weather.get("effects", {}).get("farm_yield_mult", 1.0)
+		var felled: Array = CitizenSystem.tick(citizens, players[0], _citizen_rng, tick, _grid, farm_mult)
+		for t in felled:
+			EventBus.terrain_painted.emit(t.x, t.y)
+		# A finished path-site becomes ROAD terrain and the placeholder building is removed.
+		_convert_finished_paths(players[0])
 	# Once the hall is built, a campfire lights up out front; villagers gather
 	# around it and new recruits muster there.
 	_update_campfire()
+
+	# The villagers ARE the population: each game-day they age, pair off, bear children
+	# (capped by housing rooms) and die of old age. player.population mirrors the living
+	# count so food/popularity/AI keep working.
+	if tick > 0 and tick % SimulationClock.TICKS_PER_GAME_DAY == 0 and not players.is_empty():
+		var day: int = tick / SimulationClock.TICKS_PER_GAME_DAY
+		_next_citizen_id = PeopleSystem.tick_day(citizens, players[0], _citizen_rng, day, _next_citizen_id)
+		var living: int = PeopleSystem.living_count(citizens)
+		if players[0].get("population", 0) != living:
+			var prev: int = players[0].get("population", 0)
+			players[0]["population"] = living
+			EventBus.population_changed.emit(0, prev, living)
+		# An AI-run town (the one being spectated) manages its own labour: it staffs its
+		# buildings from its workforce and raises hovels when it needs more workers — so
+		# its villagers visibly work, just like the player's.
+		if spectator_mode:
+			_auto_manage_ai_town()
 
 	# Phase 6: tick AI factions each game-day
 	if tick > 0 and tick % SimulationClock.TICKS_PER_GAME_DAY == 0:
@@ -1099,36 +1186,11 @@ func simulate_tick(tick: int) -> void:
 						"deadline_tick": pending[0].get("deadline_tick", 0) if pending.size() > 0 else 0,
 					})
 
-			# Mid-siege combat: one battle round per game-day while siege is assembling.
-			# Resolves CombatSystem for the first time; emits unit_killed per casualty.
-			var siege_asm: Dictionary = faction.get("siege_assembly", {})
-			if not siege_asm.is_empty():
-				var s_pid: int = siege_asm.get("target_player_id", -1)
-				if s_pid >= 0 and s_pid < players.size():
-					var defender_p: Dictionary = players[s_pid]
-					var atk_before: Array = []
-					for u in faction.get("units", []):
-						if u is Dictionary and u.get("is_alive", false):
-							atk_before.append(u.get("id", -1))
-					# Only deployable (trained) defenders take the field; units still
-					# in the barracks queue do not fight. See audit item S2.
-					var defender_active: Array = []
-					var def_before: Array = []
-					for u in defender_p.get("units", []):
-						if u is Dictionary and UnitState.is_deployable(u):
-							defender_active.append(u)
-							def_before.append(u.get("id", -1))
-					if not atk_before.is_empty() and not def_before.is_empty():
-						var combat_rng := RandomNumberGenerator.new()
-						combat_rng.seed = tick ^ (faction.get("id", 0) * 7919)
-						CombatSystem.resolve_combat(
-							faction.get("units", []), defender_active, combat_rng)
-						for u in faction.get("units", []):
-							if u is Dictionary and not u.get("is_alive", false) and u.get("id", -1) in atk_before:
-								EventBus.unit_killed.emit(u.get("id", -1), defender_p.get("id", 0), "combat")
-						for u in defender_p.get("units", []):
-							if u is Dictionary and not u.get("is_alive", false) and u.get("id", -1) in def_before:
-								EventBus.unit_killed.emit(u.get("id", -1), faction.get("id", -1), "combat")
+			# NOTE: the old "mid-siege abstract combat" (an instant off-grid battle
+			# each day that wiped the player's units from across the map with no
+			# visible attacker) was removed. Besieging raiders now physically march
+			# to the keep and fight on the grid (see the AI-faction unit tick), so
+			# units only die to enemies that have actually reached them.
 
 		# Defeat check: faction is_alive → false when all recruited units are dead
 		for faction in ai_factions:
@@ -1204,6 +1266,46 @@ func enter_spectator_city(city_id: int, center_x: int, center_y: int, seed_val: 
 	_next_citizen_id = CitizenSystem.spawn(
 		citizens, count, float(center_x), float(center_y), _citizen_rng, _next_citizen_id)
 	_snap_citizens_to_grass()
+	_auto_manage_ai_town()   # staff the buildings immediately so it's alive on arrival
+
+# An AI town manages its own labour each day while it's being watched: it funds every
+# worker-employing building from its workforce (so villagers walk in and physically
+# work), and when it wants more workers than it can house it raises a hovel so the
+# population can grow into the empty jobs.
+func _auto_manage_ai_town() -> void:
+	if players.is_empty():
+		return
+	var player: Dictionary = players[0]
+	var slots: int = 0
+	for b in player.get("buildings", []):
+		if b is Dictionary and b.get("built", true) and b.get("is_active", true):
+			slots += int(BuildingRegistry.lookup(b.get("type", "")).get("max_workers", 0))
+	var living: int = PeopleSystem.living_count(citizens)
+	var cap: int = PeopleSystem.housing_capacity(player)
+	# Out of housing but short of workers → build a home so the town can grow.
+	if living >= cap and living < slots and living < PeopleSystem.SAFETY_MAX_PEOPLE:
+		_spectator_add_hovel(player)
+	# Fund each building's worker slots (WorkerSystem caps the count by the workforce);
+	# CitizenSystem then walks pawns into the jobs.
+	for b in player.get("buildings", []):
+		if not (b is Dictionary and b.get("built", true) and b.get("is_active", true)):
+			continue
+		var maxw: int = int(BuildingRegistry.lookup(b.get("type", "")).get("max_workers", 0))
+		if maxw > 0:
+			WorkerSystem.assign_workers(b, maxw, player)
+
+func _spectator_add_hovel(player: Dictionary) -> void:
+	if _grid == null:
+		return
+	var c: Vector2i = _spectator_center()
+	var spot: Vector2i = CityGenerator._find_spot(c.x, c.y, 1, 1, _grid, {})
+	if spot.x == -2147483648:
+		return
+	var h: Dictionary = BuildingState.create("hovel", 0, spot.x, spot.y, _next_building_id)
+	_next_building_id += 1
+	h["built"] = true
+	player["buildings"].append(h)
+	_register_buildings_in_grid([h])
 
 func _register_buildings_in_grid(blds: Array) -> void:
 	if _grid == null:
@@ -1217,9 +1319,11 @@ func _register_buildings_in_grid(blds: Array) -> void:
 		var gx: int = b.get("grid_x", 0)
 		var gy: int = b.get("grid_y", 0)
 		var bid: int = b.get("id", 0)
+		var field: bool = defn.get("field", false)
 		for dy in range(h):
 			for dx in range(w):
 				_grid.set_building_at(gx + dx, gy + dy, bid)
+				_grid.set_field_at(gx + dx, gy + dy, field)
 
 # While spectating, append newly-unlocked buildings (as UNBUILT) when the town's
 # strategic development rises, so the builder pawns visibly raise them.
@@ -1386,9 +1490,11 @@ func _cmd_place_building(cmd: Dictionary) -> bool:
 		var defn: Dictionary = BuildingRegistry.lookup(btype)
 		var w: int = defn.get("width", 1)
 		var h: int = defn.get("height", 1)
+		var field: bool = defn.get("field", false)
 		for dy in range(h):
 			for dx in range(w):
 				_grid.set_building_at(gx + dx, gy + dy, bid)
+				_grid.set_field_at(gx + dx, gy + dy, field)
 
 	# Placed unbuilt — villagers must raise it. build_progress accrues per builder
 	# (see CitizenSystem); the structure isn't functional until built. Bigger
@@ -1396,7 +1502,11 @@ func _cmd_place_building(cmd: Dictionary) -> bool:
 	var _cdefn: Dictionary = BuildingRegistry.lookup(btype)
 	building["built"] = false
 	building["build_progress"] = 0.0
-	building["build_required"] = float(maxi(1, _cdefn.get("width", 1) * _cdefn.get("height", 1))) * 100.0
+	# Paths are quick to pave; real structures scale with footprint.
+	if _cdefn.get("is_path", false):
+		building["build_required"] = 15.0
+	else:
+		building["build_required"] = float(maxi(1, _cdefn.get("width", 1) * _cdefn.get("height", 1))) * 100.0
 	player["buildings"].append(building)
 	EventBus.building_placed.emit(pid, btype, gx, gy, bid)
 	return true
@@ -1427,6 +1537,7 @@ func _cmd_demolish_building(cmd: Dictionary) -> bool:
 			for dy in range(h):
 				for dx in range(w):
 					_grid.set_building_at(gx + dx, gy + dy, 0)
+					_grid.set_field_at(gx + dx, gy + dy, false)
 
 		# Unassign workers back to pool
 		WorkerSystem.unassign_workers(building, player)
@@ -1728,6 +1839,26 @@ func _nearest_empty_grass(cx: int, cy: int, used: Dictionary) -> Vector2i:
 					return Vector2i(x, y)
 	return Vector2i(cx, cy)
 
+# Spawn a couple of fresh villagers each day (near the campfire/keep) until the
+# visible stock reaches a population-scaled target — the labour pool that workers
+# are drawn from.
+func _grow_citizen_stock() -> void:
+	if players.is_empty():
+		return
+	var target: int = clampi(players[0].get("population", 0) / 3, 8, CitizenSystem.MAX_CITIZENS)
+	if citizens.size() >= target:
+		return
+	var hx: float = float(players[0].get("keep_x", 100))
+	var hy: float = float(players[0].get("keep_y", 100))
+	if campfire.get("active", false):
+		hx = float(campfire.get("x", hx))
+		hy = float(campfire.get("y", hy))
+	if _citizen_rng == null:
+		_citizen_rng = RandomNumberGenerator.new()
+		_citizen_rng.seed = server_config.get("map_seed", 12345) ^ 0xC1721E
+	var add: int = mini(2, target - citizens.size())
+	_next_citizen_id = CitizenSystem.spawn(citizens, add, hx, hy, _citizen_rng, _next_citizen_id)
+
 # Lights / moves the campfire to sit just in front of the player's built hall, and
 # re-homes the villagers in a ring around it the moment it first appears.
 func _update_campfire() -> void:
@@ -1761,9 +1892,13 @@ func _gather_citizens_at_fire(fx: float, fy: float) -> void:
 			continue
 		var idx: int = int(c.get("id", i))
 		var a: float = float(idx) * 2.39996323  # golden angle → even spread
-		var r: float = 1.8 + float(idx % 3) * 0.6
-		c["hx"] = fx + cos(a) * r
-		c["hy"] = fy + sin(a) * r
+		var r: float = 2.4 + float(idx % 4) * 0.7
+		var hx: int = int(round(fx + cos(a) * r))
+		var hy: int = int(round(fy + sin(a) * r))
+		# Keep homes off the hall/other buildings so pawns don't gather on a wall.
+		var spot := _nearest_empty_grass(hx, hy, {})
+		c["hx"] = float(spot.x)
+		c["hy"] = float(spot.y)
 
 # Phase 6: unit command handlers
 
@@ -2069,9 +2204,11 @@ func deserialize(data: Dictionary) -> void:
 				var gx: int = building.get("grid_x", 0)
 				var gy: int = building.get("grid_y", 0)
 				var bid: int = building.get("id", 0)
+				var field: bool = defn.get("field", false)
 				for dy in range(h):
 					for dx in range(w):
 						_grid.set_building_at(gx + dx, gy + dy, bid)
+						_grid.set_field_at(gx + dx, gy + dy, field)
 
 	if world.has("shires"):
 		_shire_map = ShireMap.new()

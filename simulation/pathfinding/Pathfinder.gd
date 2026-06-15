@@ -17,6 +17,11 @@ const PASS_CART    = 0b00000100
 const PASS_SIEGE   = 0b00001000
 
 const SQRT2: float = 1.4142135623730951
+# Cheapest traversable tile cost (ROAD = 0.5). The octile heuristic must be scaled by
+# this to stay ADMISSIBLE when roads are 2× faster — otherwise A* overestimates the
+# remaining cost and skips a longer-but-faster road detour. A tiny extra factor breaks
+# ties toward straighter routes on equal-cost ground without overcoming real savings.
+const _MIN_TILE_COST: float = 0.5
 
 # Terrain passability and move costs duplicated here so Pathfinder is self-contained.
 # These must stay in sync with WorldGrid constants.
@@ -57,19 +62,21 @@ const _DIRS: Array = [
 # ── Public API ─────────────────────────────────────────────────────────────────
 
 # Find a path on a WorldGrid instance. move_mask = passability bitmask.
+# avoid_buildings: also treat tiles occupied by a building as impassable (used for
+# civilian pawns so they route around structures instead of clipping through them).
 static func find_path(grid, from_x: int, from_y: int, to_x: int, to_y: int,
-		move_mask: int = PASS_FOOT) -> Array:
+		move_mask: int = PASS_FOOT, avoid_buildings: bool = false) -> Array:
 	if from_x == to_x and from_y == to_y:
 		return []
 	var width: int  = grid.width  if "width"  in grid else 0
 	var height: int = grid.height if "height" in grid else 0
 	if width == 0 or height == 0:
 		return []
-	if not _tile_passable(grid, to_x, to_y, move_mask):
+	var passable: Callable = funcref_passable_grid_nb(grid, move_mask) if avoid_buildings \
+		else funcref_passable_grid(grid, move_mask)
+	if not passable.call(to_x, to_y):
 		return []
-	return _astar(
-		funcref_passable_grid(grid, move_mask), funcref_cost_grid(grid),
-		width, height, from_x, from_y, to_x, to_y)
+	return _astar(passable, funcref_cost_grid(grid), width, height, from_x, from_y, to_x, to_y)
 
 # Small-grid helper for unit tests. grid_dict: {"width","height","tiles":[[int]]}.
 static func find_path_dict(grid_dict: Dictionary, from_x: int, from_y: int,
@@ -133,7 +140,7 @@ static func _astar(passable: Callable, cost: Callable, width: int, height: int,
 				g_score[nkey] = ng
 				parent[nkey] = ckey
 				# f with a tiny tie-breaker that prefers straighter routes.
-				var f: float = ng + _octile(nx, ny, to_x, to_y) * 1.001
+				var f: float = ng + _octile(nx, ny, to_x, to_y) * _MIN_TILE_COST * 1.0008
 				_heap_push(heap, [f, nkey])
 
 	return []  # No path found
@@ -192,6 +199,16 @@ static func _reconstruct(parent: Dictionary, goal_key: int, width: int, start_ke
 
 static func funcref_passable_grid(grid, mask: int) -> Callable:
 	return func(x: int, y: int) -> bool: return _tile_passable(grid, x, y, mask)
+
+# Passable AND not occupied by a solid building (for civilian routing). Walkable
+# "field" tiles (orchards/farms) are allowed so villagers can path among the rows.
+static func funcref_passable_grid_nb(grid, mask: int) -> Callable:
+	return func(x: int, y: int) -> bool:
+		if not _tile_passable(grid, x, y, mask):
+			return false
+		if grid.has_method("get_building_at") and grid.get_building_at(x, y) != 0:
+			return grid.has_method("is_field_at") and grid.is_field_at(x, y)
+		return true
 
 static func funcref_cost_grid(grid) -> Callable:
 	return func(x: int, y: int) -> float: return _tile_cost(grid, x, y)

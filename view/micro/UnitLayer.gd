@@ -21,6 +21,18 @@ var _player_units: Array = []
 var _ai_units: Array = []
 var _selected_unit_id: int = -1
 
+# Smoothed display position (grid coords) per unit id, so troops glide between
+# tiles instead of snapping each sim tick (matches the villager pawns' motion).
+# We MEASURE the real-time interval between a unit's tile-steps and glide at exactly
+# that rate, so the figure is always in motion between tiles (no step-pause-step) and
+# it auto-calibrates across unit speeds, terrain, and game-speed multipliers.
+var _disp: Dictionary = {}        # uid -> smoothed display pos (grid coords)
+var _last_tile: Dictionary = {}   # uid -> the true tile we are gliding toward
+var _step_dt: Dictionary = {}     # uid -> measured seconds between tile steps (EMA)
+var _since: Dictionary = {}       # uid -> seconds since the true tile last changed
+const _SNAP_DIST: float = 3.0     # tiles; beyond this we jump (spawn / teleport)
+const _STEP_DT_DEFAULT: float = 0.4
+
 var _prev_hp: Dictionary = {}
 var _damage_popups: Array = []
 var _hit_flash: Dictionary = {}
@@ -33,12 +45,62 @@ const _DEATH_ANIM_MS: int = 700
 func _ready() -> void:
 	EventBus.simulation_tick.connect(_on_tick)
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	# Units are continuously animated (limbs swing, archers draw, siege arms wind),
 	# so redraw every frame whenever any are present.
 	if not _player_units.is_empty() or not _ai_units.is_empty() \
 			or not _damage_popups.is_empty() or not _death_anims.is_empty():
+		_update_display_positions(delta)
 		queue_redraw()
+
+# Glide each unit's drawn position toward its true tile at the unit's own measured
+# step rate, so movement reads as a continuous walk rather than discrete hops.
+func _update_display_positions(delta: float) -> void:
+	var seen: Dictionary = {}
+	for arr in [_player_units, _ai_units]:
+		for unit in arr:
+			if not (unit is Dictionary):
+				continue
+			var uid: int = unit.get("id", -1)
+			if uid < 0:
+				continue
+			seen[uid] = true
+			var target := Vector2(unit.get("pos_x", 0), unit.get("pos_y", 0))
+			# First sight, or a teleport/respawn — jump straight there.
+			if not _disp.has(uid) or (_disp[uid] as Vector2).distance_to(target) > _SNAP_DIST:
+				_disp[uid] = target
+				_last_tile[uid] = target
+				_step_dt[uid] = _STEP_DT_DEFAULT
+				_since[uid] = 0.0
+				continue
+			# A tile-step just happened: learn how long it took (EMA) and reset the timer.
+			if target != (_last_tile.get(uid, target) as Vector2):
+				var dt: float = maxf(0.05, float(_since.get(uid, _STEP_DT_DEFAULT)))
+				_step_dt[uid] = lerpf(float(_step_dt.get(uid, dt)), dt, 0.5)
+				_last_tile[uid] = target
+				_since[uid] = 0.0
+			else:
+				_since[uid] = float(_since.get(uid, 0.0)) + delta
+			# Glide toward the true tile so we cover the remaining gap over ~one step
+			# interval — always moving, trailing by at most a tile.
+			var d: Vector2 = _disp[uid]
+			var to := target - d
+			var dist := to.length()
+			if dist > 0.0001:
+				var sdt: float = maxf(0.08, float(_step_dt.get(uid, _STEP_DT_DEFAULT)))
+				var move := (delta / sdt)              # tiles this frame (1 tile per step interval)
+				_disp[uid] = d + to / dist * minf(move, dist)
+	# Drop bookkeeping for units that are gone.
+	for k in _disp.keys():
+		if not seen.has(k):
+			_disp.erase(k)
+			_last_tile.erase(k)
+			_step_dt.erase(k)
+			_since.erase(k)
+
+# Smoothed grid position for a unit (falls back to its true tile).
+func _grid_pos(unit: Dictionary) -> Vector2:
+	return _disp.get(unit.get("id", -1), Vector2(unit.get("pos_x", 0), unit.get("pos_y", 0)))
 
 func _on_tick(_tick: int) -> void:
 	if GameState.players.size() > 0:
@@ -47,7 +109,9 @@ func _on_tick(_tick: int) -> void:
 	for fac in GameState.ai_factions:
 		if fac is Dictionary:
 			for unit in fac.get("units", []):
-				if unit is Dictionary and GameState.visibility.has("%d,%d" % [unit.get("pos_x", 0), unit.get("pos_y", 0)]):
+				# Fog of war disabled for now: show all enemy units, not just the
+				# ones standing on a tile the player currently sees.
+				if unit is Dictionary:
 					_ai_units.append(unit)
 
 	var now_ms: int = Time.get_ticks_msec()
@@ -112,10 +176,10 @@ func _draw() -> void:
 		draw_arc(anim["pos"], r, 0.0, TAU, 16, Color(1.0, 0.82, 0.25, alpha), 2.0)
 
 func _draw_unit(unit: Dictionary, is_enemy: bool) -> void:
-	var gx: int = unit.get("pos_x", 0)
-	var gy: int = unit.get("pos_y", 0)
-	var cx: float = (gx - gy) * HALF_W
-	var cy: float = (gx + gy) * HALF_H
+	# Smoothed (eased) position so troops glide between tiles, not snap.
+	var gpos: Vector2 = _grid_pos(unit)
+	var cx: float = (gpos.x - gpos.y) * HALF_W
+	var cy: float = (gpos.x + gpos.y) * HALF_H
 
 	var si: Dictionary = UnitRenderer.get_sprite_info(unit)
 	var alive: bool = si.get("is_alive", false)

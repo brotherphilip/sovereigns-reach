@@ -1,6 +1,8 @@
 extends RefCounted
 # Strategic world map data generator. Pure simulation — zero Node/Godot scene imports.
-# Generates 55 cities, 5 faction territories, MST road network, resource deposits.
+# Generates a procedural biome continent (sea/coast/plains/forest/hills/mountains +
+# rivers), then 55 cities placed on habitable land, 5 faction territories that follow
+# the terrain, an MST road network, and terrain-tied resource deposits.
 
 const MAP_WIDTH:   int = 1600
 const MAP_HEIGHT:  int = 900
@@ -9,9 +11,23 @@ const MIN_DIST:    int = 120
 const CITY_COUNT:  int = 55
 const FACTION_COUNT: int = 5
 
+# Biome grid resolution (each cell ≈ 20×20 px).
+const BIOME_COLS: int = 80
+const BIOME_ROWS: int = 45
+
+# Biome cell types.
+const B_SEA:      int = 0
+const B_COAST:    int = 1
+const B_PLAINS:   int = 2
+const B_FOREST:   int = 3
+const B_HILLS:    int = 4
+const B_MOUNTAIN: int = 5
+const B_RIVER:    int = 6
+
+# Cities may sit on these (habitable land); sea/mountain/river are rejected first.
+const HABITABLE: Array = [B_PLAINS, B_COAST, B_FOREST, B_HILLS]
+
 const RESOURCE_TYPES: Array = ["wood", "stone", "iron", "food"]
-# Distribution weights for resource types
-const RESOURCE_WEIGHTS: Array = [35, 30, 20, 15]
 
 const FACTION_COLORS: Array = [
 	"#c0392b",   # 0 — Crimson Throne
@@ -45,17 +61,21 @@ static func generate(seed_value: int) -> Dictionary:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed_value
 
-	var cities: Array   = _place_cities(rng)
-	var factions: Array = _assign_factions(cities, rng)
-	var roads: Array    = _build_road_network(cities, rng)
-	var deposits: Array = _place_resource_deposits(rng, cities)
+	var biome: Dictionary = _gen_biome(seed_value)
+	var cities: Array      = _place_cities(rng, biome)
+	var factions: Array    = _assign_factions(cities, rng)
+	var roads: Array       = _build_road_network(cities, rng)
+	var territory: PackedByteArray = _build_territory(cities, biome)
+	var deposits: Array    = _place_resource_deposits(rng, cities, biome)
 	_mark_player_start(cities)
 
+	biome["territory"] = territory
 	return {
 		"cities":    cities,
 		"factions":  factions,
 		"roads":     roads,
 		"deposits":  deposits,
+		"biome":     biome,
 		"seed":      seed_value,
 	}
 
@@ -65,67 +85,214 @@ static func serialize(data: Dictionary) -> Dictionary:
 static func deserialize(d: Dictionary) -> Dictionary:
 	return d.duplicate(true)
 
-# ── City placement (Poisson-disc) ─────────────────────────────────────────────
+# ── Biome generation (value-noise continent) ──────────────────────────────────
 
-static func _place_cities(rng: RandomNumberGenerator) -> Array:
-	var usable_w: int = MAP_WIDTH  - MARGIN * 2
-	var usable_h: int = MAP_HEIGHT - MARGIN * 2
-	var cell_size: float = float(MIN_DIST) / sqrt(2.0)
-	var grid_cols: int = ceili(float(usable_w) / cell_size)
-	var grid_rows: int = ceili(float(usable_h) / cell_size)
-	# Sparse grid: cell → city index or -1
-	var grid: Dictionary = {}
+static func _gen_biome(seed_value: int) -> Dictionary:
+	var tiles := PackedByteArray()
+	var elev := PackedFloat32Array()
+	tiles.resize(BIOME_COLS * BIOME_ROWS)
+	elev.resize(BIOME_COLS * BIOME_ROWS)
+	var cx: float = (BIOME_COLS - 1) * 0.5
+	var cy: float = (BIOME_ROWS - 1) * 0.5
+	for gy in range(BIOME_ROWS):
+		for gx in range(BIOME_COLS):
+			# Fractal value noise for the base land/height shape, raised so the
+			# interior is solidly land (the continent must seat all the cities).
+			var e: float = _fbm(float(gx) / 13.0, float(gy) / 13.0, seed_value) + 0.08
+			# Radial falloff sinks only the outer rim into the sea → a broad continent
+			# ringed by ocean.
+			var ndx: float = (gx - cx) / cx
+			var ndy: float = (gy - cy) / cy
+			var edge: float = sqrt(ndx * ndx * 1.05 + ndy * ndy)
+			e -= smoothstep(0.72, 1.32, edge) * 0.55
+			var i: int = gy * BIOME_COLS + gx
+			elev[i] = e
+	# Classify cells from elevation + a moisture field.
+	for gy in range(BIOME_ROWS):
+		for gx in range(BIOME_COLS):
+			var i: int = gy * BIOME_COLS + gx
+			var e: float = elev[i]
+			var b: int
+			if e < 0.32:
+				b = B_SEA
+			elif e > 0.86:
+				b = B_MOUNTAIN
+			elif e > 0.74:
+				b = B_HILLS
+			else:
+				var m: float = _fbm(float(gx) / 8.0 + 40.0, float(gy) / 8.0 - 17.0, seed_value ^ 0x5151)
+				b = B_FOREST if m > 0.56 else B_PLAINS
+			tiles[i] = b
+	# Coastlines: land cells touching the sea become coast.
+	var coast := tiles.duplicate()
+	for gy in range(BIOME_ROWS):
+		for gx in range(BIOME_COLS):
+			var i: int = gy * BIOME_COLS + gx
+			if tiles[i] == B_SEA or tiles[i] == B_MOUNTAIN:
+				continue
+			if _touches_sea(tiles, gx, gy):
+				coast[i] = B_COAST
+	var biome := {
+		"cols": BIOME_COLS, "rows": BIOME_ROWS,
+		"cell_w": float(MAP_WIDTH) / float(BIOME_COLS),
+		"cell_h": float(MAP_HEIGHT) / float(BIOME_ROWS),
+		"tiles": coast,
+		"elev": elev,
+	}
+	_carve_rivers(biome, seed_value)
+	return biome
+
+static func _touches_sea(tiles: PackedByteArray, gx: int, gy: int) -> bool:
+	for dy in range(-1, 2):
+		for dx in range(-1, 2):
+			var nx: int = gx + dx
+			var ny: int = gy + dy
+			if nx < 0 or ny < 0 or nx >= BIOME_COLS or ny >= BIOME_ROWS:
+				continue
+			if tiles[ny * BIOME_COLS + nx] == B_SEA:
+				return true
+	return false
+
+# A few rivers descending from the highest inland cells to the sea.
+static func _carve_rivers(biome: Dictionary, seed_value: int) -> void:
+	var tiles: PackedByteArray = biome["tiles"]
+	var elev: PackedFloat32Array = biome["elev"]
+	var rng := RandomNumberGenerator.new()
+	rng.seed = seed_value ^ 0x71726
+	var sources: int = 4
+	for _s in range(sources):
+		# Start from a random high (mountain/hills) cell.
+		var sx: int = rng.randi_range(BIOME_COLS / 5, BIOME_COLS * 4 / 5)
+		var sy: int = rng.randi_range(BIOME_ROWS / 5, BIOME_ROWS * 4 / 5)
+		var gx: int = sx
+		var gy: int = sy
+		for _step in range(BIOME_COLS + BIOME_ROWS):
+			var i: int = gy * BIOME_COLS + gx
+			if tiles[i] == B_SEA:
+				break
+			if tiles[i] != B_MOUNTAIN:
+				tiles[i] = B_RIVER
+			# Flow to the lowest 8-neighbour.
+			var best_e: float = elev[i]
+			var bx: int = gx
+			var by: int = gy
+			for dy in range(-1, 2):
+				for dx in range(-1, 2):
+					var nx: int = gx + dx
+					var ny: int = gy + dy
+					if nx < 0 or ny < 0 or nx >= BIOME_COLS or ny >= BIOME_ROWS:
+						continue
+					var e: float = elev[ny * BIOME_COLS + nx]
+					if e < best_e:
+						best_e = e
+						bx = nx; by = ny
+			if bx == gx and by == gy:
+				break   # local minimum (lake) — stop
+			gx = bx; gy = by
+
+# ── Value noise ────────────────────────────────────────────────────────────────
+
+static func _hash01(ix: int, iy: int, seed_value: int) -> float:
+	var h: int = (ix * 374761393 + iy * 668265263 + seed_value * 69069) & 0x7fffffff
+	h = ((h ^ (h >> 13)) * 1274126177) & 0x7fffffff
+	return float(h) / 2147483647.0
+
+static func _vnoise(fx: float, fy: float, seed_value: int) -> float:
+	var x0: int = floori(fx)
+	var y0: int = floori(fy)
+	var tx: float = smoothstep(0.0, 1.0, fx - float(x0))
+	var ty: float = smoothstep(0.0, 1.0, fy - float(y0))
+	var a: float = _hash01(x0, y0, seed_value)
+	var b: float = _hash01(x0 + 1, y0, seed_value)
+	var c: float = _hash01(x0, y0 + 1, seed_value)
+	var d: float = _hash01(x0 + 1, y0 + 1, seed_value)
+	return lerpf(lerpf(a, b, tx), lerpf(c, d, tx), ty)
+
+static func _fbm(fx: float, fy: float, seed_value: int) -> float:
+	var total: float = 0.0
+	var amp: float = 0.55
+	var freq: float = 1.0
+	for o in range(4):
+		total += _vnoise(fx * freq, fy * freq, seed_value + o * 1013) * amp
+		freq *= 2.0
+		amp *= 0.5
+	return total
+
+# ── Biome lookup ────────────────────────────────────────────────────────────────
+
+static func biome_at(biome: Dictionary, px: float, py: float) -> int:
+	var gx: int = clampi(int(px / biome["cell_w"]), 0, BIOME_COLS - 1)
+	var gy: int = clampi(int(py / biome["cell_h"]), 0, BIOME_ROWS - 1)
+	return biome["tiles"][gy * BIOME_COLS + gx]
+
+# ── City placement (jittered hex lattice, culled by terrain) ───────────────────
+#
+# 55 cities at MIN_DIST spacing is near the packing limit for this map, so random
+# dart-throwing jams well short. A hexagonal lattice (spacing > MIN_DIST) keeps every
+# pair correctly spaced BY CONSTRUCTION and packs efficiently; we cull points that
+# fall on sea/mountain, lightly jitter the rest, shuffle, and keep CITY_COUNT — the
+# terrain holes plus the dropped surplus make the layout read as an organic continent
+# rather than a uniform grid, while always reaching the full count.
+static func _place_cities(rng: RandomNumberGenerator, biome: Dictionary) -> Array:
+	const SPACING: float = 126.0          # > MIN_DIST so neighbours never crowd
+	const JITTER: float = 3.0             # min pair stays SPACING - 2*JITTER = 120
+	var row_h: float = SPACING * sqrt(3.0) * 0.5
+	var on_land: Array = []               # habitable lattice points
+	var on_fringe: Array = []             # river/other non-sea, non-mountain points
+	var row: int = 0
+	var y: float = float(MARGIN) + row_h * 0.5
+	while y <= MAP_HEIGHT - MARGIN:
+		var x: float = float(MARGIN) + (SPACING * 0.5 if (row % 2) == 1 else 0.0)
+		while x <= MAP_WIDTH - MARGIN:
+			var px: float = clampf(x + rng.randf_range(-JITTER, JITTER), MARGIN, MAP_WIDTH - MARGIN)
+			var py: float = clampf(y + rng.randf_range(-JITTER, JITTER), MARGIN, MAP_HEIGHT - MARGIN)
+			var b: int = biome_at(biome, px, py)
+			if b in HABITABLE:
+				on_land.append(Vector2(px, py))
+			elif b != B_SEA and b != B_MOUNTAIN:
+				on_fringe.append(Vector2(px, py))
+			x += SPACING
+		y += row_h
+		row += 1
+
+	_shuffle(on_land, rng)
+	_shuffle(on_fringe, rng)
+	var chosen: Array = on_land.slice(0, CITY_COUNT)
+	# Top up from river banks etc. if habitable land alone fell short.
+	var k: int = 0
+	while chosen.size() < CITY_COUNT and k < on_fringe.size():
+		chosen.append(on_fringe[k])
+		k += 1
 
 	var cities: Array = []
-	# Use generous attempt budget — Poisson-disc reliably fills 55 cities in this area
-	_try_place_pass(rng, cities, grid, grid_cols, grid_rows,
-	                cell_size, usable_w, usable_h, MIN_DIST)
-
-	# Assign names (cycle if overflow)
-	for i in range(cities.size()):
-		cities[i]["name"] = CITY_NAMES[i % CITY_NAMES.size()]
-		cities[i]["id"]   = i
+	for i in range(mini(chosen.size(), CITY_COUNT)):
+		var p: Vector2 = chosen[i]
+		cities.append({
+			"id": i, "name": CITY_NAMES[i % CITY_NAMES.size()],
+			"pos_x": p.x, "pos_y": p.y,
+			"faction_id": -1, "is_capital": false, "is_player_start": false,
+			"population": rng.randi_range(200, 2000),
+			"troop_count": rng.randi_range(0, 80),
+			"tier": rng.randi_range(0, 3),
+			"connected_to": [],
+		})
 	return cities
 
-static func _try_place_pass(rng, cities, grid, grid_cols, grid_rows, cell_size,
-                             usable_w, usable_h, min_dist) -> bool:
-	for _attempt in range(CITY_COUNT * 80):
-		if cities.size() >= CITY_COUNT:
-			return true
-		var px: float = MARGIN + rng.randf() * usable_w
-		var py: float = MARGIN + rng.randf() * usable_h
-		if _is_valid_position(px, py, cities, grid, grid_cols, cell_size, min_dist):
-			var city: Dictionary = {
-				"id": -1, "name": "", "pos_x": px, "pos_y": py,
-				"faction_id": -1, "is_capital": false, "is_player_start": false,
-				"population": rng.randi_range(200, 2000),
-				"troop_count": rng.randi_range(0, 80),
-				"tier": rng.randi_range(0, 3),
-				"connected_to": [],
-			}
-			var cx_cell: int = int((px - MARGIN) / cell_size)
-			var cy_cell: int = int((py - MARGIN) / cell_size)
-			grid[cx_cell * grid_rows + cy_cell] = cities.size()
-			cities.append(city)
-	return cities.size() >= CITY_COUNT
+# Deterministic Fisher–Yates shuffle (seeded rng → reproducible layouts).
+static func _shuffle(arr: Array, rng: RandomNumberGenerator) -> void:
+	for i in range(arr.size() - 1, 0, -1):
+		var j: int = rng.randi_range(0, i)
+		var tmp = arr[i]
+		arr[i] = arr[j]
+		arr[j] = tmp
 
-static func _is_valid_position(px: float, py: float, cities: Array, grid: Dictionary,
-                                 grid_rows: int, cell_size: float, min_dist: int) -> bool:
-	for other in cities:
-		var dx: float = px - other["pos_x"]
-		var dy: float = py - other["pos_y"]
-		if dx * dx + dy * dy < min_dist * min_dist:
-			return false
-	return true
-
-# ── Faction assignment ────────────────────────────────────────────────────────
+# ── Faction assignment (k-means++ capitals + Voronoi) ──────────────────────────
 
 static func _assign_factions(cities: Array, rng: RandomNumberGenerator) -> Array:
 	var n: int = cities.size()
 	if n == 0:
 		return []
 
-	# k-means++ capital selection
 	var capital_indices: Array = []
 	capital_indices.append(rng.randi_range(0, n - 1))
 	for _f in range(FACTION_COUNT - 1):
@@ -144,13 +311,11 @@ static func _assign_factions(cities: Array, rng: RandomNumberGenerator) -> Array
 				best_idx  = i
 		capital_indices.append(best_idx)
 
-	# Mark capitals
 	for fi in range(capital_indices.size()):
 		cities[capital_indices[fi]]["is_capital"]  = true
 		cities[capital_indices[fi]]["faction_id"]  = fi
-		cities[capital_indices[fi]]["tier"]        = 3  # capitals are tier 3
+		cities[capital_indices[fi]]["tier"]        = 3
 
-	# Voronoi assignment for remaining cities
 	for i in range(n):
 		if cities[i]["is_capital"]: continue
 		var best_fi: int   = 0
@@ -165,7 +330,6 @@ static func _assign_factions(cities: Array, rng: RandomNumberGenerator) -> Array
 				best_fi = fi
 		cities[i]["faction_id"] = best_fi
 
-	# Build faction records
 	var factions: Array = []
 	for fi in range(FACTION_COUNT):
 		var city_ids: Array = []
@@ -181,10 +345,37 @@ static func _assign_factions(cities: Array, rng: RandomNumberGenerator) -> Array
 		})
 	return factions
 
+# Per-biome-cell faction ownership (faction_id+1; 0 = neutral/sea/mountain), assigned
+# to the nearest city's faction so territory borders follow the organic city spread.
+static func _build_territory(cities: Array, biome: Dictionary) -> PackedByteArray:
+	var terr := PackedByteArray()
+	terr.resize(BIOME_COLS * BIOME_ROWS)
+	var tiles: PackedByteArray = biome["tiles"]
+	var cw: float = biome["cell_w"]
+	var ch: float = biome["cell_h"]
+	for gy in range(BIOME_ROWS):
+		for gx in range(BIOME_COLS):
+			var i: int = gy * BIOME_COLS + gx
+			if tiles[i] == B_SEA or tiles[i] == B_MOUNTAIN:
+				terr[i] = 0
+				continue
+			var px: float = (gx + 0.5) * cw
+			var py: float = (gy + 0.5) * ch
+			var best_d: float = INF
+			var best_f: int = 0
+			for c in cities:
+				var dx: float = px - c["pos_x"]
+				var dy: float = py - c["pos_y"]
+				var d: float = dx * dx + dy * dy
+				if d < best_d:
+					best_d = d
+					best_f = int(c["faction_id"])
+			terr[i] = best_f + 1
+	return terr
+
 # ── Player start ──────────────────────────────────────────────────────────────
 
 static func _mark_player_start(cities: Array) -> void:
-	# Player starts at the faction capital nearest to map center
 	var cx: float = MAP_WIDTH  * 0.5
 	var cy: float = MAP_HEIGHT * 0.5
 	var best_idx: int   = 0
@@ -197,7 +388,8 @@ static func _mark_player_start(cities: Array) -> void:
 		if d < best_d:
 			best_d   = d
 			best_idx = i
-	cities[best_idx]["is_player_start"] = true
+	if not cities.is_empty():
+		cities[best_idx]["is_player_start"] = true
 
 # ── Road network (Prim's MST + extra edges) ───────────────────────────────────
 
@@ -206,7 +398,6 @@ static func _build_road_network(cities: Array, rng: RandomNumberGenerator) -> Ar
 	if n < 2:
 		return []
 
-	# Prim's MST
 	var in_tree: Array = []
 	var roads: Array   = []
 	in_tree.resize(n)
@@ -235,15 +426,12 @@ static func _build_road_network(cities: Array, rng: RandomNumberGenerator) -> Ar
 		cities[best_u]["connected_to"].append(best_v)
 		cities[best_v]["connected_to"].append(best_u)
 
-	# Add ~25 extra short edges for network redundancy
-	# Build degree array
 	var degree: Array = []
 	degree.resize(n); degree.fill(0)
 	for r in roads:
 		degree[r["from_id"]] += 1
 		degree[r["to_id"]]   += 1
 
-	# Collect candidate short pairs not already in MST
 	var added_pairs: Dictionary = {}
 	for r in roads:
 		added_pairs[_road_key(r["from_id"], r["to_id"])] = true
@@ -275,20 +463,28 @@ static func _road_key(a: int, b: int) -> String:
 	var hi: int = maxi(a, b)
 	return "%d_%d" % [lo, hi]
 
-# ── Resource deposits ─────────────────────────────────────────────────────────
+# ── Resource deposits (tied to biome) ──────────────────────────────────────────
 
-static func _place_resource_deposits(rng: RandomNumberGenerator, cities: Array) -> Array:
+static func _place_resource_deposits(rng: RandomNumberGenerator, cities: Array, biome: Dictionary) -> Array:
 	var deposits: Array = []
 	var half_min: float = MIN_DIST * 0.5
-	var target: int = rng.randi_range(80, 120)
+	var target: int = rng.randi_range(95, 130)
 	var attempts: int = 0
 
-	while deposits.size() < target and attempts < target * 30:
+	while deposits.size() < target and attempts < target * 60:
 		attempts += 1
 		var px: float = MARGIN + rng.randf() * (MAP_WIDTH  - MARGIN * 2)
 		var py: float = MARGIN + rng.randf() * (MAP_HEIGHT - MARGIN * 2)
-
-		# Must be at least half_min from any city
+		# Resource type follows the land: forests give wood, hills/mountains stone &
+		# iron, plains food. Sea/coast/river carry no deposit.
+		var b: int = biome_at(biome, px, py)
+		var rtype: String = ""
+		match b:
+			B_FOREST:   rtype = "wood"
+			B_HILLS:    rtype = "stone" if rng.randf() < 0.6 else "iron"
+			B_MOUNTAIN: rtype = "iron" if rng.randf() < 0.6 else "stone"
+			B_PLAINS:   rtype = "food"
+			_:          continue
 		var too_close: bool = false
 		for c in cities:
 			var dx: float = px - c["pos_x"]
@@ -297,18 +493,6 @@ static func _place_resource_deposits(rng: RandomNumberGenerator, cities: Array) 
 				too_close = true
 				break
 		if too_close: continue
-
-		# Weighted type selection
-		var rtype: String = _weighted_resource(rng)
 		deposits.append({"pos_x": px, "pos_y": py, "type": rtype})
 
 	return deposits
-
-static func _weighted_resource(rng: RandomNumberGenerator) -> String:
-	var roll: int = rng.randi_range(0, 99)
-	var acc: int  = 0
-	for i in range(RESOURCE_WEIGHTS.size()):
-		acc += RESOURCE_WEIGHTS[i]
-		if roll < acc:
-			return RESOURCE_TYPES[i]
-	return RESOURCE_TYPES[0]

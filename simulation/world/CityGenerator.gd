@@ -33,6 +33,11 @@ const SEQUENCE: Array = [
 
 const GRASS: int = 0
 const VALLEY: int = 7
+const ROAD: int = 9
+
+# Empty-tile gap reserved around each town building (matches the player's placement
+# rule) so AI towns aren't a solid block — paths run through the gaps.
+const TOWN_GAP: int = 2
 
 # Defensive wall ring appears from development 5. Radius scales the town size.
 const RING_RADIUS: int = 9
@@ -64,7 +69,8 @@ static func generate(center_x: int, center_y: int, grid, seed_val: int) -> Array
 		var spot: Vector2i = _find_spot(center_x, center_y, w, h, grid, occupied)
 		if spot.x == -2147483648:
 			continue  # no room — consistently dropped for this seed/grid
-		_mark(occupied, spot.x, spot.y, w, h)
+		# Reserve the footprint PLUS a one-tile gap so town buildings keep their spacing.
+		_mark(occupied, spot.x - TOWN_GAP, spot.y - TOWN_GAP, w + 2 * TOWN_GAP, h + 2 * TOWN_GAP)
 		candidates.append({
 			"type": btype, "gx": spot.x, "gy": spot.y,
 			"min_dev": min_dev, "w": w, "h": h,
@@ -88,9 +94,13 @@ static func building_dicts(center_x: int, center_y: int, grid, seed_val: int,
 	if prev_dev < 0:
 		prev_dev = dev  # first generation: everything already standing
 	var candidates: Array = generate(center_x, center_y, grid, seed_val)
+	var visible: Array = visible_buildings(candidates, dev)
+	# Pave the path network only between buildings that ACTUALLY EXIST at this
+	# development — so the town never shows roads running to bare future plots.
+	_lay_paths(center_x, center_y, visible, grid)
 	var buildings: Array = []
 	var nid: int = next_id
-	for c in visible_buildings(candidates, dev):
+	for c in visible:
 		var b: Dictionary = BuildingState.create(c["type"], owner_id, c["gx"], c["gy"], nid)
 		if b.is_empty():
 			continue
@@ -148,6 +158,97 @@ static func _mark(occupied: Dictionary, x: int, y: int, w: int, h: int) -> void:
 	for dy in range(h):
 		for dx in range(w):
 			occupied["%d,%d" % [x + dx, y + dy]] = true
+
+# Carve a ROAD network for the buildings that exist at this development. Rather than a
+# separate spoke per building, each building links to the NEAREST tile already on the
+# network with a single straight-then-bent track that stops the moment it joins an
+# existing road — so branches merge into T-junctions/crossroads and the town isn't
+# carpeted in roads. Only open grass/valley is paved; footprints are never crossed.
+static func _lay_paths(cx: int, cy: int, visible: Array, grid) -> void:
+	if grid == null or visible.is_empty():
+		return
+	var footprints: Dictionary = {}
+	for c in visible:
+		for dy in range(int(c["h"])):
+			for dx in range(int(c["w"])):
+				footprints["%d,%d" % [int(c["gx"]) + dx, int(c["gy"]) + dy]] = true
+	# Connection nodes: each real building (walls/towers excluded), nearest-first so the
+	# trunk forms before the branches.
+	var nodes: Array = []
+	for c in visible:
+		var d: Dictionary = BuildingRegistry.lookup(c["type"])
+		if d.get("is_wall", false) or d.get("is_tower", false):
+			continue
+		nodes.append(Vector2i(int(c["gx"]) + int(c["w"]) / 2, int(c["gy"]) + int(c["h"]) / 2))
+	nodes.sort_custom(func(a, b):
+		return absi(a.x - cx) + absi(a.y - cy) < absi(b.x - cx) + absi(b.y - cy))
+	# The town centre seeds the network.
+	var road_tiles: Dictionary = {"%d,%d" % [cx, cy]: true}
+	for node in nodes:
+		var target: Vector2i = _nearest_road(node, road_tiles, cx, cy)
+		_carve_to_network(node, target, grid, footprints, road_tiles)
+
+# The road tile (or the centre) closest to `node`, so a new building joins the network
+# by the shortest branch instead of running its own road all the way to the centre.
+static func _nearest_road(node: Vector2i, road_tiles: Dictionary, cx: int, cy: int) -> Vector2i:
+	var best := Vector2i(cx, cy)
+	var best_d: int = 1 << 30
+	for key in road_tiles:
+		var parts: PackedStringArray = key.split(",")
+		var rx: int = int(parts[0])
+		var ry: int = int(parts[1])
+		var d: int = absi(node.x - rx) + absi(node.y - ry)
+		if d < best_d:
+			best_d = d
+			best = Vector2i(rx, ry)
+	return best
+
+# Lay a single L-shaped track from a building to its target, choosing the bend
+# orientation that crosses the fewest footprints, and stopping as soon as it meets an
+# existing road (a clean junction) so roads share trunks instead of stacking up.
+static func _carve_to_network(from: Vector2i, target: Vector2i, grid, footprints: Dictionary, road_tiles: Dictionary) -> void:
+	var horiz := _l_tiles(from, target, true)
+	var vert := _l_tiles(from, target, false)
+	var pts: Array = horiz if _footprint_hits(horiz, footprints) <= _footprint_hits(vert, footprints) else vert
+	for p in pts:
+		var key: String = "%d,%d" % [p.x, p.y]
+		if road_tiles.has(key) or (grid.in_bounds(p.x, p.y) and grid.get_terrain(p.x, p.y) == ROAD):
+			road_tiles[key] = true
+			return  # joined the existing network — T-junction / crossroad
+		if _paint_road(p.x, p.y, grid, footprints):
+			road_tiles[key] = true
+
+# Tiles along an L-path from a→b (excludes a), one bend; horiz_first picks which leg.
+static func _l_tiles(a: Vector2i, b: Vector2i, horiz_first: bool) -> Array:
+	var pts: Array = []
+	var x: int = a.x
+	var y: int = a.y
+	if horiz_first:
+		while x != b.x: x += signi(b.x - x); pts.append(Vector2i(x, y))
+		while y != b.y: y += signi(b.y - y); pts.append(Vector2i(x, y))
+	else:
+		while y != b.y: y += signi(b.y - y); pts.append(Vector2i(x, y))
+		while x != b.x: x += signi(b.x - x); pts.append(Vector2i(x, y))
+	return pts
+
+static func _footprint_hits(pts: Array, footprints: Dictionary) -> int:
+	var n: int = 0
+	for p in pts:
+		if footprints.has("%d,%d" % [p.x, p.y]):
+			n += 1
+	return n
+
+# Paints one ROAD tile; returns true if it actually paved open grass/valley.
+static func _paint_road(x: int, y: int, grid, footprints: Dictionary) -> bool:
+	if not grid.in_bounds(x, y):
+		return false
+	if footprints.has("%d,%d" % [x, y]):
+		return false
+	var t: int = grid.get_terrain(x, y)
+	if t == GRASS or t == VALLEY:
+		grid.set_terrain(x, y, ROAD)
+		return true
+	return false
 
 # Square palisade ring at RING_RADIUS, a gatehouse at the south edge, lookout
 # towers at the corners, and great towers just outside the corners at high dev.
