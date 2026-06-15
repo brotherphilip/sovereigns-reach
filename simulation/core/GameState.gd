@@ -1035,7 +1035,7 @@ func apply_command(command: Dictionary) -> void:
 
 # Phase 2: economy + weather tick
 func simulate_tick(tick: int) -> void:
-	var weather_event: Dictionary = WeatherSystem.tick(weather, _weather_rng)
+	var weather_event: Dictionary = WeatherSystem.tick(weather, _weather_rng, SeasonSystem.season_at_tick(tick))
 	if not weather_event.is_empty():
 		EventBus.weather_changed.emit(
 			WeatherSystem.weather_name(weather_event["new_weather"]),

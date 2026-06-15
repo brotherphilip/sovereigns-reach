@@ -58,7 +58,7 @@ const WEATHER_EFFECTS: Dictionary = {
 	},
 	WeatherType.SNOW:    {
 		"movement_penalty": 0.5, "farm_yield_mult": 0.0,
-		"food_drain": 2.0, "popularity_delta": -5,  # Snow drains food (GDD §1.1.3)
+		"food_drain": 1.0, "popularity_delta": -5,  # Snow drains food (GDD §1.1.3)
 		"fog_army_ui": false, "fire_risk": 0.0,
 	},
 	WeatherType.FOG:     {
@@ -86,13 +86,18 @@ static func make_state(rng: RandomNumberGenerator = null) -> Dictionary:
 
 # Advance weather by one tick. Returns a weather_changed event dict if
 # the weather transitioned, or empty dict if no change.
-static func tick(weather: Dictionary, rng: RandomNumberGenerator) -> Dictionary:
+# `season` (0=spring..3=winter, -1=unknown) keeps weather plausible: snow only falls
+# in winter. Out of winter a rolled snowfall becomes rain instead — no more summer
+# blizzards wiping a young village's stores.
+static func tick(weather: Dictionary, rng: RandomNumberGenerator, season: int = -1) -> Dictionary:
 	weather["ticks_remaining"] -= 1
 	if weather["ticks_remaining"] > 0:
 		return {}
-	return _transition(weather, rng)
+	return _transition(weather, rng, season)
 
-static func _transition(weather: Dictionary, rng: RandomNumberGenerator) -> Dictionary:
+const _SEASON_WINTER: int = 3   # SeasonSystem.Season.WINTER
+
+static func _transition(weather: Dictionary, rng: RandomNumberGenerator, season: int = -1) -> Dictionary:
 	var current: int = weather["current"]
 	var transitions: Dictionary = WEATHER_TRANSITIONS.get(current, {})
 
@@ -108,6 +113,10 @@ static func _transition(weather: Dictionary, rng: RandomNumberGenerator) -> Dict
 		if roll < cumulative:
 			next_weather = weather_type
 			break
+
+	# Snow only in winter — elsewhere it falls as rain (no out-of-season blizzards).
+	if next_weather == WeatherType.SNOW and season != -1 and season != _SEASON_WINTER:
+		next_weather = WeatherType.RAIN
 
 	var durations: Dictionary = WEATHER_DURATIONS.get(next_weather, {"min": 3, "max": 5})
 	var days: int = rng.randi_range(durations["min"], durations["max"])

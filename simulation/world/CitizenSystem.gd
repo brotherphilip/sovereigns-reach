@@ -544,6 +544,14 @@ static func _tick_citizen(c: Dictionary, buildings: Array, citizens: Array,
 				b["build_progress"] = float(b.get("build_progress", 0.0)) + BUILD_RATE
 				if b["build_progress"] >= float(b.get("build_required", 1.0)):
 					b["built"] = true
+					# Auto-staff a freshly finished workplace to full strength so it
+					# actually produces. New buildings default to 0 assigned workers,
+					# and both production and _reconcile_workers gate on workers>0 — so
+					# a player who builds (e.g.) an orchard and doesn't manually open it
+					# to add workers would get ZERO food and starve. They can still dial
+					# workers down via the selection panel to reallocate labour.
+					if int(b.get("workers", 0)) == 0 and WorkerJobs.employs_workers(b.get("type", "")):
+						b["workers"] = int(BuildingRegistry.lookup(b.get("type", "")).get("max_workers", 0))
 		STATE_WORK:
 			c["vx"] = 0.0; c["vy"] = 0.0
 			var wb := _find(buildings, c.get("job", -1))

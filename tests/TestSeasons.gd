@@ -67,8 +67,33 @@ func _test_harvest_windows() -> void:
 
 func _test_resourcetick_gating() -> void:
 	print("\n[ResourceTick seasonal gating]")
-	ok("orchard yields apples in autumn", _yield_in_season("apple_orchard", SeasonSystem.Season.AUTUMN, "apples") > 0)
-	ok("orchard yields nothing in winter", _yield_in_season("apple_orchard", SeasonSystem.Season.WINTER, "apples") == 0)
-	ok("orchard yields nothing in spring", _yield_in_season("apple_orchard", SeasonSystem.Season.SPRING, "apples") == 0)
+	var autumn_apples: int = _yield_in_season("apple_orchard", SeasonSystem.Season.AUTUMN, "apples")
+	ok("orchard yields full apples in autumn", autumn_apples > 0)
+	# The no-tech staple must feed the village year-round, so off-season is a reduced
+	# trickle (NOT zero — that caused guaranteed early starvation), with autumn the bumper.
+	var winter_apples: int = _yield_in_season("apple_orchard", SeasonSystem.Season.WINTER, "apples")
+	var spring_apples: int = _yield_in_season("apple_orchard", SeasonSystem.Season.SPRING, "apples")
+	ok("orchard yields a winter trickle (>0, < autumn)", winter_apples > 0 and winter_apples < autumn_apples)
+	ok("orchard yields a spring trickle (>0, < autumn)", spring_apples > 0 and spring_apples < autumn_apples)
 	ok("pig farm yields meat year-round (winter)", _yield_in_season("pig_farm", SeasonSystem.Season.WINTER, "meat") > 0)
 	ok("woodcutter unaffected by season (winter)", _yield_in_season("woodcutter_camp", SeasonSystem.Season.WINTER, "wood") > 0)
+	_test_snow_is_winter_only()
+
+func _test_snow_is_winter_only() -> void:
+	print("\n[Snow only falls in winter]")
+	const WeatherSystem = preload("res://simulation/world/WeatherSystem.gd")
+	# Force a state that always rolls snow next, then transition in each season.
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 12345
+	var saw_snow_out_of_winter := false
+	var saw_snow_in_winter := false
+	for season in range(4):
+		for _i in range(60):
+			var w := {"current": WeatherSystem.WeatherType.SNOW, "ticks_remaining": 0,
+				"duration_ticks": 0, "effects": {}, "is_army_ui_hidden": false}
+			WeatherSystem.tick(w, rng, season)
+			if int(w["current"]) == WeatherSystem.WeatherType.SNOW:
+				if season == SeasonSystem.Season.WINTER: saw_snow_in_winter = true
+				else: saw_snow_out_of_winter = true
+	ok("snow never falls outside winter", not saw_snow_out_of_winter)
+	ok("snow can still fall in winter", saw_snow_in_winter)

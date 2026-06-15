@@ -26,6 +26,58 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 3 — 2026-06-16  ⭐ 20-MINUTE GOAL REACHED (managed game)
+
+### What I did
+With pause/resume fixed, I drove a disciplined *managed-economy probe* (place hall+orchard+granary
+via real commands, run 100 game-days, log the trajectory) to find why even a managed game starves.
+Peeling the onion uncovered a **chain of three real bugs/flaws**, each hidden behind the previous:
+
+1. **[BUG] New buildings are never staffed.** A freshly-built workplace defaults to
+   `workers = 0`, and BOTH production (`ResourceTick`) and worker assignment
+   (`CitizenSystem._reconcile_workers`) gate on `workers > 0`. So a player who builds an orchard
+   and doesn't manually open it and click "+worker" gets **zero production → starves**. Auto-staffing
+   was simply never wired for the player (the genre default is to auto-staff from the peasant pool).
+2. **[BUG] The no-tech staple produces nothing 3 seasons of 4.** `apple_orchard` — commented as
+   *"the no-tech staple — must feed the early village"* — only yields in **autumn**.
+   `harvest_yield_mult`'s own comment promised *"a small trickle off-season"*, but the code returned
+   **0.0**. So spring+summer (days 0–23, before the first autumn) had zero food production; the
+   starting buffer drains at ~7/day and is gone by ~day 28 → starvation every game.
+3. **[BUG/SENSE] Out-of-season blizzards wipe young villages.** Weather wasn't season-gated, so
+   **SNOW struck in autumn** (and any season). SNOW = `food_drain 2.0/peasant` (5× total
+   consumption) + zero farm yield + −5 popularity/day, lasting up to 7 days. For 14 pop that's
+   −35 food/day — a single early snowfall drains the entire 200 buffer. Nonsensical (summer snow)
+   *and* lethal.
+
+### Changes made this iteration
+- **CitizenSystem** (build completion): auto-staff a finished workplace to its `max_workers`
+  (only if it employs workers and is still at 0). Player can still dial workers down to reallocate.
+- **SeasonSystem.harvest_yield_mult**: off-season now returns a real **0.6 trickle** (was 0.0),
+  honouring its own comment — the staple feeds the village year-round; autumn is still the bumper.
+- **WeatherSystem + GameState**: weather is now season-aware — **snow only falls in winter**
+  (a rolled snowfall out of winter becomes rain), and SNOW `food_drain 2.0 → 1.0` (still a real
+  winter squeeze, no longer instant death). `WeatherSystem.tick` gained an optional `season` arg
+  (back-compatible; GameState passes `SeasonSystem.season_at_tick(tick)`).
+- **TestSeasons**: updated the two off-season assertions to expect the trickle (>0, < autumn) and
+  added a new test that snow only falls in winter. Full suite green (22 suites).
+
+### Result (managed-economy probe, 100 game-days)
+Build **hall + 1 orchard + granary** → village now **survives all 100 days (20 min)**: food holds
+153–193/200, popularity *climbs* 51 → 59, zero starvation. **The 20-minute goal is reachable in a
+managed game for the first time.** (Unmanaged still dies ~day 56 — you must build food, which is
+correct.)
+
+### Backlog / next
+- **Validate with REAL clicks**: the probe proves the sim; next do a human playthrough confirming the
+  same survival via the actual UI (Xvfb flakiness on rapid relaunch cost time this round — launch once
+  and keep alive).
+- **Worker labour cap**: auto-staff sets `workers=max` even if villagers are scarce; production uses
+  the assigned count, so many buildings could out-produce the actual workforce. Add a global labour
+  cap so you can't staff more slots than you have idle villagers. (Backlog — not an early-game blocker.)
+- Winter survival at scale: 12-day winters with no production + higher drain need real autumn
+  stockpiling (multiple orchards/granaries). Verify the curve holds once population grows.
+- Health still 25 from day 1 (malnutrition, from iter-1). Build-mode still eats HUD clicks (iter-2).
+
 ## Iteration 2 — 2026-06-16
 
 ### What happened when I played

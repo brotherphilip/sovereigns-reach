@@ -64,14 +64,19 @@ static func is_harvest_time(building_type: String, season: int) -> bool:
 		return true
 	return season in windows
 
-# Yield multiplier for a producer given the season: 1.0 in-window, a small trickle
-# off-season (so storehouses don't read as totally dead, but the bulk comes at
-# harvest). Year-round producers are unaffected (1.0).
+# Yield multiplier for a producer given the season: 1.0 in-window, a real trickle
+# off-season (so the no-tech orchard — "must feed the early village" — still yields
+# something in spring/summer instead of nothing, and the bulk still comes at harvest).
+# Year-round producers (not in the table) are unaffected (1.0).
+# NOTE: this used to return 0.0 off-season, which made the only no-tech food building
+# produce nothing for 3 of every 4 seasons → guaranteed early starvation. The trickle
+# is what the comment always promised; harvest seasons remain the bumper crop.
+const OFF_SEASON_YIELD_MULT: float = 0.6
 static func harvest_yield_mult(building_type: String, season: int) -> float:
 	var windows: Array = HARVEST_SEASONS.get(building_type, [])
 	if windows.is_empty():
 		return 1.0
-	return 1.0 if season in windows else 0.0
+	return 1.0 if season in windows else OFF_SEASON_YIELD_MULT
 
 # Orchard/crop growth stage (0..3) for a season, used by the building art:
 #   WINTER → 0 BARE, SPRING → 1 BUDDING, SUMMER → 2 LEAFY, AUTUMN → 3 FRUITING.
