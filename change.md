@@ -26,6 +26,39 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 8 — 2026-06-16  (longer real playthrough → diplomacy that makes sense)
+
+### Played (real clicks) — the LATE game I'd never reached
+Built a real economy through the UI (Hall + **2 orchards** + Granary), declined a Knight Errant
+decree (auto-pause held the moment), and fast-forwarded past the King's Peace to **Day 39**. Findings:
+- **Survival is genuinely solid in real play.** By Day 39 the realm was *thriving*: Food capped at
+  **200/200** (two buffed orchards over-feed it), Gold 560, Prestige 440, Health 50, no starvation.
+  The 20-minute economy works hands-on, not just in the probe.
+- **[MAKES-NO-SENSE BUG] Tribute is unpayable.** At Day 39 the Ashen Barony demanded **25 ale**
+  ("Lord Malakor's patience wears thin. Pay, or face Highwatch's wrath", Threat 100/100). But ale is
+  locked behind crop_tiers → hops_farm → brewery — unreachable for a young realm. So **every early/
+  mid tribute is literally unpayable → a forced refuse every 14 days** (−popularity, +threat,
+  embargo). A demand you can never satisfy is a tax, not a decision.
+- **[UX] No warning when the grace ends.** The King's Peace silently expires (~day 30) and rivals can
+  march, but the player gets no signal to prepare.
+
+### Changes made this iteration
+- **AshenBarony**: tribute now demanded in **gold (60×scale) + iron (25×scale)** — things a young
+  realm actually has — instead of ale. Now you can *choose* to pay or refuse.
+- **DiplomacySystem.accept**: handle `gold` (it only deducted food/resources before, so a gold tribute
+  wouldn't have been paid). Verified: a demand of 30 gold + 12 iron deducts both (500→470, 50→38).
+- **GameState**: emit a `realm_notice` telegraph the day the King's Peace ends — "⚔ The King's Peace
+  has ended — rival lords may now march… Raise walls and a garrison." Fair warning before war.
+  (Verified firing at day 30.)
+- Full suite green; tribute tests (TestPhase6/10) still pass; no stale refs to the old constant.
+
+### Backlog / next
+- Visible objective/goal tracker (milestones are transient) — give the player standing direction.
+- Military onboarding: the tutorial never mentions defence; after the Peace ends a new player has no
+  army. Consider a hint to build a barracks/wall, or a gentle first-raid.
+- Food over-caps at 200 with 2 buffed orchards (build more granaries to stockpile) — minor, by design.
+- Worker labour cap; build-mode eats HUD clicks.
+
 ## Iteration 7 — 2026-06-16  (decision polish + more content; harness fixed; LIVE verified)
 
 ### Harness breakthrough

@@ -11,11 +11,15 @@ const UnitRegistry = preload("res://simulation/units/UnitRegistry.gd")
 const CombatSystem = preload("res://simulation/combat/CombatSystem.gd")
 
 const CAPITAL_NAME: String = "Highwatch"
-const DEMAND_RESOURCE_1: String = "ale"
+# Tribute is demanded in coin and iron — things a young realm actually HAS. (It used
+# to demand ale, which is locked behind crop_tiers→hops_farm→brewery, so every early
+# demand was literally unpayable and forced a refuse every time. A tribute you can
+# choose to pay or refuse is a real decision; one you can never pay is just a tax.)
+const DEMAND_RESOURCE_1: String = "gold"
 const DEMAND_RESOURCE_2: String = "iron"
 const DEMAND_COOLDOWN_DAYS: int = 14    # days between tribute demands
-const TRIBUTE_ALE_AMOUNT: int   = 50
-const TRIBUTE_IRON_AMOUNT: int  = 30
+const TRIBUTE_GOLD_AMOUNT: int  = 60
+const TRIBUTE_IRON_AMOUNT: int  = 25
 
 # GDD §8.4: flanks with trebuchets, boiling oil, then heavy infantry
 const ARMY_WEIGHTS: Dictionary = {
@@ -91,7 +95,7 @@ static func _send_demands(faction: Dictionary, players: Array, tick: int) -> voi
 		if not (p is Dictionary and p.get("is_alive", false)):
 			continue
 		var scale: float = clampf(AIFaction.assess_player_strength(p) / 50.0, 0.5, 3.0)
-		AIFaction.send_tribute_demand(faction, p.get("id", -1), DEMAND_RESOURCE_1, int(TRIBUTE_ALE_AMOUNT * scale), deadline)
+		AIFaction.send_tribute_demand(faction, p.get("id", -1), DEMAND_RESOURCE_1, int(TRIBUTE_GOLD_AMOUNT * scale), deadline)
 		AIFaction.send_tribute_demand(faction, p.get("id", -1), DEMAND_RESOURCE_2, int(TRIBUTE_IRON_AMOUNT * scale), deadline)
 	faction["last_demand_day"] = faction.get("days_alive", 0)
 

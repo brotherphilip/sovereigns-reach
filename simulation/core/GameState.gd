@@ -1118,6 +1118,13 @@ func simulate_tick(tick: int) -> void:
 		if spectator_mode:
 			_auto_manage_ai_town()
 
+		# Telegraph the end of the establishment grace (King's Peace) so the player has
+		# fair warning to raise defences before rival lords are free to march on them.
+		if not spectator_mode and day == AIFaction.PLAYER_GRACE_DAYS:
+			EventBus.realm_notice.emit(
+				"⚔ The King's Peace has ended — rival lords may now march on your realm. Raise walls and a garrison while you can.",
+				"bad")
+
 		# Realm events: a flavourful daily happening (merchant, foraging, wolves…) that
 		# keeps the kingdom alive between the big beats. Player's own seat only.
 		if not spectator_mode:

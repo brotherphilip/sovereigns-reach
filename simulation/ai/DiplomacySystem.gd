@@ -4,11 +4,14 @@ extends RefCounted
 # these when the player Accepts (pays) or Refuses (consequences).
 
 # Accept: pay the demanded resources and mark all pending demands fulfilled.
-# ale lives in player.food, iron in player.resources.
+# gold is player.gold; food goods (ale, apples…) live in player.food; the rest
+# (iron, wood, stone…) in player.resources.
 static func accept(player: Dictionary, demands: Dictionary, faction = null) -> void:
 	for res in demands:
 		var amount: int = demands[res]
-		if player.get("food", {}).has(res):
+		if res == "gold":
+			player["gold"] = maxi(0, int(player.get("gold", 0)) - amount)
+		elif player.get("food", {}).has(res):
 			player["food"][res] = maxi(0, player["food"][res] - amount)
 		elif player.get("resources", {}).has(res):
 			player["resources"][res] = maxi(0, player["resources"][res] - amount)
