@@ -826,8 +826,10 @@ func _toggle_tech_panel() -> void:
 	if _tech_panel.visible:
 		_animate_panel_close(_tech_panel)
 	else:
-		_refresh_tech_panel()
+		# Open (visible=true) BEFORE refresh — _refresh_tech_panel bails while hidden,
+		# so refreshing first left the tech tree permanently blank (same as edicts).
 		_animate_panel_open(_tech_panel)
+		_refresh_tech_panel()
 
 # ── Edict Panel ────────────────────────────────────────────────────────────────
 
@@ -852,10 +854,21 @@ func _refresh_edict_panel() -> void:
 	var player: Dictionary = GameState.players[0]
 	var panel_data: Dictionary = EdictPanelController.get_panel_data(player, SimulationClock.current_tick)
 
-	_add_edict_section(vbox, "Active Edicts", panel_data.get("active", []), true)
-	_add_edict_section(vbox, "Available Edicts", panel_data.get("available", []), false)
+	# Always show the points line — so an empty panel reads as "save up / unlock" not "broken".
+	var pts := Label.new()
+	pts.text = "Edict Points: %d   (royal decrees cost points; earned over time once unlocked)" % int(panel_data.get("edict_points", 0))
+	pts.add_theme_font_size_override("font_size", 10)
+	pts.add_theme_color_override("font_color", Color(0.7, 0.8, 0.95))
+	pts.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	vbox.add_child(pts)
 
-func _add_edict_section(parent: VBoxContainer, title: String, items: Array, is_active: bool) -> void:
+	_add_edict_section(vbox, "Active Edicts", panel_data.get("active", []), "active")
+	_add_edict_section(vbox, "Available Edicts", panel_data.get("available", []), "available")
+	# Show LOCKED edicts too (greyed, with the reason) — otherwise a new player who hasn't
+	# unlocked anything opens an empty panel and has no idea edicts exist or how to get them.
+	_add_edict_section(vbox, "Locked Edicts", panel_data.get("locked", []), "locked")
+
+func _add_edict_section(parent: VBoxContainer, title: String, items: Array, kind: String) -> void:
 	if items.is_empty(): return
 	var hdr := Label.new()
 	hdr.text = "── %s ──" % title
@@ -870,13 +883,21 @@ func _add_edict_section(parent: VBoxContainer, title: String, items: Array, is_a
 		lbl.text = item.get("name", "?")
 		lbl.add_theme_font_size_override("font_size", 10)
 		lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		if kind == "locked":
+			lbl.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
 		row.add_child(lbl)
-		if is_active:
+		if kind == "active":
 			var rem_lbl := Label.new()
 			rem_lbl.text = item.get("remaining_label", "")
 			rem_lbl.add_theme_font_size_override("font_size", 10)
 			rem_lbl.add_theme_color_override("font_color", Color.ORANGE)
 			row.add_child(rem_lbl)
+		elif kind == "locked":
+			var why := Label.new()
+			why.text = "🔒 " + String(item.get("reason", "Locked")).left(34)
+			why.add_theme_font_size_override("font_size", 9)
+			why.add_theme_color_override("font_color", Color(0.85, 0.6, 0.4))
+			row.add_child(why)
 		else:
 			var eid: String = item.get("id", "")
 			var btn := Button.new()
@@ -891,8 +912,10 @@ func _toggle_edict_panel() -> void:
 	if _edict_panel.visible:
 		_animate_panel_close(_edict_panel)
 	else:
-		_refresh_edict_panel()
+		# Open (sets visible=true) BEFORE refreshing — _refresh_edict_panel bails out
+		# while the panel is hidden, so refreshing first left the panel permanently blank.
 		_animate_panel_open(_edict_panel)
+		_refresh_edict_panel()
 
 func _animate_panel_open(panel: Panel) -> void:
 	panel.modulate.a = 0.0

@@ -1143,7 +1143,7 @@ func simulate_tick(tick: int) -> void:
 			if pop_now < 35.0 and not world.get("restless_warned", false):
 				world["restless_warned"] = true
 				EventBus.realm_notice.emit(
-					"⚠ Your people grow restless — hold a Festival (Edicts), lower taxes, or raise a Church or Inn to lift their spirits.",
+					"⚠ Your people grow restless — lower taxes, raise a Church or Inn, or proclaim a Festival (once Royal Edicts is researched) to lift their spirits.",
 					"bad")
 			elif pop_now >= 45.0 and world.get("restless_warned", false):
 				world["restless_warned"] = false

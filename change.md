@@ -26,6 +26,38 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 14 — 2026-06-16  ⚑ CRITICAL: Tech & Edicts panels were permanently blank
+
+### What I played
+Verified the unit-command loop first (select a Captain → info panel shows HP/Atk/Def/class; right-click
+orders it to move/fight; auto-aggro engages — all working; enemy **red** team rings confirmed too).
+Then opened the **Edicts** panel (the iter-11 restless warning sends players there) — and it was
+**completely empty**.
+
+### The bug (critical, pre-existing)
+`_toggle_edict_panel` (and `_toggle_tech_panel`) called `_refresh_*_panel()` **before**
+`_animate_panel_open` set the panel visible — but each refresh early-returns `if not panel.visible`.
+So the refresh bailed every time and **both the Technology tree AND the Royal Edicts panels never
+populated** — permanently blank. Two of the game's core progression systems (research, decrees) were
+**inaccessible through their UI** for every player. (They worked via the command pipeline, which is
+why automated tests/prior loops never caught it — only opening the panel as a human did.)
+
+### Changes made
+- **HUDNode**: open the panel (visible=true) BEFORE refreshing, for both Tech and Edicts. Verified
+  live — the **Tech tree now lists every tech with its price** (Agriculture/Industry/Military/
+  Statecraft) and the **Edicts panel lists every edict**.
+- **Edicts panel content**: also render a **Locked Edicts** section (greyed, with the unlock reason,
+  e.g. "Festival Decree — Requires tech: royal_edicts") and an **Edict Points** header — so the panel
+  is legible even before anything is unlocked (was: show only active+available, both empty → blank).
+- **Restless warning** reworded to lead with the always-available lever: "lower taxes, raise a Church
+  or Inn, or proclaim a Festival (once Royal Edicts is researched)".
+
+Full suite green; both panels verified populating live.
+
+### Backlog / next
+- Verify actually researching a tech / activating an edict from the (now-visible) panels end-to-end.
+- Move-order feedback; punchier combat; more content. Late-game popularity smoothing.
+
 ## Iteration 13 — 2026-06-16  (the military loop, played — and silent recruiting fixed)
 
 ### Played (real clicks) — the hands-on military loop
