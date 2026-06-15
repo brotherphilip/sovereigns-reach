@@ -458,8 +458,9 @@ func _on_entity_selected(entity_type: String, entity_data: Dictionary) -> void:
 		"unit":     _hud.show_selected_unit(entity_data)
 
 func _on_research_tech(tech_id: String) -> void:
+	# Feedback comes from GameState on success (EventBus.realm_notice — readable name +
+	# what it unlocked), so no redundant raw-id "Researching: crop_tiers" notice here.
 	CommandQueue.enqueue(CT_RESEARCH_TECH, {"tech_id": tech_id}, 0)
-	_hud.show_notification("Researching: " + tech_id, 3.0)
 
 func _on_activate_edict(edict_id: String) -> void:
 	CommandQueue.enqueue(CT_ACTIVATE_EDICT, {"edict_id": edict_id}, 0)

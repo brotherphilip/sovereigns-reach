@@ -1812,6 +1812,19 @@ func _cmd_research_tech(cmd: Dictionary) -> bool:
 		return false
 	var tech_id: String = cmd["payload"].get("tech_id", "")
 	var result: Dictionary = TechTree.research(players[pid], tech_id)
+	# Reward feedback: announce the readable name AND what it just unlocked, so research
+	# feels like progress (was a raw "Researching: crop_tiers" with no payoff).
+	if result.get("ok", false) and pid == 0:
+		var node: Dictionary = TechTree.lookup(tech_id)
+		var unlocked: Array = []
+		unlocked.append_array(node.get("unlocks_buildings", []))
+		unlocked.append_array(node.get("unlocks_units", []))
+		unlocked.append_array(node.get("unlocks_edicts", []))
+		var names: Array = []
+		for u in unlocked:
+			names.append(String(u).capitalize())
+		var tail: String = (" — unlocked %s" % ", ".join(names)) if not names.is_empty() else ""
+		EventBus.realm_notice.emit("🔬 Researched %s%s." % [node.get("name", tech_id), tail], "good")
 	return result.get("ok", false)
 
 # --- Strategic / campaign command handlers (player parity) ---

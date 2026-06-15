@@ -26,6 +26,28 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 15 — 2026-06-16  (progression loop verified live + rewarding research feedback)
+
+### Played (real clicks) — closing the loop on the iter-14 panel fix
+Fast-forwarded to ~120 prestige, opened the now-working **Tech** panel, and clicked **Research** on
+Crop Tiers (100P). End-to-end success, verified on the live HUD:
+- "Researching: crop_tiers" fired, prestige dropped **127 → 34** (spent 100),
+- and the Food build menu's **Wheat Farm and Hops Farm flipped from "Needs: crop_tiers" to buildable.**
+So research → spend prestige → unlock new buildings works fully now that the panel populates. The
+critical iter-14 fix is confirmed to enable real progression.
+
+### Small improvement
+- The research feedback was a raw, payoff-free "Researching: crop_tiers". Now **GameState fires a
+  reward notice on success** — "🔬 Researched Crop Tiers — unlocked Wheat Farm, Hops Farm." (readable
+  name + exactly what it unlocked) — and the redundant raw-id click notice was removed. Research now
+  feels like progress. Verified via probe (prestige 300→200, correct notice).
+
+Full suite green.
+
+### Backlog / next
+- Verify an edict activation end-to-end (needs royal_edicts tech first); more content/feel polish;
+  late-game popularity smoothing; move-order feedback.
+
 ## Iteration 14 — 2026-06-16  ⚑ CRITICAL: Tech & Edicts panels were permanently blank
 
 ### What I played
