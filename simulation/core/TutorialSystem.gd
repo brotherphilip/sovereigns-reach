@@ -5,7 +5,7 @@ extends Node
 
 signal tutorial_hint(message: String)
 
-const STEP_PLACE_WOODCUTTER := 0
+const STEP_PLACE_HALL       := 0
 const STEP_PLACE_FARM       := 1
 const STEP_BUILD_GRANARY    := 2
 const STEP_OPEN_MARKET      := 3
@@ -29,9 +29,9 @@ func start() -> void:
 	if saved_step >= 0:
 		step = saved_step
 		return
-	step = STEP_PLACE_WOODCUTTER
+	step = STEP_PLACE_HALL
 	_save_step()
-	tutorial_hint.emit("Welcome, my liege! Build a Woodcutter's Camp to gather wood.")
+	tutorial_hint.emit("Welcome, my liege! Open BUILD ▸ Civic and raise your Village Hall to found the settlement.")
 
 func skip_tutorial() -> void:
 	_skipped = true
@@ -44,16 +44,16 @@ func _save_step() -> void:
 func _on_building_placed(_player_id: int, building_type: String, _gx: int, _gy: int, _bid: int) -> void:
 	if _skipped: return
 	match step:
-		STEP_PLACE_WOODCUTTER:
-			if building_type == "woodcutter_camp":
+		STEP_PLACE_HALL:
+			if building_type in ["village_hall", "keep"]:
 				step = STEP_PLACE_FARM
 				_save_step()
-				tutorial_hint.emit("Good! Now build a Wheat Farm or Orchard to feed your peasants.")
+				tutorial_hint.emit("Your hall rises! Now build Apple Orchards (BUILD ▸ Food) to feed your people — they eat every day.")
 		STEP_PLACE_FARM:
 			if building_type in ["wheat_farm", "apple_orchard", "pig_farm", "dairy_farm"]:
 				step = STEP_BUILD_GRANARY
 				_save_step()
-				tutorial_hint.emit("Well done. Build a Granary to store food and raise your cap.")
+				tutorial_hint.emit("Good. Build a Granary next — food only banks once you have one to store it in.")
 		STEP_BUILD_GRANARY:
 			if building_type == "granary":
 				step = STEP_OPEN_MARKET

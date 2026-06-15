@@ -15,6 +15,8 @@ const CT_ACTIVATE_EDICT = 16
 const CT_BUY_RESOURCE   = 5
 const CT_SELL_RESOURCE  = 6
 
+const AIFactionRef = preload("res://simulation/ai/AIFaction.gd")
+
 var _keep_x: int = DEFAULT_KEEP_X
 var _keep_y: int = DEFAULT_KEEP_Y
 var _map_seed: int = DEFAULT_SEED
@@ -39,6 +41,11 @@ func _ready() -> void:
 	_connect_signals()
 	# No auto-placed buildings: the player must build a Hall (anywhere free) to begin.
 	SimulationClock.set_speed(SimulationClock.SPEED_NORMAL)
+	# Onboarding + King's Peace intro (only on your own seat, not when spectating a rival).
+	if not _spectator:
+		GameState.world["tutorial_step"] = -1   # fresh game: let the tutorial start from step 0
+		TutorialSystem.start()
+		_hud.show_notification("⚜ The King's Peace shields your realm for %d days — raise farms and defenses before the warlords march." % AIFactionRef.PLAYER_GRACE_DAYS, 10.0)
 	print("[CityView] Game initialized. Player: %s at (%d,%d)" % [PLAYER_NAME, _keep_x, _keep_y])
 
 # ── City resolution ───────────────────────────────────────────────────────────
@@ -74,7 +81,7 @@ func _init_simulation() -> void:
 	p["resources"]["wood"]      = 300
 	p["resources"]["stone"]     = 100
 	p["resources"]["iron"]      = 50
-	p["food"]["apples"]         = 100
+	p["food"]["apples"]         = 200   # full base granary cap (~8 days) — survive the build-up
 	p["population"]             = 50
 
 	# Playable seat vs. spectator. The first city the player enters becomes their
@@ -407,6 +414,9 @@ func _connect_signals() -> void:
 	EventBus.edict_expired.connect(func(_pid, eid): _hud.show_notification("Edict expired: " + eid, 3.0))
 	EventBus.save_requested.connect(_do_save)
 	EventBus.load_requested.connect(_do_load)
+
+	# Onboarding hints (the real runtime entry — GameBootstrap is unused here).
+	TutorialSystem.tutorial_hint.connect(func(msg: String): _hud.show_notification("📖 " + msg, 9.0))
 
 	set_process_input(true)
 

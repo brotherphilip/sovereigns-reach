@@ -43,6 +43,13 @@ const ARCHETYPE_ASHEN_BARONY = "ashen_barony"
 # Siege tent assembly: 48 game-days (GDD §1.1.4)
 const SIEGE_ASSEMBLY_TICKS: int = TICKS_PER_DAY * 48
 
+# "King's Peace" — establishment grace. A freshly-arrived faction will not launch
+# a siege against a player for its first PLAYER_GRACE_DAYS (≈ the first 6 real
+# minutes of a new game at NORMAL speed). This is the window in which a new ruler
+# raises farms, walls and a first garrison before the warlords are allowed to march.
+# Long-lived world factions are unaffected (their days_alive is far past this).
+const PLAYER_GRACE_DAYS: int = 30
+
 # ── Factory ───────────────────────────────────────────────────────────────────
 
 static func make_faction(id: int, name: String, archetype: String,
@@ -254,6 +261,9 @@ static func should_attack(faction: Dictionary, players: Array) -> Dictionary:
 		return {"attack": false, "target_player_id": -1}
 	if not faction.get("siege_assembly", {}).is_empty():
 		return {"attack": false, "target_player_id": -1}  # already assembling
+	# King's Peace: no sieges against the player during a fresh faction's grace window.
+	if faction.get("days_alive", 0) < PLAYER_GRACE_DAYS:
+		return {"attack": false, "target_player_id": -1}
 
 	var arch: String = faction.get("archetype", "")
 	var threat: float = faction.get("threat_level", 0.0)
