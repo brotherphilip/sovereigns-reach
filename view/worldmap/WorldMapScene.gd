@@ -20,7 +20,9 @@ var _develop_btn: Button = null
 var _realm_label: Label = null
 var _raise_btn: Button = null
 var _march_btn: Button = null
+var _diplo_btn: Button = null
 var _action_city_id: int = -1     # right-click-selected city for strategic orders
+var _diplo_faction_id: int = -1   # owner kingdom of a selected rival city (diplomacy target)
 var _campaign_army_id: int = -1   # >=0 = awaiting a march target (campaign targeting mode)
 const RAISE_BATCH: int = 10       # soldiers levied per Raise Army click
 const WATCH_INTERVAL: float = 0.45      # real seconds per strategic day at speed 1
@@ -280,6 +282,16 @@ func _build_scene() -> void:
 	canvas.add_child(_march_btn)
 	_refresh_march_btn()
 
+	# Diplomacy: offer a truce to (or declare war on) the kingdom holding a selected city.
+	_diplo_btn = Button.new()
+	_diplo_btn.name     = "DiplomacyBtn"
+	_diplo_btn.position = Vector2(812, vp.y - 124)
+	_diplo_btn.size     = Vector2(280, 28)
+	_diplo_btn.add_theme_font_size_override("font_size", 12)
+	_diplo_btn.pressed.connect(_on_diplomacy)
+	canvas.add_child(_diplo_btn)
+	_refresh_diplo_btn()
+
 	# Connect hover → info panel (show the hovered city's details)
 	_world_view.mouse_entered.connect(_on_mouse_entered_map)
 	_world_view.city_hovered.connect(_on_city_hovered)
@@ -429,6 +441,34 @@ func _refresh_march_btn() -> void:
 		_march_btn.text = "⚔ March — select a city with an army"
 		_march_btn.disabled = true
 
+func _on_diplomacy() -> void:
+	if _diplo_faction_id < 0:
+		_set_info("Right-click a rival's city to treat with that kingdom.", Color(1.0, 0.6, 0.3))
+		return
+	var nm: String = _CampaignMap.kingdom_by_id(GameState.world, _diplo_faction_id).get("name", "the rival")
+	# Toggle: at truce → declare war; otherwise → offer a truce.
+	if GameState.player_relation_with(_diplo_faction_id) == "truce":
+		GameState.player_set_diplomacy(_diplo_faction_id, "war")
+		_set_info("⚔ You break the truce and declare war on %s." % nm, Color(1.0, 0.6, 0.3))
+	else:
+		GameState.player_set_diplomacy(_diplo_faction_id, "truce")
+		_set_info("🕊 A truce is sworn with %s — their armies will keep off your lands." % nm, Color(0.6, 0.9, 0.5))
+	_refresh_diplo_btn()
+
+func _refresh_diplo_btn() -> void:
+	if _diplo_btn == null:
+		return
+	if _diplo_faction_id < 0:
+		_diplo_btn.text = "🕊 Diplomacy — select a rival's city"
+		_diplo_btn.disabled = true
+		return
+	var nm: String = _CampaignMap.kingdom_by_id(GameState.world, _diplo_faction_id).get("name", "rival")
+	if GameState.player_relation_with(_diplo_faction_id) == "truce":
+		_diplo_btn.text = "⚔ Declare War on %s" % nm
+	else:
+		_diplo_btn.text = "🕊 Offer Truce to %s" % nm
+	_diplo_btn.disabled = false
+
 # Right-click selected a city for orders. If a march order is armed, this right-click
 # designates the target (and launches). Otherwise it selects the city for develop/raise.
 func _on_city_selected(city_id: int) -> void:
@@ -455,18 +495,23 @@ func _on_city_selected(city_id: int) -> void:
 
 	if GameState.is_player_city(city_id):
 		_action_city_id = city_id
+		_diplo_faction_id = -1
 		_set_info("Selected %s (yours) — Development %d, Garrison ⚔ %d. Use Develop to invest here." % [
 			c.get("name", "city"), int(c.get("development", 0)), int(c.get("garrison", 0))], Color(0.6, 0.9, 0.5))
 	else:
 		_action_city_id = -1
 		var owner_id: int = int(_CampaignMap.owner_of(c))
+		_diplo_faction_id = owner_id
 		var owner_k: Dictionary = _CampaignMap.kingdom_by_id(GameState.world, owner_id)
 		var owner_name: String = owner_k.get("name", "a rival lord") if not owner_k.is_empty() else "a rival lord"
-		_set_info("%s is held by %s — you can only develop your own cities." % [
-			c.get("name", "city"), owner_name], Color(1.0, 0.6, 0.3))
+		var rel: String = GameState.player_relation_with(owner_id)
+		var rel_note: String = "  [truce]" if rel == "truce" else ("  [at war]" if rel == "war" else "")
+		_set_info("%s is held by %s%s — develop only your own; use Diplomacy to treat with them." % [
+			c.get("name", "city"), owner_name, rel_note], Color(1.0, 0.6, 0.3))
 	_refresh_develop_btn()
 	_refresh_raise_btn()
 	_refresh_march_btn()
+	_refresh_diplo_btn()
 
 func _refresh_realm_label() -> void:
 	if _realm_label == null:

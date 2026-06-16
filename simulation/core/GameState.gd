@@ -2056,17 +2056,28 @@ func _cmd_launch_campaign(cmd: Dictionary) -> bool:
 	return player_launch_campaign(cmd["payload"].get("army_id", -1), cmd["payload"].get("target_city_id", -1))
 
 func _cmd_strategic_diplomacy(cmd: Dictionary) -> bool:
+	return player_set_diplomacy(cmd["payload"].get("faction_id", -1), cmd["payload"].get("action", ""))
+
+# Set the player realm's relation with another kingdom ("truce" | "war"), mutually.
+# Shared by the command path and the world-map UI (clock-independent). A truce is
+# honoured by AI attack targeting (KingdomAI._best_target), so it actually buys peace.
+func player_set_diplomacy(faction_id: int, action: String) -> bool:
 	var k: Dictionary = _player_kingdom()
-	if k.is_empty():
+	if k.is_empty() or action == "":
 		return false
-	var other_fid: int = cmd["payload"].get("faction_id", -1)
-	var action: String = cmd["payload"].get("action", "")  # "truce" | "war"
-	var other: Dictionary = CampaignMap.kingdom_by_id(world, other_fid)
-	if other.is_empty() or action == "":
+	var other: Dictionary = CampaignMap.kingdom_by_id(world, faction_id)
+	if other.is_empty() or faction_id == k.get("id", -1):
 		return false
-	k.get("relations", {})[str(other_fid)] = action
+	k.get("relations", {})[str(faction_id)] = action
 	other.get("relations", {})[str(k.get("id", -1))] = action
 	return true
+
+# The player realm's current relation with another kingdom: "neutral" | "truce" | "war".
+func player_relation_with(faction_id: int) -> String:
+	var k: Dictionary = _player_kingdom()
+	if k.is_empty():
+		return "neutral"
+	return String(k.get("relations", {}).get(str(faction_id), "neutral"))
 
 # Places each starting villager on a distinct empty grass/valley tile near the keep
 # (the random spawn offset can otherwise land them on water, forest or rock).

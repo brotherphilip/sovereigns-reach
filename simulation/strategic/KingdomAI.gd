@@ -76,8 +76,13 @@ static func decide(world: Dictionary, kingdom: Dictionary, players: Array, tick:
 
 # ── Target selection ───────────────────────────────────────────────────────────
 
+# Are these two factions at a sworn truce? (Honoured by attack targeting, so a truce
+# the player negotiates actually keeps the rival's armies off their lands.)
+static func _at_truce(kingdom: Dictionary, other_fid: int) -> bool:
+	return String(kingdom.get("relations", {}).get(str(other_fid), "neutral")) == "truce"
+
 # Weakest enemy city adjacent to one we own, plus the owned city to stage from.
-# Returns {} if the kingdom has no frontier.
+# Skips cities held by kingdoms we're at truce with. Returns {} if no valid frontier.
 static func _best_target(world: Dictionary, kingdom: Dictionary) -> Dictionary:
 	var fid: int = kingdom.get("id", -1)
 	var best: Dictionary = {}
@@ -90,6 +95,8 @@ static func _best_target(world: Dictionary, kingdom: Dictionary) -> Dictionary:
 			var n: Dictionary = CampaignMap.city_by_id(world, nid)
 			if n.is_empty() or CampaignMap.owner_of(n) == fid:
 				continue
+			if _at_truce(kingdom, CampaignMap.owner_of(n)):
+				continue  # honour the truce — don't march on their cities
 			var d: int = CampaignMap.city_defense(n)
 			if d < best_def:
 				best_def = d

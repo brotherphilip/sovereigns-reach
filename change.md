@@ -26,6 +26,47 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 35 — 2026-06-16  🕊 Diplomacy — the last strategic action, and truces that actually hold
+
+### Heuristic focus
+Complete the strategic action set (Develop/Raise/March/**Diplomacy**) AND fix a latent
+**[MAKES-NO-SENSE]** before shipping the UI: relations were never honoured by the AI.
+
+### Finding — truces were cosmetic
+`KingdomAI._best_target` (every kingdom's attack-target picker) chose the weakest adjacent enemy city
+**without checking relations** — so a truce the player (or any kingdom) negotiated did nothing; the AI
+would still march on a "truced" neighbour. Wiring a Diplomacy button without this would have shipped a
+peace treaty that the enemy ignores.
+
+### Change made
+- **KingdomAI**: `_best_target` now **skips cities held by kingdoms we're at truce with** (new helper
+  `_at_truce`). A negotiated truce genuinely keeps that rival's armies off your lands (and the AI honours
+  its own truces too).
+- **GameState** (shared with the command path): `player_set_diplomacy(faction_id, action)` ("truce"|"war",
+  mutual), `player_relation_with(faction_id)`. `_cmd_strategic_diplomacy` refactored to share.
+- **WorldMapScene**: a **Diplomacy** button — right-click a rival's city → "🕊 Offer Truce to \<Kingdom\>"
+  (toggles to "⚔ Declare War on \<Kingdom\>" once at truce). The city-info line now also shows the current
+  standing ([truce]/[at war]).
+
+### Verified
+- **Live (Xvfb, real clicks)**: right-clicked an Amber Hold city → "🕊 Offer Truce to Amber Hold" →
+  "🕊 A truce is sworn with Amber Hold — their armies will keep off your lands.", button flipped to
+  "⚔ Declare War on Amber Hold".
+- Headless: +7 tests (TestStrategicAI 65/0): relation defaults neutral, truce set + **mutual**,
+  `_at_truce` sees it, **a truced rival's `_best_target` never returns a player city**, and war flips it.
+  Full suite green (24/24).
+
+### Post-mortem
+- **Failure point:** none — and a would-be "peace that does nothing" bug caught before it shipped.
+- **Engagement:** the strategic layer is now **complete and consequential** — grow, arm, march, and make
+  peace, with the AI actually respecting your treaties. The human has a full diplomatic+military sandbox
+  above the city, all via the world-map UI.
+
+### Backlog / next
+- Diplomacy depth: tribute/alliance offers, AI counter-proposals, truce durations/expiry.
+- Visual polish: a selection ring + marching-army route/strength indicator on the map.
+- A brief in-map legend/tutorial for the four strategic controls (Develop/Raise/March/Diplomacy).
+
 ## Iteration 34 — 2026-06-16  ⚔ Launch Campaign — the muster→march→assault loop is now playable
 
 ### Heuristic focus

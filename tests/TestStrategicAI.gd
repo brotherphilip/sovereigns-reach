@@ -15,6 +15,7 @@ extends SceneTree
 const WorldMapData   = preload("res://simulation/world/WorldMapData.gd")
 const CampaignMap    = preload("res://simulation/strategic/CampaignMap.gd")
 const KingdomEconomy = preload("res://simulation/strategic/KingdomEconomy.gd")
+const KingdomAI      = preload("res://simulation/strategic/KingdomAI.gd")
 const CampaignSystem = preload("res://simulation/strategic/CampaignSystem.gd")
 const StrategicSim   = preload("res://simulation/strategic/StrategicSim.gd")
 
@@ -301,6 +302,20 @@ func _run_player_ui_actions() -> void:
 	else:
 		ok("(no non-owned neighbour to march on for this seed — skipped)", true)
 	ok("player_launch_campaign refuses a bogus army id", not gs.player_launch_campaign(-999, enemy_cid))
+
+	# Diplomacy (direct UI path): truce/war with the kingdom holding an enemy city.
+	var rival_fid: int = CampaignMap.owner_of(CampaignMap.city_by_id(gs.world, enemy_cid))
+	ok("player_relation_with defaults to neutral", gs.player_relation_with(rival_fid) == "neutral")
+	ok("player_set_diplomacy truce succeeds", gs.player_set_diplomacy(rival_fid, "truce"))
+	ok("relation is now truce", gs.player_relation_with(rival_fid) == "truce")
+	# Mutual: the rival also records the truce with the player.
+	var rival_k: Dictionary = CampaignMap.kingdom_by_id(gs.world, rival_fid)
+	ok("truce is mutual", String(rival_k.get("relations", {}).get(str(pfid), "")) == "truce")
+	# Honoured by AI targeting: the truced rival never picks a player city to march on.
+	ok("KingdomAI._at_truce sees the truce", KingdomAI._at_truce(rival_k, pfid))
+	var rival_target: Dictionary = KingdomAI._best_target(gs.world, rival_k)
+	ok("truced rival does not target a player city", rival_target.is_empty() or not gs.is_player_city(int(rival_target.get("target_id", -1))))
+	ok("player_set_diplomacy war flips the relation", gs.player_set_diplomacy(rival_fid, "war") and gs.player_relation_with(rival_fid) == "war")
 
 	# Drain the realm's stores → the actions are correctly gated as unaffordable.
 	var pk: Dictionary = CampaignMap.kingdom_by_id(gs.world, pfid)
