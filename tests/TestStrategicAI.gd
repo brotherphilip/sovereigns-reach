@@ -248,6 +248,13 @@ func _run_player_ui_actions() -> void:
 
 	var cid: int = gs.player_lowest_dev_city()
 	ok("player_lowest_dev_city returns an owned city", cid >= 0 and CampaignMap.owner_of(CampaignMap.city_by_id(gs.world, cid)) == pfid)
+	# is_player_city: true for an owned city, false for an enemy one (per-city order gating).
+	ok("is_player_city true for an owned city", gs.is_player_city(cid))
+	var enemy_cid: int = -1
+	for c in CampaignMap.cities(gs.world):
+		if CampaignMap.owner_of(c) != pfid:
+			enemy_cid = c.get("id", -1); break
+	ok("is_player_city false for an enemy city", enemy_cid >= 0 and not gs.is_player_city(enemy_cid))
 	var cost: Dictionary = gs.develop_city_cost(cid)
 	ok("develop_city_cost reports gold/wood/stone", cost.has("gold") and cost.has("wood") and cost.has("stone"))
 	ok("can_player_develop_city true with starting treasury", gs.can_player_develop_city(cid))

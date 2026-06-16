@@ -26,6 +26,42 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 32 — 2026-06-16  (right-click to select a city for orders — per-city strategic agency)
+
+### Heuristic focus
+The backlog's named blocker for deeper strategic play: **left-click enters a city**, so there was no way
+to *select* a city to act on. Develop could only hit your lowest-dev holding. This adds the
+select-without-entering affordance — the enabler for all per-city actions (and the foundation for Raise
+Army / Launch Campaign).
+
+### Change made
+- **WorldMapView**: new `city_selected(city_id)` signal on **right-click** (left-click still enters).
+- **GameState.is_player_city(city_id)** (new): owner == player faction (per-city order gating).
+- **WorldMapScene**: right-click selects a city → the Develop button now **targets the selected city**
+  (falls back to your lowest-dev holding when nothing/an enemy city is selected), and the info panel
+  reports it: yours → "Selected <city> (yours) — Development N, Garrison ⚔ N…"; enemy → "<city> is held
+  by <Kingdom> — you can only develop your own cities." Hint updated: "Left-click to enter & rule ·
+  Right-click to select for orders."
+
+### Verified
+- **Live (Xvfb, real right-clicks)**: right-clicked a player city → "Selected Cresthollow (yours) —
+  Development 2, Garrison ⚔ 8…" and the button retargeted to "⚒ Develop Cresthollow (70g 40w 26s)";
+  right-clicked an enemy city → "Ironpeak is held by Amber Hold — you can only develop your own cities."
+  and the button reverted to the lowest-dev default. Owner kingdom name resolved correctly via CampaignMap.
+- Headless: +2 tests (TestStrategicAI 45/0): `is_player_city` true for owned, false for enemy. Full
+  suite green (24/24).
+
+### Post-mortem
+- **Failure point:** none.
+- **Fun/agency:** the player can now point at a *specific* city and act on it — the difference between
+  "manage the realm abstractly" and "rule these particular holdings." The right-click selection model is
+  the hook the remaining strategic actions (Raise Army, Launch Campaign, Diplomacy) will hang off.
+
+### Backlog / next
+- Wire **Raise Army** (from the selected city) and **Launch Campaign** (selected city → right-click an
+  enemy target) onto this selection model; **Diplomacy** too. Backends exist + tested.
+- A drawn selection ring on the selected city for at-a-glance feedback.
+
 ## Iteration 31 — 2026-06-16  (world-map HUD: show the realm's stores so investment is plannable)
 
 ### Heuristic focus

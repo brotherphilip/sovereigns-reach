@@ -1958,6 +1958,15 @@ func can_player_develop_city(city_id: int) -> bool:
 	var k: Dictionary = _player_kingdom()
 	return not k.is_empty() and KingdomEconomy.can_develop(world, k, city_id)
 
+# Does the player's faction own this city? (For per-city world-map actions.)
+func is_player_city(city_id: int) -> bool:
+	if not world.has("world_map") or world["world_map"].is_empty():
+		return false
+	var c: Dictionary = CampaignMap.city_by_id(world, city_id)
+	if c.is_empty():
+		return false
+	return CampaignMap.owner_of(c) == CampaignMap.player_faction_id(world)
+
 # The player's least-developed owned city (the natural next investment), or -1.
 func player_lowest_dev_city() -> int:
 	var k: Dictionary = _player_kingdom()

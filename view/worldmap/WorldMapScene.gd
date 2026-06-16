@@ -3,6 +3,7 @@ extends Node
 # builds WorldMapView, handles city-click to enter CityViewScene.
 
 const WorldMapData = preload("res://simulation/world/WorldMapData.gd")
+const _CampaignMap = preload("res://simulation/strategic/CampaignMap.gd")
 
 var _world_view: Control = null
 
@@ -17,6 +18,7 @@ var _watch_speed_btn: Button = null
 var _day_label: Label = null
 var _develop_btn: Button = null
 var _realm_label: Label = null
+var _action_city_id: int = -1   # right-click-selected city for strategic orders
 const WATCH_INTERVAL: float = 0.45      # real seconds per strategic day at speed 1
 
 func _ready() -> void:
@@ -222,7 +224,7 @@ func _build_scene() -> void:
 
 	var info_lbl := Label.new()
 	info_lbl.name     = "InfoLabel"
-	info_lbl.text     = "Hover a city to see details · Click it to enter and rule it"
+	info_lbl.text     = "Hover for details · Left-click to enter & rule · Right-click to select for orders"
 	info_lbl.position = Vector2(8, 6)
 	info_lbl.size     = Vector2(264, 70)
 	info_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -255,6 +257,7 @@ func _build_scene() -> void:
 	# Connect hover → info panel (show the hovered city's details)
 	_world_view.mouse_entered.connect(_on_mouse_entered_map)
 	_world_view.city_hovered.connect(_on_city_hovered)
+	_world_view.city_selected.connect(_on_city_selected)
 
 func _on_city_clicked(city_id: int) -> void:
 	GameState.world["selected_city_id"] = city_id
@@ -295,8 +298,15 @@ func _on_cycle_watch_speed() -> void:
 	if _watch_speed_btn != null:
 		_watch_speed_btn.text = "%d×" % _watch_speed
 
+# The city the Develop button acts on: the right-click-selected city if it's one of
+# yours, otherwise your least-developed holding (the natural default investment).
+func _develop_target() -> int:
+	if _action_city_id >= 0 and GameState.is_player_city(_action_city_id):
+		return _action_city_id
+	return GameState.player_lowest_dev_city()
+
 func _on_develop_realm() -> void:
-	var cid: int = GameState.player_lowest_dev_city()
+	var cid: int = _develop_target()
 	if cid < 0:
 		_set_info("You hold no cities to develop.")
 		return
@@ -311,12 +321,12 @@ func _on_develop_realm() -> void:
 	_refresh_develop_btn()
 	_refresh_realm_label()
 
-# Update the Develop button to name the next target city + its cost, and disable it
-# when the realm can't currently afford the investment.
+# Update the Develop button to name its target city + cost, and disable it when the
+# realm can't currently afford the investment (or the city is maxed).
 func _refresh_develop_btn() -> void:
 	if _develop_btn == null:
 		return
-	var cid: int = GameState.player_lowest_dev_city()
+	var cid: int = _develop_target()
 	if cid < 0:
 		_develop_btn.text = "⚒ Develop Realm"
 		_develop_btn.disabled = true
@@ -326,6 +336,25 @@ func _refresh_develop_btn() -> void:
 	_develop_btn.text = "⚒ Develop %s  (%dg %dw %ds)" % [
 		c.get("name", "city"), int(cost.get("gold", 0)), int(cost.get("wood", 0)), int(cost.get("stone", 0))]
 	_develop_btn.disabled = not GameState.can_player_develop_city(cid)
+
+# Right-click selected a city for orders: remember it (if it's yours) and show its
+# details, so the Develop button now targets exactly that city.
+func _on_city_selected(city_id: int) -> void:
+	var c: Dictionary = GameState.get_city(city_id)
+	if c.is_empty():
+		return
+	if GameState.is_player_city(city_id):
+		_action_city_id = city_id
+		_set_info("Selected %s (yours) — Development %d, Garrison ⚔ %d. Use Develop to invest here." % [
+			c.get("name", "city"), int(c.get("development", 0)), int(c.get("garrison", 0))], Color(0.6, 0.9, 0.5))
+	else:
+		_action_city_id = -1
+		var owner_id: int = int(_CampaignMap.owner_of(c))
+		var owner_k: Dictionary = _CampaignMap.kingdom_by_id(GameState.world, owner_id)
+		var owner_name: String = owner_k.get("name", "a rival lord") if not owner_k.is_empty() else "a rival lord"
+		_set_info("%s is held by %s — you can only develop your own cities." % [
+			c.get("name", "city"), owner_name], Color(1.0, 0.6, 0.3))
+	_refresh_develop_btn()
 
 func _refresh_realm_label() -> void:
 	if _realm_label == null:

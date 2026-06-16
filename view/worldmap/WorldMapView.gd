@@ -4,6 +4,7 @@ extends Control
 
 signal city_clicked(city_id: int)
 signal city_hovered(city_id: int)   # -1 when the cursor leaves all cities
+signal city_selected(city_id: int)  # right-click: select for orders (no scene change)
 
 const WorldMapController = preload("res://view/worldmap/WorldMapController.gd")
 const WorldMapData       = preload("res://simulation/world/WorldMapData.gd")
@@ -55,6 +56,12 @@ func _input(event: InputEvent) -> void:
 		var city_id: int = WorldMapController.find_city_near(_data, event.position, 24.0)
 		if city_id >= 0:
 			city_clicked.emit(city_id)
+	elif event is InputEventMouseButton and event.pressed \
+			and event.button_index == MOUSE_BUTTON_RIGHT:
+		# Right-click selects a city for strategic orders (no scene change).
+		var sel: int = WorldMapController.find_city_near(_data, event.position, 24.0)
+		if sel >= 0:
+			city_selected.emit(sel)
 	elif event is InputEventMouseMotion:
 		var hov: int = WorldMapController.find_city_near(_data, event.position, 24.0)
 		if hov != _hovered_city_id:
