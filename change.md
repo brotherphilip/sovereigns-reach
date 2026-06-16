@@ -26,6 +26,32 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 95 — 2026-06-17  (Voice the keep-fallen defeat — the win/loss VO set is complete)
+
+### Source
+The last silent end-state: a siege razing the player's hall/keep ends the run, but (unlike a revolt) it can
+happen with popularity fine — so the iter93 `realm_fallen` line wouldn't fire. It needed its own voice.
+
+### Change made
+- **1 new VO sting** `keep_fallen` — "Your hall lies in ashes. The realm is undone, my liege." (grim-herald, no FX).
+- **`NarrationPlayer`:** hooks `building_destroyed(player_id, building_id, cause)` → looks the building up in
+  `GameState.players[0].buildings` and speaks `keep_fallen` **only** when it's the human player's `village_hall`/
+  `keep` (guards `player_id == 0`; ignores every non-seat building, so no spam on minor losses).
+
+### Verified
+- **`tests/TestNarration.gd` → 65/0** (keep_fallen loads). **Full suite: 0 FAIL across all 27 files.** Live boot
+  clean — the new `building_destroyed` connection + GameState lookup wire with no errors.
+
+### Post-mortem
+- **Audio feedback — the set is now complete:** every way a run ends has the herald's voice —
+  **wins:** `reign_day100` (endure to Day 100), `victory` (conquer all rivals);
+  **losses:** `realm_fallen` (revolt), `keep_fallen` (seat razed); plus `kingdom_fallen` for each rival felled.
+  The outcome of a 20-minute session always lands with weight. View/audio-side only; zero balance impact.
+
+### Backlog / next
+1. **Pivot:** fresh-eyes playtest of an unexamined mid-game system (Tech tree / Edicts panel) for clarity/content.
+2. (Carried) live siege-landing confirmation; ear-check narration; ear-tune SFX.
+
 ## Iteration 94 — 2026-06-17  (Voice the conquest victory — the last rival falls)
 
 ### Source

@@ -15,6 +15,7 @@ extends Node
 #   popularity_changed (<crit)  → popularity_critical   (edge-triggered with hysteresis)
 #   popularity_changed (<10)    → realm_fallen          (once; the revolt defeat capstone)
 #   ai_faction_defeated         → kingdom_fallen, or victory if it was the LAST rival
+#   building_destroyed (seat)   → keep_fallen           (the player's hall/keep razed = defeat)
 
 const WavLoad = preload("res://simulation/audio/WavLoad.gd")
 const DIR := "res://audio/narration/"
@@ -52,6 +53,22 @@ func _ready() -> void:
 		EventBus.popularity_changed.connect(_on_popularity_changed)
 	if EventBus.has_signal("ai_faction_defeated"):
 		EventBus.ai_faction_defeated.connect(_on_ai_faction_defeated)
+	if EventBus.has_signal("building_destroyed"):
+		EventBus.building_destroyed.connect(_on_building_destroyed)
+
+# The player's seat (Village Hall / Keep) was razed — that's the run-ending defeat. Only the
+# human player's seat speaks (not an AI's), and only the seat (not every lost building).
+func _on_building_destroyed(player_id: int, building_id: int, _cause: String) -> void:
+	if player_id != 0:
+		return
+	var gs = get_node_or_null("/root/GameState")
+	if gs == null or gs.players.size() == 0:
+		return
+	for b in gs.players[0].get("buildings", []):
+		if b is Dictionary and int(b.get("id", -1)) == building_id:
+			if String(b.get("type", "")) in ["village_hall", "keep"]:
+				say("keep_fallen")
+			return
 
 # A rival kingdom fell. If it was the LAST one, that's outright victory; otherwise it's
 # one more enemy crown broken.
