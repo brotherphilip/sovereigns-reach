@@ -448,12 +448,14 @@ func _tick_player_economy(player: Dictionary, tick: int) -> void:
 		var disease_events: Array = DiseaseSystem.tick(player, _disease_rng, tick, weather)
 		events.append_array(disease_events)
 
-		# Siege morale penalty — if any AI faction is actively besieging this player
+		# Siege morale penalty — if any AI faction is actively besieging this player.
+		# A realm that readied its defences (walls/towers + a garrison) keeps its nerve:
+		# the lighter "defended" penalty rewards preparation (the iter-9 objective).
 		var pid: int = player.get("id", -1)
 		for faction in ai_factions:
 			if faction is Dictionary and not faction.get("siege_assembly", {}).is_empty():
 				if faction["siege_assembly"].get("target_player_id", -1) == pid:
-					events.append("active_siege")
+					events.append("active_siege_defended" if _is_siege_ready(player) else "active_siege")
 					break
 
 		# Wedding events from churches (GDD §3.3 — "Marriage events give popularity spikes")
@@ -668,6 +670,25 @@ func get_faction_display_name(faction_id: int) -> String:
 			if nm != "":
 				return nm
 	return "A rival lord"
+
+# Whether a realm has readied meaningful defences against a siege: built defensive
+# structures (walls/towers/gatehouse) plus a standing garrison. Used to soften the
+# siege morale penalty so a prepared ruler's people keep their nerve. Threshold 3 =
+# e.g. a short wall + a tower, or a few mustered soldiers.
+const SIEGE_READY_THRESHOLD: int = 3
+func _is_siege_ready(player: Dictionary) -> bool:
+	var points: int = 0
+	for b in player.get("buildings", []):
+		if not b is Dictionary or not b.get("built", false):
+			continue
+		if int(BuildingRegistry.lookup(b.get("type", "")).get("category", -1)) == BuildingRegistry.Category.DEFENSE:
+			points += 1
+	for u in player.get("units", []):
+		if u is Dictionary and u.get("is_alive", false):
+			points += 1
+		if points >= SIEGE_READY_THRESHOLD:
+			return true
+	return points >= SIEGE_READY_THRESHOLD
 
 # All hostile deployable units a given player can fight (AI factions + rivals).
 func _enemies_of_player(pid: int) -> Array:

@@ -40,6 +40,14 @@ func _init() -> void:
 	# Food solved: pre-stock a generous apple buffer so the run never starves.
 	p["food"] = {"apples": 2000}
 
+	# Optional: a prepared realm (SR_PROBE_DEFENDED=1) — walls + a tower so the siege
+	# morale penalty uses the lighter "defended" path (A/B against the undefended run).
+	if OS.get_environment("SR_PROBE_DEFENDED") != "":
+		_bld(p, "stone_wall", 102, 102, 0)
+		_bld(p, "stone_wall", 98, 102, 0)
+		_bld(p, "lookout_tower", 102, 98, 0)
+		print("[defended variant: walls + tower built]")
+
 	# Two rivals for real war pressure after the King's Peace.
 	gs.add_ai_faction(AIFaction.ARCHETYPE_ASHEN_BARONY, 120, 120)
 	gs.add_ai_faction(AIFaction.ARCHETYPE_IRONHAND, 80, 80)

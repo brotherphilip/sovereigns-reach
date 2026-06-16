@@ -180,6 +180,10 @@ func _test_popularity_engine() -> void:
 	player["food"] = {"apples": 50, "cheese": 0, "meat": 0, "bread": 0, "ale": 0}
 	var siege_delta = PopularityEngine.calculate_delta(player, ["active_siege"])
 	_ok(siege_delta < normal_delta, "active_siege event reduces popularity")
+	# A defended realm keeps its nerve: the siege morale hit is lighter (but still negative).
+	var siege_defended_delta = PopularityEngine.calculate_delta(player, ["active_siege_defended"])
+	_ok(siege_defended_delta < normal_delta, "defended siege still reduces popularity")
+	_ok(siege_defended_delta > siege_delta, "readying defences softens the siege morale hit")
 
 	player["popularity"] = 50.0
 	player["tax_rate"] = 0

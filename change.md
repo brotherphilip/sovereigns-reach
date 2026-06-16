@@ -26,6 +26,49 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 26 — 2026-06-16  (defense-dependent siege morale — preparation now pays off)
+
+### Heuristic focus
+The directive's **Fun/engagement** axis ("challenges fair but demanding", satisfying reward loops):
+build on iter 25 by making the siege morale penalty **depend on whether the player readied defences**.
+Before, the hit was a flat constant regardless of preparation — so the iter-9 "Ready your defences"
+objective had no morale payoff, only HP. Now preparation visibly steadies the realm.
+
+### Change made
+- **PopularityEngine**: new event `active_siege_defended` = **−3** (vs the unready `active_siege` = −8).
+- **GameState**: when a faction is besieging the player, the day-boundary now picks the event by
+  `_is_siege_ready(player)` — true when the realm has **≥3 "defence points"** = built DEFENSE-category
+  structures (palisade/stone wall/gatehouse/towers) + living garrison units (counted together, so a
+  short wall *or* a few soldiers qualifies). New `SIEGE_READY_THRESHOLD = 3`.
+- Rationale: an unready realm panics under a looming siege (−0.4/day smoothed); a prepared one trusts
+  its walls (−0.15/day) and rides the war out near-steadily.
+
+### Verified — A/B via `tools/ProbePopularity.gd` (new `SR_PROBE_DEFENDED=1` variant)
+Same 100-day managed run, with vs without walls+tower:
+| day | undefended (−8) | defended (−3) |
+|----|----|----|
+| 30 | 58.8 | 58.8 |
+| 60 | 50.8 | 58.3 |
+| 85 | 38.8 | **52.6** |
+| min/final* | 28.1 | **45.6** |
+*(the day-90+ dip is the probe's known food artifact, not the real game.)
+
+A prepared realm barely dips through the entire war; an unready one still feels real morale pressure.
+- Headless: full suite green; TestPhase2 → 94 (defended siege is negative *and* lighter than undefended);
+  TestPhase6 → 87 (`_is_siege_ready`: walls/tower/gatehouse ✓, a 3-soldier garrison ✓, a *fallen*
+  garrison ✗, bare hall ✗). Live boot clean.
+
+### Post-mortem
+- **Failure point:** none — survival never at risk.
+- **Fun:** this is the satisfying half of iter 25. War still threatens the careless ruler, but now
+  *preparation is rewarded* — building walls and mustering a garrison keeps your people confident,
+  turning "Ready your defences" from a chore into a real strategic payoff. A genuine reward loop.
+
+### Backlog / next
+- Surface the why on-screen: a one-time "Your walls steady the people" notice when a siege looms and
+  the realm is defended (so the player *learns* the mechanic), and/or a HUD readiness indicator.
+- Strategic/world-map actions as the human — largest unexercised area.
+
 ## Iteration 25 — 2026-06-16  (late-game popularity smoothing — measured, then tuned)
 
 ### Heuristic focus

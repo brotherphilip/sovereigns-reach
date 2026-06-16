@@ -52,7 +52,8 @@ const TAX_POPULARITY_DELTA: Dictionary = {
 
 # External event modifiers (GDD §3.5)
 const EVENT_POPULARITY_DELTA: Dictionary = {
-	"active_siege":       -8,   # A siege looms — the people are fearful (assembling, not yet stormed). Was -12; over a 48-day assembly that alone slid a realm from ~58 to ~25 popularity by day 100 (a dispiriting late-game grind). Softened so war still pressures morale (~-0.4/day) but a prepared ruler holds.
+	"active_siege":       -8,   # A siege looms and the realm is unready — the people are fearful (assembling, not yet stormed). Was -12; over a 48-day assembly that alone slid a realm from ~58 to ~25 popularity by day 100 (a dispiriting late-game grind). Softened so war still pressures morale (~-0.4/day) but a prepared ruler holds.
+	"active_siege_defended": -3, # Same looming siege, but the realm has readied defences (walls/towers + a garrison) — the people trust the walls, so the morale hit is much lighter. Rewards preparation (the iter-9 "ready your defences" objective).
 	"disease_outbreak":   -10,
 	"blizzard":           -5,
 	"storm":              -2,
