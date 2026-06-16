@@ -38,21 +38,73 @@ const EDGE    := Color(0.0, 0.0, 0.0, 0.28)
 static func _box(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vector2, ht: float, wall: Color) -> PackedVector2Array:
 	var u := Vector2(0, -ht)
 	var tu := t + u; var ru := r + u; var bu := b + u; var lu := l + u
-	ci.draw_colored_polygon(PackedVector2Array([l, b, bu, lu]), wall.darkened(0.30))   # front-left
-	ci.draw_colored_polygon(PackedVector2Array([b, r, ru, bu]), wall.darkened(0.12))   # front-right
-	ci.draw_colored_polygon(PackedVector2Array([tu, ru, bu, lu]), wall.lightened(0.06))# top
+	# Faces, with a touch more contrast between the shaded and lit sides than before.
+	ci.draw_colored_polygon(PackedVector2Array([l, b, bu, lu]), wall.darkened(0.34))   # front-left (shaded)
+	ci.draw_colored_polygon(PackedVector2Array([b, r, ru, bu]), wall.darkened(0.10))   # front-right (lit)
+	ci.draw_colored_polygon(PackedVector2Array([tu, ru, bu, lu]), wall.lightened(0.08))# top
+	# Ambient occlusion: the wall grounds darker where it meets the earth, so the
+	# building sits in the world instead of floating as a flat slab.
+	var aoh: float = minf(ht * 0.24, 7.0)
+	var ao := Color(0, 0, 0, 0.16)
+	ci.draw_colored_polygon(PackedVector2Array([l, b, b + Vector2(0, -aoh), l + Vector2(0, -aoh)]), ao)
+	ci.draw_colored_polygon(PackedVector2Array([b, r, r + Vector2(0, -aoh), b + Vector2(0, -aoh)]), ao)
+	# Vertical corner posts catch the light — a subtle highlight that reads as edges.
+	ci.draw_line(b, bu, wall.lightened(0.14), 0.8)
+	# Eave rim along the wall-top so the silhouette pops against the roof above.
+	ci.draw_polyline(PackedVector2Array([lu, bu, ru]), wall.lightened(0.22), 0.8)
 	ci.draw_polyline(PackedVector2Array([l, b, r]), EDGE, 0.6)
 	ci.draw_polyline(PackedVector2Array([l, lu, bu, ru, r]), EDGE, 0.5)
 	return PackedVector2Array([tu, ru, bu, lu])
+
+# Shingle/tile courses across a roof slope. `eave` = the down-slope edge vertices
+# (left→right); r0/r1 = the ridge ends matching eave's first/last vertex. Lines run
+# parallel to the ridge, stepping down to the eave — reads as rows of tiles/thatch.
+static func _courses(ci: CanvasItem, eave: Array, r0: Vector2, r1: Vector2, col: Color, n: int = 3) -> void:
+	var m: int = eave.size()
+	if m < 2:
+		return
+	var targets: Array = []
+	for i in range(m):
+		targets.append(r0.lerp(r1, float(i) / float(m - 1)))
+	for k in range(1, n + 1):
+		var f: float = float(k) / float(n + 1)
+		var pts := PackedVector2Array()
+		for i in range(m):
+			pts.append((eave[i] as Vector2).lerp(targets[i], f))
+		ci.draw_polyline(pts, col, 0.6)
+
+# Courses on a triangular (hip) roof face — lines parallel to the base, toward apex.
+static func _tri_courses(ci: CanvasItem, a: Vector2, bb: Vector2, apex: Vector2, col: Color, n: int = 3) -> void:
+	for k in range(1, n + 1):
+		var f: float = float(k) / float(n + 1)
+		ci.draw_line(a.lerp(apex, f), bb.lerp(apex, f), col, 0.6)
+
+# A thin closed elliptical ring (banding for cones/silos).
+static func _ring(ci: CanvasItem, c: Vector2, rx: float, ry: float, col: Color, wd: float = 0.7) -> void:
+	var pts := PackedVector2Array()
+	for i in range(19):
+		var a := TAU * float(i) / 18.0
+		pts.append(c + Vector2(cos(a) * rx, sin(a) * ry))
+	ci.draw_polyline(pts, col, wd)
 
 # Hip roof over the box's top diamond. Returns the apex.
 static func _hip(ci: CanvasItem, c: PackedVector2Array, rh: float, roof: Color) -> Vector2:
 	var tu: Vector2 = c[0]; var ru: Vector2 = c[1]; var bu: Vector2 = c[2]; var lu: Vector2 = c[3]
 	var apex := (tu + bu) * 0.5 + Vector2(0, -rh)
-	ci.draw_colored_polygon(PackedVector2Array([lu, tu, apex]), roof.darkened(0.06))
-	ci.draw_colored_polygon(PackedVector2Array([tu, ru, apex]), roof.lightened(0.08))
-	ci.draw_colored_polygon(PackedVector2Array([lu, bu, apex]), roof.darkened(0.16))
-	ci.draw_colored_polygon(PackedVector2Array([ru, bu, apex]), roof)
+	var c_back := roof.darkened(0.06)
+	var c_left := roof.darkened(0.16)
+	var c_litR := roof.lightened(0.10)
+	var c_lit  := roof.lightened(0.02)
+	ci.draw_colored_polygon(PackedVector2Array([lu, tu, apex]), c_back)
+	ci.draw_colored_polygon(PackedVector2Array([tu, ru, apex]), c_litR)
+	ci.draw_colored_polygon(PackedVector2Array([lu, bu, apex]), c_left)
+	ci.draw_colored_polygon(PackedVector2Array([ru, bu, apex]), c_lit)
+	# Tile courses on the two front (most-visible) faces.
+	_tri_courses(ci, lu, bu, apex, c_left.darkened(0.16))
+	_tri_courses(ci, ru, bu, apex, c_lit.darkened(0.16))
+	# Hip ridges catch a highlight from apex down each corner.
+	for corner in [lu, ru, bu]:
+		ci.draw_line(apex, corner, roof.lightened(0.20), 0.8)
 	ci.draw_polyline(PackedVector2Array([lu, apex, ru]), EDGE, 0.5)
 	ci.draw_polyline(PackedVector2Array([bu, apex]), EDGE, 0.5)
 	return apex
@@ -62,8 +114,16 @@ static func _gable(ci: CanvasItem, c: PackedVector2Array, rh: float, roof: Color
 	var tu: Vector2 = c[0]; var ru: Vector2 = c[1]; var bu: Vector2 = c[2]; var lu: Vector2 = c[3]
 	var rback := tu + Vector2(0, -rh)
 	var rfront := bu + Vector2(0, -rh)
-	ci.draw_colored_polygon(PackedVector2Array([lu, tu, rback, rfront, bu]), roof.darkened(0.16))  # left slope
-	ci.draw_colored_polygon(PackedVector2Array([tu, ru, bu, rfront, rback]), roof.lightened(0.06))  # right slope
+	var c_left := roof.darkened(0.18)
+	var c_right := roof.lightened(0.08)
+	ci.draw_colored_polygon(PackedVector2Array([lu, tu, rback, rfront, bu]), c_left)   # left slope
+	ci.draw_colored_polygon(PackedVector2Array([tu, ru, bu, rfront, rback]), c_right)  # right slope
+	# Tile courses running parallel to the ridge down each slope.
+	_courses(ci, [tu, lu, bu], rback, rfront, c_left.darkened(0.16))
+	_courses(ci, [tu, ru, bu], rback, rfront, c_right.darkened(0.16))
+	# Bright ridge cap + darker eave overhang give the roof real thickness.
+	ci.draw_line(rback, rfront, roof.lightened(0.26), 1.4)
+	ci.draw_polyline(PackedVector2Array([lu, bu, ru]), roof.darkened(0.30), 0.9)
 	ci.draw_polyline(PackedVector2Array([rback, rfront]), EDGE, 0.6)
 	ci.draw_polyline(PackedVector2Array([lu, rback]), EDGE, 0.4)
 
@@ -102,6 +162,10 @@ static func _cone(ci: CanvasItem, c: Vector2, rx: float, ry: float, ht: float, c
 		if (p0 + p1).y * 0.5 >= c.y - ry * 0.4:   # front faces
 			var sh := col.darkened(0.12) if p0.x < c.x else col
 			ci.draw_colored_polygon(PackedVector2Array([p0, p1, apex]), sh)
+	# Banding rings up the cone (thatch/tile courses) for surface texture.
+	for fr in [0.30, 0.58, 0.82]:
+		var ringc := c + Vector2(0, -ht * fr)
+		_ring(ci, ringc, rx * (1.0 - fr), ry * (1.0 - fr), col.darkened(0.22), 0.6)
 
 static func _post(ci: CanvasItem, base: Vector2, ht: float, col: Color, wd: float = 1.6) -> Vector2:
 	var top := base + Vector2(0, -ht)
@@ -109,8 +173,13 @@ static func _post(ci: CanvasItem, base: Vector2, ht: float, col: Color, wd: floa
 	return top
 
 static func _shadow(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vector2) -> void:
-	var o := Vector2(3, 5)
-	ci.draw_colored_polygon(PackedVector2Array([t + o, r + o, b + o, l + o]), Color(0, 0, 0, 0.18))
+	# Soft grounding shadow: a broad faint pool with a denser core, cast down-right.
+	# Reads as a real cast shadow rather than a hard duplicate of the footprint.
+	var ctr := (t + b) * 0.5 + Vector2(3, 5)
+	var rx: float = absf(r.x - l.x) * 0.5
+	var ry: float = absf(b.y - t.y) * 0.5
+	_ellipse(ci, ctr, rx * 0.98, ry * 0.98, Color(0, 0, 0, 0.10))
+	_ellipse(ci, ctr, rx * 0.68, ry * 0.68, Color(0, 0, 0, 0.13))
 
 # A door centred on the front-left face (l→b edge).
 static func _door(ci: CanvasItem, l: Vector2, b: Vector2, ht: float, col: Color = Color(0.16, 0.10, 0.06)) -> void:

@@ -26,6 +26,54 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 47 — 2026-06-16  (DESIGN OVERHAUL #1 — building art: textured roofs, grounded shadows)
+
+### Source
+User: "next iteration is a design overhaul — all menus, all building/UI layouts. Visually inspect them on
+the virtual screen and amend. Every building needs much, much more detail and style — they're bland.
+More professional, readable, cleaner, more modern, WITHOUT losing the medieval vibe." (Multi-iteration.)
+
+### Method
+Launched the staffed town on Xvfb, zoomed the camera onto the church/bakery/blacksmith cluster, and
+looked. Diagnosis of "bland": roofs were large **flat single-tone** triangles, walls were flat fills,
+and the cast shadow was a **hard footprint diamond** — buildings read as papercraft slabs.
+
+### Change made (the high-leverage lever: shared primitives)
+Every building routes through a handful of shared draw helpers, so upgrading those lifts all ~40 types at
+once. In view/micro/BuildingModels.gd:
+- **Roofs — _gable:** tile/shingle **courses** down each slope (lines parallel to the ridge), a **bright
+  ridge cap**, and a **darker eave overhang** → real roof thickness instead of two flat triangles.
+- **Roofs — _hip:** courses on the two front faces, **hip-ridge highlights** from apex down each corner,
+  stronger lit/shaded face contrast.
+- **Cones — _cone** (granary dome, windmill cap, turret spires, well roof): **banding rings** for thatch/
+  tile texture.
+- **Walls — _box:** wall-base **ambient occlusion** (grounds where it meets the earth), corner-post +
+  eave **edge highlights**, a touch more lit/shaded contrast.
+- **Grounding — _shadow:** replaced the hard diamond with a **soft elliptical pool** (broad faint outer +
+  denser core, cast down-right) so every structure sits in the world.
+- New helpers: _courses, _tri_courses, _ring.
+
+### Verified
+- **Live (Xvfb, staffed town):** church hip-roof now reads dimensionally (lit/shaded faces + courses +
+  ridge highlights); bakery gable shows ridge cap + darker eaves; every building (church, bakery,
+  watchtower, iron mine, market, blacksmith, brewery) now sits in a soft grounding shadow. Cohesive uplift,
+  medieval low-poly vibe intact. Screens: /tmp/iter47_{before,church,town}.png.
+- **Tests:** all suites green (1075 assertions, 0 failed). View-only change, logic untouched.
+
+### Post-mortem
+- **UX:** buildings are clearly more legible and "placed" in the world — the shared-primitive pass was the
+  right first step (broad lift, low risk) before per-building hero detail.
+- This is overhaul **step 1 of N**. It does not yet add bespoke per-building flourishes, nor touch menus/
+  panels.
+
+### Backlog / next (overhaul roadmap)
+1. **Per-building hero detail** — bespoke flourishes on the high-traffic types (hall, keep, church,
+   market, inn, mill) now the base materials read well.
+2. **Wall surface texture** — stone-course / timber-frame / wattle hatching on _box faces per material.
+3. **HUD pass** — top resource bar, popularity/objective panels: spacing, type hierarchy, iconography.
+4. **Menus & panels** — MainMenu, build menu, tech/edict/diplomacy panels.
+- (Carried) Diplomacy depth; a fresh full human playthrough at the new pace.
+
 ## Iteration 46 — 2026-06-16  (lamp flame flicker — the lit town feels alive)
 
 ### Heuristic focus
