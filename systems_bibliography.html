@@ -35,7 +35,7 @@
 <header>
   <h1>⚜ Sovereign's Reach — Systems Reference</h1>
   <p>A medieval city-builder &amp; strategy game in Godot 4.6.3. Living document — updated each dev iteration.</p>
-  <p class="muted">Last updated: iteration 44 (2026-06-16)</p>
+  <p class="muted">Last updated: iteration 45 (2026-06-16)</p>
 </header>
 <nav>
   <a href="#overview">Overview</a>
@@ -224,9 +224,11 @@
   <ul>
     <li><b>Isometric city view</b> with animated villager pawns, per-type unit bodies, walkable fields,
       seasonal terrain/foliage tints, weather, and a minimap.</li>
-    <li><b>Day/night lighting</b> (<span class="file">view/micro/NightLayer.gd</span>): a darkening wash that
-      grades warm at dusk/dawn → cool moonlit blue at midnight, plus a warm lamp glow on every building. The
-      HUD stays readable. <span class="muted">(Lighting overhaul queued next per design feedback.)</span></li>
+    <li><b>Day/night lighting</b> (two layers): <span class="file">NightLayer.gd</span> draws the darkening
+      wash (warm dusk/dawn → cool moonlit-blue midnight); <span class="file">NightLampLayer.gd</span> draws
+      the building lamps with an <b>additive blend</b> + a <b>radial gradient</b>, so each lamp genuinely
+      brightens the ground around it (a wide ~130px soft pool of warm light, not a flat colour overlay). The
+      HUD stays readable.</li>
     <li><b>HUD:</b> resource bar, day + time-of-day phase, season + weather, popularity/tax/ration sliders
       (with honest effect labels — e.g. ale shows "no inn" until an Inn serves it), a standing Objective
       tracker, and a stacking notification feed. Notifications never show raw ids/ticks.</li>

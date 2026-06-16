@@ -26,6 +26,41 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 45 — 2026-06-16  (building lighting overhaul — additive radial lights, not a colour overlay)
+
+### Source
+User: "the lights on the buildings suck — we need better lighting, spread further, but not just be a
+colour overlay."
+
+### Finding
+The old lamps were flat `draw_circle` alpha discs drawn over the darkening wash — literally a colour
+overlay that tinted but didn't light, with a small (~48px) reach.
+
+### Change made
+- **Split lighting into two layers** so lamps can use a different blend mode than the wash:
+  - **NightLayer** now draws ONLY the darkening wash (warm-dusk → cool-midnight grade).
+  - **NightLampLayer** (new, <span class="file">view/micro/NightLampLayer.gd</span>) draws the lamps with an
+    **additive blend** (`CanvasItemMaterial.BLEND_MODE_ADD`) on top of the wash, so each lamp genuinely
+    **brightens** the ground rather than tinting it.
+- **Real soft light:** a **radial GradientTexture2D** (bright centre → transparent edge) gives smooth
+  falloff instead of hard discs; each building gets a **wide warm glow (≈130px reach, up from ~48)** + a
+  brighter inner core + a small bright flame point. Intensity ramps in over dusk via
+  `smoothstep(0.1, 0.7, night_factor)`.
+
+### Verified
+- **Live (Xvfb, staffed town, 5× to night)**: each building now casts a large soft warm pool that
+  genuinely brightens the darkened ground (smooth radial falloff, dark between pools, overlapping glows
+  where buildings cluster) — a clear, dramatic upgrade from the old flat discs.
+- View-only change; full suite unaffected; clean boot (both layers parse/render).
+
+### Post-mortem
+- **Fun/UX:** night reads like a genuinely lamp-lit town — pools of warm light spilling across the ground
+  from each building — instead of flat coloured blobs. Far-from-lamp areas stay dark, lit areas glow.
+
+### Backlog / next
+- Optional: flicker the flame point; tint windows; lights on units/campfire.
+- Diplomacy depth; a fresh full human playthrough at the new pace.
+
 ## Iteration 44 — 2026-06-16  (seasons re-keyed to the 15-min-day year + systems HTML rewritten; user requests)
 
 ### Source
