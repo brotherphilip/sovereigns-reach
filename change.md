@@ -26,6 +26,47 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 92 — 2026-06-17  (Survival-test limits charted; winter food-prep taught in the objective)
+
+### Source
+Tried to extend iter91 into a "well-built economy survives to Day 100" test (add the bread chain). Probing it
+revealed hard limits of the headless harness — so the deliverable became those findings + a safe player-facing fix.
+
+### Findings (Phase 4 — what the headless harness can and can't do)
+- **Manually-placed buildings don't produce faithfully.** A full bread chain (wheat_farm + mill + bakery, with
+  `crop_tiers` unlocked) produced **zero** wheat/flour/bread over 100 days — production needs terrain validation +
+  worker assignment + the physical hauling chain, which only come from the real placement pipeline. Orchards only
+  produced when their exact coords happened to land on good grass. ⇒ the harness is for **single-run invariant/
+  smoke testing** (iter91), not balance tuning.
+- **The sim isn't repeatable in one process:** two identical runs gave different popularity (47.95 vs 34.15) — the
+  autoload's RNG state persists between runs (`_citizen_rng` inits only when null; weather RNG carries). So no
+  in-process determinism test from this entry point. (Cross-process determinism is covered by TestPhase9.)
+- **Two season clocks (noted, not touched):** `season_at_day` (12-day economic seasons, drives harvest gating) vs
+  `season_at_tick` (visual/day-night, drives `season_changed`, ~150 days/season). They're misaligned, so a
+  "winter approaches" notice can't simply hook `season_changed`. HARVEST_SEASONS: apple_orchard=[AUTUMN],
+  wheat_farm=[SUMMER,AUTUMN]; off-season yield 0.85×. (Left alone — untangling blind is risky.)
+
+### Change made (the safe, grounded win)
+- **`simulation/core/ObjectiveSystem.gd`:** the `survive_winter` objective now teaches the winter-food mechanic
+  it's actually about — *"Endure to Day 48 — stock winter food (orchards reap in autumn; bake bread to keep)."*
+  (was the generic "Establish your realm — endure to Day 48."). Grounded in HARVEST_SEASONS (orchards peak in
+  autumn) and the iter91 finding (apples-only realms starve over winter). Text-only; trimmed to fit the HUD panel.
+
+### Verified
+- **TestObjectives 30/0; full suite 0 FAIL across all 27 files.** (Objective text flows through the existing
+  `objective_updated` → HUD panel + the generic iter80 VO sting; no new VO or wiring needed.)
+
+### Post-mortem
+- **UX:** the objective now arrives as actionable winter-prep guidance at the right moment, instead of a bare
+  "endure" — directly addressing the day-72 winter-starvation pattern the playtests/sim surfaced.
+- **Process:** charted exactly what the new headless harness is good for (saved to memory) so future iterations
+  don't chase an unfaithful economy or an in-process determinism test.
+
+### Backlog / next
+1. Faithful economy/balance testing would need a headless harness that runs the real placement+worker+hauling
+   pipeline (or a fresh process per run) — larger; deferred.
+2. (Carried) live siege-landing confirmation; ear-check narration; ear-tune SFX.
+
 ## Iteration 91 — 2026-06-17  (The headless 100-day survival regression — the goal, as a test)
 
 ### Source
