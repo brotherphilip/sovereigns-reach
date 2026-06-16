@@ -26,6 +26,30 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 110 — 2026-06-17  (Voice the save/load pop-ups — the realm's chronicle)
+
+### Source
+Standing VO rule — the "Game saved!" / "Game loaded!" pop-ups were still silent.
+
+### Change made
+- **2 new VO stings** (grim-herald, no FX), themed as a medieval chronicle: `game_saved` ("Your chronicle is set
+  down — the realm's tale is safe") and `game_loaded` ("The chronicle resumes — your reign continues").
+- **`NarrationPlayer`** hooks `save_completed` → `game_saved` and `load_completed(success)` → `game_loaded` (only
+  on a successful load). Both reuse existing EventBus signals — no new plumbing.
+
+### Verified
+- **`tests/TestNarration.gd` → 76/0** (both clips load; 73 clips scanned, none silent). **Full suite: 0 FAIL across
+  all 29 files.** Live boot clean.
+
+### Post-mortem
+- **Audio feedback:** the two remaining common meta pop-ups now speak in the same herald voice as the rest of the
+  realm, themed to fit (a chronicle set down / resumed). View/audio-only; zero gameplay impact.
+
+### Backlog / next
+1. Remaining un-voiced pop-ups are now only the dynamic tutorial-hint toasts (would need a generic instructional
+   sting) and generic non-seat building-loss — both low value / spam-risk; leave unless they prove worth it.
+2. (Carried) user ear-check of narration voice quality; ear-tune SFX.
+
 ## Iteration 109 — 2026-06-17  (Verification: the spectated-siege feature is complete & correct)
 
 ### Source
