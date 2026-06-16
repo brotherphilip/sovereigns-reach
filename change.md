@@ -26,6 +26,45 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 87 — 2026-06-17  (Managed playtest: the realm thrives, and recent fixes verified LIVE)
+
+### Source
+With the build flow now reliable (iter86), ran the first proper **managed** playtest — actually playing the game,
+not letting it idle — to test active-play survival/engagement and to live-verify the last several iterations'
+work end-to-end (previously only boot/unit-tested).
+
+### Playtest log (live, Xvfb :99, played with real clicks)
+- **Built Village Hall** (placed on grass, rendered + labeled, villagers gathered) → **first objective complete**.
+- **iter82 verified LIVE:** completing `found_hall` advanced the objective to `feed_people` and the build menu
+  **auto-switched Civic → Food** (with the iter83 pulse) — the objective-arc guidance working in a real session.
+- **Built 2 Apple Orchards** from the (auto-selected) Food tab; apple trees planted and tended by villagers.
+- **iter86 verified LIVE:** a tribute demand fired (~day 14) and the refuse line correctly read *"grievance
+  deepens (now wary); the King's Peace stays their hand ~16 days more"* (30−14 = 16) — the grace-aware text I
+  shipped last iteration, with the right computed countdown. Accepted → tribute paid, peace held.
+- **Survival confirmed:** advanced at 5× to **Day 49** (past the King's Peace, nearly half the 100-day goal) —
+  realm intact, **apples 200/200 (full)**, prestige 405 (milestones/events firing steadily). Compare the iter86
+  *unmanaged* run: apples 13/200 (starving) by day 30. **Active play clearly sustains the realm.**
+
+### Failure point
+None. No crash, soft-lock, or balance wall through Day 49 of managed play. Every recent feature behaved live.
+
+### Change made
+Validation iteration — no code change was warranted (the systems and the last four iterations' fixes are all
+confirmed working in-game). Deliverable is this QA record + the harness procedure now proven end-to-end.
+
+### Post-mortem
+- **Survival + engagement:** the managed loop is healthy — build → objective advances → menu guides you to the
+  next build → events/milestones reward you → food sustains. The 20-minute path is demonstrably playable to the
+  halfway mark with sensible play, and forgiving enough that mistakes don't instantly wall the run.
+- **QA value:** features that were only boot/unit-verified (objective-arc menu, grace-aware diplomacy) are now
+  end-to-end confirmed by a human-style session.
+
+### Backlog / next
+1. Finish a full **Day-100 managed run** (build defenses before day ~30, survive a real siege) — the last
+   unproven stretch of the 20-min goal.
+2. **Deferred:** headless survival regression (decouple GameState from the EventBus autoload).
+3. (Carried) ear-check narration takes; ear-tune SFX.
+
 ## Iteration 86 — 2026-06-17  (Deep mid-game playtest → grace-aware diplomacy text)
 
 ### Source
