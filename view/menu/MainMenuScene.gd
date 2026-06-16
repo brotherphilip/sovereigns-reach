@@ -231,19 +231,10 @@ func _show_load_overlay() -> void:
 		info_lbl.add_theme_color_override("font_color", Color(0.80, 0.74, 0.54))
 		overlay.add_child(info_lbl)
 		var slot: String = SaveManager.DEFAULT_SAVE_PATH
-		var btn := Button.new()
-		btn.text     = "Load Save"
-		btn.position = Vector2(110, 108)
-		btn.size     = Vector2(220, 40)
-		btn.add_theme_font_size_override("font_size", 14)
-		btn.pressed.connect(func(): _load_slot(slot))
+		var btn := _make_menu_button("Load Save", Vector2(110, 108), Vector2(220, 40), func(): _load_slot(slot))
 		overlay.add_child(btn)
 
-	var close_btn := Button.new()
-	close_btn.text     = "Cancel"
-	close_btn.position = Vector2(160, 256)
-	close_btn.size     = Vector2(120, 34)
-	close_btn.pressed.connect(func(): overlay.queue_free())
+	var close_btn := _make_menu_button("Cancel", Vector2(160, 256), Vector2(120, 34), func(): overlay.queue_free())
 	overlay.add_child(close_btn)
 
 func _load_slot(slot: String) -> void:
