@@ -22,6 +22,7 @@ const DEFINITIONS: Dictionary = {
 	"treasury_300":     "Three hundred gold in the treasury — a prosperous realm.",
 	"standing_army":    "Five soldiers answer your call — a standing company musters.",
 	"reign_day_50":     "Fifty days of rule — half a season survived, and the realm holds.",
+	"reign_day_75":     "Seventy-five days — the warlords' season wanes, and your realm still stands.",
 }
 
 # A standing army of this many living soldiers earns the standing_army milestone — a
@@ -96,6 +97,11 @@ static func check(player: Dictionary, _world: Dictionary, milestones: Dictionary
 		if day >= 50:
 			milestones["reign_day_50"] = true
 			earned.append("reign_day_50")
+
+	if not milestones.has("reign_day_75"):
+		if day >= 75:
+			milestones["reign_day_75"] = true
+			earned.append("reign_day_75")
 
 	if not earned.is_empty():
 		var bonus: float = float(earned.size()) * PRESTIGE_BONUS

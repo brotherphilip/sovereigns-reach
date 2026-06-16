@@ -334,6 +334,10 @@ func _test_medium_fixes() -> void:
 	var p_day: Dictionary = _fresh_player(60)
 	ok("reign_day_50 does NOT fire before day 50", "reign_day_50" not in MilestoneSystem.check(p_day, _gs.world, {}, [], 49))
 	ok("reign_day_50 fires at day 50", "reign_day_50" in MilestoneSystem.check(p_day, _gs.world, {}, [], 50))
+	# reign_day_75 (iter103) — a late-game beat to keep the reward loop alive in the endgame.
+	var p_d75: Dictionary = _fresh_player(60)
+	ok("reign_day_75 does NOT fire before day 75", "reign_day_75" not in MilestoneSystem.check(p_d75, _gs.world, {}, [], 74))
+	ok("reign_day_75 fires at day 75", "reign_day_75" in MilestoneSystem.check(p_d75, _gs.world, {}, [], 75))
 	# town_of_ten fires once the settlement reaches 10 buildings.
 	var p_town: Dictionary = _fresh_player(60)
 	p_town["buildings"] = []

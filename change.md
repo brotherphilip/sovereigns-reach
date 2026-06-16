@@ -26,6 +26,31 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 103 — 2026-06-17  (A day-75 milestone — keep the reward loop alive in the endgame)
+
+### Source
+Reward-loop pacing. Milestones cluster early/mid; the only time-based beats were day 50 and day 100 — a **50-day
+gap** in the late "survive the endgame" stretch where a plateaued player could go without a reward.
+
+### Change made
+- **`simulation/core/MilestoneSystem.gd`:** new `reign_day_75` milestone (fires at day 75, +50 prestige like the
+  rest) — *"Seventy-five days — the warlords' season wanes, and your realm still stands."* Halves the day-50→100
+  reward gap, so the endgame keeps acknowledging survival.
+- **Voiced:** `audio/narration/milestone_reign_day_75.wav` (grim-herald, no FX); fires through the existing
+  `milestone_earned → milestone_<id>` path, no wiring change.
+
+### Verified
+- **TestPhase10 → 80/0** (fires at day 75, not at 74). **TestNarration → 72/0** (key parity + the new clip carries
+  real signal — 69 clips scanned, none silent). **Full suite: 0 FAIL across all 27 files.** Live boot clean.
+
+### Post-mortem
+- **Engagement / pacing:** the late game (days 50–100) — the most fragile stretch for momentum — now has a
+  guaranteed reward at day 75 on top of any achievement milestones, so the prestige drip never goes quiet on the
+  run to the 20-minute goal. Sim-layer, fully unit-tested; zero balance risk (latched one-time prestige).
+
+### Backlog / next
+1. (Carried) user ear-check of narration voice quality; live siege-landing confirmation; ear-tune SFX.
+
 ## Iteration 102 — 2026-06-17  (A second early edict — more agency in the opening minutes)
 
 ### Source
