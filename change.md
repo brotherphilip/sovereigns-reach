@@ -26,6 +26,44 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 81 — 2026-06-16  (Onboarding fix: build menu opens where the first objective points)
+
+### Source
+Pivoted from audio back to the core 20-min engagement goal with a **driven live playtest** (real game on Xvfb
+:99, xdotool clicks, screenshots). Inspecting the literal first-30-seconds a new player faces surfaced a clean
+onboarding snag.
+
+### Failure point (UX, not a crash)
+- The opening **OBJECTIVE** reads *"Found your seat — build a Village Hall."* The Village Hall lives under the
+  build menu's **Civic** tab — but the menu **defaulted to the "Food" tab** (`_current_build_category = 2`). So a
+  brand-new player, told to build a Village Hall, opens the build bar and *doesn't see it* — they must first
+  discover the Civic tab. The game's very first instruction pointed away from where its own UI opened.
+
+### Change made
+- **`view/hud/HUDNode.gd`:** default build category is now **CIVIC (0)** instead of FOOD (2) — both the field
+  initializer and the `_show_build_category(...)` call at menu construction. Civic holds Path, Village Hall (free),
+  Hovel, Market, Well, Apothecary — exactly the natural opening builds and the first objective's target.
+
+### Verified (live + headless)
+- **Live Xvfb playtest:** before — boot opened on *Food* (Apple Orchard, farms, Mill…); after — boot opens on
+  *Civic* with **Village Hall** the first real card (screenshots `/tmp/iter81_tabs.png` vs `/tmp/iter81_tabs_new.png`).
+  Drove the menu with focused xdotool clicks to confirm the tab content. Clean boot, no script errors.
+- **Full suite: 0 FAIL across all 26 files** (view-only change; Objectives 22/0, Narration 57/0 unaffected).
+- *Harness note:* foreground `sleep` is blocked here (exit 144) — moved all boot-wait timing into a detached
+  `setsid` launcher and polled a ready-marker across calls; Godot window needs `xdotool windowactivate` before
+  clicks register. Logged for future playtest iterations.
+
+### Post-mortem
+- **UX / "makes sense to a human operator":** the single highest-leverage onboarding fix — the first thing the
+  game tells you to do is now the first thing you see. Zero sim/balance/determinism impact (HUD default only).
+- **Engagement:** removes an early friction point that could stall or confuse a first-time run in the opening
+  seconds — directly serves the "survive AND stay engaged for 20 min in one life" goal at its most fragile moment.
+
+### Backlog / next
+1. Consider auto-selecting the build category that matches the *current* objective as it advances (Civic→Harvest→
+   Defense…), so the menu always points at the next goal — generalises this fix.
+2. (Carried) ear-check narration takes; standing-army milestone; more seasonal/decision events; ear-tune SFX.
+
 ## Iteration 80 — 2026-06-16  (Herald stings for the dynamic-text pop-ups)
 
 ### Source

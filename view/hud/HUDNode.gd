@@ -75,7 +75,7 @@ var _pop_count_label: Label = null
 var _build_category_btns: Dictionary = {}
 var _build_item_container: HBoxContainer = null
 var _build_mode_label: Label = null
-var _current_build_category: int = 2  # FOOD by default
+var _current_build_category: int = 0  # CIVIC by default — matches the first objective (build a Village Hall)
 
 # Speed buttons
 var _speed_btns: Array = []
@@ -604,7 +604,8 @@ func _build_build_menu(vp: Vector2) -> void:
 	_build_item_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(_build_item_container)
 
-	_show_build_category(2)  # Start on FOOD
+	_show_build_category(0)  # Start on CIVIC — the Village Hall (first objective) is here, so a
+	# new player following the opening objective sees the right building immediately.
 
 func _show_build_category(cat: int) -> void:
 	_current_build_category = cat
