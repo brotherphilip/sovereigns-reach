@@ -26,6 +26,48 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 106 — 2026-06-17  (USER BUG: you couldn't see the troops attacking a city — now you can)
+
+### Source
+**User report:** "why can i not see the troops in real time if they attack? if i go into a city i can't see the
+troops that apparently attacked that city."
+
+### Root cause (diagnosed)
+The game has two combat layers that model troops differently:
+- **Strategic / world-map battles** (kingdom vs kingdom) are **abstract** — armies and garrisons are just numbers
+  (`army.size` vs `city.garrison`), resolved by a dice roll in `CampaignSystem._resolve_assault`. **No soldier
+  entities are ever created.**
+- **Tactical city siege** spawns visible marching troops only on the player's **actively-ruled seat**.
+So when you spectate any OTHER city (`enter_spectator_city`), it spawned the town's **villagers but zero military**
+— the defending garrison was only a number in the banner, and a besieging army didn't exist as units at all. A
+city the world map said was "under attack" looked empty of soldiers.
+
+### Change made
+- **`simulation/core/GameState.gd` (`enter_spectator_city` + new `_spawn_spectator_military` / `_find_besieging_army`):**
+  on entering a spectated city, spawn the **home garrison as visible defenders** (`clamp(garrison/4, 0, 12)` militia,
+  rendered as the town's units) and, if a **hostile strategic army targets the city** (any kingdom's army with
+  `dest_city_id`/`location_city_id` == this city), spawn the **besiegers at the gates** (rendered red via a
+  display-only AI faction). Display-only — AI factions aren't ticked in `spectator_mode`, so the snapshot stays a
+  snapshot; the `UnitLayer` already renders `players[0].units` + `ai_factions[].units`. Sets a `spectator_under_siege`
+  world flag for the view to use.
+
+### Verified
+- **`tests/TestSpectatorTroops.gd` (new, 9/0):** generates the real strategic world (`WorldMapData.generate` +
+  `ensure_strategic_initialized`, which seeds every city's garrison ≥ 4), then asserts: a spectated city shows
+  visible garrison defenders; with no attacker there are no besiegers; **injecting a hostile army targeting the
+  city → besiegers appear at the gates + `spectator_under_siege` set + the garrison still defends.**
+- **Full suite: 0 FAIL across all 29 files.** Live: entered a New-Game world map and a city — populated town renders.
+
+### Post-mortem
+- **Immersion / "makes sense to a human operator":** a city you're told is contested now visibly *has* its
+  defenders and besiegers, instead of looking peacefully empty — closing the exact gap the user hit. Spectator-only
+  visual; zero impact on the abstract strategic resolution or determinism.
+
+### Backlog / next
+1. Optional: make the spectated besiegers actually *fight* the garrison (a living battle) rather than a tableau;
+   and a "⚔ Under siege by X" banner using the `spectator_under_siege` flag.
+2. (Carried) user ear-check of narration voice quality; ear-tune SFX.
+
 ## Iteration 105 — 2026-06-17  (Voice the siege strike — the assault lands with weight)
 
 ### Source

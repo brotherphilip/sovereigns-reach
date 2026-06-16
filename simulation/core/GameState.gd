@@ -1454,7 +1454,66 @@ func enter_spectator_city(city_id: int, center_x: int, center_y: int, seed_val: 
 	_next_citizen_id = CitizenSystem.spawn(
 		citizens, count, float(center_x), float(center_y), _citizen_rng, _next_citizen_id)
 	_snap_citizens_to_grass()
+	_spawn_spectator_military(city, center_x, center_y)   # make the city's troops VISIBLE
 	_auto_manage_ai_town()   # staff the buildings immediately so it's alive on arrival
+
+# Spectated cities used to show only villagers — their garrison was a number in the banner
+# and a besieging army was purely abstract, so a city you were told was "under attack" looked
+# empty of soldiers. Spawn a VISIBLE representative force: the home garrison as defenders, and,
+# if a hostile strategic army targets this city, the besiegers drawn up at the gates. These are
+# display-only (AI factions aren't ticked in spectator_mode) so the snapshot stays a snapshot.
+func _spawn_spectator_military(city: Dictionary, cx: int, cy: int) -> void:
+	if players.is_empty():
+		return
+	var owner_fid: int = CampaignMap.owner_of(city)
+	# ── Home garrison → visible defenders (rendered as the town's own units). ──
+	var garrison: int = int(city.get("garrison", 0))
+	var n_def: int = clampi(garrison / 4, 0, 12)
+	var defenders: Array = []
+	for i in range(n_def):
+		var dx: int = cx - 3 + (i % 4) * 2
+		var dy: int = cy - 2 + (i / 4) * 2
+		var u: Dictionary = UnitState.create("militia", 0, dx, dy, _next_unit_id)
+		if not u.is_empty():
+			_next_unit_id += 1
+			defenders.append(u)
+	players[0]["units"] = defenders
+	# ── A hostile army targeting this city → visible besiegers at the gates. ──
+	ai_factions = []
+	var siege: Dictionary = _find_besieging_army(city.get("id", -1), owner_fid)
+	if not siege.is_empty():
+		var army: Dictionary = siege["army"]
+		var kingdom: Dictionary = siege["kingdom"]
+		var n_atk: int = clampi(int(army.get("size", 0)) / 4, 1, 12)
+		var foe_units: Array = []
+		for j in range(n_atk):
+			var ax: int = cx + 7 + (j % 4) * 2
+			var ay: int = cy + 4 + (j / 4) * 2
+			var fu: Dictionary = UnitState.create("armed_peasant", 90, ax, ay, _next_unit_id)
+			if not fu.is_empty():
+				_next_unit_id += 1
+				foe_units.append(fu)
+		ai_factions.append({
+			"id": 90, "name": kingdom.get("name", "A rival host"),
+			"archetype": "", "is_alive": true, "units": foe_units,
+		})
+		world["spectator_under_siege"] = true
+		world["spectator_besieger_name"] = kingdom.get("name", "A rival host")
+	else:
+		world["spectator_under_siege"] = false
+
+# The first hostile strategic army marching on (or sitting at) the given city, or {} if none.
+func _find_besieging_army(city_id: int, owner_fid: int) -> Dictionary:
+	if city_id < 0:
+		return {}
+	for k in CampaignMap.kingdoms(world):
+		if not k is Dictionary or int(k.get("id", -1)) == owner_fid:
+			continue
+		for a in k.get("armies", []):
+			if a is Dictionary and int(a.get("size", 0)) > 0 \
+					and (int(a.get("dest_city_id", -1)) == city_id or int(a.get("location_city_id", -1)) == city_id):
+				return {"army": a, "kingdom": k}
+	return {}
 
 # An AI town manages its own labour each day while it's being watched: it funds every
 # worker-employing building from its workforce (so villagers walk in and physically
