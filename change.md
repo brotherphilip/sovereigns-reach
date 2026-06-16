@@ -26,6 +26,65 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 22 — 2026-06-16  (content density: the realm's events now turn with the seasons)
+
+### Heuristic focus
+Survival is solved & celebrated; the remaining sim-correctness backlog item (worker labour cap)
+turned out to be **narrow and harmless** on inspection (see note below). So this round serves the
+directive's **Content Density** + **"makes sense"** axes: make `WorldEventSystem` — the data-driven
+content-extension point — **season-aware**, so the 20-minute arc *feels* like it passes through
+spring, summer, autumn and winter rather than a seasonless soup of generic events.
+
+### Note — why the "worker labour cap" backlog item was downgraded, not fixed
+The fear was "auto-staff sets workers=max even when villagers are scarce → buildings out-produce the
+workforce." But **`ResourceTick.is_chain()` is true for every producer except `trading_post`** — and
+chain producers (food/wood/stone/iron + all processed goods) are credited **only when a real hauler
+pawn physically delivers**, so they're *already* labour-capped by the actual citizen count. The only
+assigned-worker-scaled producer that ticks abstractly is the trading post (gold), and over-building
+those merely earns a little phantom gold — it *helps* the player, never threatens the 20-min goal.
+Not worth destabilising the tuned economy for. Logged as closed/low-value.
+
+### Finding — [MAKES-NO-SENSE] seasonal-flavoured events fired in the wrong season
+`spring_lambs` ("Spring brings a strong crop of lambs…") could fire in the dead of winter — the
+event pool had **no season gating at all**, even though the game has a visible 4-season calendar
+(`SeasonSystem`, 12 days/season → ~2 of each season per 100-day life).
+
+### Changes made
+- **WorldEventSystem**: events may now carry an optional **`season`** key (a `SeasonSystem.Season`
+  int, or an Array of them). `tick()` computes `current_season(day)` and filters the eligible pool
+  to year-round events + those whose season matches. Fully back-compatible (no key = any season).
+  New tested helper `_event_in_season(event, season)`.
+- **Fixed the sense bug**: `spring_lambs` is now gated to Spring.
+- **+6 seasonal events** (bounded, positive-leaning, tied to the calendar): **Spring** — The Spring
+  Fair (+pop/+gold); **Summer** — Long Summer Days (+food/+pop), A Dry Spell (−food); **Autumn** —
+  Harvest Home, the great harvest feast (+food/+pop, the season's big beat); **Winter** — Hearth
+  Tales (+pop), A Deep Frost (−food). Event pool 22 → 28.
+- **TestWorldEvents**: +11 assertions (helper int/array/no-season cases; whole-season drives proving
+  out-of-season events never surface, in-season ones do, year-round ones still fire). Suite 27 → 38/0.
+
+### Verified
+- Headless: all 11 new assertions pass; World Events 38/0. Only TestWorldEvents references the system,
+  so the rest of the suite is unaffected.
+- **Live (real game on Xvfb)**: booted clean — the new `SeasonSystem` preload + seasonal events +
+  season filter load with **no script/parse errors** (game initialized, HUD rendered). Fast-forwarded
+  at 5× and caught a live event toast in the feed — "Traveling Minstrels — Minstrels fill the evening
+  with song…" — confirming `tick()` still fires & surfaces events end-to-end with the season filter
+  (and that year-round events still fire). Food drew down 200→172 as expected, sim healthy.
+
+### Post-mortem (no failure — engagement/content iteration)
+- **Failure point:** n/a.
+- **Fun/Content density:** the realm's mood now turns with the year — a harvest feast in autumn, tales
+  by the winter fire — so the same 20 minutes reads as a passing year, not a static loop. Content
+  compounds: each future season-keyed dict entry deepens the felt calendar at zero framework cost.
+- **Makes-sense:** no more lambs in January; flavour matches the on-screen season tint.
+
+### Backlog / next
+- Strategic/world-map actions as the human (develop city / raise army / campaign / diplomacy) — the
+  largest unexercised area; a future deep-dive.
+- Late-game popularity smoothing (verify the seasonal +pop beats help the day-60→100 drift).
+- More content: building-specific events, threat telegraphs, multi-step decisions; a fresh-eyes
+  onboarding pass.
+
 ## Iteration 21 — 2026-06-16  (HUD honesty: the ale-ration row was lying to new players)
 
 ### Heuristic focus

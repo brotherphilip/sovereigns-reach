@@ -15,6 +15,7 @@ extends RefCounted
 # (the framework returns the whole event dict, so a choice popup can be layered on later).
 
 const CitizenSystem = preload("res://simulation/world/CitizenSystem.gd")
+const SeasonSystem  = preload("res://simulation/world/SeasonSystem.gd")
 
 const COOLDOWN_DAYS: int = 5     # minimum days between events
 const DAILY_CHANCE: float = 0.34 # per-day chance an event fires once off cooldown
@@ -22,6 +23,9 @@ const DAILY_CHANCE: float = 0.34 # per-day chance an event fires once off cooldo
 # tone: "good" | "bad" | "neutral" — drives the notification colour.
 # effect keys: food, gold, wood, stone, iron, popularity, prestige (signed deltas);
 #              spawn_citizens (int, handled by GameState — a wanderer joins the village).
+# OPTIONAL "season" key (int SeasonSystem.Season, or an Array of them): the event is
+# only eligible during that season — seasonal flavour tied to the visible calendar.
+# Events with no "season" key fire year-round (back-compatible).
 const EVENTS: Array = [
 	{
 		"id": "wandering_merchant", "tone": "good", "weight": 12, "min_day": 2,
@@ -146,9 +150,57 @@ const EVENTS: Array = [
 	},
 	{
 		"id": "spring_lambs", "tone": "good", "weight": 8, "min_day": 2,
+		"season": SeasonSystem.Season.SPRING,
 		"title": "The Ewes Have Lambed",
 		"text": "Spring brings a strong crop of lambs — fresh meat and milk for the village.",
 		"effect": {"food": 30},
+	},
+
+	# ── Seasonal events ─────────────────────────────────────────────────────────────
+	# Gated to a season (see the "season" key) so the realm's mood turns with the
+	# calendar: blossom fairs in spring, the harvest feast in autumn, hearth-tales in
+	# the deep of winter. Positive-leaning, bounded — content that compounds per season.
+	{
+		"id": "spring_fair", "tone": "good", "weight": 8, "min_day": 2,
+		"season": SeasonSystem.Season.SPRING,
+		"title": "The Spring Fair",
+		"text": "Pedlars and players come with the thaw; the green fills with stalls and laughter.",
+		"effect": {"popularity": 5, "gold": 25},
+	},
+	{
+		"id": "long_summer_days", "tone": "good", "weight": 8, "min_day": 12,
+		"season": SeasonSystem.Season.SUMMER,
+		"title": "Long Summer Days",
+		"text": "The fields stand high under a generous sun; the smallfolk work glad and well-fed.",
+		"effect": {"food": 30, "popularity": 3},
+	},
+	{
+		"id": "summer_dry_spell", "tone": "bad", "weight": 6, "min_day": 12,
+		"season": SeasonSystem.Season.SUMMER,
+		"title": "A Dry Spell",
+		"text": "Weeks without rain crack the earth; the wells run low and some crops wilt.",
+		"effect": {"food": -22},
+	},
+	{
+		"id": "harvest_home", "tone": "good", "weight": 11, "min_day": 24,
+		"season": SeasonSystem.Season.AUTUMN,
+		"title": "Harvest Home",
+		"text": "The last sheaf is brought in. The whole realm feasts the harvest long into the night.",
+		"effect": {"food": 40, "popularity": 6},
+	},
+	{
+		"id": "hearth_tales", "tone": "good", "weight": 9, "min_day": 36,
+		"season": SeasonSystem.Season.WINTER,
+		"title": "Hearth Tales",
+		"text": "The cold draws folk to the longhouse fire, where old songs and tales warm the dark.",
+		"effect": {"popularity": 5},
+	},
+	{
+		"id": "deep_frost", "tone": "bad", "weight": 6, "min_day": 36,
+		"season": SeasonSystem.Season.WINTER,
+		"title": "A Deep Frost",
+		"text": "A hard frost grips the stores; some of the winter larder is lost to the cold.",
+		"effect": {"food": -22},
 	},
 	{
 		"id": "master_craftsman", "tone": "good", "weight": 6, "min_day": 5,
@@ -179,6 +231,16 @@ const EVENTS: Array = [
 # Whether an event waits on a player decision (has choices) rather than auto-resolving.
 static func has_choices(event: Dictionary) -> bool:
 	return event.has("choices") and event["choices"] is Array and not event["choices"].is_empty()
+
+# Whether an event is eligible in the given season. Events without a "season" key fire
+# year-round; otherwise the key may be a single Season int or an Array of them.
+static func _event_in_season(event: Dictionary, season: int) -> bool:
+	if not event.has("season"):
+		return true
+	var s = event["season"]
+	if s is Array:
+		return season in s
+	return int(s) == season
 
 # Look up an event definition by id (for resolving a deferred choice).
 static func event_by_id(event_id: String) -> Dictionary:
@@ -218,11 +280,12 @@ static func tick(player: Dictionary, world: Dictionary, rng: RandomNumberGenerat
 	if rng.randf() >= DAILY_CHANCE:
 		return {}
 
-	# Weighted pick among events eligible at this day.
+	# Weighted pick among events eligible at this day AND this season.
+	var season: int = SeasonSystem.current_season(day)
 	var pool: Array = []
 	var total: int = 0
 	for e in EVENTS:
-		if day >= int(e.get("min_day", 0)):
+		if day >= int(e.get("min_day", 0)) and _event_in_season(e, season):
 			pool.append(e)
 			total += int(e.get("weight", 1))
 	if pool.is_empty() or total <= 0:

@@ -14,6 +14,7 @@ func _init() -> void:
 	_test_effects_are_bounded()
 	_test_min_day_gating()
 	_test_choice_events()
+	_test_seasonal_gating()
 	print("\n=== World Events Results: %d passed, %d failed ===" % [_pass, _fail])
 	quit(0 if _fail == 0 else 1)
 
@@ -152,3 +153,36 @@ func _test_choice_events() -> void:
 	# spawn_citizens is surfaced for the caller (refugees event welcomes 2).
 	var ref_out := WorldEventSystem.resolve(_player(), "refugees_at_gate", 0)
 	ok("welcoming refugees reports spawn_citizens", int(ref_out.get("spawn_citizens", 0)) == 2)
+
+# Collects the set of event ids that fire across [day_lo, day_hi) over many trials.
+func _collect_ids_in_range(day_lo: int, day_hi: int) -> Dictionary:
+	var ids := {}
+	var rng := RandomNumberGenerator.new(); rng.seed = 12345
+	for _trial in range(80):
+		var world := {"last_event_day": -999}
+		for d in range(day_lo, day_hi):
+			var ev := WorldEventSystem.tick(_player(), world, rng, d)
+			if not ev.is_empty():
+				ids[ev.get("id", "")] = true
+	return ids
+
+func _test_seasonal_gating() -> void:
+	print("\n[Seasonal gating]")
+	# Helper-level: no-season = always eligible; int and array matching.
+	ok("no-season event always eligible", WorldEventSystem._event_in_season({}, 0) and WorldEventSystem._event_in_season({}, 3))
+	ok("season int matches", WorldEventSystem._event_in_season({"season": 2}, 2))
+	ok("season int mismatch rejected", not WorldEventSystem._event_in_season({"season": 2}, 0))
+	ok("season array matches a member", WorldEventSystem._event_in_season({"season": [1, 2]}, 2))
+	ok("season array rejects non-member", not WorldEventSystem._event_in_season({"season": [1, 2]}, 0))
+
+	# Drive whole seasons and confirm out-of-season events never surface.
+	# Days: spring 0-11, summer 12-23, autumn 24-35, winter 36-47.
+	var summer := _collect_ids_in_range(12, 24)
+	var autumn := _collect_ids_in_range(24, 36)
+	var winter := _collect_ids_in_range(36, 48)
+	ok("winter-only events never fire in summer", not summer.has("deep_frost") and not summer.has("hearth_tales"))
+	ok("summer-only events never fire in winter", not winter.has("long_summer_days") and not winter.has("summer_dry_spell"))
+	ok("spring lambs never fire in winter", not winter.has("spring_lambs"))
+	ok("a summer-only event does fire in summer", summer.has("long_summer_days") or summer.has("summer_dry_spell"))
+	ok("the harvest feast fires in autumn", autumn.has("harvest_home"))
+	ok("a year-round event still fires across seasons", summer.has("wandering_merchant") or winter.has("wandering_merchant"))
