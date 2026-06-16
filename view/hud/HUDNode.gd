@@ -76,6 +76,7 @@ var _pop_count_label: Label = null
 var _build_category_btns: Dictionary = {}
 var _build_item_container: HBoxContainer = null
 var _build_mode_label: Label = null
+var _tab_pulse_tween: Tween = null  # active attention-flash on an auto-re-pointed tab
 var _current_build_category: int = 0  # CIVIC by default — matches the first objective (build a Village Hall)
 
 # Speed buttons
@@ -147,7 +148,7 @@ func _on_objective_updated(index: int, total: int, text: String) -> void:
 		var oid: String = String(ObjectiveSystem.OBJECTIVES[index].get("id", ""))
 		var cat: int = ObjectiveSystem.build_category_for(oid)
 		if cat >= 0:
-			_show_build_category(cat)
+			_show_build_category(cat, true)  # pulse the tab — show the player it re-pointed
 
 func _on_gold_changed(_player_id: int, old_amount: int, new_amount: int) -> void:
 	_refresh_top_bar()
@@ -616,9 +617,14 @@ func _build_build_menu(vp: Vector2) -> void:
 	_show_build_category(0)  # Start on CIVIC — the Village Hall (first objective) is here, so a
 	# new player following the opening objective sees the right building immediately.
 
-func _show_build_category(cat: int) -> void:
+func _show_build_category(cat: int, pulse: bool = false) -> void:
 	_current_build_category = cat
 	_highlight_category_tab(cat)
+	# When the menu re-points itself (objective advanced), flash the tab so the player
+	# notices it moved — a silent auto-switch would just be confusing. Manual clicks and
+	# affordability refreshes pass pulse=false (the default), so only the auto-path flashes.
+	if pulse:
+		_pulse_category_tab(cat)
 	for child in _build_item_container.get_children():
 		child.queue_free()
 	_build_item_container.add_theme_constant_override("separation", 6)
@@ -721,6 +727,21 @@ func _highlight_category_tab(cat: int) -> void:
 		btn.add_theme_stylebox_override("normal", sty)
 		btn.add_theme_color_override("font_color",
 			Color(1.0, 0.95, 0.7) if active else Color(0.85, 0.80, 0.66))
+
+# Brief attention flash on a category tab (used when the menu auto-re-points on an
+# objective advance). Brightens via modulate a few times, then settles back to normal.
+func _pulse_category_tab(cat: int) -> void:
+	if not _build_category_btns.has(cat):
+		return
+	var btn: Button = _build_category_btns[cat]
+	if btn == null:
+		return
+	if _tab_pulse_tween != null and _tab_pulse_tween.is_valid():
+		_tab_pulse_tween.kill()
+	btn.modulate = Color(1, 1, 1, 1)
+	_tab_pulse_tween = create_tween().set_loops(3)
+	_tab_pulse_tween.tween_property(btn, "modulate", Color(1.7, 1.45, 0.7, 1.0), 0.18)
+	_tab_pulse_tween.tween_property(btn, "modulate", Color(1, 1, 1, 1), 0.18)
 
 func _refresh_build_menu() -> void:
 	_show_build_category(_current_build_category)

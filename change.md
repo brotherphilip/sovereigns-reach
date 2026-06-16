@@ -26,6 +26,40 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 83 — 2026-06-17  (Make the auto-re-point legible: a tab pulse)
+
+### Source
+Closes the loop on iter82. The build menu now silently swaps to the objective's tab when a goal completes — but a
+*silent* self-changing menu reads as a glitch, not guidance. The player needs a cue that the menu deliberately
+moved. (Also weighed a headless 100-day survival regression test, but `GameState` is an autoload that references
+`EventBus` directly throughout — it can't be cleanly instantiated/ticked under `--script`, so that's deferred.)
+
+### Change made
+- **`view/hud/HUDNode.gd`:** `_show_build_category(cat, pulse := false)` — the objective-driven path passes
+  `pulse=true`; manual tab clicks and affordability refreshes keep the default (no flash). New `_pulse_category_tab`
+  brightens the target tab via a 3-loop `modulate` tween (white → warm-gold → white, ~0.18s each) using a stored
+  `_tab_pulse_tween` that's killed/restarted so flashes never stack. Null-guarded; tween created in-tree.
+- Bonus: the day-1 objective emit pulses the **Civic** tab at game start — a gentle "build here" nudge for new
+  players, on top of the iter81 default + iter82 arc.
+
+### Verified (live)
+- **Timed burst-capture playtest** (18 screenshots bracketing the day-1 tick): the Civic-tab region brightness
+  holds at baseline 0.238, then spikes across 3 consecutive frames (0.262 → **0.284 peak** → 0.271) — the rise/peak
+  /fall of the modulate flash — then settles. Visually a clear gold glow vs baseline (`/tmp/iter83_pulse_peak.png`
+  vs `/tmp/iter83_pulse_base.png`). Clean boot, no tween/script errors.
+- **Full suite: 0 FAIL across all 26 files** (view-only change; HUD animations aren't headless-testable, so this is
+  verified by the live brightness analysis above).
+
+### Post-mortem
+- **UX / audio-visual feedback:** the iter81→82→83 arc is now complete — the build menu defaults right, follows the
+  objective, AND announces when it re-points, so the guidance is legible instead of mysterious. Zero
+  sim/balance/determinism impact.
+
+### Backlog / next
+1. **Deferred:** a headless "managed realm survives 100 days" regression — needs a way to drive the sim without the
+   GameState autoload (e.g. extract a tick-orchestrator that takes EventBus as a param, or a scene-tree test).
+2. (Carried) ear-check narration takes; standing-army milestone; more seasonal/decision events; ear-tune SFX.
+
 ## Iteration 82 — 2026-06-16  (Build menu follows the objective arc)
 
 ### Source
