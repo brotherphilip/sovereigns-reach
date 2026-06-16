@@ -26,6 +26,38 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 68 — 2026-06-16  (World map: click a marching host to inspect it)
+
+### Source
+Carried backlog + the troop-management directive. After iter 67 armies hold a true mid-road position, but on
+the map they were still anonymous dots — you couldn't tell a 6-man raid from a 90-strong host, or where either
+was headed. Make every marching army legible at a click.
+
+### Change made
+- **WorldMapController:** `get_army_render_list` entries now carry `owner_name`, `army_id`, `dest_name`, and the
+  distance-scaled `eta_days` (reuses `CampaignSystem.days_to_destination` by wrapping the map dict as a world).
+  New `find_army_near(data, pos, radius, frac)` returns the enriched render dict of the nearest host (or `{}`).
+- **WorldMapView:** new `army_inspected(info)` signal; a left-click that lands on empty map space (no city under
+  the cursor — cities keep priority) now picks the nearest marching host within 16px and emits its details.
+- **WorldMapScene `_on_army_inspected`:** writes a readout to the info panel — e.g. *"⚔ Your host — 30 troops,
+  marching on Bastion (~2 days away)"* (green for your hosts, the kingdom's banner colour for rivals), or
+  *"holding position"* for a stationary host.
+
+### Verified
+- **New TestPhase9 suite (`_test_army_inspect`, 61/0):** the render entry reports troop count / owner kingdom /
+  destination city / 3-day distance-scaled ETA / moving flag; `find_army_near` picks the host at its marker and
+  returns `{}` on an empty patch; after a day's march the marker has crept along the road and the ETA counts down
+  to 2. **Full suite: 0 FAIL across all 24 test files.** WorldMapScene boots clean on Xvfb.
+
+### Post-mortem
+- **UX / world-map legibility:** the strategic map is now readable — you can click any host (yours or a rival's)
+  to see its strength, heading, and the iter-67 real-time ETA. City clicks keep priority, so nothing existing is
+  disturbed. No survival-spine or balance impact — pure clarity for the troop-management layer.
+
+### Backlog / next
+1. Reward-loop / milestone-variety polish; more seasonal/decision events as desired.
+2. (Optional) hover-to-inspect armies too (currently click-only); on-map ETA label above the banner.
+
 ## Iteration 67 — 2026-06-16  (World map: distance-scaled army travel — "real time to travel there")
 
 ### Source

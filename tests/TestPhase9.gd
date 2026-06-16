@@ -18,6 +18,7 @@ func _init() -> void:
 
 	_test_worldmapdata()
 	_test_worldmapcontroller()
+	_test_army_inspect()
 	_test_shiremap_60()
 
 	print("")
@@ -236,6 +237,50 @@ func _test_worldmapcontroller() -> void:
 	_ok(WorldMapController.size_band(31) == 2 and WorldMapController.size_band(60) == 2, "31-60 → band 2")
 	_ok(WorldMapController.size_band(61) == 3 and WorldMapController.size_band(100) == 3, "61-100 → band 3")
 	_ok(WorldMapController.size_band(101) == 4 and WorldMapController.size_band(500) == 4, "100+ → band 4")
+
+# ── Army inspection (click a marching host on the map) ───────────────────────
+# get_army_render_list must surface who/how-many/where-bound/ETA, and find_army_near
+# must pick the host at its true (distance-scaled) mid-road position.
+func _test_army_inspect() -> void:
+	print("── Army inspect (click-to-read marching host) ──")
+	var CampaignSystem = preload("res://simulation/strategic/CampaignSystem.gd")
+	# Two same-owner cities 540px apart (→ 3-day leg); render list takes the MAP dict.
+	var map_data: Dictionary = {
+		"cities": [
+			{"id": 0, "pos_x": 0.0, "pos_y": 0.0, "name": "Hold", "owner_faction_id": 1, "faction_id": 1, "connected_to": [1], "garrison": 5, "development": 3},
+			{"id": 1, "pos_x": 540.0, "pos_y": 0.0, "name": "Bastion", "owner_faction_id": 1, "faction_id": 1, "connected_to": [0], "garrison": 0, "development": 3},
+		],
+		"kingdoms": [{"id": 1, "name": "Test Realm", "armies": [], "treasury": 1000, "resources": {}}],
+		"factions": [{"id": 1, "color_hex": "#cc4444"}],
+		"player_faction_id": 1,
+	}
+	var world: Dictionary = {"world_map": map_data}
+	var kingdom: Dictionary = map_data["kingdoms"][0]
+	var aid: int = CampaignSystem.raise_army(world, kingdom, 0, 12)
+	_ok(CampaignSystem.launch_campaign(world, kingdom, aid, 1), "army launched on a campaign")
+
+	# At launch (march_frac 0) the host sits on its origin city; the render entry is rich.
+	var armies: Array = WorldMapController.get_army_render_list(map_data)
+	_ok(armies.size() == 1, "render list has the one marching host")
+	var a0: Dictionary = armies[0]
+	_ok(int(a0.get("size", 0)) == 12, "host reports its troop count (12)")
+	_ok(String(a0.get("owner_name", "")) == "Test Realm", "host reports its owner kingdom name")
+	_ok(String(a0.get("dest_name", "")) == "Bastion", "host reports its destination city")
+	_ok(int(a0.get("eta_days", 0)) == 3, "host reports the distance-scaled ETA (3 days)")
+	_ok(bool(a0.get("moving", false)), "host is flagged as moving")
+
+	# find_army_near picks it at its position; an off-road point finds nothing.
+	var hit: Dictionary = WorldMapController.find_army_near(map_data, a0.get("pos", Vector2.ZERO), 16.0)
+	_ok(not hit.is_empty() and int(hit.get("army_id", -1)) == aid, "find_army_near picks the host at its marker")
+	var miss: Dictionary = WorldMapController.find_army_near(map_data, Vector2(-999, -999), 16.0)
+	_ok(miss.is_empty(), "find_army_near returns {} for an empty patch of map")
+
+	# After a day's march the marker has crept toward the destination (true progress).
+	CampaignSystem.tick_armies(world, kingdom, [], 240)
+	var moved: Array = WorldMapController.get_army_render_list(map_data, 0.4)
+	_ok(moved.size() == 1 and moved[0].get("pos", Vector2.ZERO).x > 1.0,
+		"after a day the marker has crept along the road (distance-scaled)")
+	_ok(int(moved[0].get("eta_days", 0)) == 2, "ETA counted down to 2 days after one day's march")
 
 # ── ShireMap 60 ───────────────────────────────────────────────────────────────
 

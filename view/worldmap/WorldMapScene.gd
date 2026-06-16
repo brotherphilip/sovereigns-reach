@@ -323,6 +323,7 @@ func _build_scene() -> void:
 	_world_view.mouse_entered.connect(_on_mouse_entered_map)
 	_world_view.city_hovered.connect(_on_city_hovered)
 	_world_view.city_selected.connect(_on_city_selected)
+	_world_view.army_inspected.connect(_on_army_inspected)
 
 func _on_city_clicked(city_id: int) -> void:
 	GameState.world["selected_city_id"] = city_id
@@ -580,6 +581,26 @@ func _set_info(text: String, color: Color = Color(0.80, 0.74, 0.54)) -> void:
 	if info != null:
 		info.text = text
 		info.add_theme_color_override("font_color", color)
+
+# Left-click a marching host (off-city) → read its banner: who, how many, where bound,
+# and how many days out (the distance-scaled ETA from iter 67). Makes armies on the map
+# legible instead of anonymous moving dots.
+func _on_army_inspected(info: Dictionary) -> void:
+	var size: int = int(info.get("size", 0))
+	var owner_name: String = String(info.get("owner_name", "A kingdom"))
+	var is_mine: bool = int(info.get("owner", -1)) == _CampaignMap.player_faction_id(GameState.world)
+	var who: String = "Your host" if is_mine else "%s's host" % owner_name
+	var col: Color = Color(0.55, 0.90, 0.55) if is_mine else Color.from_string(String(info.get("color_hex", "#cccccc")), Color(0.85, 0.78, 0.55))
+	var txt: String
+	if bool(info.get("moving", false)):
+		var dest: String = String(info.get("dest_name", ""))
+		var eta: int = int(info.get("eta_days", 0))
+		var dest_str: String = dest if dest != "" else "the field"
+		txt = "⚔ %s — %d troops, marching on %s (~%d day%s away)" % [
+			who, size, dest_str, eta, "" if eta == 1 else "s"]
+	else:
+		txt = "⚔ %s — %d troops, holding position" % [who, size]
+	_set_info(txt, col)
 
 func _on_main_menu() -> void:
 	get_tree().change_scene_to_file("res://view/menu/MainMenuScene.tscn")

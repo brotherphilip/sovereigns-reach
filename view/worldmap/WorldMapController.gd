@@ -3,7 +3,8 @@ extends RefCounted
 # Accepts WorldMapData.generate() output; returns render-ready arrays.
 # No Node imports — fully headless-testable.
 
-const WorldMapData = preload("res://simulation/world/WorldMapData.gd")
+const WorldMapData    = preload("res://simulation/world/WorldMapData.gd")
+const CampaignSystem  = preload("res://simulation/strategic/CampaignSystem.gd")
 
 static func get_city_render_list(data: Dictionary) -> Array:
 	var cities: Array   = data.get("cities", [])
@@ -57,6 +58,8 @@ static func get_army_render_list(data: Dictionary, march_frac: float = 0.4) -> A
 			var path: Array = a.get("path", [])
 			var pos := from_pos
 			var to_pos := from_pos
+			var dest_name: String = ""
+			var eta_days: int = 0
 			if not path.is_empty():
 				var nxt: Dictionary = _city(data, path[0])
 				if not nxt.is_empty():
@@ -65,6 +68,11 @@ static func get_army_render_list(data: Dictionary, march_frac: float = 0.4) -> A
 					# sim); fall back to the caller's sweep only for legacy armies.
 					var frac: float = a.get("march_frac", march_frac)
 					pos = from_pos.lerp(to_pos, clampf(frac, 0.0, 1.0))  # animated march
+				var dest_id: int = a.get("dest_city_id", path[path.size() - 1])
+				var dc: Dictionary = _city(data, dest_id)
+				dest_name = String(dc.get("name", "")) if not dc.is_empty() else ""
+				# Reuse the sim's exact distance-scaled ETA (wrap the map dict as a world).
+				eta_days = CampaignSystem.days_to_destination({"world_map": data}, a)
 			result.append({
 				"pos":   pos,
 				"to":    to_pos,
@@ -73,6 +81,10 @@ static func get_army_render_list(data: Dictionary, march_frac: float = 0.4) -> A
 				"size_band": size_band(a.get("size", 0)),
 				"color_hex": col_hex,
 				"owner": k.get("id", -1),
+				"owner_name": String(k.get("name", "A kingdom")),
+				"army_id": a.get("id", -1),
+				"dest_name": dest_name,
+				"eta_days": eta_days,
 			})
 	return result
 
@@ -185,3 +197,16 @@ static func find_city_near(data: Dictionary, screen_pos: Vector2, radius: float)
 			best_d  = d
 			best_id = c.get("id", -1)
 	return best_id
+
+# Nearest marching army marker to a screen point (within radius), or {} if none.
+# Returns the same enriched render dict get_army_render_list produces (size, owner_name,
+# dest_name, eta_days, moving…) so the caller can show a full host inspection.
+static func find_army_near(data: Dictionary, screen_pos: Vector2, radius: float, march_frac: float = 0.4) -> Dictionary:
+	var best: Dictionary = {}
+	var best_d: float = radius
+	for a in get_army_render_list(data, march_frac):
+		var d: float = screen_pos.distance_to(a.get("pos", Vector2.ZERO))
+		if d <= best_d:
+			best_d = d
+			best = a
+	return best

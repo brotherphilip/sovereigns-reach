@@ -5,6 +5,7 @@ extends Control
 signal city_clicked(city_id: int)
 signal city_hovered(city_id: int)   # -1 when the cursor leaves all cities
 signal city_selected(city_id: int)  # right-click: select for orders (no scene change)
+signal army_inspected(info: Dictionary)  # left-click a marching host (off-city): inspect it
 
 const WorldMapController = preload("res://view/worldmap/WorldMapController.gd")
 const WorldMapData       = preload("res://simulation/world/WorldMapData.gd")
@@ -73,6 +74,11 @@ func _input(event: InputEvent) -> void:
 		var city_id: int = WorldMapController.find_city_near(_data, event.position, 24.0)
 		if city_id >= 0:
 			city_clicked.emit(city_id)
+		else:
+			# No city under the cursor — see if the player clicked a marching host.
+			var army: Dictionary = WorldMapController.find_army_near(_data, event.position, 16.0, _army_frac)
+			if not army.is_empty():
+				army_inspected.emit(army)
 	elif event is InputEventMouseButton and event.pressed \
 			and event.button_index == MOUSE_BUTTON_RIGHT:
 		# Right-click selects a city for strategic orders (no scene change).
