@@ -26,6 +26,38 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 96 — 2026-06-17  (Fresh-eyes playtest of Tech/Edicts → fix the right-panel overlap)
+
+### Source
+Pivoted from audio to a fresh-eyes playtest of the two mid-game systems I hadn't examined: the Tech tree and
+Royal Edicts panels.
+
+### Playtest findings (live, Xvfb)
+- **Content is rich and clear:** Tech tree = **22 techs** across Agriculture/Industry/Military/Statecraft, each
+  with prestige cost + a Research button when affordable. Edicts = **~20 royal decrees** (Village Feast available
+  early; the rest gated behind tech), with an edict-points economy. Both read well.
+- **Bug (UX):** both panels anchor to the right edge (`vp.x−440`, screen x≈987–1279) and **overlapped the
+  POPULARITY + OBJECTIVE panels** (`vp.x−222`, x≈1132–1279), which are drawn on top — cluttering the panel and
+  partly covering controls (e.g. the Village Feast **Activate** button sat behind the popularity panel).
+
+### Change made
+- **`view/hud/HUDNode.gd`:** new `_set_side_panels_hidden(hidden)` — the Tech/Edict toggles now **hide the
+  popularity + objective panels while a big panel is open and restore them on close** (wired into both toggles AND
+  both ✕ close buttons). No more overlap; every control in the Tech/Edict panels is fully visible and clickable.
+
+### Verified (live + headless)
+- **Live Xvfb:** opening Tech now hides the side panels (clean tree, ✕ + Research buttons unobstructed —
+  `/tmp/iter96_fixed2_r.png`); closing restores them (`/tmp/iter96_closed_r.png`). Confirmed for both panels.
+- **Full suite: 0 FAIL across all 27 files** (HUD-only change; no test loads HUDNode, so the suite is unaffected —
+  the live interaction is the verification).
+
+### Post-mortem
+- **UX / readability:** the two richest mid-game menus are now uncluttered and fully operable — a real
+  click-target fix (hidden Activate/Research buttons) on top of the visual tidy-up. Zero sim/balance impact.
+
+### Backlog / next
+1. (Carried) live siege-landing confirmation; ear-check narration; ear-tune SFX; more content as warranted.
+
 ## Iteration 95 — 2026-06-17  (Voice the keep-fallen defeat — the win/loss VO set is complete)
 
 ### Source

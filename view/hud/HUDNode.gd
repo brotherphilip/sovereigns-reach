@@ -963,7 +963,7 @@ func _add_market_actions(_building: Dictionary) -> void:
 func _build_tech_panel() -> void:
 	_add_label(_tech_panel, "TECHNOLOGY", Vector2(8, 6), 14, Color.LIGHT_YELLOW)
 	_add_button(_tech_panel, "✕", Vector2(_tech_panel.size.x - 30, 4), Vector2(26, 24),
-		func(): _tech_panel.visible = false)
+		func(): _tech_panel.visible = false; _set_side_panels_hidden(false))
 	var scroll := ScrollContainer.new()
 	scroll.position = Vector2(4, 36)
 	scroll.size = Vector2(_tech_panel.size.x - 8, _tech_panel.size.y - 44)
@@ -1024,18 +1024,28 @@ func _toggle_tech_panel() -> void:
 	_edict_panel.visible = false
 	if _tech_panel.visible:
 		_animate_panel_close(_tech_panel)
+		_set_side_panels_hidden(false)
 	else:
 		# Open (visible=true) BEFORE refresh — _refresh_tech_panel bails while hidden,
 		# so refreshing first left the tech tree permanently blank (same as edicts).
 		_animate_panel_open(_tech_panel)
 		_refresh_tech_panel()
+		_set_side_panels_hidden(true)
+
+# The Tech/Edict panels share the right edge with the popularity + objective panels — hide
+# those while a big panel is open (restore on close) so they don't overlap into clutter.
+func _set_side_panels_hidden(hidden: bool) -> void:
+	if _right_panel != null:
+		_right_panel.visible = not hidden
+	if _objective_panel != null:
+		_objective_panel.visible = not hidden
 
 # ── Edict Panel ────────────────────────────────────────────────────────────────
 
 func _build_edict_panel() -> void:
 	_add_label(_edict_panel, "ROYAL EDICTS", Vector2(8, 6), 14, Color.LIGHT_YELLOW)
 	_add_button(_edict_panel, "✕", Vector2(_edict_panel.size.x - 30, 4), Vector2(26, 24),
-		func(): _edict_panel.visible = false)
+		func(): _edict_panel.visible = false; _set_side_panels_hidden(false))
 	var scroll := ScrollContainer.new()
 	scroll.position = Vector2(4, 36)
 	scroll.size = Vector2(_edict_panel.size.x - 8, _edict_panel.size.y - 44)
@@ -1110,11 +1120,13 @@ func _toggle_edict_panel() -> void:
 	_tech_panel.visible = false
 	if _edict_panel.visible:
 		_animate_panel_close(_edict_panel)
+		_set_side_panels_hidden(false)
 	else:
 		# Open (sets visible=true) BEFORE refreshing — _refresh_edict_panel bails out
 		# while the panel is hidden, so refreshing first left the panel permanently blank.
 		_animate_panel_open(_edict_panel)
 		_refresh_edict_panel()
+		_set_side_panels_hidden(true)
 
 func _animate_panel_open(panel: Panel) -> void:
 	panel.modulate.a = 0.0
