@@ -25,6 +25,7 @@ func _init() -> void:
 			_projectiles.append({"fx": fx, "fy": fy, "tx": tx, "ty": ty, "kind": kind}))
 	_gs.setup_world(77, 4)
 	_test_auto_aggro_and_combat()
+	_test_guard_leash_returns_to_post()
 	_test_attack_move_chase()
 	_test_ranged_kiting()
 	_test_ranged_projectile()
@@ -78,6 +79,21 @@ func _test_auto_aggro_and_combat() -> void:
 	ok("idle hero auto-acquired and fought (left idle/standing)",
 		hero.get("order", "") == UnitState.ORDER_ATTACK or not foe.get("is_alive", true))
 	ok("the weaker raider was slain in auto-combat", not foe.get("is_alive", true))
+
+# ── 1b. A holding unit defends its post and RETURNS after an auto-kill ───────────
+# (Predictable troops: a unit left somewhere stays there — it won't wander the map.)
+
+func _test_guard_leash_returns_to_post() -> void:
+	print("\n[Guard-post leash: defend + return]")
+	_arena(50, 50)
+	_gs.add_ai_faction("bandit_king", 54, 50)
+	var guard := _mk_player_unit("swordsman", 50, 50, 9051)  # left to hold this post
+	var foe := _mk_enemy_unit("armed_peasant", 54, 50, 0)    # wanders into aggro range
+	_run(240)   # engage + kill
+	ok("holding unit slew the intruder", not foe.get("is_alive", true))
+	_run(900)   # time to march back to its post
+	var back: int = abs(guard.get("pos_x", 0) - 50) + abs(guard.get("pos_y", 0) - 50)
+	ok("the unit returned to its post after the fight (didn't wander off)", back <= 2)
 
 # ── 2. Attack-move chases a distant target ──────────────────────────────────────
 

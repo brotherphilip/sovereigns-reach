@@ -26,6 +26,44 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 56 — 2026-06-16  (Predictable troops: guard-post leash for the tactical unit AI)
+
+### Source
+User directive (part 2): "troops seem unpredictable." Root cause in the city-view tactical unit AI.
+
+### Diagnosis
+`_tick_unit_idle` auto-aggroed any enemy within radius 9, then `_tick_unit_attack` **chased it across the
+map with no leash and never returned** — so a unit the player placed would run off after every passing foe
+and end up wherever the chase took it. Formations scattered → "unpredictable."
+
+### Change made (simulation/core/GameState.gd)
+- **Guard post + leash.** A *holding* unit (no rally) remembers the tile it was left on (`guard_x/guard_y`).
+  When it auto-acquires a foe it's flagged `auto_aggro` (leashed). In `_tick_unit_attack`, a leashed unit:
+  (a) **returns to its post** when the foe dies, and (b) breaks off + returns if the chase **strays past
+  `LEASH_RADIUS` (13)** from the post. Player-issued attack orders set `auto_aggro=false` → still pursue
+  freely; AI rally raiders are unaffected (they advance on the seat as before).
+- **"Move here" = "go here and hold here".** `_arrive_and_hold` makes a unit that finishes a move adopt its
+  arrival tile as its new guard post, so placed troops stay put and defend that ground.
+- New helpers `_arrive_and_hold`, `_return_to_guard`; new const `LEASH_RADIUS`.
+
+### Verified
+- **New test** `_test_guard_leash_returns_to_post` (TestUnitAI): a holding unit slays an intruder then
+  **marches back to its post** (ends ≤2 tiles from it) — proves troops no longer wander off. The existing
+  attack-chase / kiting / patrol / raider-march tests still pass (leash only affects auto-aggro).
+- **Tests:** full suite green — **1077 assertions, 0 failed** (TestUnitAI 21/21).
+
+### Post-mortem
+- **UX (Human Experience):** troops are now predictable — they hold where you put them, defend their ground,
+  and return after a fight, instead of chasing off-screen. This is the behaviour a human operator expects.
+- The user's world-map+troops directive is now largely addressed: armies visibly march (iter 55) + troops
+  behave predictably (iter 56).
+
+### Backlog / next
+1. Clearer **send-army feedback** on the world map (an "army marching to X" / ETA readout + a selectable
+   in-transit army).  ← next
+2. Optional: a visible "hold / defend / aggressive" stance toggle so the player can opt into free-pursuit.
+3. (Carried) diplomacy depth; distance-scaled strategic travel time.
+
 ## Iteration 55 — 2026-06-16  (World map: armies visibly MARCH across the map)
 
 ### Source

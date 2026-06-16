@@ -627,6 +627,10 @@ func _get_player_capital_buff(player: Dictionary) -> Dictionary:
 
 # How far an idle/patrolling unit will notice and engage an enemy.
 const AGGRO_RADIUS: int = 9
+# How far a HOLDING unit will chase an auto-acquired foe from the post it was left on
+# before breaking off and returning. Keeps placed troops predictable — they defend
+# their ground instead of running off across the map after every passing enemy.
+const LEASH_RADIUS: int = 13
 
 # Generic per-force unit tick. `owner` is the player or AI-faction dict that owns
 # the units; `enemies` is the precomputed list of hostile unit dicts; `rally` is
@@ -766,10 +770,18 @@ func _nearest_enemy(ux: int, uy: int, enemies: Array, radius: int) -> Dictionary
 func _tick_unit_idle(owner: Dictionary, unit: Dictionary, tick: int, tpd: int, enemies: Array, rally: Vector2i) -> void:
 	if tick % maxi(1, tpd / 4) != 0:
 		return
+	# A holding unit (no rally) remembers the post it was left on and defends THAT,
+	# so placed troops stay put and predictable instead of wandering the map.
+	var holding: bool = rally.x < 0
+	if holding and not unit.has("guard_x"):
+		unit["guard_x"] = unit.get("pos_x", 0)
+		unit["guard_y"] = unit.get("pos_y", 0)
 	if unit.get("attack", 0) > 0:
 		var tgt: Dictionary = _nearest_enemy(unit.get("pos_x", 0), unit.get("pos_y", 0), enemies, AGGRO_RADIUS)
 		if not tgt.is_empty():
 			UnitState.issue_attack_order(unit, tgt.get("pos_x", 0), tgt.get("pos_y", 0), tgt.get("id", -1))
+			# Holding units are LEASHED to their post; rallying raiders pursue freely.
+			unit["auto_aggro"] = holding
 			return
 	if unit.has("patrol_a"):
 		unit["order"] = UnitState.ORDER_PATROL
@@ -938,23 +950,61 @@ func _tick_unit_move(owner: Dictionary, unit: Dictionary, tick: int, ticks_per_d
 				and _tile_blocked_for_foot(unit.get("pos_x", 0), unit.get("pos_y", 0)):
 			_unstick(owner, unit)
 			return
-		unit["order"] = UnitState.ORDER_IDLE
+		_arrive_and_hold(unit)
 		return
 	if _advance_step(owner, unit, path[0][0], path[0][1], ticks_per_day):
 		path.remove_at(0)
 		unit["move_path"] = path
 		if path.is_empty():
-			unit["order"] = UnitState.ORDER_IDLE
+			_arrive_and_hold(unit)
+
+# A unit that finishes a move settles into IDLE and adopts its arrival tile as the
+# post it will defend -- so "move here" reliably means "go here and hold here".
+func _arrive_and_hold(unit: Dictionary) -> void:
+	unit["order"] = UnitState.ORDER_IDLE
+	unit["guard_x"] = unit.get("pos_x", 0)
+	unit["guard_y"] = unit.get("pos_y", 0)
+	unit["auto_aggro"] = false
+
+# Send a leashed defender back to its guard post (after a kill or an over-long chase).
+func _return_to_guard(owner: Dictionary, unit: Dictionary) -> void:
+	var gx: int = unit.get("guard_x", unit.get("pos_x", 0))
+	var gy: int = unit.get("guard_y", unit.get("pos_y", 0))
+	unit["target_id"] = -1
+	if (unit.get("pos_x", 0) == gx and unit.get("pos_y", 0) == gy) or _grid == null:
+		unit["order"] = UnitState.ORDER_IDLE
+		return
+	var gpath: Array = Pathfinder.find_path(_grid, unit.get("pos_x", 0), unit.get("pos_y", 0), gx, gy)
+	if gpath.is_empty():
+		unit["order"] = UnitState.ORDER_IDLE
+		return
+	unit["order"] = UnitState.ORDER_MOVE
+	unit["move_path"] = gpath
+	unit["target_x"] = gx
+	unit["target_y"] = gy
 
 # S1: ORDER_ATTACK execution. The unit chases its target_id; once within weapon
 # range it strikes on a fixed cadence, and the target retaliates. Resolves to
 # IDLE when the target dies or can no longer be found.
 func _tick_unit_attack(owner: Dictionary, unit: Dictionary, tick: int, ticks_per_day: int, enemies: Array) -> void:
 	var target: Dictionary = _find_in(enemies, unit.get("target_id", -1))
+	# Auto-acquired (leashed) defenders return to their post when the fight ends or
+	# the chase strays too far — player-issued attacks (auto_aggro=false) pursue freely.
+	var auto: bool = unit.get("auto_aggro", false) and unit.has("guard_x")
 	if target.is_empty():
-		unit["order"] = UnitState.ORDER_IDLE
 		unit["target_id"] = -1
+		unit["auto_aggro"] = false
+		if auto:
+			_return_to_guard(owner, unit)   # foe down — march back to the post
+		else:
+			unit["order"] = UnitState.ORDER_IDLE
 		return
+	if auto:
+		var sdx: int = maxi(absi(unit.get("pos_x", 0) - unit.get("guard_x", 0)), absi(unit.get("pos_y", 0) - unit.get("guard_y", 0)))
+		if sdx > LEASH_RADIUS:
+			unit["auto_aggro"] = false
+			_return_to_guard(owner, unit)
+			return
 	var tx: int = target.get("pos_x", unit.get("pos_x", 0))
 	var ty: int = target.get("pos_y", unit.get("pos_y", 0))
 	unit["target_x"] = tx
