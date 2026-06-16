@@ -26,6 +26,34 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 111 — 2026-06-17  (Regression health-check — the build is solid after 30+ iterations)
+
+### Source
+After ~30 iterations of changes this session (audio, onboarding, survival/siege tests, the user's siege-visibility
+fix, content, UX), a holistic regression pass to confirm nothing drifted and the 20-minute goal still holds.
+
+### Verified
+- **Full suite: 1299 assertions passed, 0 failed across all 29 test files.** Clean **real main-scene boot**
+  (`MainMenuScene` — the configured `run/main_scene`) with no parse/script errors.
+- **The 20-minute goal is encoded + green in CI:** economic survival smoke (`TestSurvival`), siege survivability +
+  end-to-end siege (`TestPhase6` / `TestSiege`: undefended seat razed ~day 91, defended survives Day 100), the
+  reward loop (11 milestones incl. day-50/75/100 beats), 47 voiced events, and the full entry flow (title → world
+  map → city, iter100).
+
+### Status assessment (build-phase goal)
+"A human can start a new game and play an engaged 20-minute life — survive, understand what's happening, never hit
+a wall" is **met and guarded**: the realm survives unmanaged ~30 days and indefinitely with sensible play; defending
+carries you through the endgame siege; the build menu/objectives/food/diplomacy all guide the player; every
+pop-up, milestone, win/loss, and the moment-to-moment events speak in the herald's voice. No open blockers.
+
+### Change made
+Verification checkpoint — no code change (the build is healthy as-is).
+
+### Backlog / next (all optional / low-priority polish)
+1. Live managed Day-100 win run (capstone demo; survival already test-proven). 
+2. Tutorial-hint VO (dynamic text); minor spectator-battle edge cases (player-owned besiegers render red; battle
+   re-spawns on re-entry). (Carried) user ear-check of narration; ear-tune SFX.
+
 ## Iteration 110 — 2026-06-17  (Voice the save/load pop-ups — the realm's chronicle)
 
 ### Source
