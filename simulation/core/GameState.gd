@@ -1332,9 +1332,9 @@ func simulate_tick(tick: int) -> void:
 						# Siege damage to the seat. A PREPARED ruler (walls/towers/garrison)
 						# blunts the assault badly; an undefended seat is gutted — so the
 						# pre-siege warning is actionable and defending genuinely pays off.
-						var siege_dmg: int = 75 if is_siege_ready(tgt) else 150
-						EventBus.command_processed.emit({"type": "ai_event",
-							"event": ("siege_struck_defended" if is_siege_ready(tgt) else "siege_struck_open")}, true)
+						var defended_seat: bool = is_siege_ready(tgt)
+						var siege_dmg: int = 75 if defended_seat else 150
+						EventBus.ai_siege_struck.emit(faction.get("id", -1), target_pid, defended_seat, siege_dmg)
 						for bld in tgt.get("buildings", []):
 							if not bld is Dictionary:
 								continue

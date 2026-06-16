@@ -41,6 +41,7 @@ signal projectile_fired(from_x: int, from_y: int, to_x: int, to_y: int, kind: St
 
 # --- AI ---
 signal ai_siege_assembling(faction_id: int, target_player_id: int, eta_ticks: int)
+signal ai_siege_struck(faction_id: int, target_player_id: int, defended: bool, damage: int)
 signal ai_envoy_sent(faction_id: int, demand: Dictionary)
 signal ai_faction_defeated(faction_id: int)
 signal ai_border_changed(faction_id: int, new_tiles: Array)

@@ -432,6 +432,7 @@ func _connect_signals() -> void:
 	EventBus.weather_changed.connect(func(name, _d): _hud.show_notification("Weather: " + name, 4.0))
 	EventBus.building_placement_failed.connect(func(_p, _b, _gx, _gy, reason): _hud.show_notification(reason, 3.0))
 	EventBus.ai_siege_assembling.connect(_on_ai_siege_assembling)
+	EventBus.ai_siege_struck.connect(_on_ai_siege_struck)
 	EventBus.unit_killed.connect(_on_unit_killed)
 	EventBus.building_destroyed.connect(_on_building_destroyed)
 	EventBus.ai_faction_defeated.connect(_on_ai_faction_defeated)
@@ -527,6 +528,16 @@ func _on_ai_siege_assembling(faction_id: int, _target_player_id: int, eta_ticks:
 		_hud.show_notification("⚠ %s is marshalling a siege against your seat — ready in ~%d days. Your walls and garrison steady the people's nerve." % [who, days], 9.0, Color(1.0, 0.8, 0.3))
 	else:
 		_hud.show_notification("⚠ %s is marshalling a siege against your seat — ready in ~%d days. Raise walls, towers and a garrison before it lands!" % [who, days], 9.0, Color(1.0, 0.55, 0.2))
+
+# The siege lands. A prepared seat shrugs off most of it; an undefended one is gutted —
+# loud, clear feedback so the player feels the payoff (or cost) of their defences.
+func _on_ai_siege_struck(faction_id: int, _target_player_id: int, defended: bool, damage: int) -> void:
+	if _hud == null: return
+	var who: String = GameState.get_faction_display_name(faction_id)
+	if defended:
+		_hud.show_notification("🛡 %s's siege breaks on your walls — your seat holds (only %d damage)." % [who, damage], 7.0, Color(0.6, 0.9, 0.5))
+	else:
+		_hud.show_notification("💥 %s storms your undefended seat — %d damage! Raise walls and a garrison before the next assault." % [who, damage], 9.0, Color(1.0, 0.4, 0.3))
 
 func _on_unit_killed(unit_id: int, _killer_id: int, cause: String) -> void:
 	if GameState.players.size() == 0: return

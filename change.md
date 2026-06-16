@@ -26,6 +26,39 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 62 — 2026-06-16  (Siege-landing notification + playtest of the new pressure)
+
+### Source
+Iter-61 backlog: the siege *landing* had no clear feedback (only the assembling warning), and the new
+pressure needed a live playtest.
+
+### Change made
+- **EventBus:** new `ai_siege_struck(faction_id, target_player_id, defended, damage)` signal (replaces the
+  iter-61 placeholder `command_processed` emit).
+- **GameState:** emits it when a siege resolves, with the defended flag + actual damage.
+- **CityViewScene:** `_on_ai_siege_struck` shows loud, clear feedback — **🛡 "%s's siege breaks on your walls
+  — your seat holds (only N damage)"** when prepared, vs **💥 "%s storms your undefended seat — N damage!
+  Raise walls and a garrison…"** when not. So the player feels the payoff/cost of their defences.
+
+### Verified
+- **Tests:** full suite **1085 assertions, 0 failed**. City view boots clean.
+- **Phase 3 — Playtest (Xvfb, staffed town @ 5×, ran to day 26):** survival healthy (prestige 268→697,
+  climbing), and the engagement beats fire densely — by day 26 a **Traveling Scholar world-event** AND an
+  **Ashen tribute demand** (with the iter-59 standing line "now wary" + pay/refuse consequences) were both
+  active. Night/torches render. Screens: /tmp/it62_e.png. (Catching the siege *landing* live was blocked by
+  these stacked modals pausing the sim — the siege mechanics themselves are unit-tested in iter 61.)
+
+### Post-mortem (heuristics)
+- **Fun/engagement:** the early-mid game now has a steady drip of real decisions (events + tribute) on top of
+  the growth/prestige loop — good density. The siege-landing feedback closes the telegraph→prepare→payoff loop.
+- **UX note (minor):** two modal popups can **stack** (a world-event + a tribute demand at once). Not broken,
+  but a queue (show one, then the next) would read cleaner. Flagged.
+
+### Backlog / next
+1. Queue stacked modal popups (event + diplomacy) so they present one at a time.
+2. A full uninterrupted defended run to day 100 to confirm the siege pressure is survivable-when-prepared.
+3. (Carried) marching-army inspect + stance toggle; distance-scaled strategic travel.
+
 ## Iteration 61 — 2026-06-16  (Siege balance: fix the 48-day assembly bug → telegraphed, paced, mitigable sieges)
 
 ### Source
