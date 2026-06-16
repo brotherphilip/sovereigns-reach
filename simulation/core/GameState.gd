@@ -2049,6 +2049,29 @@ func player_realm_stores() -> Dictionary:
 		"cities": CampaignMap.faction_city_count(world, CampaignMap.player_faction_id(world)),
 	}
 
+# The player's armies currently on the march — for a persistent world-map readout so
+# you always know where your hosts are and roughly when they arrive (1 hop ≈ 1 day).
+# Returns Array of {size, dest_name, eta_days}.
+func player_marching_armies() -> Array:
+	var out: Array = []
+	var k: Dictionary = _player_kingdom()
+	if k.is_empty():
+		return out
+	for a in k.get("armies", []):
+		if not (a is Dictionary) or int(a.get("size", 0)) <= 0:
+			continue
+		var path: Array = a.get("path", [])
+		if path.is_empty():
+			continue
+		var dest_id: int = int(a.get("dest_city_id", path[path.size() - 1]))
+		var dest: Dictionary = CampaignMap.city_by_id(world, dest_id)
+		out.append({
+			"size": int(a.get("size", 0)),
+			"dest_name": String(dest.get("name", "enemy lands")) if not dest.is_empty() else "enemy lands",
+			"eta_days": path.size(),
+		})
+	return out
+
 func _cmd_raise_army(cmd: Dictionary) -> bool:
 	return player_raise_army(cmd["payload"].get("city_id", -1), cmd["payload"].get("size", 0))
 

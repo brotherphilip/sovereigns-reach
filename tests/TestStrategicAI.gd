@@ -430,6 +430,10 @@ func _run_live_integration() -> void:
 	sc._advance_tick()
 	var army := CampaignSystem.find_army(pk, army_id)
 	ok("player campaign army has a march path", not army.is_empty() and not army.get("path", []).is_empty())
+	# The world-map "armies on the march" readout reports this host with an ETA.
+	var marching: Array = gs.player_marching_armies()
+	ok("player_marching_armies reports the marching host (with ETA)",
+		marching.size() >= 1 and int(marching[0].get("eta_days", 0)) >= 1 and String(marching[0].get("dest_name", "")) != "")
 
 	# Advance to the next game-day boundary so _tick_strategic_layer runs and the
 	# army (path length 1, adjacent target) assaults.

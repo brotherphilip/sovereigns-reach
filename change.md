@@ -26,6 +26,36 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 57 — 2026-06-16  (World map: persistent "armies on the march" readout + ETA)
+
+### Source
+User directive follow-through ("armies should be sendable to other cities + take real time to travel"):
+iter 55 made armies visibly march; this adds the missing *standing feedback* — after you close a panel there
+was no persistent indicator of where your hosts are headed or when they arrive.
+
+### Change made
+- **GameState.player_marching_armies()** — returns the player's in-transit armies as
+  `{size, dest_name, eta_days}` (1 road hop ≈ 1 day, so `eta_days` = hops remaining).
+- **WorldMapScene** — a persistent **"⚔ Your army (N) marches on X — ~D days away"** status line (or
+  "⚔ M armies on the march (T troops)" for several), refreshed on launch and every campaign day. Sits just
+  above the realm-stores line.
+
+### Verified
+- **New test** (TestStrategicAI): after a player `LAUNCH_CAMPAIGN`, `player_marching_armies()` reports the
+  host with a valid ETA + destination name. World map boots clean with the new label.
+- **Tests:** 1077 assertions, 0 failed. (Note: TestPathfinding's 600ms perf benchmark only trips when the
+  suite is run *concurrently with a live render* — it passes at ~566ms run normally; environmental, not a
+  regression. Lesson logged: don't run the suite while an Xvfb render is loading the CPU.)
+
+### Post-mortem
+- The send-army loop is now fully legible: raise → march (clear armed/target prompts) → a moving banner +
+  march line on the map (iter 55) → a persistent ETA readout. Combined with predictable troops (iter 56) and
+  visible marches (iter 55), the user's world-map/troops/attacks directive is addressed end-to-end.
+
+### Backlog / next
+1. Optional: click a marching army to inspect it (size/target/ETA) + a hold/defend/aggressive stance toggle.
+2. (Carried) diplomacy depth; distance-scaled strategic travel time; back to broad 20-min engagement tuning.
+
 ## Iteration 56 — 2026-06-16  (Predictable troops: guard-post leash for the tactical unit AI)
 
 ### Source

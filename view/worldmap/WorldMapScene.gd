@@ -18,6 +18,7 @@ var _watch_speed_btn: Button = null
 var _day_label: Label = null
 var _develop_btn: Button = null
 var _realm_label: Label = null
+var _march_status_label: Label = null
 var _raise_btn: Button = null
 var _march_btn: Button = null
 var _diplo_btn: Button = null
@@ -121,6 +122,7 @@ func _process(delta: float) -> void:
 		_refresh_raise_btn()
 		_refresh_march_btn()
 		_refresh_realm_label()
+		_refresh_march_status()
 		if _day_label != null:
 			_day_label.text = "Campaign day %d" % GameState.strategic_day()
 	# Slide marching armies smoothly between cities every frame (sub-day march progress),
@@ -264,6 +266,17 @@ func _build_scene() -> void:
 	_realm_label.add_theme_color_override("font_color", Color(0.91, 0.82, 0.45))
 	canvas.add_child(_realm_label)
 	_refresh_realm_label()
+
+	# Persistent "armies on the march" readout so you always know where your hosts are
+	# headed and roughly when they'll arrive — even after closing a panel.
+	_march_status_label = Label.new()
+	_march_status_label.name     = "MarchStatus"
+	_march_status_label.position = Vector2(8, vp.y - 174)
+	_march_status_label.size     = Vector2(560, 22)
+	_march_status_label.add_theme_font_size_override("font_size", 12)
+	_march_status_label.add_theme_color_override("font_color", Color(1.0, 0.78, 0.42))
+	canvas.add_child(_march_status_label)
+	_refresh_march_status()
 
 	# Player strategic action (the first interactive control — was watch/enter only):
 	# invest the realm's treasury to grow your least-developed holding.
@@ -503,6 +516,7 @@ func _on_city_selected(city_id: int) -> void:
 				_set_info("⚔ Your army marches on %s! The campaign is underway." % tgt_name, Color(0.6, 0.9, 0.5))
 				if _world_view != null:
 					_world_view.refresh()
+				_refresh_march_status()
 			else:
 				_set_info("No road reaches %s from there — choose a connected target." % tgt_name, Color(1.0, 0.6, 0.3))
 			_campaign_army_id = -1
@@ -538,6 +552,25 @@ func _refresh_realm_label() -> void:
 		return
 	_realm_label.text = "Realm stores —  %d gold   %d wood   %d stone   ·   %d cities" % [
 		int(s.get("treasury", 0)), int(s.get("wood", 0)), int(s.get("stone", 0)), int(s.get("cities", 0))]
+
+# Persistent readout of the player's marching armies (target + ETA in days).
+func _refresh_march_status() -> void:
+	if _march_status_label == null:
+		return
+	var armies: Array = GameState.player_marching_armies()
+	if armies.is_empty():
+		_march_status_label.text = ""
+		return
+	if armies.size() == 1:
+		var a: Dictionary = armies[0]
+		var eta: int = int(a.get("eta_days", 0))
+		_march_status_label.text = "⚔ Your army (%d) marches on %s — ~%d day%s away" % [
+			int(a.get("size", 0)), a.get("dest_name", "enemy lands"), eta, "" if eta == 1 else "s"]
+	else:
+		var total: int = 0
+		for a in armies:
+			total += int(a.get("size", 0))
+		_march_status_label.text = "⚔ %d armies on the march (%d troops in the field)" % [armies.size(), total]
 
 func _set_info(text: String, color: Color = Color(0.80, 0.74, 0.54)) -> void:
 	var canvas: CanvasLayer = get_node_or_null("HUD")
