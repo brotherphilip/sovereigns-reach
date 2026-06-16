@@ -381,6 +381,32 @@ func _add_spectator_banner() -> void:
 	lbl.add_theme_color_override("font_color", Color(0.93, 0.86, 0.64))
 	panel.add_child(lbl)
 
+	# Under-siege strip: if a hostile host is at this city's gates (besiegers spawned in
+	# GameState._spawn_spectator_military), call it out so the visible attackers make sense.
+	if bool(GameState.world.get("spectator_under_siege", false)):
+		var besiegers: int = 0
+		for f in GameState.ai_factions:
+			besiegers += f.get("units", []).size()
+		var siege_panel := Panel.new()
+		siege_panel.position = Vector2(vp.x * 0.5 - 230, 50)
+		siege_panel.size     = Vector2(460, 30)
+		var ssty := StyleBoxFlat.new()
+		ssty.bg_color = Color(0.16, 0.05, 0.04, 0.92)
+		ssty.set_border_width_all(2)
+		ssty.border_color = Color(0.85, 0.32, 0.22)
+		ssty.set_corner_radius_all(6)
+		siege_panel.add_theme_stylebox_override("panel", ssty)
+		overlay.add_child(siege_panel)
+		var slbl := Label.new()
+		slbl.text = "⚔ Under siege by %s — %d besiegers at the gates!" % [
+			String(GameState.world.get("spectator_besieger_name", "a rival host")), besiegers]
+		slbl.size = Vector2(460, 30)
+		slbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		slbl.vertical_alignment   = VERTICAL_ALIGNMENT_CENTER
+		slbl.add_theme_font_size_override("font_size", 13)
+		slbl.add_theme_color_override("font_color", Color(1.0, 0.7, 0.6))
+		siege_panel.add_child(slbl)
+
 func _add_minimap() -> void:
 	var overlay := CanvasLayer.new()
 	overlay.name  = "MinimapLayer"

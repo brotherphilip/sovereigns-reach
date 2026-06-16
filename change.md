@@ -26,6 +26,34 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 107 — 2026-06-17  (Label the siege: an "under siege by X" banner for spectated cities)
+
+### Source
+Follow-up to the iter106 user fix. The besiegers are now visible at a contested city's gates, but nothing *named*
+the threat — a player seeing red troops should be told the city is under siege and by whom.
+
+### Change made
+- **`view/cityview/CityViewScene.gd` (`_add_spectator_banner`):** when `spectator_under_siege` is set (by the
+  iter106 besieger-spawn), a red strip appears under the spectator banner: **"⚔ Under siege by <kingdom> — N
+  besiegers at the gates!"** (N = the spawned besieger count). Reads the `spectator_besieger_name` flag; no new
+  state.
+
+### Verified
+- **Full suite: 0 FAIL across all 29 files** (the `spectator_under_siege` flag the banner reads is already asserted
+  by TestSpectatorTroops 9/0). **Live boot clean** — CityViewScene compiles with the new banner block. (Banner is
+  pure conditional view over a tested flag; rendering a besieged spectator city live needs a campaign-run siege,
+  so verified by the flag test + compile.)
+
+### Post-mortem
+- **UX:** a spectated contested city now both *shows* its besiegers (iter106) and *says* it's under siege by whom
+  (iter107) — the two together fully close the user's "I can't see / understand the troops attacking a city" gap.
+  Spectator-only view; zero sim/determinism impact.
+
+### Backlog / next
+1. Optional (bigger): make the spectated besiegers actually *fight* the garrison (a live battle) rather than a
+   static tableau — needs combat enabled in spectator_mode (currently skipped), so weigh perf/stability.
+2. (Carried) user ear-check of narration voice quality; ear-tune SFX.
+
 ## Iteration 106 — 2026-06-17  (USER BUG: you couldn't see the troops attacking a city — now you can)
 
 ### Source
