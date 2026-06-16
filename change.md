@@ -26,6 +26,38 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 60 — 2026-06-16  (Live verification: the diplomacy depth loop works end-to-end)
+
+### Plan
+Eyeball the iter-59 panel on a clean boot when a real demand fires, and verify the iter-58 pay→peace path
+live (couldn't capture last cycle due to a wedged harness).
+
+### Phase 3 — Playtest (Xvfb, staffed town @ 5×)
+Reset the environment cleanly (kill by PID + remove X locks — `pkill` is sandbox-blocked here), background-
+launched, and ran to a tribute demand (~day 12). Verified the FULL diplomacy loop in the real game:
+- **Demand panel (iter 59):** shows "Threat: 100/100", the Ashen Barony's demand (30 gold, 12 iron), and the
+  new legible guidance — **"Pay → they hold the peace ~14 days"** / **"Refuse → grievance deepens (now wary)
+  & they may march"** with the colour-coded standing word. Screen: /tmp/it60_dip.png.
+- **Accept → pay → peace (iter 58):** clicked Accept; the notification confirmed **"Tribute paid to The Ashen
+  Barony — appeased, they hold the peace for ~14 days."** Screen: /tmp/it60_notif.png.
+- Survival healthy; prestige climbing (good reward loop); the demand is now a real, legible decision.
+
+### Post-mortem (heuristics)
+- **Fun/engagement:** the tribute beat lands — clear stakes, a meaningful pay-vs-refuse tradeoff, visible
+  consequence. The iter 58/59 work is confirmed effective end-to-end.
+- **Observation for tuning:** the Ashen Barony's `threat_level` reached **100/100 by ~day 12**. The King's
+  Peace (30 days) shields the player meanwhile, but once it lifts a maxed-threat faction could siege quickly.
+  Worth watching that mid-game escalation stays *fair but demanding* (it may need a gentler threat ramp or a
+  louder pre-siege warning). No change made this cycle — flagged for a balance pass.
+
+### Changes
+- None (verification cycle). All prior diplomacy code stands; suite remains 1082 green.
+
+### Backlog / next
+1. **Threat-ramp / pre-siege warning** balance pass (from the observation above) — the next concrete
+   engagement step.
+2. (Carried) click-to-inspect marching army + stance toggle; distance-scaled strategic travel.
+
 ## Iteration 59 — 2026-06-16  (Diplomacy panel: surface the faction's standing so the choice is legible)
 
 ### Source
