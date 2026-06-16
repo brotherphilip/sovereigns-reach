@@ -362,6 +362,35 @@ const EVENTS: Array = [
 			{"label": "Refuse — our own come first (−3 popularity)", "effect": {"popularity": -3}},
 		],
 	},
+
+	# ── Mid/late-game decisions (iter99 — keep the long middle fresh) ────────────────
+	{
+		"id": "master_builders_plan", "tone": "neutral", "weight": 5, "min_day": 30,
+		"title": "A Master Builder's Plan",
+		"text": "A renowned builder lays out plans for a grand work to crown your reign — costly, but the realm would speak of it for years.",
+		"choices": [
+			{"label": "Fund the grand work (−80 gold, −40 stone, +30 prestige, +5 popularity)", "effect": {"gold": -80, "stone": -40, "prestige": 30, "popularity": 5}},
+			{"label": "The realm has greater needs", "effect": {}},
+		],
+	},
+	{
+		"id": "wandering_chronicler", "tone": "good", "weight": 6, "min_day": 25,
+		"title": "A Wandering Chronicler",
+		"text": "A chronicler asks to set down the tale of your reign for the ages. A flattering history is never free.",
+		"choices": [
+			{"label": "Host the chronicler (−30 gold, +25 prestige)", "effect": {"gold": -30, "prestige": 25}},
+			{"label": "Send him on his way", "effect": {}},
+		],
+	},
+	{
+		"id": "border_skirmish", "tone": "bad", "weight": 6, "min_day": 35,
+		"title": "A Border Skirmish",
+		"text": "Raiders test the edge of your lands. Meet them in the field, or buy them off and keep your folk home?",
+		"choices": [
+			{"label": "Send the watch (−12 food, +8 prestige, +4 popularity)", "effect": {"food": -12, "prestige": 8, "popularity": 4}},
+			{"label": "Pay them off (−40 gold, −2 popularity)", "effect": {"gold": -40, "popularity": -2}},
+		],
+	},
 ]
 
 # Whether an event waits on a player decision (has choices) rather than auto-resolving.

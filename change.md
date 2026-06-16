@@ -26,6 +26,33 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 99 — 2026-06-17  (Mid/late-game decision events — keep the long middle fresh)
+
+### Source
+Content density for the long middle of a 20-minute run. Most existing events skew early (`min_day` ≤ ~18), so the
+day-25–60 stretch leans on the same pool repeating. Added decisions that surface later, when the realm has matured.
+
+### Change made
+- **`simulation/world/WorldEventSystem.gd`:** +3 mid/late choice events (bounded, can't end a run), themed for an
+  established reign:
+  - **A Master Builder's Plan** (day 30+): a grand work — −80 gold, −40 stone → +30 prestige, +5 popularity, or pass.
+  - **A Wandering Chronicler** (day 25+): record your reign — −30 gold → +25 prestige, or send him on.
+  - **A Border Skirmish** (day 35+): meet raiders (−12 food → +8 prestige, +4 pop) or pay them off (−40 gold, −2 pop).
+- **Voiced** per the standing rule: `audio/narration/event_{master_builders_plan,wandering_chronicler,border_skirmish}.wav`
+  (grim-herald recipe, no FX). No code change — the panel + NarrationPlayer handle them generically.
+
+### Verified
+- **TestWorldEvents 46/0; TestNarration 69/0** (key parity now covers the 3 new ids). **Full suite: 0 FAIL across
+  all 27 files.** Live boot clean — the expanded EVENTS array loads with no errors.
+
+### Post-mortem
+- **Content density / pacing:** the realm now has fresh decisions arriving in the mid/late game (47 world events
+  total), so the long middle of the 20-minute session keeps offering new choices instead of recycling the opening
+  pool. Bounded effects, optional — zero balance risk. The VO rule auto-pulled the audio in.
+
+### Backlog / next
+1. (Carried) live siege-landing confirmation; ear-check narration; ear-tune SFX.
+
 ## Iteration 98 — 2026-06-17  (Recruitment UX checked; voice the "soldier trained" pop-up)
 
 ### Source
