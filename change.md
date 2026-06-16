@@ -26,6 +26,31 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 109 — 2026-06-17  (Verification: the spectated-siege feature is complete & correct)
+
+### Source
+Close out the user's "see the troops in real time" request (iter106–108) by verifying the two remaining quality
+aspects — does the watched battle SOUND right, and do the factions READ right?
+
+### Findings (both clean — no code change warranted)
+- **Audio:** `AudioManager._check_combat_sounds()` scans ALL players' + AI-factions' units every tick (mode-agnostic),
+  and `unit_killed` → UNIT_KILLED SFX fires on the signal. So the spectator battle already plays hit/death/killed
+  sounds — the live siege is **audible**, not silent.
+- **Coloring / friend-foe read:** `UnitLayer` draws player-owned units (the garrison defenders, `owner_id 0`) with a
+  **blue** team disc and AI-faction units (the besiegers) **red**. A watched siege therefore reads cleanly as
+  *home side (blue) vs attackers (red)* regardless of whose city it is — legible, not misleading.
+- Re-confirmed the New Game → World Map flow live.
+
+### Outcome
+The user's request is fully delivered AND verified across the qualities that matter: the besiegers are **visible**
+(iter106), **named** ("under siege by X", iter107), **fighting in real time** (iter108), **audible** (combat SFX),
+and **legible** (blue defenders vs red attackers). Verification checkpoint — no code change.
+
+### Backlog / next (optional polish, low priority)
+1. Spectated battle re-spawns full forces on each re-entry (snapshot, not persisted) and the banner count is
+   captured at entry — acceptable for a representative view; persist only if it ever matters.
+2. (Carried) user ear-check of narration voice quality; ear-tune SFX.
+
 ## Iteration 108 — 2026-06-17  (A LIVE siege battle in spectated cities — "in real time")
 
 ### Source
