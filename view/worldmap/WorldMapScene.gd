@@ -15,6 +15,7 @@ var _watch_speed: int = 1               # 1 = 1 day / WATCH_INTERVAL; 2,4 faster
 var _watch_btn: Button = null
 var _watch_speed_btn: Button = null
 var _day_label: Label = null
+var _develop_btn: Button = null
 const WATCH_INTERVAL: float = 0.45      # real seconds per strategic day at speed 1
 
 func _ready() -> void:
@@ -107,6 +108,7 @@ func _process(delta: float) -> void:
 		advanced = true
 	if advanced:
 		_world_view.refresh()
+		_refresh_develop_btn()
 		if _day_label != null:
 			_day_label.text = "Campaign day %d" % GameState.strategic_day()
 
@@ -226,6 +228,17 @@ func _build_scene() -> void:
 	info_lbl.add_theme_color_override("font_color", Color(0.80, 0.74, 0.54))
 	info_panel.add_child(info_lbl)
 
+	# Player strategic action (the first interactive control — was watch/enter only):
+	# invest the realm's treasury to grow your least-developed holding.
+	_develop_btn = Button.new()
+	_develop_btn.name     = "DevelopBtn"
+	_develop_btn.position = Vector2(8, vp.y - 124)
+	_develop_btn.size     = Vector2(280, 28)
+	_develop_btn.add_theme_font_size_override("font_size", 12)
+	_develop_btn.pressed.connect(_on_develop_realm)
+	canvas.add_child(_develop_btn)
+	_refresh_develop_btn()
+
 	# Connect hover → info panel (show the hovered city's details)
 	_world_view.mouse_entered.connect(_on_mouse_entered_map)
 	_world_view.city_hovered.connect(_on_city_hovered)
@@ -268,6 +281,46 @@ func _on_cycle_watch_speed() -> void:
 	_watch_speed = 1 if _watch_speed >= 4 else _watch_speed * 2
 	if _watch_speed_btn != null:
 		_watch_speed_btn.text = "%d×" % _watch_speed
+
+func _on_develop_realm() -> void:
+	var cid: int = GameState.player_lowest_dev_city()
+	if cid < 0:
+		_set_info("You hold no cities to develop.")
+		return
+	var city_name: String = GameState.get_city(cid).get("name", "your city")
+	if GameState.player_develop_city(cid):
+		var dev: int = int(GameState.get_city(cid).get("development", 0))
+		_set_info("⚒ %s prospers — development raised to %d. Your realm grows in standing." % [city_name, dev], Color(0.6, 0.9, 0.5))
+		if _world_view != null:
+			_world_view.refresh()
+	else:
+		_set_info("Cannot develop %s yet — the realm's treasury or stores are short." % city_name, Color(1.0, 0.6, 0.3))
+	_refresh_develop_btn()
+
+# Update the Develop button to name the next target city + its cost, and disable it
+# when the realm can't currently afford the investment.
+func _refresh_develop_btn() -> void:
+	if _develop_btn == null:
+		return
+	var cid: int = GameState.player_lowest_dev_city()
+	if cid < 0:
+		_develop_btn.text = "⚒ Develop Realm"
+		_develop_btn.disabled = true
+		return
+	var c: Dictionary = GameState.get_city(cid)
+	var cost: Dictionary = GameState.develop_city_cost(cid)
+	_develop_btn.text = "⚒ Develop %s  (%dg %dw %ds)" % [
+		c.get("name", "city"), int(cost.get("gold", 0)), int(cost.get("wood", 0)), int(cost.get("stone", 0))]
+	_develop_btn.disabled = not GameState.can_player_develop_city(cid)
+
+func _set_info(text: String, color: Color = Color(0.80, 0.74, 0.54)) -> void:
+	var canvas: CanvasLayer = get_node_or_null("HUD")
+	if canvas == null:
+		return
+	var info: Label = canvas.get_node_or_null("InfoPanel/InfoLabel")
+	if info != null:
+		info.text = text
+		info.add_theme_color_override("font_color", color)
 
 func _on_main_menu() -> void:
 	get_tree().change_scene_to_file("res://view/menu/MainMenuScene.tscn")

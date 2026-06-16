@@ -1935,15 +1935,42 @@ func _player_kingdom() -> Dictionary:
 	return CampaignMap.kingdom_by_id(world, CampaignMap.player_faction_id(world))
 
 func _cmd_develop_city(cmd: Dictionary) -> bool:
+	return player_develop_city(cmd["payload"].get("city_id", -1))
+
+# ── Player strategic actions (shared by the command path AND the world-map UI) ──
+# The world map advances the strategic layer directly with the clock paused, so the
+# command queue isn't drained there — the WorldMap HUD calls these directly.
+
+# Invest in one of the player's own cities, spending the realm's treasury/resources to
+# raise its development by one. Returns true on success. Mirrors the AI's own growth.
+func player_develop_city(city_id: int) -> bool:
 	var k: Dictionary = _player_kingdom()
 	if k.is_empty():
 		return false
-	var city_id: int = cmd["payload"].get("city_id", -1)
 	if KingdomEconomy.develop_city(world, k, city_id):
 		var c: Dictionary = CampaignMap.city_by_id(world, city_id)
 		EventBus.city_developed.emit(k.get("id", -1), city_id, c.get("development", 0))
 		return true
 	return false
+
+# Can the player afford to develop the given city right now?
+func can_player_develop_city(city_id: int) -> bool:
+	var k: Dictionary = _player_kingdom()
+	return not k.is_empty() and KingdomEconomy.can_develop(world, k, city_id)
+
+# The player's least-developed owned city (the natural next investment), or -1.
+func player_lowest_dev_city() -> int:
+	var k: Dictionary = _player_kingdom()
+	if k.is_empty():
+		return -1
+	return KingdomEconomy.lowest_dev_city(world, k)
+
+# The gold/wood/stone cost to develop a city at its current level (for UI display).
+func develop_city_cost(city_id: int) -> Dictionary:
+	var c: Dictionary = CampaignMap.city_by_id(world, city_id)
+	if c.is_empty():
+		return {}
+	return KingdomEconomy.development_cost(c.get("development", c.get("tier", 0)))
 
 func _cmd_raise_army(cmd: Dictionary) -> bool:
 	var k: Dictionary = _player_kingdom()

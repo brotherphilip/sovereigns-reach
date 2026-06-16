@@ -26,6 +26,49 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 30 — 2026-06-16  ⚜ the strategic layer becomes INTERACTIVE (Develop your realm)
+
+### Heuristic focus
+The directive's **Engagement** axis + the loop's longest-standing backlog: the world map was
+**spectator-only** for the human. You could watch AI kingdoms grow/march/conquer and enter a city, but
+you had **no strategic actions of your own** — the largest unexercised area of the game.
+
+### Finding
+The strategic *backend* was complete and tested (player-parity commands `DEVELOP_CITY`/`RAISE_ARMY`/
+`LAUNCH_CAMPAIGN`, `KingdomEconomy.develop_city`, costs, affordability) — but **none of it was wired to
+the UI**. `WorldMapScene` only had Watch/Speed/Enter/Menu. So the whole "rule a kingdom on the world
+map" fantasy was inert for the player. (Also: the map advances the strategic layer *directly* with the
+clock paused, so it never drains the command queue — a UI action there must call GameState directly.)
+
+### Change made — the first interactive strategic control
+- **GameState** (shared by the command path AND the new UI, clock-independent):
+  `player_develop_city(city_id)`, `can_player_develop_city(city_id)`, `player_lowest_dev_city()`,
+  `develop_city_cost(city_id)`. `_cmd_develop_city` refactored to call the shared method (DRY).
+- **WorldMapScene**: a **"⚒ Develop <city> (Ng Nw Ns)"** button (bottom-left) that invests the realm's
+  treasury/stores to raise your least-developed holding by one level — names the target + cost, disables
+  when unaffordable, refreshes the map + a green result line, and rotates to the next city. Stays current
+  as the economy grows while watching.
+
+### Verified
+- **Live (Xvfb, real click)**: launched the world map → button read "⚒ Develop Duskholm (30g 20w 10s)";
+  clicked it → info panel: **"⚒ Duskholm prospers — development raised to 1. Your realm grows in
+  standing."** and the button rotated to **"⚒ Develop Ivywood …"**. The strategic layer responds to the
+  player for the first time.
+- Headless: +7 player-UI-action tests in TestStrategicAI (direct, no command queue) → 41/0: lowest-dev
+  city resolves, cost reported, affordable with the starting treasury, develop raises dev by exactly 1,
+  and it's correctly refused when the realm's stores are empty. Full suite green (24/24).
+
+### Post-mortem
+- **Failure point:** none — pure capability gain.
+- **Fun/engagement:** the human now *participates* in the campaign instead of only spectating — a real
+  grow-your-realm action with an immediate, visible payoff on the map. The foundation (shared methods +
+  UI pattern) makes Raise Army / Launch Campaign / Diplomacy natural follow-ups.
+
+### Backlog / next
+- Wire the remaining strategic actions to the UI: **Raise Army**, **Launch Campaign**, **Diplomacy**
+  (backends already exist + tested) — likely needing a select-a-city-without-entering affordance.
+- Show the realm's treasury/stores on the world-map HUD so the player can plan investments.
+
 ## Iteration 29 — 2026-06-16  (the player-facing side of iter 28: warn when works stall for lack of builders)
 
 ### Heuristic focus

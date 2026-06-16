@@ -37,6 +37,7 @@ func _init() -> void:
 	_run_pure_sim()
 	_run_determinism()
 	_run_live_integration()
+	_run_player_ui_actions()
 	_test_ai_building_economy()
 	print("\n=== Strategic AI Results: %d passed, %d failed ===" % [_pass, _fail])
 	quit(0 if _fail == 0 else 1)
@@ -228,6 +229,41 @@ func _simulate_to_fingerprint(seed_val: int) -> int:
 	return _ownership_fingerprint(world)
 
 # ── C) Live integration: real game loop + player-parity commands ─────────────
+
+# The world map advances the strategic layer directly with the clock paused, so the
+# command queue isn't drained there — the Develop button calls GameState directly.
+# Verify those direct player-action methods (iter 30: the first interactive strategic control).
+func _run_player_ui_actions() -> void:
+	print("\n[D] Player world-map UI actions (direct, no command queue)")
+	var gs = root.get_node_or_null("GameState")
+	if gs == null:
+		ok("GameState autoload present", false)
+		return
+	gs.world = {}
+	gs.world["world_map"] = WorldMapData.generate(909090)
+	gs.world["selected_city_id"] = gs.world["world_map"]["cities"][0]["id"]
+	gs.players = []
+	CampaignMap.ensure_initialized(gs.world, gs.players)
+	var pfid: int = CampaignMap.player_faction_id(gs.world)
+
+	var cid: int = gs.player_lowest_dev_city()
+	ok("player_lowest_dev_city returns an owned city", cid >= 0 and CampaignMap.owner_of(CampaignMap.city_by_id(gs.world, cid)) == pfid)
+	var cost: Dictionary = gs.develop_city_cost(cid)
+	ok("develop_city_cost reports gold/wood/stone", cost.has("gold") and cost.has("wood") and cost.has("stone"))
+	ok("can_player_develop_city true with starting treasury", gs.can_player_develop_city(cid))
+
+	var dev_before: int = int(CampaignMap.city_by_id(gs.world, cid).get("development", 0))
+	var ok_dev: bool = gs.player_develop_city(cid)
+	var dev_after: int = int(CampaignMap.city_by_id(gs.world, cid).get("development", 0))
+	ok("player_develop_city succeeds (direct, no tick)", ok_dev)
+	ok("development rose by exactly 1", dev_after == dev_before + 1)
+
+	# Drain the realm's stores → the action is correctly gated as unaffordable.
+	var pk: Dictionary = CampaignMap.kingdom_by_id(gs.world, pfid)
+	pk["treasury"] = 0
+	pk["resources"] = {"wood": 0, "stone": 0, "iron": 0, "food": 0}
+	ok("can_player_develop_city false when stores are empty", not gs.can_player_develop_city(cid))
+	ok("player_develop_city refused when unaffordable", not gs.player_develop_city(cid))
 
 func _run_live_integration() -> void:
 	print("\n[C] Live integration via GameState + CommandQueue")
