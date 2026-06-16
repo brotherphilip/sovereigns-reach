@@ -13,14 +13,35 @@ enum SoundEvent {
 	EDICT_ACTIVATED
 }
 
+const SfxGen = preload("res://simulation/audio/SfxGen.gd")
+
 var _audio_prev_hp: Dictionary = {}
+# Per-event tuning: gain (dB) and a min gap (sec) so frequent events don't machine-gun.
+const _GAIN_DB: Dictionary = {
+	"UNIT_HIT": -10.0, "UNIT_DEATH": -7.0, "UNIT_KILLED": -7.0,
+	"BUILDING_PLACED": -5.0, "BUILDING_DEMOLISHED": -6.0, "WEATHER_CHANGED": -9.0,
+	"SIEGE_INCOMING": -3.0, "POPULARITY_CRITICAL": -4.0, "PRESTIGE_GAINED": -6.0,
+	"EDICT_ACTIVATED": -5.0,
+}
+const _MIN_GAP: Dictionary = {"UNIT_HIT": 0.12, "UNIT_DEATH": 0.10, "UNIT_KILLED": 0.10}
+var _last_play: Dictionary = {}
 
 func play(event: SoundEvent) -> void:
 	var player_name = SoundEvent.keys()[event]
+	# Throttle high-frequency events (e.g. a flurry of hits) so audio doesn't buzz.
+	var gap: float = float(_MIN_GAP.get(player_name, 0.0))
+	if gap > 0.0:
+		var now: float = float(Time.get_ticks_msec()) / 1000.0
+		if now - float(_last_play.get(player_name, -999.0)) < gap:
+			return
+		_last_play[player_name] = now
 	var player = get_node_or_null(player_name)
 	if player == null:
 		player = AudioStreamPlayer.new()
 		player.name = player_name
+		# Synthesize the effect once and cache it on the player (zero asset files).
+		player.stream = SfxGen.for_event(player_name)
+		player.volume_db = float(_GAIN_DB.get(player_name, -6.0))
 		add_child(player)
 
 	if player.stream != null:

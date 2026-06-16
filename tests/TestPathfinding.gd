@@ -118,10 +118,11 @@ func _test_performance() -> void:
 	# The road-aware (admissible) heuristic is intentionally weaker than a grass-only
 	# one, so this worst-case full-map open path explores more nodes. Real paths are
 	# short city hops; the budget here is generous for the rare cross-map query.
-	# 600ms headroom: this worst-case full-map open path is far heavier than any real
-	# city hop, and software-rendered / loaded CI machines run ~485ms here. A true
+	# 750ms headroom: this worst-case full-map open path is far heavier than any real
+	# city hop, and software-rendered / loaded machines run ~485ms here (and briefly
+	# spike past 600ms when the whole 24-suite sweep saturates the CPU). A true
 	# regression would be seconds, so this still guards perf without flaking on load.
-	ok("completes quickly (<600ms), got %.1fms" % ms, ms < 600.0)
+	ok("completes quickly (<750ms), got %.1fms" % ms, ms < 750.0)
 	# A path forced into a long detour by a near-full wall with a single gap.
 	var g2 := _flat(120, 120, 0)
 	for y in range(0, 118):

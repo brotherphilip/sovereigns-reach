@@ -26,6 +26,41 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 76 — 2026-06-16  (The realm has a voice: procedural sound effects)
+
+### Source
+UX heuristic — the loop's brief calls out "visual/**audio** feedback," and across 75 iterations the game was
+**completely silent**. `AudioManager` (autoload) was fully wired to EventBus but every `play()` no-op'd because no
+stream was ever set (no audio assets exist in the repo).
+
+### Change made
+- **simulation/audio/SfxGen.gd (new):** synthesises short `AudioStreamWAV` buffers entirely in code (16-bit mono,
+  22 050 Hz) — a soft wooden thock (build), a noise crumble (demolish), a metallic tink (hit), a low thud (death),
+  twin war-drums (siege incoming), an airy swell (weather), a descending two-tone (popularity critical), a rising
+  chime (prestige), a bright ding (edict). **Zero binary assets — the repo stays text-only.**
+- **AudioManager:** `play()` now synthesises + caches one stream per event on first use, with per-event gain
+  (`_GAIN_DB`) and a min-gap throttle (`_MIN_GAP`) so a flurry of hits doesn't machine-gun the speakers.
+
+### Verified
+- **New TestAudio suite (33/0):** every SoundEvent yields a well-formed 16-bit mono WAV of sane length
+  (0.07–0.50s); a synthesised chime carries real signal (not silence); an unknown event falls back to a valid
+  stream (never null). **Full suite: 0 FAIL across all 25 test files.** Live boot with combat units exercised the
+  `play()` path (build/hit/death) with no errors.
+- **Honest caveat:** synthesis + wiring are verified, but the actual timbres couldn't be auditioned in the
+  headless harness — frequencies/envelopes are designed on paper and may want ear-tuning.
+
+### Also fixed
+- Flaky pathfinding `<600ms` perf guard bumped to 750ms: it briefly spikes past 600ms when the whole 24→25-suite
+  sweep saturates the CPU (~485ms typical; a real regression is seconds). Matches last iter's `<350ms` fix.
+
+### Post-mortem
+- **Engagement / UX:** actions and events now have an audible response — a major feedback gap closed with no asset
+  pipeline. Audio is view-side only; no sim/determinism/balance impact (tests unaffected).
+
+### Backlog / next
+1. Ear-tune SFX timbres/volumes once auditioned; consider a UI click and an ambient day/night bed.
+2. Unify military tracking → standing-army milestone; more seasonal/decision events.
+
 ## Iteration 75 — 2026-06-16  (Content density: living ground cover on the open grass)
 
 ### Source
