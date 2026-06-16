@@ -45,6 +45,11 @@ func _test_fixed_clips() -> void:
 	print("\n[Fixed-trigger clips]")
 	ok("reign_day100.wav loads", _loads("reign_day100"))
 	ok("siege_incoming.wav loads", _loads("siege_incoming"))
+	# Generic stings for dynamic-text pop-ups (iter80).
+	ok("edict_proclaimed.wav loads", _loads("edict_proclaimed"))
+	ok("edict_lapsed.wav loads", _loads("edict_lapsed"))
+	ok("objective_updated.wav loads", _loads("objective_updated"))
+	ok("popularity_critical.wav loads", _loads("popularity_critical"))
 
 # A missing key must fail gracefully (null), so unknown events stay silent.
 func _test_loader_is_robust() -> void:

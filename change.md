@@ -26,6 +26,44 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 80 — 2026-06-16  (Herald stings for the dynamic-text pop-ups)
+
+### Source
+Standing VO rule, continued. After iter79 voiced every world event, the remaining silent pop-ups all share a
+problem: their on-screen text is **dynamic** (the edict's name, the current objective, the resource traded) so a
+per-line clip is impossible. The fix is a **generic sting per category** — one herald line that fits any instance,
+played the instant the moment occurs. Picked the four highest-value fixed moments with clean EventBus signals.
+
+### Change made
+- **4 new generic VO clips** (same recipe — Chatterbox serious/0.85, plain text, **no FX**, 16-bit mono PCM):
+  - `edict_proclaimed` — "By royal decree, your will is made law." (any edict the player enacts)
+  - `edict_lapsed` — "The decree has run its course." (any edict expiring)
+  - `objective_updated` — "A new charge is set before you, my liege." (the standing goal changes)
+  - `popularity_critical` — "The people's love wanes. Quell their discontent, or face revolt." (the revolt warning)
+  - Batch script: `~/Documents/Projects/TTS/scripts/sr_signals_batch.py`.
+- **`NarrationPlayer`** wires four more EventBus signals → these keys. The popularity alert is **edge-triggered
+  with hysteresis** (`_POP_CRIT 20` down-cross fires once; re-arms only after recovering past `_POP_SAFE 25`) so a
+  hovering-low popularity never nags every tick.
+
+### Verified
+- **`tests/TestNarration.gd` → 57/0** (the 4 new stings load). **Full suite: 0 FAIL across all 26 files.**
+- **Live Xvfb boot clean:** the autoload's four new connections wire with no errors; town/HUD render normally
+  (`/tmp/iter80_boot.png`).
+- **Caveat (unchanged):** headless can't audition; takes verified to load. Ear-check pending with the rest.
+
+### Post-mortem
+- **UX / audio feedback:** the two player-initiated moments most worth confirming aloud (proclaiming an edict;
+  being warned of imminent revolt) plus objective changes now speak — closing the gap the dynamic text left open.
+  The hysteresis is the right call: a critical alert that repeats becomes noise and trains the player to ignore it.
+- **Pattern established:** "generic sting on a signal" is now the template for every remaining dynamic-text pop-up
+  (weather, unit trained, building lost, rival vanquished) — cheap to extend the same way.
+
+### Backlog / next
+1. **Ear-check** all narration takes (events + stings); re-render any stochastic garbles (single-key re-run).
+2. More generic stings as warranted: building lost, rival kingdom vanquished, unit trained, save/load — only the
+   ones that genuinely add feedback (avoid VO spam on high-frequency/low-stakes toasts like weather/trade).
+3. (Carried) unify military tracking → standing-army milestone; more seasonal/decision events; ear-tune SFX.
+
 ## Iteration 79 — 2026-06-16  (The herald voices the whole realm: all 41 world events)
 
 ### Source
