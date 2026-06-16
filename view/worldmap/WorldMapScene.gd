@@ -123,6 +123,9 @@ func _process(delta: float) -> void:
 		_refresh_realm_label()
 		if _day_label != null:
 			_day_label.text = "Campaign day %d" % GameState.strategic_day()
+	# Slide marching armies smoothly between cities every frame (sub-day march progress),
+	# so the campaign visibly moves across the map rather than jumping city-to-city.
+	_world_view.set_army_frac(clampf(_watch_accum / WATCH_INTERVAL, 0.0, 1.0))
 
 func _build_scene() -> void:
 	var data: Dictionary = GameState.world["world_map"]

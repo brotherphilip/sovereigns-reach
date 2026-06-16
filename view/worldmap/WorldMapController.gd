@@ -38,7 +38,10 @@ static func _faction_color_hex(data: Dictionary, faction_id: int) -> String:
 
 # Field armies currently on the march, positioned partway along the road from
 # their current city toward the next hop so movement is visible.
-static func get_army_render_list(data: Dictionary) -> Array:
+# `march_frac` (0..1) = how far along the CURRENT road hop a marching army is, so the
+# caller (the live map) can animate armies sliding smoothly between cities each frame
+# rather than jumping city-to-city. Idle armies ignore it (drawn at their city).
+static func get_army_render_list(data: Dictionary, march_frac: float = 0.4) -> Array:
 	var result: Array = []
 	for k in data.get("kingdoms", []):
 		if not k is Dictionary:
@@ -58,7 +61,7 @@ static func get_army_render_list(data: Dictionary) -> Array:
 				var nxt: Dictionary = _city(data, path[0])
 				if not nxt.is_empty():
 					to_pos = Vector2(nxt.get("pos_x", 0.0), nxt.get("pos_y", 0.0))
-					pos = from_pos.lerp(to_pos, 0.35)  # marching out from the city
+					pos = from_pos.lerp(to_pos, clampf(march_frac, 0.0, 1.0))  # animated march
 			result.append({
 				"pos":   pos,
 				"to":    to_pos,

@@ -26,6 +26,7 @@ var _faction_list: Array = []
 var _deposit_list: Array = []
 var _army_list:    Array = []
 var _legend:       Array = []
+var _army_frac:    float = 0.4   # sub-hop march progress, driven each frame by the scene
 
 func apply_data(world_map_data: Dictionary) -> void:
 	_data         = world_map_data
@@ -41,8 +42,17 @@ func refresh() -> void:
 	if _data.is_empty():
 		return
 	_city_list = WorldMapController.get_city_render_list(_data)
-	_army_list = WorldMapController.get_army_render_list(_data)
+	_army_list = WorldMapController.get_army_render_list(_data, _army_frac)
 	_legend    = WorldMapController.get_kingdom_legend(_data)
+	queue_redraw()
+
+# Animate marching armies between cities (called every frame while the campaign runs).
+# Cheap: only re-positions the army markers, leaves the static lists alone.
+func set_army_frac(f: float) -> void:
+	if _data.is_empty():
+		return
+	_army_frac = f
+	_army_list = WorldMapController.get_army_render_list(_data, _army_frac)
 	queue_redraw()
 
 func _draw() -> void:

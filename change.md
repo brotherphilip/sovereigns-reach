@@ -26,6 +26,42 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 55 — 2026-06-16  (World map: armies visibly MARCH across the map)
+
+### Source
+User (new directive): "work on the world map + troop management + attacks. Troops seem unpredictable, the
+world map does NOT show armies moving across it; armies should be sendable to other cities and take real
+time to travel." (Multi-part — this iteration tackles the headline: visible army movement.)
+
+### Investigation
+The strategic army model already exists (kingdoms have `armies` with `location_city_id` + `path`; the player
+can Raise/March via the world map). Two real causes of "armies don't show moving":
+1. The army render position was a **static** `from.lerp(to, 0.35)` — a fixed point, never animated.
+2. `WorldMapScene._process` only refreshed the view **on day-advance** (and only while "Watching"), so even
+   that static marker jumped city-to-city instead of sliding.
+
+### Change made (view-only — no sim/test changes, zero test risk)
+- **WorldMapController.get_army_render_list(data, march_frac)** — interpolates a marching army's position by a
+  0..1 fraction along its current road hop (`from.lerp(to, frac)`).
+- **WorldMapView** — stores `_army_frac`; new `set_army_frac(f)` re-positions army markers + redraws.
+- **WorldMapScene._process** — every frame while watching, sets `set_army_frac(_watch_accum/WATCH_INTERVAL)`
+  so armies **slide smoothly between cities**; the logical day-advance (teleport to next city) coincides with
+  the visual arrival → seamless continuous marching.
+
+### Verified (Xvfb, world map, Watch Campaign)
+- Ran the live campaign; froze it mid-war (day 146, 3-way Azure/Crimson/Violet contest). Army banners render
+  **mid-road between cities** with troop counts — e.g. a Crimson army of **29 marching from Ravensmere to
+  assault Azure-held Wolfden**. Armies visibly traverse roads toward their targets. Screens: /tmp/wmc4.png,
+  /tmp/wmc4army1.png. Tests: 1075/1075 green.
+
+### Post-mortem / next (the rest of the user's directive)
+- **Done:** armies are now visible moving across the world map (the headline complaint).
+- **Real travel time:** a hop = WATCH_INTERVAL (0.45s) in fast review mode; in actual city-view play the
+  strategic day is 12s so a hop ≈ 12s real time. Good enough; could add distance-scaled per-hop duration next.
+- **Still to do (next iters):** (a) **"troops seem unpredictable"** — almost certainly the *tactical city-view
+  unit AI* (auto-aggro/kite/formations), needs a predictability/clarity pass; (b) tighten the player
+  send-army UX/feedback (clearer "army is marching to X, ETA" readout); (c) optional distance-based travel time.
+
 ## Iteration 54 — 2026-06-16  (Re-baseline playtest on the post-overhaul build + fix flaky perf test)
 
 ### Plan
