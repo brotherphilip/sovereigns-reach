@@ -26,6 +26,41 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 100 — 2026-06-17  (End-to-end verification of the REAL player entry flow)
+
+### Source
+Milestone iteration. Every prior playtest booted `CityViewScene` directly — but a real player enters through the
+title screen. Verified the actual journey for the first time: **MainMenuScene → New Game → WorldMapScene → enter a
+city → CityViewScene.**
+
+### Playtest (live, Xvfb — the configured `run/main_scene`)
+- **Title screen (MainMenuScene):** polished — "Sovereign's Reach / A Medieval Kingdom Builder", New Game / Load
+  Game / Quit / Difficulty buttons, and an **animated cycling backdrop** (market-day square → "the siege rages at
+  dusk" with castle battlements + war banners). Clean, professional first impression.
+- **New Game → WorldMapScene:** a rich strategic map — 5 kingdoms (Crimson Throne, Azure Dominion, **Emerald
+  March = You**, Violet Pact, Amber Hold), 12 cities, realm-orders bar (Develop / Raise Army / March / Diplomacy),
+  realm stores, and clear help text ("Left-click to enter & rule · Right-click to select for orders").
+- **Enter city → CityViewScene:** "Entering Mirefall…" → the playable city loaded with **prestige 107 carried
+  from the world-map realm** (strategic→city state handoff works), the objective panel set, and the build menu
+  **defaulting to Civic** — confirming the iter81/82 onboarding fixes hold in the REAL flow, not just a direct boot.
+
+### Findings
+- **No bug.** The complete entry chain is clean and the onboarding work is verified in the path players actually
+  take. (Harness note: the title's New Game click needed the usual focus-grab retry; the menu/world-map are view
+  scenes, so headless tests don't cover them — this live pass is their verification.)
+
+### Change made
+Verification/QA milestone — no code change warranted (the whole journey works end-to-end). Deliverable is this
+record confirming the real player experience from title to playable city.
+
+### Post-mortem
+- **The 20-minute goal in context:** a player launches → sees a polished title → starts → picks a seat on a living
+  world map → drops into a guided city with the right tab open and their realm's prestige intact. The on-ramp to
+  the 20-minute session is whole and coherent — not just the city sandbox in isolation.
+
+### Backlog / next
+1. (Carried) live siege-landing confirmation; ear-check narration; ear-tune SFX; more content as warranted.
+
 ## Iteration 99 — 2026-06-17  (Mid/late-game decision events — keep the long middle fresh)
 
 ### Source
