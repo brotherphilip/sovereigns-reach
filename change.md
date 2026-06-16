@@ -26,6 +26,48 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 79 — 2026-06-16  (The herald voices the whole realm: all 41 world events)
+
+### Source
+Standing rule (user): *every pop-up should have a narrator voice-over — add one whenever you notice a missing
+one.* iter 78 voiced the milestones, reign, and siege, but the **most frequent pop-ups of all** — the
+moment-to-moment world events (a wandering merchant, wolves in the night, the harvest feast…) — were still
+silent. The herald should speak the life of the kingdom, not just its big moments.
+
+### Change made
+- **41 new VO clips** in `audio/narration/event_<id>.wav` — one per `WorldEventSystem.EVENTS` entry (plain
+  events *and* choice events; both fire `EventBus.world_event`, so both are pop-ups that deserve a voice). Each
+  line is **"Title. Text"** — exactly what the notification/decision popup shows, minus the numeric tail
+  ("+50 food"). Symbols normalised for clean TTS (em-dash→comma, semicolon→period, "40"→"forty", quotes dropped).
+- **Same voice, same recipe:** Vocalis/Chatterbox, `style=serious intensity=0.85 rate=1.0`, plain text, **NO FX**
+  — raw take transcoded to 16-bit mono PCM (`ffmpeg -ar 24000 -ac 1 -c:a pcm_s16le`, no `-af`). Batch script:
+  `~/Documents/Projects/TTS/scripts/sr_events_batch.py` (re-run a single key if a stochastic take garbles).
+- **No game-code change needed:** `NarrationPlayer` already maps `world_event(data.id)` → `event_<id>.wav`, so
+  dropping the files in is enough — the realm now narrates itself.
+
+### Verified
+- **`tests/TestNarration.gd` extended → 53/0:** now asserts *every* `WorldEventSystem.EVENTS` id has a loadable
+  `event_<id>.wav` (key parity vs the content, so a future event without a clip fails the suite — keeps the
+  standing rule enforced). **Full suite: 0 FAIL across all 26 test files** (incl. Phase1/2/9: 69/94/67 all pass).
+- **Live Xvfb boot clean:** NarrationPlayer autoload + 41 clips load with no errors; town/HUD/build-menu render
+  normally (screenshot `/tmp/iter79_boot.png`).
+- **Honest caveat:** headless uses a dummy audio driver, so the 41 takes couldn't be *auditioned* here — they're
+  verified to load as valid 16-bit WAVs and the lines are the on-screen text. Chatterbox is stochastic; any clip
+  that garbled a word can be re-rendered for that single key. **Needs an ear-check pass by the user.**
+
+### Post-mortem
+- **Engagement / Content density:** the single richest content layer (the ~40 realm events that fire every few
+  game-days) now has full spoken feedback — the kingdom feels alive and *heard*, directly serving the "audio
+  feedback" and "content density" heuristics. View/audio-side only; zero sim/determinism/balance impact.
+- **Process win:** the data-driven design paid off — voicing 41 pop-ups was *content only* (render + drop in),
+  no engine work, and the test now guards key parity so the rule self-enforces going forward.
+
+### Backlog / next
+1. **Ear-check** the 41 event takes; re-render any stochastic garbles (single-key re-run).
+2. Voice the remaining pop-ups: objective-complete lines, tutorial/instruction toasts, edict proclaimed/lapsed,
+   trade confirmations — and decide on a generic sting for the dynamic-name strategic war-news (`realm_notice`).
+3. (Carried) unify military tracking → standing-army milestone; more seasonal/decision events; ear-tune SFX.
+
 ## Iteration 78 — 2026-06-16  (Spoken narration: a herald voices the key pop-ups)
 
 ### Source

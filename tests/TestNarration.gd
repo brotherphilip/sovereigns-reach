@@ -4,6 +4,7 @@ extends SceneTree
 
 const WavLoad        = preload("res://simulation/audio/WavLoad.gd")
 const MilestoneSystem = preload("res://simulation/core/MilestoneSystem.gd")
+const WorldEventSystem = preload("res://simulation/world/WorldEventSystem.gd")
 
 const DIR := "res://audio/narration/"
 var _pass := 0
@@ -11,6 +12,7 @@ var _fail := 0
 
 func _init() -> void:
 	_test_every_milestone_has_voice()
+	_test_every_world_event_has_voice()
 	_test_fixed_clips()
 	_test_loader_is_robust()
 	print("\n=== Narration Results: %d passed, %d failed ===" % [_pass, _fail])
@@ -29,6 +31,14 @@ func _test_every_milestone_has_voice() -> void:
 	print("\n[Every milestone has a narration clip]")
 	for mid in MilestoneSystem.DEFINITIONS.keys():
 		ok("milestone_%s.wav loads" % mid, _loads("milestone_" + str(mid)))
+
+# Every world event the realm can surface is a pop-up, so it must have a voice too
+# (NarrationPlayer speaks event_<id> on EventBus.world_event). Key parity vs the content.
+func _test_every_world_event_has_voice() -> void:
+	print("\n[Every world event has a narration clip]")
+	for ev in WorldEventSystem.EVENTS:
+		var eid: String = str(ev.get("id", ""))
+		ok("event_%s.wav loads" % eid, _loads("event_" + eid))
 
 # The other fixed-trigger pop-ups.
 func _test_fixed_clips() -> void:

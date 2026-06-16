@@ -35,7 +35,7 @@
 <header>
   <h1>⚜ Sovereign's Reach — Systems Reference</h1>
   <p>A medieval city-builder &amp; strategy game in Godot 4.6.3. Living document — updated each dev iteration.</p>
-  <p class="muted">Last updated: iteration 78 (2026-06-16) — spoken narrator VO for milestones/reign/siege (NarrationPlayer autoload); UI click + procedural event SFX; living ground cover; world-map battle markers</p>
+  <p class="muted">Last updated: iteration 79 (2026-06-16) — herald VO now voices all 41 world-event pop-ups (event_&lt;id&gt;.wav), on top of milestones/reign/siege (NarrationPlayer autoload); UI click + procedural event SFX; living ground cover; world-map battle markers</p>
 </header>
 <nav>
   <a href="#overview">Overview</a>
@@ -203,6 +203,7 @@
     <li><b>Choice events</b> (a popup that pauses time): a baron's loan, brigand toll, refugees at the gate,
       a knight errant, poachers — each with real trade-offs applied via a command.</li>
     <li>Effects are clamped (never below 0 / never instant-revolt); content compounds by adding dict entries.</li>
+    <li><b>Fully voiced (iter 79):</b> all 41 events have a "grim war herald" VO (<span class="file">audio/narration/event_&lt;id&gt;.wav</span>, raw Chatterbox, no FX) that <span class="file">NarrationPlayer</span> speaks the moment the pop-up appears — the realm narrates its own life.</li>
   </ul>
 </section>
 
