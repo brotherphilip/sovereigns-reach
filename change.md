@@ -26,6 +26,39 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 31 — 2026-06-16  (world-map HUD: show the realm's stores so investment is plannable)
+
+### Heuristic focus
+Directly enables iter 30. The new Develop button spends the realm's treasury/wood/stone, but the world
+map **never showed those numbers** — so the player couldn't tell why "Develop" was affordable or how
+close they were. The directive's **feedback/"makes-sense"** axis: you can't plan a strategic action you
+can't see the budget for.
+
+### Change made
+- **GameState.player_realm_stores()** (new): the player kingdom's strategic stores —
+  `{treasury, wood, stone, iron, food, cities}` — empty if no player kingdom.
+- **WorldMapScene**: a gold readout above the Develop button —
+  **"Realm stores — N gold  N wood  N stone  ·  N cities"** — refreshed on build, every watched
+  campaign-day, and after each Develop action so it always reflects the current budget.
+
+### Verified
+- **Live (Xvfb)**: the world map now shows "Realm stores — 400 gold  250 wood  120 stone · 12 cities"
+  above "⚒ Develop Duskholm (30g 20w 10s)" — the player can read the budget against the cost at a glance.
+- Headless: +2 tests in TestStrategicAI (43/0): `player_realm_stores` reports the right keys and the
+  stores visibly drop after a Develop. Full suite green (24/24).
+
+### Post-mortem
+- **Failure point:** none.
+- **UX:** turns iter 30's action from "press the button and hope" into a legible decision — you see your
+  coffers, the cost, and (via the disabled state) whether you can afford it. Makes the strategic layer
+  feel like governing, not guessing.
+
+### Backlog / next
+- Wire **Raise Army / Launch Campaign / Diplomacy** to the UI (backends ready; needs a
+  select-city-without-entering affordance since click currently enters the city).
+- The strategic stores grow as you "Watch" the campaign — consider whether the player should accrue
+  even while acting, so investment isn't purely gated on watching.
+
 ## Iteration 30 — 2026-06-16  ⚜ the strategic layer becomes INTERACTIVE (Develop your realm)
 
 ### Heuristic focus

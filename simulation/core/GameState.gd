@@ -1972,6 +1972,22 @@ func develop_city_cost(city_id: int) -> Dictionary:
 		return {}
 	return KingdomEconomy.development_cost(c.get("development", c.get("tier", 0)))
 
+# The player realm's strategic stores (treasury + wood/stone/iron/food), for the
+# world-map HUD so the player can plan investments. Empty {} if no player kingdom.
+func player_realm_stores() -> Dictionary:
+	var k: Dictionary = _player_kingdom()
+	if k.is_empty():
+		return {}
+	var res: Dictionary = k.get("resources", {})
+	return {
+		"treasury": int(k.get("treasury", 0)),
+		"wood":  int(res.get("wood", 0)),
+		"stone": int(res.get("stone", 0)),
+		"iron":  int(res.get("iron", 0)),
+		"food":  int(res.get("food", 0)),
+		"cities": CampaignMap.faction_city_count(world, CampaignMap.player_faction_id(world)),
+	}
+
 func _cmd_raise_army(cmd: Dictionary) -> bool:
 	var k: Dictionary = _player_kingdom()
 	if k.is_empty():

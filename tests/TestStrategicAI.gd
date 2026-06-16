@@ -252,11 +252,20 @@ func _run_player_ui_actions() -> void:
 	ok("develop_city_cost reports gold/wood/stone", cost.has("gold") and cost.has("wood") and cost.has("stone"))
 	ok("can_player_develop_city true with starting treasury", gs.can_player_develop_city(cid))
 
+	# Realm-stores readout reflects the treasury/wood/stone before the investment.
+	var stores_before: Dictionary = gs.player_realm_stores()
+	ok("player_realm_stores reports treasury/wood/stone/cities",
+		stores_before.has("treasury") and stores_before.has("wood") and stores_before.has("stone") and stores_before.has("cities"))
+
 	var dev_before: int = int(CampaignMap.city_by_id(gs.world, cid).get("development", 0))
 	var ok_dev: bool = gs.player_develop_city(cid)
 	var dev_after: int = int(CampaignMap.city_by_id(gs.world, cid).get("development", 0))
 	ok("player_develop_city succeeds (direct, no tick)", ok_dev)
 	ok("development rose by exactly 1", dev_after == dev_before + 1)
+
+	# After investing, the readout shows the deducted treasury/stores.
+	var stores_after: Dictionary = gs.player_realm_stores()
+	ok("realm stores drop after developing", int(stores_after.get("treasury", 0)) < int(stores_before.get("treasury", 0)) and int(stores_after.get("wood", 0)) < int(stores_before.get("wood", 0)))
 
 	# Drain the realm's stores → the action is correctly gated as unaffordable.
 	var pk: Dictionary = CampaignMap.kingdom_by_id(gs.world, pfid)

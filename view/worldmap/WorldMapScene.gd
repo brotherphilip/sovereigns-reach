@@ -16,6 +16,7 @@ var _watch_btn: Button = null
 var _watch_speed_btn: Button = null
 var _day_label: Label = null
 var _develop_btn: Button = null
+var _realm_label: Label = null
 const WATCH_INTERVAL: float = 0.45      # real seconds per strategic day at speed 1
 
 func _ready() -> void:
@@ -109,6 +110,7 @@ func _process(delta: float) -> void:
 	if advanced:
 		_world_view.refresh()
 		_refresh_develop_btn()
+		_refresh_realm_label()
 		if _day_label != null:
 			_day_label.text = "Campaign day %d" % GameState.strategic_day()
 
@@ -228,6 +230,17 @@ func _build_scene() -> void:
 	info_lbl.add_theme_color_override("font_color", Color(0.80, 0.74, 0.54))
 	info_panel.add_child(info_lbl)
 
+	# Realm stores readout — so the player can plan strategic investments (treasury +
+	# the wood/stone that develop costs draw on, and how many cities they hold).
+	_realm_label = Label.new()
+	_realm_label.name     = "RealmStores"
+	_realm_label.position = Vector2(8, vp.y - 152)
+	_realm_label.size     = Vector2(360, 22)
+	_realm_label.add_theme_font_size_override("font_size", 12)
+	_realm_label.add_theme_color_override("font_color", Color(0.91, 0.82, 0.45))
+	canvas.add_child(_realm_label)
+	_refresh_realm_label()
+
 	# Player strategic action (the first interactive control — was watch/enter only):
 	# invest the realm's treasury to grow your least-developed holding.
 	_develop_btn = Button.new()
@@ -296,6 +309,7 @@ func _on_develop_realm() -> void:
 	else:
 		_set_info("Cannot develop %s yet — the realm's treasury or stores are short." % city_name, Color(1.0, 0.6, 0.3))
 	_refresh_develop_btn()
+	_refresh_realm_label()
 
 # Update the Develop button to name the next target city + its cost, and disable it
 # when the realm can't currently afford the investment.
@@ -312,6 +326,16 @@ func _refresh_develop_btn() -> void:
 	_develop_btn.text = "⚒ Develop %s  (%dg %dw %ds)" % [
 		c.get("name", "city"), int(cost.get("gold", 0)), int(cost.get("wood", 0)), int(cost.get("stone", 0))]
 	_develop_btn.disabled = not GameState.can_player_develop_city(cid)
+
+func _refresh_realm_label() -> void:
+	if _realm_label == null:
+		return
+	var s: Dictionary = GameState.player_realm_stores()
+	if s.is_empty():
+		_realm_label.text = ""
+		return
+	_realm_label.text = "Realm stores —  %d gold   %d wood   %d stone   ·   %d cities" % [
+		int(s.get("treasury", 0)), int(s.get("wood", 0)), int(s.get("stone", 0)), int(s.get("cities", 0))]
 
 func _set_info(text: String, color: Color = Color(0.80, 0.74, 0.54)) -> void:
 	var canvas: CanvasLayer = get_node_or_null("HUD")
