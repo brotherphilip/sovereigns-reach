@@ -132,6 +132,12 @@ func _on_accept() -> void:
 			"demands": _current.get("demands", {}),
 		}, 0)
 		_record_history("accept", _current)
+		var aname: String = _current.get("faction_name", "The faction")
+		var hud = get_parent()
+		if hud and hud.has_method("show_notification"):
+			hud.show_notification(
+				"Tribute paid to %s — appeased, they hold the peace for ~14 days." % aname,
+				5.0, Color(0.6, 0.9, 0.5))
 	visible = false
 
 func _on_refuse() -> void:

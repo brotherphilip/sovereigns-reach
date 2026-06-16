@@ -46,7 +46,7 @@ static func tick(faction: Dictionary, players: Array, _world: Dictionary, tick: 
 		var weakest: float = _weakest_player_strength(players)
 		var gate: int = 30 if weakest < 25.0 else ARMY_SIZE_TARGET
 		if army_size >= gate:
-			var attack_info: Dictionary = AIFaction.should_attack(faction, players)
+			var attack_info: Dictionary = AIFaction.should_attack(faction, players, tick)
 			if attack_info.get("attack", false):
 				AIFaction.start_siege(faction, attack_info["target_player_id"],
 					_get_player_x(players, attack_info["target_player_id"]),

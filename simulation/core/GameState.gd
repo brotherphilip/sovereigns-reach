@@ -1925,7 +1925,7 @@ func _cmd_diplomacy_response(cmd: Dictionary) -> bool:
 			faction = f
 			break
 	if payload.get("accept", false):
-		DiplomacySystem.accept(players[pid], payload.get("demands", {}), faction)
+		DiplomacySystem.accept(players[pid], payload.get("demands", {}), faction, SimulationClock.current_tick)
 	else:
 		DiplomacySystem.refuse(players[pid], faction)
 	return true

@@ -26,6 +26,44 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 58 — 2026-06-16  (Diplomacy depth: tribute now matters — pay buys peace, refuse escalates)
+
+### Source
+Standing 20-min ENGAGEMENT goal; the diplomacy/tribute beat was the shallowest (flagged iter 54): you got an
+Accept/Refuse demand but the choice barely mattered.
+
+### Diagnosis
+- `refuse()` bumped `threat_level` +15, but `_update_threat_level` **recomputes threat from scratch every
+  game-day**, so the bump was wiped next tick — refusing had almost no lasting effect.
+- `accept()` only paid the resources — paying **bought nothing** (the faction could take the tribute and
+  still besiege you the same day). No reason to ever pay.
+
+### Change made
+- **Persistent grievance (AIFaction):** a new `grievance` term is ADDED into the recomputed threat and
+  **cools slowly** (`GRIEVANCE_DECAY`/day). `refuse()` now adds `GRIEVANCE_ON_REFUSE` (18) → a real,
+  lasting escalation toward a siege (plus the existing −5 popularity + trade embargo).
+- **Tribute buys peace (DiplomacySystem.accept + AIFaction.should_attack):** paying sets
+  `tribute_peace_until = now + TRIBUTE_PEACE_DAYS (14) days` — `should_attack` now returns false during that
+  window — and soothes grievance by `GRIEVANCE_ON_ACCEPT` (25). Threaded `tick` through the 4 archetype
+  brains' `should_attack` calls and the GameState accept command.
+- **Legible feedback:** Accept now shows "Tribute paid to X — appeased, they hold the peace for ~14 days";
+  Refuse already warned of embargo + retaliation.
+
+### Verified
+- **New tests (TestPhase6):** an aggressive faction would attack → after paying it **won't besiege during the
+  peace window** → the peace **expires** and it would attack again; **refusing nurses a persistent grievance**.
+- **Tests:** full suite **1082 assertions, 0 failed** (TestPhase6 95/0). (Reconfirmed the TestPathfinding perf
+  flake is purely lingering `xvfb-run` shells loading the box — kill the wrapper, not just godot.)
+
+### Post-mortem
+- **Fun factor:** the tribute demand is now a genuine decision with stakes — pay to buy a real breathing
+  spell (at a resource cost), or refuse to keep your gold but stoke a grudge that escalates toward war. That's
+  the engagement beat the 20-min loop was missing.
+
+### Backlog / next
+1. Surface the faction's standing (grievance/peace) on the diplomacy panel (a relations meter).
+2. (Carried) click-to-inspect marching army + stance toggle; distance-scaled strategic travel.
+
 ## Iteration 57 — 2026-06-16  (World map: persistent "armies on the march" readout + ETA)
 
 ### Source

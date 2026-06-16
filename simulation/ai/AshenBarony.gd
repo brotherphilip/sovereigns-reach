@@ -80,7 +80,7 @@ static func tick(faction: Dictionary, players: Array, _world: Dictionary, tick: 
 		_recruit_barony(faction)
 
 		# Attack decision
-		var attack_info: Dictionary = AIFaction.should_attack(faction, players)
+		var attack_info: Dictionary = AIFaction.should_attack(faction, players, tick)
 		if attack_info.get("attack", false):
 			AIFaction.start_siege(faction, attack_info["target_player_id"],
 				_get_player_x(players, attack_info["target_player_id"]),

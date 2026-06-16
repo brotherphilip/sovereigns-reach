@@ -3,10 +3,13 @@ extends RefCounted
 # AI factions (AshenBarony) via EventBus.ai_envoy_sent; the DiplomacyPanel calls
 # these when the player Accepts (pays) or Refuses (consequences).
 
-# Accept: pay the demanded resources and mark all pending demands fulfilled.
-# gold is player.gold; food goods (ale, apples…) live in player.food; the rest
-# (iron, wood, stone…) in player.resources.
-static func accept(player: Dictionary, demands: Dictionary, faction = null) -> void:
+const AIFaction = preload("res://simulation/ai/AIFaction.gd")
+const TICKS_PER_DAY: int = 240
+
+# Accept: pay the demanded resources, mark demands fulfilled, and — crucially — BUY
+# PEACE: a guaranteed no-siege window plus soothed grievance, so tribute actually
+# keeps the wolves from the door for a while (the whole point of paying).
+static func accept(player: Dictionary, demands: Dictionary, faction = null, tick: int = 0) -> void:
 	for res in demands:
 		var amount: int = demands[res]
 		if res == "gold":
@@ -20,13 +23,16 @@ static func accept(player: Dictionary, demands: Dictionary, faction = null) -> v
 		for d in faction.get("tribute_demands", []):
 			if d is Dictionary and d.get("player_id", -1) == pid and not d.get("fulfilled", false):
 				d["fulfilled"] = true
+		if tick > 0:
+			faction["tribute_peace_until"] = tick + AIFaction.TRIBUTE_PEACE_DAYS * TICKS_PER_DAY
+		faction["grievance"] = maxf(0.0, faction.get("grievance", 0.0) - AIFaction.GRIEVANCE_ON_ACCEPT)
 
-# Refuse: the populace grows uneasy, the snubbed faction grows more hostile, and
-# Ashen Barony (or any faction that tracks embargoes) imposes a trade embargo.
+# Refuse: the populace grows uneasy, and the snubbed faction nurses a PERSISTENT
+# grievance (escalating its threat toward a siege) plus a trade embargo.
 static func refuse(player: Dictionary, faction) -> void:
 	player["popularity"] = maxf(0.0, player.get("popularity", 50.0) - 5.0)
 	if faction is Dictionary:
-		faction["threat_level"] = minf(100.0, faction.get("threat_level", 0.0) + 15.0)
+		faction["grievance"] = faction.get("grievance", 0.0) + AIFaction.GRIEVANCE_ON_REFUSE
 		# Impose embargo: block the player from this faction's trade for future interactions.
 		var pid: int = player.get("id", 0)
 		var embargoed: Array = faction.get("embargoed_players", [])

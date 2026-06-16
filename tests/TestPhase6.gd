@@ -13,6 +13,7 @@ const BanditKing    = preload("res://simulation/ai/BanditKing.gd")
 const MerchantPrince = preload("res://simulation/ai/MerchantPrince.gd")
 const Ironhand      = preload("res://simulation/ai/Ironhand.gd")
 const AshenBarony   = preload("res://simulation/ai/AshenBarony.gd")
+const DiplomacySystem = preload("res://simulation/ai/DiplomacySystem.gd")
 
 # CommandType integer constants (avoids compile-time autoload resolution)
 const CT_RECRUIT_UNIT      = 11
@@ -378,6 +379,23 @@ func _test_ai_factions() -> void:
 	var player_stub := [{"id": 0, "is_alive": true, "keep_x": 10, "keep_y": 10, "military_strength": 0, "prestige": 0}]
 	var att := AIFaction.should_attack(bk2, player_stub)
 	ok("below threshold: should_attack=false", att.get("attack") == false)
+
+	# 8b. Diplomacy depth: paying tribute buys a peace window; refusing nurses grievance.
+	var dipf := BanditKing.make(9, 0, 0)
+	dipf["days_alive"] = AIFaction.PLAYER_GRACE_DAYS + 5   # past the King's Peace
+	dipf["threat_level"] = 80.0                            # well over the bandit threshold
+	var now := 100 * 240
+	ok("aggressive faction would attack absent diplomacy",
+		AIFaction.should_attack(dipf, player_stub, now).get("attack") == true)
+	DiplomacySystem.accept({"id": 0, "gold": 100, "resources": {}, "food": {}}, {"gold": 10}, dipf, now)
+	ok("paying tribute buys peace (no siege during the window)",
+		AIFaction.should_attack(dipf, player_stub, now + 240).get("attack") == false)
+	ok("the bought peace eventually expires",
+		AIFaction.should_attack(dipf, player_stub, now + AIFaction.TRIBUTE_PEACE_DAYS * 240 + 240).get("attack") == true)
+	var dipf2 := BanditKing.make(10, 0, 0)
+	var g0: float = dipf2.get("grievance", 0.0)
+	DiplomacySystem.refuse({"id": 0, "popularity": 50.0}, dipf2)
+	ok("refusing tribute nurses a persistent grievance", dipf2.get("grievance", 0.0) > g0)
 
 	# 9. Ashen tribute demands after 14+ game-days
 	var ab2: Dictionary = AshenBarony.make(8, 0, 0)

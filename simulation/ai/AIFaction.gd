@@ -50,6 +50,14 @@ const SIEGE_ASSEMBLY_TICKS: int = TICKS_PER_DAY * 48
 # Long-lived world factions are unaffected (their days_alive is far past this).
 const PLAYER_GRACE_DAYS: int = 30
 
+# Diplomacy depth: refusing a tribute demand adds a PERSISTENT grievance that raises
+# the faction's threat (escalating toward a siege) and cools slowly; paying tribute
+# buys a guaranteed peace window and soothes grievance — so the choice has real stakes.
+const GRIEVANCE_ON_REFUSE: float = 18.0   # threat added per refusal (persistent)
+const GRIEVANCE_ON_ACCEPT: float = 25.0   # grievance soothed by paying tribute
+const GRIEVANCE_DECAY: float = 1.0        # grievance cooled per game-day
+const TRIBUTE_PEACE_DAYS: int = 14        # days of guaranteed peace bought by paying
+
 # ── Factory ───────────────────────────────────────────────────────────────────
 
 static func make_faction(id: int, name: String, archetype: String,
@@ -237,6 +245,10 @@ static func _update_threat_level(faction: Dictionary) -> void:
 	# Threat = (army power / 10) + (gold / 100) + (days_alive / 5), capped at 100
 	var threat: float = float(army_value) / 10.0 + float(gold) / 100.0 + float(days) / 5.0
 	threat *= DifficultySystem.get_mod("ai_threat")
+	# Persistent diplomatic grievance (refused tribute) escalates the threat, then cools
+	# slowly — so a refusal has lasting weight instead of being wiped next tick.
+	threat += faction.get("grievance", 0.0)
+	faction["grievance"] = maxf(0.0, faction.get("grievance", 0.0) - GRIEVANCE_DECAY)
 	faction["threat_level"] = minf(100.0, threat)
 
 # ── Siege assembly ────────────────────────────────────────────────────────────
@@ -256,13 +268,16 @@ static func start_siege(faction: Dictionary, target_player_id: int,
 
 # Returns true if the faction should initiate an attack on a player.
 # Each archetype can set different thresholds.
-static func should_attack(faction: Dictionary, players: Array) -> Dictionary:
+static func should_attack(faction: Dictionary, players: Array, tick: int = 0) -> Dictionary:
 	if not faction.get("is_alive", false):
 		return {"attack": false, "target_player_id": -1}
 	if not faction.get("siege_assembly", {}).is_empty():
 		return {"attack": false, "target_player_id": -1}  # already assembling
 	# King's Peace: no sieges against the player during a fresh faction's grace window.
 	if faction.get("days_alive", 0) < PLAYER_GRACE_DAYS:
+		return {"attack": false, "target_player_id": -1}
+	# Tribute recently paid buys peace — an appeased faction won't besiege you yet.
+	if tick > 0 and tick < int(faction.get("tribute_peace_until", 0)):
 		return {"attack": false, "target_player_id": -1}
 
 	var arch: String = faction.get("archetype", "")
