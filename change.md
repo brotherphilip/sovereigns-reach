@@ -26,6 +26,41 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 116 — 2026-06-17  (First MANAGED live run — a mouse-built food economy survives healthy to day 41)
+
+### Source
+Backlog #1: the now-unblocked managed Day-100 capstone. Attempt it incrementally (a full blind run is too flaky
+to trust), starting with the survival-critical FOOD economy driven by real mouse clicks, verified by telemetry.
+
+### Change made
+None (game code). Harness/playtest work: drive the real game by mouse to build a food economy, capture the curve.
+
+### Playtest (REAL — Xvfb :99, two live runs, SR_TELEMETRY + screenshots)
+- **Attempt 1 FAILED — diagnosed:** clicked each "Build" button TWICE (old memory advice) → queued two pending
+  placements and desynced the sequence. Telemetry: buildings spiked 1→4 on day 1 then collapsed back to **1**
+  (invalid placements rejected); food fell 200→0 by day 29 (unmanaged rate); popularity then dropped 50→42.
+  Screenshots showed one hall + a stuck green placement-ghost. **Root cause = my input script, not the game**
+  (the game correctly placed the hall, showed the right FOOD cards, and rejected invalid tiles).
+- **Attempt 2 SUCCEEDED (corrected pattern):** one focus-grab click; **PAUSE via the mouse pause button
+  (≈23,708)**; then **Build ONCE → place ONCE** per building on spaced grass away from water; then click 5×.
+  Telemetry: **3 buildings persisted** (stable day 0→41); **food held at the ~200 cap (192–200), not the
+  unmanaged decline to 0**; **popularity rose 50→57**; gold 500→585. The realm is fed and healthy at day 41 —
+  past the day-29 starvation death point. A real **tribute-demand diplomacy event** (The Ashen Barony: 30 gold
+  + 12 iron, Pay/Refuse) auto-paused the sim at ~day 41, which is where telemetry froze.
+
+### Post-mortem — failure class: NONE (managed economy healthy); Day-100 NOT reached
+- First *managed* live survival evidence: a mouse-built economy survives the early/mid game where the unmanaged
+  realm dies. Not milestone-met — the run only reached ~day 41 (5× for ~110 s, then the tribute event paused it),
+  not day 100. Only 3 of 7 attempted buildings stuck (granary at card-9 / far-right likely missed), but 3 was
+  enough to peg food at cap.
+- Correct mouse-build technique saved to harness memory (single Build click, pause-first, spaced grass tiles).
+
+### Backlog / next
+**Design (the capstone, in progress):** extend the managed run to day 100 — handle the tribute popup (click
+Accept/Refuse), add DEFENSE (walls+tower) before the siege (~day 30–34), and drive past day 41 to day 100.
+Evidence: this run survived healthy to day 41; remaining gap is duration + the endgame siege. (Carried) user
+ear-check of narration; ear-tune SFX; minor spectator-battle edge cases.
+
 ## Iteration 115 — 2026-06-17  (Harness input path SOLVED — mouse drives speed AND building, proven by telemetry)
 
 ### Source
