@@ -250,9 +250,10 @@ func _dev_telemetry(path: String) -> void:
 	if f == null:
 		push_warning("[CityView] SR_TELEMETRY: cannot open %s" % path)
 		return
-	f.store_line("real_s,game_day,popularity,gold,food,units,buildings,fps")
+	f.store_line("real_s,game_day,popularity,gold,food,units,buildings,fps,siege_ready,hall_hp,defense_built")
 	f.flush()
 	var HUDCtl = preload("res://view/hud/HUDController.gd")
+	var BReg = preload("res://simulation/buildings/BuildingRegistry.gd")
 	var t0: int = Time.get_ticks_msec()
 	var timer := Timer.new()
 	timer.name = "SR_TelemetryTimer"
@@ -264,11 +265,23 @@ func _dev_telemetry(path: String) -> void:
 			return
 		var p: Dictionary = GameState.players[0]
 		var real_s: float = float(Time.get_ticks_msec() - t0) / 1000.0
-		f.store_line("%.1f,%d,%.1f,%d,%d,%d,%d,%.0f" % [
+		var hall_hp: int = 0
+		var defense_built: int = 0
+		for b in p.get("buildings", []):
+			if not b is Dictionary:
+				continue
+			var bt: String = String(b.get("type", ""))
+			if bt in ["village_hall", "keep"]:
+				hall_hp = maxi(hall_hp, int(b.get("hp", 0)))
+			if b.get("built", false) and int(BReg.lookup(bt).get("category", -1)) == BReg.Category.DEFENSE:
+				defense_built += 1
+		var siege_ready: int = 1 if GameState.is_siege_ready(p) else 0
+		f.store_line("%.1f,%d,%.1f,%d,%d,%d,%d,%.0f,%d,%d,%d" % [
 			real_s, SimulationClock.game_day(),
 			float(p.get("popularity", 50.0)), int(p.get("gold", 0)),
 			HUDCtl.get_total_food(p), (p.get("units", []) as Array).size(),
-			(p.get("buildings", []) as Array).size(), Engine.get_frames_per_second()])
+			(p.get("buildings", []) as Array).size(), Engine.get_frames_per_second(),
+			siege_ready, hall_hp, defense_built])
 		f.flush()
 	)
 	timer.start()
