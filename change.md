@@ -26,6 +26,34 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 102 — 2026-06-17  (A second early edict — more agency in the opening minutes)
+
+### Source
+From the iter96 Edicts pass: only **one** edict (Village Feast) is available without tech — every other one is
+gated behind Royal Edicts / other techs. So the opening minutes (the highest-engagement window) offered a single
+royal decision. Added a second early lever.
+
+### Change made
+- **`simulation/edicts/EdictSystem.gd`:** new no-tech edict **Frugal Tables** (ECONOMY, PASSIVE, 2 points) —
+  `food_consumption_reduction: 0.08`, i.e. your people eat 8% less food. A standing survival lever against the
+  early/winter food squeeze, distinct from the feast's instant morale. Deliberately weaker than the tech-gated
+  **Ration Controls** (0.10) so that remains a genuine upgrade. The modifier is read by `ResourceTick` (confirmed),
+  so it actually functions; it surfaces through the generic `edict_proclaimed` VO (no new audio needed).
+
+### Verified
+- **TestPhase5 → 102/0** (new: frugal_tables exists, needs no tech, cuts food consumption, and is weaker than
+  ration_controls). **Full suite: 0 FAIL across all 27 files.**
+- **Live Xvfb:** the Edicts panel's **Available Edicts** now lists **Village Feast + Frugal Tables** (both
+  Activate, 2P) — the opening's royal choices doubled. (Panel also clean — no popularity overlap, iter96 fix holding.)
+
+### Post-mortem
+- **Engagement / agency:** the player now has two meaningful decrees from turn one — a morale burst (feast) and a
+  standing frugality (frugal tables) — instead of a single option, enriching the critical opening. Bounded effect,
+  weaker than its tech successor; zero balance risk.
+
+### Backlog / next
+1. (Carried) user ear-check of narration voice quality; live siege-landing confirmation; ear-tune SFX.
+
 ## Iteration 101 — 2026-06-17  (Guard the narration set: every clip must carry real audio)
 
 ### Source

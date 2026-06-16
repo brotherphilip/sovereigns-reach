@@ -25,6 +25,19 @@ const EDICTS: Dictionary = {
 		"requires_tech": "",
 		"description": "Throw open the stores for a day of feasting (+6 popularity, now).",
 	},
+	# A second no-tech decree so the opening has a real choice beyond the feast: a standing
+	# frugality that eases food pressure (the early/winter survival squeeze). Weaker than the
+	# tech-gated Ration Controls (10%), so that remains a genuine upgrade.
+	"frugal_tables": {
+		"name": "Frugal Tables",
+		"category": PolicyCategory.ECONOMY, "type": EdictType.PASSIVE,
+		"cost_points": 2,
+		"duration_ticks": 0,   # permanent while active
+		"cooldown_ticks": 0,
+		"modifiers": {"food_consumption_reduction": 0.08},
+		"requires_tech": "",
+		"description": "Decree leaner tables — your people eat 8% less food. Husband the stores against the lean months.",
+	},
 
 	# ── §7.2 Economy Policies ─────────────────────────────────────────────
 	"agrarian_subsidies": {

@@ -117,6 +117,7 @@ func run_all() -> void:
 	test_edict_get_modifiers_stacks()
 	test_edict_levy_summons_instant_effects()
 	test_edict_festival_triggers_event()
+	test_edict_frugal_tables_early()
 
 	print("--- GameState Phase 5 integration ---")
 	test_gs_prestige_generated_at_day_boundary()
@@ -481,6 +482,16 @@ func _make_edict_player(points: int = 20) -> Dictionary:
 		"popularity": 60.0,
 		"gold": 200,
 	}
+
+func test_edict_frugal_tables_early() -> void:
+	# iter102 — a second no-tech edict so the opening has a real choice beyond the feast.
+	var defn = EdictSystem.lookup("frugal_tables")
+	expect("frugal_tables exists", defn.has("name"))
+	expect("frugal_tables needs no tech (available early)", String(defn.get("requires_tech", "x")) == "")
+	expect("frugal_tables cuts food consumption", float(defn.get("modifiers", {}).get("food_consumption_reduction", 0.0)) > 0.0)
+	# Weaker than the tech-gated ration_controls, so that stays a genuine upgrade.
+	var rc: float = float(EdictSystem.lookup("ration_controls").get("modifiers", {}).get("food_consumption_reduction", 0.0))
+	expect("frugal_tables is weaker than ration_controls", float(defn["modifiers"]["food_consumption_reduction"]) < rc)
 
 func test_edict_lookup_valid() -> void:
 	var defn = EdictSystem.lookup("agrarian_subsidies")
