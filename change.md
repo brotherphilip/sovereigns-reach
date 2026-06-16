@@ -26,6 +26,47 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 88 — 2026-06-17  (Day-100 attempt: food self-corrects; siege timing studied)
+
+### Source
+Pushed toward the full Day-100 managed run with defences — the last unproven stretch (surviving a siege).
+
+### Playtest log (live, Xvfb :99)
+- Built **Village Hall + Watchtower (Defense) + 1 Apple Orchard**; re-validated build flow incl. the Defense tab
+  and right-click-to-cancel. (Harness note confirmed: a focus-grab click before a build sequence makes clicks
+  land reliably; the Accept/Refuse buttons are consistently at ~(569,409)/(628,409).)
+- **iter86 grace text verified a 3rd time** ("the King's Peace stays their hand ~16 days more").
+- **Refused** a tribute (max grievance) to provoke a siege, then ran 5× to **Day 53**.
+
+### Findings (Phase 4)
+- **Food is forgiving + self-correcting (not a death spiral):** with only ONE orchard built *late* (~day 28) and
+  no granary/farms, apples drained to **0** by ~day 48 and health dipped **50→35** — then **recovered to health 50,
+  apples climbing** by day 53 as the orchard matured and produced. Contrast iter87 (2 *early* orchards → food full).
+  Takeaway: adequate, timely food infra matters, but underbuilding causes a survivable dip, not a loss. Good for
+  the "never wall the run early" goal.
+- **Grain sat frozen at 395/500 all run** while only apples were consumed — worth a code look (is grain actually a
+  consumed staple, or dead stock? if the latter, the HUD shouldn't headline it).
+- **Siege not observed landing by Day 53**, even after refusing tribute. Code check (`AIFaction.should_attack`):
+  the Ashen Barony attacks at `threat ≥ 40` once `days_alive ≥ 30` (grace) and threat was maxed — so a siege very
+  likely **assembled and is marching** (the army physically travels to the keep over many days); I simply didn't
+  track the `ai_siege_assembling` warning to its landing. So siege-survival is *still* the one unconfirmed piece —
+  next run must watch the notification feed + map for the marching host and screenshot the strike.
+
+### Change made
+Validation/analysis iteration — no code change warranted (systems behaved; food recovery and siege gating are
+working as designed). Deliverable: this QA record + the siege-trigger analysis for the next run.
+
+### Post-mortem
+- **Survival:** an *under-managed* realm still reached Day 53 and recovered from a food dip — the early/mid game is
+  robustly forgiving. **Engagement caveat:** no siege had *landed* by day 53, so the mid-game's military stakes
+  remain unverified live; confirming the siege actually arrives + the prepared seat survives it is the priority.
+
+### Backlog / next
+1. **Targeted siege run:** provoke + watch the feed/map for the marching host; confirm it strikes and a
+   walls+watchtower+garrison seat survives (the final 20-min-goal proof).
+2. **Code look:** does FoodSystem consume grain, or only apples? (grain froze at 395 all run.)
+3. **Deferred:** headless survival regression. (Carried) ear-check narration; ear-tune SFX.
+
 ## Iteration 87 — 2026-06-17  (Managed playtest: the realm thrives, and recent fixes verified LIVE)
 
 ### Source
