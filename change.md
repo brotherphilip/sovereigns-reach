@@ -26,6 +26,39 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 74 — 2026-06-16  (Live visual playtest / QA — lighting + feedback verified on screen)
+
+### Source
+After seven feature iterations (67–73) verified only by headless tests + clean-boot smoke checks, run a real
+Phase-3 **visual playtest**: drive the actual game on Xvfb, capture screenshots across day/dusk/night, and *look*
+for defects (the loop's "visual state ingestion").
+
+### What was done
+Booted `CityViewScene` (staffed town, SR_WORKERS + spawned units) and captured + inspected (ImageMagick crops):
+- **Daytime** (`SR_NIGHT=0.0`): clean — labelled buildings (Village Hall, Woodcutter, Blacksmith, Market, Iron
+  Mine), villagers active and well-distributed, no stray light. One small campfire flame by the hall.
+- **Dusk** (free-run ~1.5 cycles): warm torch flames fade in at buildings — the bright "yellow streaks" I first
+  flagged were **dusk torches, behaving correctly** (a false alarm; lights are night-gated in NightLampLayer).
+- **Night** (`SR_NIGHT=0.9`): surroundings near-black with warm torch-glow pools clustered **at the building
+  corners** — exactly the "VERY VERY DARK outside the torches" look the user asked for, not blown out.
+
+### Verified live on screen (not just in tests)
+- The **`treasury_300` milestone** (iter 69) and the **"A Rich Quarry Seam" world-event** (iter 71) both fired and
+  rendered in the toast feed during the run, alongside objective-complete notices.
+- **Friend/foe team discs** under combat units (UnitLayer) read correctly.
+- Day/dusk/night lighting transitions match the user's lighting directives; HUD top bar + panels legible.
+
+### Post-mortem
+- **Failure point:** none — no crash/softlock; the run was healthy at day 34. **Heuristics:** lighting + reward
+  feedback confirmed working on screen; friend/foe legible. **Content density:** daytime map shows large empty
+  grass around the town cluster (mild "empty" feel) — unbuilt land, not a defect; noted for future decor/density.
+- No code change: play is solid and recent features render correctly; forcing churn would be lower quality than an
+  honest QA pass. Screenshots: /tmp/play_day.png, /tmp/play_fullday.png, /tmp/play_night.png.
+
+### Backlog / next
+1. Unify military tracking (levy vs recruit) → standing-army milestone.
+2. Optional: gentle terrain-decor density pass for the open field; more seasonal/decision events.
+
 ## Iteration 73 — 2026-06-16  (The war is seen: fading battle markers on the world map)
 
 ### Source
