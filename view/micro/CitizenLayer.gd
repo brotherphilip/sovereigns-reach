@@ -15,6 +15,10 @@ const SKIN  := Color(0.86, 0.70, 0.55)   # fallback for profile-less pawns
 const STEEL := Color(0.74, 0.77, 0.82)
 const WOOD  := Color(0.45, 0.30, 0.16)
 
+# Global pawn scale: people are drawn a little smaller so buildings read at a
+# realistic scale next to them (a house should dwarf a person).
+const PAWN_SCALE: float = 0.82
+
 # Per-person look: body scale by life-stage, sex, skin tone (spectrum), hair colour.
 func _appearance(c: Dictionary) -> Dictionary:
 	var stage: String = c.get("stage", "adult")
@@ -25,6 +29,7 @@ func _appearance(c: Dictionary) -> Dictionary:
 		"adolescent": s = 0.82
 		"old":        s = 0.92
 		_:            s = 1.0
+	s *= PAWN_SCALE
 	var skin: Color = PeopleSystem.skin_color(float(c.get("skin", 0.6))) if c.has("skin") else SKIN
 	var hair: Color = c.get("hair_color", Color(0.22, 0.14, 0.08))
 	if stage == "old":

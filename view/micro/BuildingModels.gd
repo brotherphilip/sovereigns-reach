@@ -250,13 +250,28 @@ static func _shadow(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vecto
 	_ellipse(ci, ctr, rx * 0.98, ry * 0.98, Color(0, 0, 0, 0.10))
 	_ellipse(ci, ctr, rx * 0.68, ry * 0.68, Color(0, 0, 0, 0.13))
 
-# A door centred on the front-left face (l→b edge).
+# A clearly-readable entrance centred on the front-left face (l→b edge): a stone
+# surround, an arched dark opening with a warm-lit interior, and a threshold step —
+# so the player (and pawns) can plainly see where folk go in.
 static func _door(ci: CanvasItem, l: Vector2, b: Vector2, ht: float, col: Color = Color(0.16, 0.10, 0.06)) -> void:
 	var base := l.lerp(b, 0.5)
-	var e := (b - l).normalized() * 2.8
-	var dh := minf(ht * 0.7, 12.0)
-	ci.draw_colored_polygon(PackedVector2Array([base - e, base + e, base + e + Vector2(0, -dh), base - e + Vector2(0, -dh)]), col)
-	ci.draw_circle(base + Vector2(0, -dh), 2.8, col)
+	var dir := (b - l).normalized()
+	var e := dir * 3.4
+	var fe := dir * 4.9
+	var dh := minf(ht * 0.72, 14.0)
+	# Threshold stone step at the foot (drawn first, under the opening).
+	ci.draw_colored_polygon(PackedVector2Array([base - fe + Vector2(0, 0.5), base + fe + Vector2(0, 0.5),
+		base + fe * 1.06 + Vector2(0, 3.4), base - fe * 1.06 + Vector2(0, 3.4)]), STONE_L.darkened(0.06))
+	# Stone/timber frame surround (lighter), arched at the top.
+	ci.draw_colored_polygon(PackedVector2Array([base - fe, base + fe, base + fe + Vector2(0, -dh - 2),
+		base + Vector2(0, -dh - 6), base - fe + Vector2(0, -dh - 2)]), col.lightened(0.55))
+	# Dark doorway opening (arched).
+	ci.draw_colored_polygon(PackedVector2Array([base - e, base + e, base + e + Vector2(0, -dh),
+		base + Vector2(0, -dh - 3.5), base - e + Vector2(0, -dh)]), col)
+	# Warm interior — the way in glows softly so the entrance is unmistakable.
+	var ie := dir * 2.3
+	ci.draw_colored_polygon(PackedVector2Array([base - ie, base + ie, base + ie + Vector2(0, -dh * 0.72),
+		base - ie + Vector2(0, -dh * 0.72)]), Color(0.95, 0.62, 0.28, 0.38))
 
 static func _win(ci: CanvasItem, p: Vector2, col: Color = GLASS) -> void:
 	ci.draw_rect(Rect2(p.x - 1.8, p.y - 2.0, 3.6, 4.0), col)
