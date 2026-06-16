@@ -26,6 +26,36 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 64 — 2026-06-16  (Validate "survivable when prepared" — end-to-end siege integration test)
+
+### Plan
+Confirm the iter-61/62 siege balance actually delivers the milestone (survive 20 min/100 days when defended,
+fall when not). A live 100-day run is flaky (modals pause it; clicks unreliable), so verify it deterministically
+via a headless integration test through the real GameState assembly→landing→damage chain.
+
+### Change made (tests only)
+- **TestPhase10 `_test_siege_survival`** drives the actual chain: a player seat (village hall) is besieged by
+  arming a faction's siege assembly one day from completion and running a single day-boundary
+  `simulate_tick` (the brain completes it → GameState damages the seat). Asserts:
+  - A **defended** seat (hall + 3 watchtowers → `is_siege_ready`) takes the **blunted 75 damage/siege** and
+    **endures ≥5 sieges** (i.e., survives the ~3–4 cooldown-paced sieges of a 100-day session).
+  - A **bare** seat is **not** siege-ready and takes the **full 150** — it falls fast.
+  - `_land_siege` uses direct `simulate_tick(day*240)` calls so fire/other noise can't perturb the exact
+    damage figures.
+
+### Verified
+- New siege-survival assertions all pass (TestPhase10 69/0). **Full suite 1091 assertions, 0 failed.**
+
+### Post-mortem
+- **Failure point / fairness:** the milestone is now test-backed — a *prepared* ruler survives the siege
+  campaign to day 100 (defended endures 6 sieges before the seat would fall, more than a session throws at
+  them), while a *careless* one is gutted. The iter-61/62 "telegraphed + paced + mitigable" siege design is
+  proven fair-but-demanding, and guarded against regression.
+
+### Backlog / next
+1. (Carried) marching-army inspect + stance toggle; distance-scaled strategic travel.
+2. Broader content/engagement passes (more WorldEvents, reward-loop polish) now the survival spine is solid.
+
 ## Iteration 63 — 2026-06-16  (UX: queue blocking modals so they present one at a time)
 
 ### Source

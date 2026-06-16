@@ -51,6 +51,59 @@ func _run_all() -> void:
 	_test_keep_diplomacy_save()
 	_test_ai_unit_id_uniqueness()
 	_test_serialization_roundtrip()
+	_test_siege_survival()
+
+# Land one siege on player 0 by arming an assembly one day from done, then running a
+# single day-boundary tick (the brain completes it → GameState damages the seat).
+var _siege_test_day: int = 0
+func _land_siege(faction: Dictionary) -> void:
+	_siege_test_day += 1
+	faction["is_alive"] = true
+	faction["last_attack_tick"] = 0
+	faction["siege_assembly"] = {"target_player_id": 0, "target_x": 50, "target_y": 50,
+		"ticks_elapsed": AIFaction.SIEGE_ASSEMBLY_TICKS - 240}
+	_gs.simulate_tick(_siege_test_day * 240)
+
+# Validates the iter-61/62 siege balance end-to-end: a prepared seat blunts sieges and
+# endures the campaign; an undefended one is gutted — "fair but demanding".
+func _test_siege_survival() -> void:
+	print("\n--- Siege survival: prepared vs unprepared ---")
+	_siege_test_day = 0
+	# Defended: hall + 3 watchtowers → siege-ready → ~75 damage/siege, weathers many.
+	var p := _fresh_player(60)
+	_gs.citizens = []
+	var hall := BuildingState.create("village_hall", 0, 50, 50, 1)
+	hall["built"] = true
+	p["buildings"] = [hall]
+	for i in range(3):
+		var w := BuildingState.create("watchtower", 0, 45 + i, 45, 10 + i)
+		w["built"] = true
+		p["buildings"].append(w)
+	ok("a walled+garrisoned seat reads as siege-ready", _gs.is_siege_ready(p))
+	var faction: Dictionary = _gs.ai_factions[_gs.add_ai_faction(AIFaction.ARCHETYPE_BANDIT, 55, 55)]
+	var hp0: int = int(hall.get("hp", 0))
+	_land_siege(faction)
+	var drop_d: int = hp0 - int(hall.get("hp", 0))
+	ok("a siege landed on the defended seat", drop_d > 0)
+	ok("defended seat is blunted to ~75 damage", drop_d == 75)
+	var sieges := 1
+	while int(hall.get("hp", 0)) > 0 and sieges < 8:
+		_land_siege(faction)
+		sieges += 1
+	ok("a defended seat endures many sieges (>=5)", sieges >= 5)
+
+	# Undefended: bare hall, no garrison → full 150 damage.
+	var p2 := _fresh_player(60)
+	_gs.citizens = []
+	var hall2 := BuildingState.create("village_hall", 0, 50, 50, 1)
+	hall2["built"] = true
+	p2["buildings"] = [hall2]
+	ok("a bare seat is NOT siege-ready", not _gs.is_siege_ready(p2))
+	var faction2: Dictionary = _gs.ai_factions[_gs.add_ai_faction(AIFaction.ARCHETYPE_BANDIT, 55, 55)]
+	var u0: int = int(hall2.get("hp", 0))
+	_land_siege(faction2)
+	var drop_u: int = u0 - int(hall2.get("hp", 0))
+	ok("undefended seat takes the full 150 damage", drop_u == 150)
 
 func ok(label: String, cond: bool) -> void:
 	if cond:
