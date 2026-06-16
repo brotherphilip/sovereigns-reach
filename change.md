@@ -26,6 +26,38 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 73 — 2026-06-16  (The war is seen: fading battle markers on the world map)
+
+### Source
+Backlog + the world-map/"attacks" directive. Iter 72 made the war *audible* (realm-notice toasts); this makes it
+*visible* — when the player opens the world map mid-campaign there was still no sign of where the fighting had
+been. The strategic map should tell the story of the war at a glance.
+
+### Change made
+- **GameState:** as the strategic layer resolves battles it now stamps `world_map["recent_battles"]` —
+  `_record_recent_battle` (latest battle at a city wins; a capture overwrites a prior repulse) and
+  `_prune_recent_battles` (drops markers older than `BATTLE_MARK_DAYS = 6`, keeping the list bounded over a war).
+- **WorldMapController:** `get_battle_render_list(data, current_day, fade_days)` → fading markers (pos, fade_frac,
+  captured) for contested cities inside the window; stale/future entries excluded.
+- **WorldMapView:** `_draw_battles()` draws crossed swords inside an expanding shock ring at each contested city —
+  **red** for a capture, **steel-blue** for a repelled assault — both fading as the battle recedes. The scene
+  pushes the campaign day (`set_current_day`) before each refresh so markers age correctly.
+
+### Verified
+- **New TestPhase9 suite (`_test_battle_markers`, 67/0):** stale battles dropped, fresh = ~0 fade, a 3-day-old
+  battle is half-faded, the captured flag carries through, empty list is safe. **TestStrategicAI (83/0):** the
+  existing player-capture flow now also asserts a recent-battle marker is stamped on the map. **Full suite: 0 FAIL
+  across all 24 test files.** WorldMapScene boots clean (the new `_draw_battles` path renders without error).
+
+### Post-mortem
+- **World-map legibility / engagement:** the "world map doesn't show the war" gap is now fully closed — armies
+  march with destination/ETA tags (iters 67–70), and battles leave visible, fading scars (red captures, blue
+  repulses). Pure feedback (render + bounded list), no survival-spine or balance impact.
+
+### Backlog / next
+1. Unify military tracking (levy vs recruit) → then a standing-army milestone.
+2. More seasonal/decision events; consider an audio cue for major war news.
+
 ## Iteration 72 — 2026-06-16  (The war speaks: strategic battle outcomes now reach the player)
 
 ### Source

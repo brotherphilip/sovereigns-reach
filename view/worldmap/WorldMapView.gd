@@ -26,8 +26,10 @@ var _road_list:    Array = []
 var _faction_list: Array = []
 var _deposit_list: Array = []
 var _army_list:    Array = []
+var _battle_list:  Array = []
 var _legend:       Array = []
 var _army_frac:    float = 0.4   # sub-hop march progress, driven each frame by the scene
+var _current_day:  int = 0       # campaign day, for fading battle markers
 
 func apply_data(world_map_data: Dictionary) -> void:
 	_data         = world_map_data
@@ -42,10 +44,15 @@ func apply_data(world_map_data: Dictionary) -> void:
 func refresh() -> void:
 	if _data.is_empty():
 		return
-	_city_list = WorldMapController.get_city_render_list(_data)
-	_army_list = WorldMapController.get_army_render_list(_data, _army_frac)
-	_legend    = WorldMapController.get_kingdom_legend(_data)
+	_city_list   = WorldMapController.get_city_render_list(_data)
+	_army_list   = WorldMapController.get_army_render_list(_data, _army_frac)
+	_battle_list = WorldMapController.get_battle_render_list(_data, _current_day)
+	_legend      = WorldMapController.get_kingdom_legend(_data)
 	queue_redraw()
+
+# The current campaign day, so battle markers fade with age. Set by the scene before refresh.
+func set_current_day(d: int) -> void:
+	_current_day = d
 
 # Animate marching armies between cities (called every frame while the campaign runs).
 # Cheap: only re-positions the army markers, leaves the static lists alone.
@@ -64,6 +71,7 @@ func _draw() -> void:
 	_draw_faction_territories()
 	_draw_roads()
 	_draw_resource_deposits()
+	_draw_battles()
 	_draw_cities()
 	_draw_armies()
 	_draw_legend()
@@ -270,6 +278,25 @@ func _draw_development_pips(p: Vector2, development: int, col: Color) -> void:
 		var lit: bool = true
 		var pc: Color = col.lightened(0.2) if lit else Color(0.4, 0.4, 0.4, 0.5)
 		draw_rect(Rect2(x0 + i * step, p.y + 7.0, 2.5, 2.5), pc)
+
+# ── Recently-contested cities (fading battle markers) ───────────────────────────
+# A clash of crossed swords inside an expanding ring marks where the war was just
+# fought; both fade as the battle recedes into the past. Captures flare red, repelled
+# assaults a steely white-blue. So the strategic map tells the story of the war.
+func _draw_battles() -> void:
+	for b in _battle_list:
+		var p: Vector2 = b.get("pos", Vector2.ZERO)
+		var fade: float = clampf(b.get("fade_frac", 0.0), 0.0, 1.0)
+		var a: float = 1.0 - fade                       # fresh = opaque, stale = faint
+		var captured: bool = b.get("captured", false)
+		var col: Color = Color(0.95, 0.30, 0.20, a) if captured else Color(0.80, 0.88, 1.0, a)
+		# Expanding shock ring (grows as it fades).
+		var ring_r: float = 12.0 + fade * 12.0
+		draw_arc(p, ring_r, 0, TAU, 28, Color(col.r, col.g, col.b, a * 0.5), 2.0)
+		# Crossed swords (two short blades) at the city.
+		var s: float = 7.0
+		draw_line(p + Vector2(-s, -s), p + Vector2(s, s), col, 2.0)
+		draw_line(p + Vector2(s, -s), p + Vector2(-s, s), col, 2.0)
 
 # ── Armies on the march ─────────────────────────────────────────────────────────
 

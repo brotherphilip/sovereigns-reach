@@ -19,6 +19,7 @@ func _init() -> void:
 	_test_worldmapdata()
 	_test_worldmapcontroller()
 	_test_army_inspect()
+	_test_battle_markers()
 	_test_shiremap_60()
 
 	print("")
@@ -282,6 +283,36 @@ func _test_army_inspect() -> void:
 	_ok(moved.size() == 1 and moved[0].get("pos", Vector2.ZERO).x > 1.0,
 		"after a day the marker has crept along the road (distance-scaled)")
 	_ok(int(moved[0].get("eta_days", 0)) == 2, "ETA counted down to 2 days after one day's march")
+
+# ── Battle markers (recently-contested cities fade on the map) ───────────────────
+func _test_battle_markers() -> void:
+	print("── Battle markers (fading contested-city flags) ──")
+	var map_data: Dictionary = {
+		"cities": [
+			{"id": 0, "pos_x": 100.0, "pos_y": 100.0, "name": "Aldermoor"},
+			{"id": 1, "pos_x": 300.0, "pos_y": 200.0, "name": "Greywater"},
+			{"id": 2, "pos_x": 500.0, "pos_y": 50.0, "name": "Oldstone"},
+		],
+		"recent_battles": [
+			{"city_id": 0, "day": 10, "captured": true},   # just now (fresh)
+			{"city_id": 1, "day": 7,  "captured": false},  # 3 days old (fading)
+			{"city_id": 2, "day": 2,  "captured": true},   # 8 days old (stale → dropped)
+		],
+	}
+	var markers: Array = WorldMapController.get_battle_render_list(map_data, 10, 6)
+	_ok(markers.size() == 2, "stale battles (older than fade window) are dropped (got %d)" % markers.size())
+	# Fresh battle (age 0) → fade_frac ~0; the 3-day-old one → ~0.5.
+	var by_pos := {}
+	for m in markers:
+		by_pos[m["pos"]] = m
+	var fresh: Dictionary = by_pos.get(Vector2(100.0, 100.0), {})
+	var older: Dictionary = by_pos.get(Vector2(300.0, 200.0), {})
+	_ok(not fresh.is_empty() and fresh.get("fade_frac", 1.0) < 0.01, "fresh battle has ~0 fade")
+	_ok(not fresh.is_empty() and fresh.get("captured", false) == true, "captured flag carried through")
+	_ok(not older.is_empty() and absf(older.get("fade_frac", 0.0) - 0.5) < 0.01, "3-day-old battle is half-faded")
+	# A future-dated entry (clock rewound) is ignored, and an empty list is safe.
+	var none: Array = WorldMapController.get_battle_render_list({"cities": [], "recent_battles": []}, 10, 6)
+	_ok(none.is_empty(), "no recent_battles → no markers")
 
 # ── ShireMap 60 ───────────────────────────────────────────────────────────────
 

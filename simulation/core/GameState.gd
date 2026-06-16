@@ -1624,6 +1624,39 @@ func _tick_strategic_layer() -> void:
 			# relevant battles always notify; distant AI-vs-AI fights only when a city
 			# actually changes hands (so the feed isn't spammed by border skirmishes).
 			_announce_strategic_battle(cid, afid, dfid, captured)
+			# Stamp a fading "recently contested" marker on the world map so the player
+			# can SEE where the war is being fought when they open the map.
+			_record_recent_battle(wm, cid, sday, captured)
+	_prune_recent_battles(wm, sday)
+
+# A contested-city marker lingers this many strategic days, fading out.
+const BATTLE_MARK_DAYS: int = 6
+
+# Record a "recently contested" marker for the world map. Latest battle at a city wins
+# (so a capture overwrites a prior repulse at the same place).
+func _record_recent_battle(wm: Dictionary, cid: int, day: int, captured: bool) -> void:
+	if cid < 0:
+		return
+	var marks: Array = wm.get("recent_battles", [])
+	for m in marks:
+		if m is Dictionary and int(m.get("city_id", -1)) == cid:
+			m["day"] = day
+			m["captured"] = captured
+			wm["recent_battles"] = marks
+			return
+	marks.append({"city_id": cid, "day": day, "captured": captured})
+	wm["recent_battles"] = marks
+
+# Drop markers older than BATTLE_MARK_DAYS so the list stays bounded over a long war.
+func _prune_recent_battles(wm: Dictionary, day: int) -> void:
+	var marks: Array = wm.get("recent_battles", [])
+	if marks.is_empty():
+		return
+	var kept: Array = []
+	for m in marks:
+		if m is Dictionary and day - int(m.get("day", -999)) < BATTLE_MARK_DAYS:
+			kept.append(m)
+	wm["recent_battles"] = kept
 
 func _kingdom_name(fid: int) -> String:
 	var k: Dictionary = CampaignMap.kingdom_by_id(world, fid)

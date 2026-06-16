@@ -117,6 +117,7 @@ func _process(delta: float) -> void:
 		GameState.advance_strategic_day()
 		advanced = true
 	if advanced:
+		_world_view.set_current_day(GameState.strategic_day())  # fade battle markers
 		_world_view.refresh()
 		_refresh_develop_btn()
 		_refresh_raise_btn()

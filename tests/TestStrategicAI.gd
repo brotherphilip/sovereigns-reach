@@ -510,6 +510,9 @@ func _run_live_integration() -> void:
 	ok("player capture announces war news (realm_notice fires)", heard_victory)
 	if event_bus != null:
 		event_bus.realm_notice.disconnect(news_cb)
+	# The capture also stamped a "recently contested" marker on the world map.
+	var marks: Array = gs.world.get("world_map", {}).get("recent_battles", [])
+	ok("a capture stamps a recent-battle marker on the map", marks.size() >= 1)
 
 	# 4) STRATEGIC_DIPLOMACY: declare war/truce changes relations.
 	var other_fid := -1

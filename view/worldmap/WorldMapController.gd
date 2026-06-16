@@ -199,6 +199,28 @@ static func find_city_near(data: Dictionary, screen_pos: Vector2, radius: float)
 			best_id = c.get("id", -1)
 	return best_id
 
+# Recently-contested cities → fading battle markers. Reads world_map["recent_battles"]
+# (stamped by GameState as the strategic war resolves). `fade_frac` 0→1 = fresh→stale.
+static func get_battle_render_list(data: Dictionary, current_day: int, fade_days: int = 6) -> Array:
+	var result: Array = []
+	if fade_days <= 0:
+		return result
+	for m in data.get("recent_battles", []):
+		if not m is Dictionary:
+			continue
+		var age: int = current_day - int(m.get("day", -999))
+		if age < 0 or age >= fade_days:
+			continue
+		var c: Dictionary = _city(data, int(m.get("city_id", -1)))
+		if c.is_empty():
+			continue
+		result.append({
+			"pos":       Vector2(c.get("pos_x", 0.0), c.get("pos_y", 0.0)),
+			"fade_frac": clampf(float(age) / float(fade_days), 0.0, 1.0),
+			"captured":  bool(m.get("captured", false)),
+		})
+	return result
+
 # Nearest marching army marker to a screen point (within radius), or {} if none.
 # Returns the same enriched render dict get_army_render_list produces (size, owner_name,
 # dest_name, eta_days, moving…) so the caller can show a full host inspection.
