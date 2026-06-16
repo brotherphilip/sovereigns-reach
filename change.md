@@ -26,6 +26,44 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 37 — 2026-06-16  (strategic layer: verified fundable during city play + a controls legend)
+
+### Heuristic focus
+Two things: **verify** the iter 30–35 strategic layer is actually usable by the target player (someone
+who plays their city, not just watches the map), and improve **discoverability** of its controls.
+
+### Verified (Phase 3) — the strategic economy advances during city play
+Confirmed `_tick_strategic_layer()` runs at the **city-view day boundary** (not just while "Watching"),
+then probed it: a player playing their city for 30 game-days (no map-watching) saw their realm's
+**treasury grow 400 → 1048** — so the strategic actions (Develop/Raise/March) become *more* fundable the
+longer you play. The layer is coherent and usable by the engaged human, not a watch-only feature.
+- Side observation: the realm also **loses world-map cities to AI conquest** while you're heads-down in
+  your city (total development 11 → 4 over those 30 days). This is by design for a live campaign — and it
+  validates that Diplomacy (truces, iter 35) and raising defenders actually *matter*; logged for a future
+  balance look (should the player's actively-played **seat** be shielded from strategic capture?).
+
+### Change made (discoverability)
+- **WorldMapScene**: a one-line **controls legend** above the action area —
+  "⚜ Realm orders: right-click a city to select it, then ⚒ Develop · ⚔ Raise · ⚔ March · 🕊 Diplomacy".
+  The right-click→act model wasn't obvious (left-click *enters* a city), so first-time players now see
+  the whole scheme spelled out alongside the self-documenting buttons and the info-panel hint.
+
+### Verified
+- **Live (Xvfb)**: the legend renders above "Realm stores …" and the four buttons; the strategic control
+  scheme is now self-documenting end to end.
+- Headless: full suite green (24/24); view-only change + a read-only probe.
+
+### Post-mortem
+- **Failure point:** none. Verification confirmed the strategic layer serves the engaged-human goal.
+- **Fun/UX:** the layer is now both *usable while playing* and *discoverable*; the campaign rewards
+  attention (your realm erodes if you ignore the map), giving the 20-minute session real strategic stakes.
+
+### Backlog / next
+- Balance: consider shielding the player's actively-played seat city from strategic capture (or
+  telegraphing "your realm is under pressure — check the map").
+- Diplomacy depth (tribute/alliance/expiry); a fresh end-to-end "menu → world map → rule a city → check
+  the campaign" human playthrough to feel the whole arc.
+
 ## Iteration 36 — 2026-06-16  (world-map selection ring — see what you've selected)
 
 ### Heuristic focus

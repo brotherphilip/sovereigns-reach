@@ -240,6 +240,17 @@ func _build_scene() -> void:
 	info_lbl.add_theme_color_override("font_color", Color(0.80, 0.74, 0.54))
 	info_panel.add_child(info_lbl)
 
+	# Controls legend — the right-click→act model isn't obvious (left-click enters), so
+	# spell out the strategic orders for first-time players.
+	var legend := Label.new()
+	legend.name = "OrdersLegend"
+	legend.text = "⚜ Realm orders: right-click a city to select it, then ⚒ Develop · ⚔ Raise · ⚔ March · 🕊 Diplomacy"
+	legend.position = Vector2(8, vp.y - 176)
+	legend.size = Vector2(900, 20)
+	legend.add_theme_font_size_override("font_size", 12)
+	legend.add_theme_color_override("font_color", Color(0.72, 0.66, 0.48))
+	canvas.add_child(legend)
+
 	# Realm stores readout — so the player can plan strategic investments (treasury +
 	# the wood/stone that develop costs draw on, and how many cities they hold).
 	_realm_label = Label.new()
