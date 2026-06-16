@@ -5,10 +5,12 @@ extends Node2D
 
 const HALF_W: float = 32.0
 const HALF_H: float = 16.0
+const T_GRASS: int = 0
 const T_FOREST: int = 1
 const T_MOUNTAIN: int = 2
 const T_RIVER: int = 3
 const T_ROCK: int = 5
+const T_VALLEY: int = 7
 const T_COASTAL: int = 8
 
 const SeasonSystem = preload("res://simulation/world/SeasonSystem.gd")
@@ -51,6 +53,60 @@ func _draw_decor(gx: int, gy: int) -> void:
 		T_ROCK:     _draw_rock(cx, cy, gx, gy)
 		T_RIVER:    _draw_river(cx, cy)
 		T_COASTAL:  _draw_coastal(cx, cy)
+		T_GRASS:    _draw_ground_decor(cx, cy, gx, gy)
+		T_VALLEY:   _draw_ground_decor(cx, cy, gx, gy)
+
+# Sparse, subtle ground cover on open grass/valley tiles so the world doesn't read as
+# a bare green sheet (Content-Density). Deterministic per-tile: only ~1 in 5 tiles bears
+# anything, and each piece is tiny + low-contrast so it's texture, not clutter. Seasonal:
+# flowers in spring/summer, dry tufts in autumn, snow specks in winter.
+func _draw_ground_decor(cx: float, cy: float, gx: int, gy: int) -> void:
+	if _h(gx, gy, 60) < 0.80:
+		return   # ~80% of tiles stay clear
+	var ox: float = (_h(gx, gy, 61) - 0.5) * 30.0
+	var oy: float = (_h(gx, gy, 62) - 0.5) * 14.0
+	var p := Vector2(cx + ox, cy + oy)
+	var kind: float = _h(gx, gy, 63)
+	if _season == SeasonSystem.Season.WINTER:
+		# A small snow clump — everything else sleeps under the frost.
+		draw_circle(p, 1.8, Color(0.92, 0.95, 1.0, 0.7))
+		return
+	if kind < 0.18:
+		_draw_pebble(p, _h(gx, gy, 64))
+	elif kind < 0.55 and _season != SeasonSystem.Season.AUTUMN:
+		_draw_flower(p, gx, gy)
+	else:
+		_draw_tuft(p, gx, gy)
+
+func _draw_tuft(p: Vector2, gx: int, gy: int) -> void:
+	# A few short blades fanning up — colour shifts with the season's grass.
+	var base: Color
+	match _season:
+		SeasonSystem.Season.SPRING: base = Color(0.30, 0.58, 0.24)
+		SeasonSystem.Season.AUTUMN: base = Color(0.55, 0.50, 0.22)
+		_:                          base = Color(0.27, 0.50, 0.22)
+	var blades: int = 2 + int(_h(gx, gy, 65) * 2.0)
+	for i in range(blades):
+		var dx: float = (_h(gx, gy, 70 + i) - 0.5) * 4.0
+		var hgt: float = 3.0 + _h(gx, gy, 80 + i) * 2.5
+		draw_line(p + Vector2(dx, 0), p + Vector2(dx * 1.6, -hgt), base, 1.0)
+
+func _draw_flower(p: Vector2, gx: int, gy: int) -> void:
+	# A thin stem topped by a small petal dot — white/yellow/violet, picked by hash.
+	draw_line(p, p + Vector2(0, -3.0), Color(0.30, 0.52, 0.22), 1.0)
+	var pick: float = _h(gx, gy, 66)
+	var petal: Color
+	if pick < 0.4:    petal = Color(0.95, 0.92, 0.55)   # buttercup
+	elif pick < 0.75: petal = Color(0.96, 0.96, 0.98)   # daisy
+	else:             petal = Color(0.72, 0.55, 0.86)   # clover/violet
+	draw_circle(p + Vector2(0, -3.6), 1.4, petal)
+	draw_circle(p + Vector2(0, -3.6), 0.6, Color(0.95, 0.80, 0.30))  # tiny centre
+
+func _draw_pebble(p: Vector2, s: float) -> void:
+	var r: float = 1.6 + s * 1.2
+	draw_circle(p + Vector2(0, 0.6), r, Color(0, 0, 0, 0.12))         # faint shadow
+	draw_circle(p, r, Color(0.55, 0.54, 0.52))
+	draw_circle(p + Vector2(-0.4, -0.4), r * 0.5, Color(0.66, 0.65, 0.62))
 
 func _draw_forest(cx: float, cy: float, gx: int, gy: int) -> void:
 	var count: int = 1 + int(_h(gx, gy, 1) * 3.0)
