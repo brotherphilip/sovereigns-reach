@@ -26,6 +26,34 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 112 — 2026-06-17  (Tutorial teaches DEFENCE — close the endgame-siege onboarding gap)
+
+### Source
+Fresh-eyes read of `TutorialSystem` ("understand what's happening" half of the goal). It guides hall → orchard →
+granary → market → edict and warns on low popularity / disease / tribute — but **never teaches defence**. A new
+player who follows it faithfully reaches the endgame **undefended**, and the siege razes the seat ~day 91 (the exact
+failure the iter104 siege test demonstrated) — having never been told to build walls.
+
+### Change made
+- **`simulation/core/TutorialSystem.gd`:** a survival-critical, step-independent hint fires **once** as the King's
+  Peace nears its end — at **day ≥ 22**, if the realm is **not `is_siege_ready`** — *"The King's Peace ends near Day
+  30 — then rival lords may march on your seat. Raise walls and a tower (BUILD ▸ Defense) and recruit a garrison,
+  or your hall will fall."* A realm that already built defences is never nagged. (Lead time covers wall construction
+  + recruiting before the siege assembles at day 30 and strikes ~day 34.)
+
+### Verified
+- **`tests/TestTutorial.gd` (new, 5/0):** no hint before day 22; an undefended realm IS warned at day 22; fires only
+  once; a siege-ready realm (walls+tower+gatehouse) gets NO hint. **Full suite: 0 FAIL across all 30 files.** Live
+  boot clean.
+
+### Post-mortem
+- **Onboarding / survival:** the tutorial now teaches the full survival arc — feed the people AND defend the seat —
+  so a first-time player is guided to the one preparation that decides the endgame siege (and the 20-minute win).
+  Closes the gap between "the tutorial taught me" and "I lost to a siege I was never warned to prepare for."
+
+### Backlog / next (optional polish)
+1. Live managed Day-100 win run (capstone demo). (Carried) tutorial-hint VO; ear-check narration; ear-tune SFX.
+
 ## Iteration 111 — 2026-06-17  (Regression health-check — the build is solid after 30+ iterations)
 
 ### Source

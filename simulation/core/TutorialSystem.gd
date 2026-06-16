@@ -15,6 +15,7 @@ const STEP_DONE             := 99
 var step: int = STEP_DONE  # inert until a game session calls start()
 var _skipped: bool = false
 var _last_edict_hint_tick: int = -999
+var _defense_hint_given: bool = false  # the one-time "raise defences before the siege" warning
 
 func _ready() -> void:
 	EventBus.building_placed.connect(_on_building_placed)
@@ -79,7 +80,18 @@ func _on_envoy_sent(_fid: int, _demand: Dictionary) -> void:
 	tutorial_hint.emit("A rival faction demands tribute! Accept to keep peace, or Refuse and prepare your defenses.")
 
 func _on_tick(tick: int) -> void:
-	if _skipped or step != STEP_DONE: return
+	if _skipped: return
+	# Survival-critical and tutorial-step-independent: the original tutorial taught build/food/
+	# market/edict but never DEFENCE, so a new player would reach the endgame siege undefended
+	# (the seat is razed ~day 91). As the King's Peace nears its end, warn them — once — to raise
+	# walls + a garrison while they still can.
+	if not _defense_hint_given and not GameState.players.is_empty():
+		var day: int = tick / 240
+		if day >= 22 and not GameState.is_siege_ready(GameState.players[0]):
+			_defense_hint_given = true
+			tutorial_hint.emit("The King's Peace ends near Day 30 — then rival lords may march on your seat. Raise walls and a tower (BUILD ▸ Defense) and recruit a garrison, or your hall will fall.")
+			return
+	if step != STEP_DONE: return
 	# Contextual edict hints every ~20 game-days (4800 ticks)
 	if tick - _last_edict_hint_tick < 4800: return
 	if GameState.players.is_empty(): return
