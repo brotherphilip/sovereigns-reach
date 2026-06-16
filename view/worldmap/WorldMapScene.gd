@@ -18,7 +18,9 @@ var _watch_speed_btn: Button = null
 var _day_label: Label = null
 var _develop_btn: Button = null
 var _realm_label: Label = null
+var _raise_btn: Button = null
 var _action_city_id: int = -1   # right-click-selected city for strategic orders
+const RAISE_BATCH: int = 10     # soldiers levied per Raise Army click
 const WATCH_INTERVAL: float = 0.45      # real seconds per strategic day at speed 1
 
 func _ready() -> void:
@@ -112,6 +114,7 @@ func _process(delta: float) -> void:
 	if advanced:
 		_world_view.refresh()
 		_refresh_develop_btn()
+		_refresh_raise_btn()
 		_refresh_realm_label()
 		if _day_label != null:
 			_day_label.text = "Campaign day %d" % GameState.strategic_day()
@@ -254,6 +257,16 @@ func _build_scene() -> void:
 	canvas.add_child(_develop_btn)
 	_refresh_develop_btn()
 
+	# Raise Army at the right-click-selected city — musters a field army there.
+	_raise_btn = Button.new()
+	_raise_btn.name     = "RaiseArmyBtn"
+	_raise_btn.position = Vector2(296, vp.y - 124)
+	_raise_btn.size     = Vector2(250, 28)
+	_raise_btn.add_theme_font_size_override("font_size", 12)
+	_raise_btn.pressed.connect(_on_raise_army)
+	canvas.add_child(_raise_btn)
+	_refresh_raise_btn()
+
 	# Connect hover → info panel (show the hovered city's details)
 	_world_view.mouse_entered.connect(_on_mouse_entered_map)
 	_world_view.city_hovered.connect(_on_city_hovered)
@@ -319,6 +332,7 @@ func _on_develop_realm() -> void:
 	else:
 		_set_info("Cannot develop %s yet — the realm's treasury or stores are short." % city_name, Color(1.0, 0.6, 0.3))
 	_refresh_develop_btn()
+	_refresh_raise_btn()
 	_refresh_realm_label()
 
 # Update the Develop button to name its target city + cost, and disable it when the
@@ -336,6 +350,33 @@ func _refresh_develop_btn() -> void:
 	_develop_btn.text = "⚒ Develop %s  (%dg %dw %ds)" % [
 		c.get("name", "city"), int(cost.get("gold", 0)), int(cost.get("wood", 0)), int(cost.get("stone", 0))]
 	_develop_btn.disabled = not GameState.can_player_develop_city(cid)
+
+func _on_raise_army() -> void:
+	if _action_city_id < 0 or not GameState.is_player_city(_action_city_id):
+		_set_info("Right-click one of your own cities to muster an army there.", Color(1.0, 0.6, 0.3))
+		return
+	var city_name: String = GameState.get_city(_action_city_id).get("name", "your city")
+	if GameState.player_raise_army(_action_city_id, RAISE_BATCH):
+		_set_info("⚔ %d soldiers muster at %s — a field army stands ready." % [RAISE_BATCH, city_name], Color(0.6, 0.9, 0.5))
+		if _world_view != null:
+			_world_view.refresh()
+	else:
+		_set_info("Cannot raise troops at %s — the treasury is short." % city_name, Color(1.0, 0.6, 0.3))
+	_refresh_raise_btn()
+	_refresh_realm_label()
+
+# Raise Army acts only on a selected OWN city (you choose where to muster). Names the
+# target + cost; disabled until you right-click one of your cities and can afford it.
+func _refresh_raise_btn() -> void:
+	if _raise_btn == null:
+		return
+	if _action_city_id >= 0 and GameState.is_player_city(_action_city_id):
+		var nm: String = GameState.get_city(_action_city_id).get("name", "city")
+		_raise_btn.text = "⚔ Raise %d at %s (%dg)" % [RAISE_BATCH, nm, GameState.raise_army_cost(RAISE_BATCH)]
+		_raise_btn.disabled = not GameState.can_player_raise_army(_action_city_id, RAISE_BATCH)
+	else:
+		_raise_btn.text = "⚔ Raise Army — right-click your city"
+		_raise_btn.disabled = true
 
 # Right-click selected a city for orders: remember it (if it's yours) and show its
 # details, so the Develop button now targets exactly that city.
@@ -355,6 +396,7 @@ func _on_city_selected(city_id: int) -> void:
 		_set_info("%s is held by %s — you can only develop your own cities." % [
 			c.get("name", "city"), owner_name], Color(1.0, 0.6, 0.3))
 	_refresh_develop_btn()
+	_refresh_raise_btn()
 
 func _refresh_realm_label() -> void:
 	if _realm_label == null:

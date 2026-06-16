@@ -26,6 +26,40 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 33 — 2026-06-16  (Raise Army — the second interactive strategic action)
+
+### Heuristic focus
+Continue building out the strategic layer on iter 32's selection model (directive's **Engagement** axis).
+Develop (iter 30) grows a city; now the player can **muster military force** — the prerequisite for
+campaigns and a satisfying, visible action of its own.
+
+### Change made
+- **GameState** (shared by the command path AND the world-map UI, clock-independent):
+  `player_raise_army(city_id, size)`, `can_player_raise_army(city_id, size)`, `raise_army_cost(size)`.
+  `_cmd_raise_army` refactored to call the shared method (DRY).
+- **WorldMapScene**: a **"⚔ Raise N at \<city\> (Ng)"** button beside Develop. It acts on the
+  right-click-selected **own** city (you choose where to muster), levies `RAISE_BATCH = 10` soldiers per
+  click for 50 gold (`GOLD_PER_SOLDIER × 10`), and merges into a force already there. Disabled until you
+  right-click one of your cities and can afford it; refreshes the realm stores + map (army banner) after.
+
+### Verified
+- **Live (Xvfb, real clicks)**: right-clicked Cresthollow → button read "⚔ Raise 10 at Cresthollow
+  (50g)"; clicked it → "⚔ 10 soldiers muster at Cresthollow — a field army stands ready." and the realm
+  stores dropped **400 → 350 gold** (exactly 10×5). The muster is real and the treasury readout updates live.
+- Headless: +8 tests (TestStrategicAI 53/0): cost math, affordable at an owned city, refused at an enemy
+  city, treasury spent, an army now exists, and refused when the treasury is empty. Full suite green (24/24).
+
+### Post-mortem
+- **Failure point:** none.
+- **Fun/engagement:** the realm now has two distinct strategic levers with visible payoffs — grow your
+  cities (Develop) and build armies (Raise) — both pointed at a chosen city. The natural next beat is
+  **Launch Campaign**: select your army's city, right-click an enemy target, and march.
+
+### Backlog / next
+- **Launch Campaign**: order a mustered army to march on a right-clicked enemy city (backend
+  `CampaignSystem.launch_campaign` exists + tested). Then **Diplomacy**.
+- A drawn selection ring + an at-a-glance army strength indicator on the map.
+
 ## Iteration 32 — 2026-06-16  (right-click to select a city for orders — per-city strategic agency)
 
 ### Heuristic focus

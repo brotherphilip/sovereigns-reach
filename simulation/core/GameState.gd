@@ -1998,16 +1998,29 @@ func player_realm_stores() -> Dictionary:
 	}
 
 func _cmd_raise_army(cmd: Dictionary) -> bool:
+	return player_raise_army(cmd["payload"].get("city_id", -1), cmd["payload"].get("size", 0))
+
+# Levy a field army at one of the player's own cities (shared by the command path and
+# the world-map UI — clock-independent). Spends treasury; merges into an idle army
+# already stationed there. Returns true on success.
+func player_raise_army(city_id: int, size: int) -> bool:
 	var k: Dictionary = _player_kingdom()
 	if k.is_empty():
 		return false
-	var city_id: int = cmd["payload"].get("city_id", -1)
-	var size: int = cmd["payload"].get("size", 0)
 	var aid: int = CampaignSystem.raise_army(world, k, city_id, size)
 	if aid >= 0:
 		EventBus.army_raised.emit(k.get("id", -1), city_id, size)
 		return true
 	return false
+
+# Can the player afford to levy `size` soldiers at this owned city right now?
+func can_player_raise_army(city_id: int, size: int) -> bool:
+	var k: Dictionary = _player_kingdom()
+	return not k.is_empty() and CampaignSystem.can_raise_army(world, k, city_id, size)
+
+# Gold cost to levy `size` soldiers (for UI display).
+func raise_army_cost(size: int) -> int:
+	return size * CampaignSystem.GOLD_PER_SOLDIER
 
 func _cmd_launch_campaign(cmd: Dictionary) -> bool:
 	var k: Dictionary = _player_kingdom()

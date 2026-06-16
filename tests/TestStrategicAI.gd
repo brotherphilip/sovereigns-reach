@@ -274,12 +274,25 @@ func _run_player_ui_actions() -> void:
 	var stores_after: Dictionary = gs.player_realm_stores()
 	ok("realm stores drop after developing", int(stores_after.get("treasury", 0)) < int(stores_before.get("treasury", 0)) and int(stores_after.get("wood", 0)) < int(stores_before.get("wood", 0)))
 
-	# Drain the realm's stores → the action is correctly gated as unaffordable.
+	# Raise Army (direct UI path) at an owned city: spends gold, musters an army.
+	var pk0: Dictionary = CampaignMap.kingdom_by_id(gs.world, pfid)
+	var gold_before: int = int(pk0.get("treasury", 0))
+	var armies_before: int = pk0.get("armies", []).size()
+	ok("raise_army_cost = size × gold-per-soldier", gs.raise_army_cost(10) == 10 * CampaignSystem.GOLD_PER_SOLDIER)
+	ok("can_player_raise_army true at owned city with treasury", gs.can_player_raise_army(cid, 10))
+	ok("can_player_raise_army false at an enemy city", enemy_cid < 0 or not gs.can_player_raise_army(enemy_cid, 10))
+	ok("player_raise_army musters a force", gs.player_raise_army(cid, 10))
+	ok("raising spent the treasury", int(CampaignMap.kingdom_by_id(gs.world, pfid).get("treasury", 0)) == gold_before - gs.raise_army_cost(10))
+	ok("an army now exists for the realm", CampaignMap.kingdom_by_id(gs.world, pfid).get("armies", []).size() >= armies_before + 1)
+
+	# Drain the realm's stores → the actions are correctly gated as unaffordable.
 	var pk: Dictionary = CampaignMap.kingdom_by_id(gs.world, pfid)
 	pk["treasury"] = 0
 	pk["resources"] = {"wood": 0, "stone": 0, "iron": 0, "food": 0}
 	ok("can_player_develop_city false when stores are empty", not gs.can_player_develop_city(cid))
 	ok("player_develop_city refused when unaffordable", not gs.player_develop_city(cid))
+	ok("can_player_raise_army false when treasury empty", not gs.can_player_raise_army(cid, 10))
+	ok("player_raise_army refused when unaffordable", not gs.player_raise_army(cid, 10))
 
 func _run_live_integration() -> void:
 	print("\n[C] Live integration via GameState + CommandQueue")
