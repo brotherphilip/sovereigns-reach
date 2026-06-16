@@ -2022,16 +2022,38 @@ func can_player_raise_army(city_id: int, size: int) -> bool:
 func raise_army_cost(size: int) -> int:
 	return size * CampaignSystem.GOLD_PER_SOLDIER
 
-func _cmd_launch_campaign(cmd: Dictionary) -> bool:
+# The id of the player's idle field army stationed at this city (or -1). For the
+# world-map "March" order — you can only send an army that's standing in a city.
+func player_army_at_city(city_id: int) -> int:
+	var k: Dictionary = _player_kingdom()
+	if k.is_empty():
+		return -1
+	for a in k.get("armies", []):
+		if a is Dictionary and int(a.get("location_city_id", -1)) == city_id \
+				and int(a.get("size", 0)) > 0 and a.get("path", []).is_empty():
+			return int(a.get("id", -1))
+	return -1
+
+# The soldier count of one of the player's armies (for UI labels), or 0.
+func player_army_size(army_id: int) -> int:
+	var k: Dictionary = _player_kingdom()
+	if k.is_empty():
+		return 0
+	return int(CampaignSystem.find_army(k, army_id).get("size", 0))
+
+# Order a player army to march on (and assault, if hostile) a target city. Shared by
+# the command path and the world-map UI (clock-independent). True if a road path exists.
+func player_launch_campaign(army_id: int, target_city_id: int) -> bool:
 	var k: Dictionary = _player_kingdom()
 	if k.is_empty():
 		return false
-	var army_id: int = cmd["payload"].get("army_id", -1)
-	var target_city_id: int = cmd["payload"].get("target_city_id", -1)
 	if CampaignSystem.launch_campaign(world, k, army_id, target_city_id):
 		EventBus.campaign_launched.emit(k.get("id", -1), army_id, target_city_id)
 		return true
 	return false
+
+func _cmd_launch_campaign(cmd: Dictionary) -> bool:
+	return player_launch_campaign(cmd["payload"].get("army_id", -1), cmd["payload"].get("target_city_id", -1))
 
 func _cmd_strategic_diplomacy(cmd: Dictionary) -> bool:
 	var k: Dictionary = _player_kingdom()

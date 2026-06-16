@@ -26,6 +26,44 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 34 — 2026-06-16  ⚔ Launch Campaign — the muster→march→assault loop is now playable
+
+### Heuristic focus
+Complete the interactive strategic loop (directive's **Engagement** axis). Develop (30) grows cities,
+Raise Army (33) musters force; this adds **marching that force on an enemy** — closing the loop so the
+human can actually wage the campaign, not just watch it.
+
+### Change made
+- **GameState** (shared with the command path, clock-independent): `player_army_at_city(city_id)`
+  (idle army stationed there, or -1), `player_army_size(army_id)`, `player_launch_campaign(army_id,
+  target_city_id)`. `_cmd_launch_campaign` refactored to the shared method (DRY).
+- **WorldMapScene** — a two-step "March" order (explicit, so no accidental launches):
+  1. Right-click your city that holds an army → the **"⚔ March \<city\>'s army (N)"** button enables.
+  2. Click it → targeting mode ("⚔ Marching… right-click a target  (✕ cancel)"), info prompts you.
+  3. Right-click an enemy city → the army marches on it (BFS road path); re-clicking March or an own
+     city cancels. Reports success ("Your army marches on \<city\>!") or "No road reaches …".
+
+### Verified
+- **Live (Xvfb, full real sequence)**: right-clicked Cresthollow → Raise 10 (gold 400→350) → clicked
+  March ("March order armed (10 troops from Cresthollow)…") → right-clicked the Azure city Oakenshield →
+  **"⚔ Your army marches on Oakenshield! The campaign is underway."** The complete Develop→Raise→March
+  loop is playable by the human end-to-end.
+- Headless: +5 tests (TestStrategicAI 58/0): `player_army_at_city` finds the mustered army (−1 where
+  none), `player_launch_campaign` sets dest+path on a road-connected neighbour, and refuses a bogus army
+  id. Full suite green (24/24).
+
+### Post-mortem
+- **Failure point:** none — the strategic layer is now a genuine play space: grow, arm, and march on
+  rivals, all through the world-map UI with live feedback.
+- **Fun/engagement:** the human went from spectator (≤iter 29) to ruler of a campaign in five iterations
+  (30 Develop → 31 stores → 32 select → 33 raise → 34 march). The 20-minute session now has a whole
+  strategic dimension above the city.
+
+### Backlog / next
+- **Diplomacy** (the last unwired action; backend exists) — offers/tribute/peace with rival kingdoms.
+- A drawn selection ring + a marching-army strength/route indicator for at-a-glance campaign feedback.
+- Let the player Watch the campaign unfold after issuing orders (already possible via ▶ Watch).
+
 ## Iteration 33 — 2026-06-16  (Raise Army — the second interactive strategic action)
 
 ### Heuristic focus

@@ -285,6 +285,23 @@ func _run_player_ui_actions() -> void:
 	ok("raising spent the treasury", int(CampaignMap.kingdom_by_id(gs.world, pfid).get("treasury", 0)) == gold_before - gs.raise_army_cost(10))
 	ok("an army now exists for the realm", CampaignMap.kingdom_by_id(gs.world, pfid).get("armies", []).size() >= armies_before + 1)
 
+	# Launch Campaign (direct UI path): the mustered army marches on a road-connected
+	# neighbour that isn't ours.
+	var army_id: int = gs.player_army_at_city(cid)
+	ok("player_army_at_city finds the mustered army", army_id >= 0)
+	ok("player_army_at_city is -1 at a city with no army", gs.player_army_at_city(enemy_cid) == -1)
+	var march_target: int = -1
+	for nid in CampaignMap.neighbor_ids(CampaignMap.city_by_id(gs.world, cid)):
+		if not gs.is_player_city(nid):
+			march_target = nid; break
+	if march_target >= 0:
+		ok("player_launch_campaign sets the army marching", gs.player_launch_campaign(army_id, march_target))
+		var marching: Dictionary = CampaignSystem.find_army(CampaignMap.kingdom_by_id(gs.world, pfid), army_id)
+		ok("the army now has a destination + path", int(marching.get("dest_city_id", -1)) == march_target and not marching.get("path", []).is_empty())
+	else:
+		ok("(no non-owned neighbour to march on for this seed — skipped)", true)
+	ok("player_launch_campaign refuses a bogus army id", not gs.player_launch_campaign(-999, enemy_cid))
+
 	# Drain the realm's stores → the actions are correctly gated as unaffordable.
 	var pk: Dictionary = CampaignMap.kingdom_by_id(gs.world, pfid)
 	pk["treasury"] = 0
