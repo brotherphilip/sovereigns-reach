@@ -1371,14 +1371,31 @@ func _auto_manage_ai_town() -> void:
 	# Out of housing but short of workers → build a home so the town can grow.
 	if living >= cap and living < slots and living < PeopleSystem.SAFETY_MAX_PEOPLE:
 		_spectator_add_hovel(player)
-	# Fund each building's worker slots (WorkerSystem caps the count by the workforce);
-	# CitizenSystem then walks pawns into the jobs.
+	# Reserve a builder pool when construction is pending. Construction is pure labour
+	# (builders are IDLE/WANDER villagers; job-workers are never pulled off to build), so
+	# if we staffed EVERY job to max the whole workforce would be consumed and freshly
+	# placed buildings (e.g. new churches) would never get raised. Hold back ~2 villagers
+	# per unfinished site (capped at half the workforce) to keep construction moving.
+	var unbuilt_sites: int = 0
+	for b in player.get("buildings", []):
+		if b is Dictionary and not b.get("built", true):
+			unbuilt_sites += 1
+	var workforce: int = PeopleSystem.living_count(citizens)
+	var builder_reserve: int = 0
+	if unbuilt_sites > 0:
+		builder_reserve = clampi(unbuilt_sites * 2, 1, maxi(1, workforce / 2))
+	var job_budget: int = maxi(0, workforce - builder_reserve)
+	# Fund each building's worker slots from the budget; CitizenSystem walks pawns into
+	# the jobs, and the reserved villagers stay idle and become builders.
 	for b in player.get("buildings", []):
 		if not (b is Dictionary and b.get("built", true) and b.get("is_active", true)):
 			continue
 		var maxw: int = int(BuildingRegistry.lookup(b.get("type", "")).get("max_workers", 0))
-		if maxw > 0:
-			WorkerSystem.assign_workers(b, maxw, player)
+		if maxw <= 0:
+			continue
+		var give: int = mini(maxw, job_budget)
+		b["workers"] = give
+		job_budget -= give
 
 func _spectator_add_hovel(player: Dictionary) -> void:
 	if _grid == null:

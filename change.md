@@ -26,6 +26,47 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 28 — 2026-06-16  (BUG from a live observation: AI towns couldn't finish new buildings)
+
+### Source
+A direct human observation while spectating an AI city: it **placed 2 churches that never got built** —
+"the builders either did not build it, or ran out of supplies… no stockpile? no woodcutters? both?"
+
+### Answer to the question + root cause — [BUG] labour starvation, not supplies
+AI construction needs **no materials at all** — `build_progress += BUILD_RATE` is pure builder labour
+(CitizenSystem); stockpiles/woodcutters are irrelevant to *raising* a building. The real cause:
+**the AI town had no free villagers to act as builders.** `GameState._auto_manage_ai_town` (runs daily
+while you watch a town) staffed **every** built job to its `max_workers`, consuming the entire
+workforce. Builders are only ever drawn from **IDLE/WANDER** villagers (job-workers in `STATE_WORK`
+are never pulled off) — so once every job was filled, a freshly-grown building (the churches) got
+**zero builders and stalled forever**. The bigger/busier the town, the more reliably new construction
+froze.
+
+### Change made
+- **`_auto_manage_ai_town`**: when any building is under construction, **reserve a builder pool**
+  before staffing jobs — `~2 villagers per unfinished site`, capped at half the workforce. Jobs are then
+  funded from the remaining budget, leaving the reserve idle so CitizenSystem turns them into builders.
+  Once construction finishes, the reserve returns to jobs naturally next day.
+
+### Verified
+- **Probe** (real GameState + CitizenSystem): an AI town with 8 woodcutters (16 job slots > 14
+  villagers) + 2 unbuilt churches. Before: all 14 → jobs, 0 builders, churches stuck at 0. After:
+  **10 → jobs, 4 reserved as builders → both churches build to 100/100 (built=true).**
+- **Regression test** (TestCityGeneration, +3 → 25/0): with slots deliberately exceeding villagers and
+  construction pending, the town now holds back ≥1 builder (`job_workers < workforce`).
+- Full suite green (24/24 suites). Live boot clean.
+
+### Post-mortem
+- **Failure point:** AI towns visibly stuck with permanent under-construction buildings — breaks the
+  "the world feels alive" illusion when spectating, and would stall an AI faction's growth.
+- **Why missed:** headless tests staffed/built in isolation; only *watching a populous AI town grow*
+  surfaced the workforce-vs-construction contention. Exactly the kind of bug live observation catches.
+
+### Backlog / next
+- The same labour-contention could in principle affect the **player** if they manually staff every job
+  with no idle villagers — worth a future check / a "need builders" hint.
+- Strategic/world-map actions as the human — largest unexercised area.
+
 ## Iteration 27 — 2026-06-16  (make the defended-siege mechanic legible — the warning adapts)
 
 ### Heuristic focus

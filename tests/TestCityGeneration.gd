@@ -10,6 +10,8 @@ const WorldGrid      = preload("res://simulation/world/WorldGrid.gd")
 const CityGenerator  = preload("res://simulation/world/CityGenerator.gd")
 const BuildingRegistry = preload("res://simulation/buildings/BuildingRegistry.gd")
 const WorldMapData   = preload("res://simulation/world/WorldMapData.gd")
+const BuildingState  = preload("res://simulation/buildings/BuildingState.gd")
+const PeopleSystem   = preload("res://simulation/world/PeopleSystem.gd")
 
 var _pass := 0
 var _fail := 0
@@ -26,6 +28,7 @@ func _init() -> void:
 	_test_defence_tiers(grid, center)
 	_test_building_dicts_growth(grid, center)
 	_test_spectator_integration()
+	_test_ai_town_reserves_builders()
 
 	print("\n=== City Generation Results: %d passed, %d failed ===" % [_pass, _fail])
 	quit(0 if _fail == 0 else 1)
@@ -91,6 +94,47 @@ func _test_spectator_integration() -> void:
 			seat_dev = int(c.get("development", 0))
 	ok("playing the seat raised its world-map development", seat_dev > 0)
 
+	# Reset transient spectator state so later suites are unaffected.
+	gs.spectator_mode = false
+	gs._spectator_city_id = -1
+
+# Regression (iter 28): an AI town with construction pending must reserve builders
+# instead of staffing every job to max — else the whole workforce goes to existing jobs
+# and freshly-placed buildings (the user's 2 churches) never get raised.
+func _test_ai_town_reserves_builders() -> void:
+	print("\n[AI town reserves builders for pending construction]")
+	var gs = root.get_node_or_null("GameState")
+	if gs == null:
+		ok("GameState autoload present", false)
+		return
+	gs.setup_world(4242, 4)
+	gs.players = []
+	gs.initialize_player(0, "AI Town", 100, 100)
+	gs.spectator_mode = true
+	var p: Dictionary = gs.players[0]
+	# Job slots (8 woodcutters × 2 = 16) deliberately exceed the ~14 starting villagers,
+	# so without a reserve EVERY villager would be staffed and none could build.
+	p["buildings"] = [{"type": "village_hall", "grid_x": 100, "grid_y": 100, "built": true, "is_active": true, "id": 1}]
+	for i in range(8):
+		var b := BuildingState.create("woodcutter_camp", 0, 90 + i, 95, 200 + i)
+		b["built"] = true; b["is_active"] = true
+		p["buildings"].append(b)
+	# Two freshly-placed churches under construction.
+	for i in range(2):
+		var c := BuildingState.create("church", 0, 104 + i * 2, 104, 300 + i)
+		c["built"] = false; c["is_active"] = true
+		c["build_progress"] = 0.0; c["build_required"] = 100.0
+		p["buildings"].append(c)
+
+	gs._auto_manage_ai_town()
+	var workforce: int = PeopleSystem.living_count(gs.citizens)
+	var job_workers: int = 0
+	for b in p.get("buildings", []):
+		if b.get("built", true):
+			job_workers += int(b.get("workers", 0))
+	ok("workforce is fully employable (slots exceed villagers)", workforce > 0)
+	ok("AI town holds back builders while construction is pending", job_workers < workforce)
+	ok("at least one builder is reserved", (workforce - job_workers) >= 1)
 	# Reset transient spectator state so later suites are unaffected.
 	gs.spectator_mode = false
 	gs._spectator_city_id = -1
