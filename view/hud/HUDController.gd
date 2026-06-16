@@ -1,5 +1,12 @@
 extends RefCounted
 const WeatherSystem = preload("res://simulation/world/WeatherSystem.gd")
+const SeasonSystem  = preload("res://simulation/world/SeasonSystem.gd")
+
+# Day/night phase label + icon for the HUD clock (☀ Day / 🌆 Dusk / 🌙 Night / 🌅 Dawn).
+static func get_day_phase(tick: int) -> Dictionary:
+	var phase: String = SeasonSystem.phase_name(tick)
+	var icon: String = {"Day": "☀", "Dusk": "🌆", "Night": "🌙", "Dawn": "🌅"}.get(phase, "☀")
+	return {"phase": phase, "icon": icon}
 # GDD §2.2.5 / §3 — HUD data extraction and command generation.
 # All static functions read from player/world Dicts; no autoload calls here.
 # Runtime instance (Node subclass) wraps these for EventBus signal connections.

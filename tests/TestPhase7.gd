@@ -5,6 +5,7 @@ extends SceneTree
 
 const HUDController          = preload("res://view/hud/HUDController.gd")
 const TechTreePanelController = preload("res://view/hud/TechTreePanelController.gd")
+const SeasonSystem          = preload("res://simulation/world/SeasonSystem.gd")
 const EdictPanelController   = preload("res://view/hud/EdictPanelController.gd")
 const BuildingRenderer       = preload("res://view/micro/BuildingRenderer.gd")
 const UnitRenderer           = preload("res://view/micro/UnitRenderer.gd")
@@ -128,6 +129,20 @@ func _test_hud_controller() -> void:
 
 	# 11. format_tick_time
 	ok("format tick day 1", HUDController.format_tick_time(240).begins_with("Day 1"))
+
+	# 11b. Day/night phase clock (cycle = SeasonSystem.DAY_NIGHT_TICKS; noon at 0, midnight at half).
+	var _mid: int = int(SeasonSystem.DAY_NIGHT_TICKS / 2)
+	ok("phase at noon = Day", HUDController.get_day_phase(0).get("phase") == "Day")
+	ok("phase at noon icon = sun", HUDController.get_day_phase(0).get("icon") == "☀")
+	ok("phase at midnight = Night", HUDController.get_day_phase(_mid).get("phase") == "Night")
+	ok("phase at midnight icon = moon", HUDController.get_day_phase(_mid).get("icon") == "🌙")
+	# Night is the SHORTER part of the cycle: more daytime ticks than night ticks.
+	var _day_ticks: int = 0
+	var _night_ticks: int = 0
+	for _t in range(SeasonSystem.DAY_NIGHT_TICKS):
+		if SeasonSystem.is_night(_t): _night_ticks += 1
+		else: _day_ticks += 1
+	ok("daytime is longer than night", _day_ticks > _night_ticks)
 
 	# 12. is_revolt_risk true below 20
 	ok("revolt risk at pop 10", HUDController.is_revolt_risk({"popularity": 10.0}))

@@ -309,7 +309,9 @@ func _refresh_top_bar() -> void:
 		_storage_label.tooltip_text = "Raw goods stored vs. stockpile capacity. Build stockpiles to store more; production stops when full."
 	_food_label.text    = "Food: %d/%d" % [total_food, FoodSystem.get_granary_capacity(p)]
 	_ale_label.text     = "Ale: %d" % total_ale
-	_day_label.text     = "Day %d" % SimulationClock.game_day()
+	var _phase: Dictionary = HUDController.get_day_phase(SimulationClock.current_tick)
+	_day_label.text     = "Day %d · %s" % [SimulationClock.game_day(), _phase.get("phase", "Day")]
+	_day_label.tooltip_text = "Time of day: %s" % _phase.get("phase", "Day")
 	var _wicon: String = HUDController.get_weather_icon(GameState.weather)
 	_weather_label.text = "%s %s" % [_wicon, WeatherSystem.weather_name(GameState.weather.get("current", 0))]
 	_weather_label.tooltip_text = HUDController.get_weather_tooltip(GameState.weather)

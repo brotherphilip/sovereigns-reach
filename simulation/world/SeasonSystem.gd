@@ -49,32 +49,37 @@ static func season_at_tick(tick: int) -> int:
 	return current_season(day_of(tick))
 
 # ── Day / night cycle ──────────────────────────────────────────────────────────
-# A single game-day (240 ticks) runs morning → noon → afternoon → dusk → night.
-# tick 0 is morning. Used for the city-view lighting overlay, building lamps, and
-# citizens returning home to sleep at night.
+# DECOUPLED from the game-day so the sky doesn't strobe: one full day↔night spans
+# DAY_NIGHT_TICKS (≈ 60 real seconds at NORMAL speed), opening at noon. Daytime is the
+# long stretch; night is a shorter window in the middle (a power curve skews the cycle
+# toward daylight). Drives the city-view lighting overlay, building lamps, and citizens
+# returning home to sleep at night. (The numeric Day counter still advances per
+# game-day; this is purely the felt time-of-day.)
+const DAY_NIGHT_TICKS: int = 1200          # ~5 game-days; ~60s/cycle at NORMAL speed
+const NIGHT_SKEW: float = 2.2              # >1 → daytime dominates, night is shorter
+const NIGHT_HOME_THRESHOLD: float = 0.6    # darkness past which folk head home to sleep
 
-# 0.0 = full daylight … 1.0 = deepest midnight. Smooth cosine: the game-day opens at
-# full noon (tick 0), darkens to midnight at mid-day-count (~tick 120), and brightens
-# back to noon by the next day. (A fresh game thus starts in clear daylight.)
+# 0.0 = full daylight … 1.0 = deepest midnight.
 static func night_factor(tick: int) -> float:
-	var f: float = float(((tick % TICKS_PER_DAY) + TICKS_PER_DAY) % TICKS_PER_DAY) / float(TICKS_PER_DAY)
-	var brightness: float = 0.5 + 0.5 * cos(f * TAU)  # 1 at f=0 (noon), 0 at f=0.5 (midnight)
-	return clampf(1.0 - brightness, 0.0, 1.0)
+	var f: float = float((tick % DAY_NIGHT_TICKS + DAY_NIGHT_TICKS) % DAY_NIGHT_TICKS) / float(DAY_NIGHT_TICKS)
+	var dark: float = 0.5 - 0.5 * cos(f * TAU)   # 0 at f=0 (noon), 1 at f=0.5 (midnight)
+	return clampf(pow(dark, NIGHT_SKEW), 0.0, 1.0)
 
 # True once it's dark enough that folk head home to sleep (dusk through dawn).
 static func is_night(tick: int) -> bool:
 	return night_factor(tick) >= NIGHT_HOME_THRESHOLD
 
-const NIGHT_HOME_THRESHOLD: float = 0.6
+# Fraction (0..1) through the current day/night cycle (0 = noon).
+static func day_night_phase(tick: int) -> float:
+	return float((tick % DAY_NIGHT_TICKS + DAY_NIGHT_TICKS) % DAY_NIGHT_TICKS) / float(DAY_NIGHT_TICKS)
 
 # Human-readable phase for the HUD clock.
 static func phase_name(tick: int) -> String:
 	var n: float = night_factor(tick)
-	if n < 0.15:
+	if n < 0.12:
 		return "Day"
 	elif n < NIGHT_HOME_THRESHOLD:
-		var f: float = float(tick % TICKS_PER_DAY) / float(TICKS_PER_DAY)
-		return "Dusk" if f < 0.5 else "Dawn"   # darkening before midnight, brightening after
+		return "Dusk" if day_night_phase(tick) < 0.5 else "Dawn"  # darkening before midnight, brightening after
 	return "Night"
 
 # 0..1 progress through the current season (0 = first day, ~1 = last day).

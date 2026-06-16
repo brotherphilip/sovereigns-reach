@@ -26,6 +26,51 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 39 — 2026-06-16  (day/night was strobing — slowed the cycle + a phase clock; user request)
+
+### Source
+User: the day/night was "WAAAAAAAY too fast to switch" (night every ~6s) and asked for a slower cycle,
+night shorter than day, and Banished-style fewer-days-per-year.
+
+### Decision (recommended + taken)
+Fix the **strobe safely now**; defer the full calendar rescale. The strobe came from the iter-38 cycle
+being locked 1:1 to the game-day (240 ticks = 12s at Normal). I **decoupled** the lighting cycle from the
+game-day rather than slowing the whole clock or shrinking the calendar — because a true "fewer days/year
+with 1 day = 1 day-night" rescale would force re-tuning every day-based system (King's Peace grace,
+48-day siege assembly, objectives, the Day-100 reign milestone) + ~6 tests, i.e. it would destabilise the
+tuned survival loop. So: kill the strobe with zero balance risk now; the calendar rescale is a flagged
+follow-up if still wanted.
+
+### Change made
+- **SeasonSystem**: day/night is now decoupled — one full day↔night spans `DAY_NIGHT_TICKS = 1200`
+  (~5 game-days ≈ **60s at Normal**, ~12s at Fastest), opening at noon. A power-curve (`NIGHT_SKEW 2.2`)
+  skews the cycle toward daylight, so **night is the shorter window (~26%)** and day is long (~74%).
+  `night_factor`/`is_night`/`phase_name`/`day_night_phase` all use the new period.
+- **HUD clock**: the Day label now reads **"Day N · \<phase\>"** (Day/Dusk/Night/Dawn) — a readable
+  time-of-day (the emoji icon from the half-done iter-39 didn't render in the HUD font, so it's a word).
+  `HUDController.get_day_phase` added (tested).
+
+### Verified
+- Headless: TestPhase7 → 104/0 (noon=Day, midnight=Night, and **daytime ticks > night ticks**). Full
+  suite green (24/24) — citizen night behaviour stays opt-in so the economy/tests are untouched.
+- **Live (Xvfb, staffed town, ~70s capture across one cycle)**: the HUD clock read "Day N · \<phase\>",
+  and over ~60s the phase progressed Dusk → Night → Night → Day → Day → Day → Dusk — i.e. **one full
+  cycle ≈ 60s, each phase holding 20–30s** instead of flipping every ~6s. The darkening wash + building
+  lamps render throughout; the numeric Day counter ticked 1→6 across the single visual cycle (decoupled,
+  as intended). Strobe gone.
+
+### Post-mortem
+- **Failure point:** n/a. The fix is purely the lighting period + a HUD label; survival/economy/balance
+  untouched.
+- **UX:** the sky now changes at a comfortable pace (a long day, a brief night) instead of strobing, and
+  the HUD names the phase. Trade-off: the numeric Day counter advances faster than one on-screen
+  day/night (it's now a background counter; sky + seasons are the felt time).
+
+### Backlog / next
+- **(If wanted) Banished calendar rescale:** truly fewer days/year with a slow 1-day = 1-day/night clock
+  — needs rescaling grace/siege/objective/reign-milestone day constants + their tests; bigger, deliberate.
+- Optional: tie the lighting tint to a warmer dawn/dusk grade; a tiny sun/moon glyph if a font supports it.
+
 ## Iteration 38 — 2026-06-16  🌙 Day/night cycle — townsfolk sleep, building lamps light the dark (user request)
 
 ### Heuristic focus
