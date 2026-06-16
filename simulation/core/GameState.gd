@@ -1199,6 +1199,15 @@ func simulate_tick(tick: int) -> void:
 				and int(fac["siege_assembly"].get("target_player_id", -1)) == 0
 			var rally := keep if sieging else Vector2i(-1, -1)
 			_tick_force_units(fac, fac.get("units", []), player_enemies, tick, rally)
+	elif spectator_mode and not ai_factions.is_empty() and not players.is_empty():
+		# Spectating a besieged city: the attackers (the only AI faction here is the display
+		# besieger force from _spawn_spectator_military) MARCH on the town centre and the
+		# defenders auto-aggro back — so the player watches a live battle, not a tableau.
+		var ctr := Vector2i(int(players[0].get("keep_x", 100)), int(players[0].get("keep_y", 100)))
+		var defenders: Array = _enemies_of_faction()
+		for fac in ai_factions:
+			if fac is Dictionary and fac.get("is_alive", false):
+				_tick_force_units(fac, fac.get("units", []), defenders, tick, ctr)
 
 	# Wildlife roams every tick (smooth) and flees nearby units / the tracked cursor.
 	if not wildlife.is_empty():
@@ -1465,6 +1474,9 @@ func enter_spectator_city(city_id: int, center_x: int, center_y: int, seed_val: 
 func _spawn_spectator_military(city: Dictionary, cx: int, cy: int) -> void:
 	if players.is_empty():
 		return
+	# Town centre = the rally the besiegers march on (and the defenders hold) for the live battle.
+	players[0]["keep_x"] = cx
+	players[0]["keep_y"] = cy
 	var owner_fid: int = CampaignMap.owner_of(city)
 	# ── Home garrison → visible defenders (rendered as the town's own units). ──
 	var garrison: int = int(city.get("garrison", 0))

@@ -26,6 +26,35 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 108 — 2026-06-17  (A LIVE siege battle in spectated cities — "in real time")
+
+### Source
+The user said "see the troops **in real time** if they attack." iter106/107 made the besiegers visible + labelled,
+but they stood as a static tableau. This makes them actually fight — a battle you watch play out.
+
+### Change made
+- **`simulation/core/GameState.gd`:** in `spectator_mode` the besieger display force (the only AI faction present)
+  now **marches on the town centre and fights** — a new `simulate_tick` branch ticks `_tick_force_units` for the
+  besiegers with the centre as their rally. The town's defenders already auto-aggro back (`_tick_player_unit_
+  movement` runs in spectator and `_enemies_of_player(0)` includes the besiegers), so both sides engage. The town
+  centre is recorded as `players[0].keep_x/keep_y` in `_spawn_spectator_military` for the rally. Contained to
+  spectator (read-only view of an AI town) — the authoritative abstract strategic outcome is untouched.
+
+### Verified
+- **`tests/TestSpectatorTroops.gd` → 10/0:** after the besieged setup it now ticks 25 game-days and asserts the
+  **battle is fought (casualties occur)**. Probe result: 12 defenders vs 10 besiegers → besiegers wiped, with
+  damage taken — a real engagement. **Full suite: 0 FAIL across all 29 files.** Live boot clean.
+
+### Post-mortem
+- **Immersion / the user's "in real time":** a contested city you spectate now shows the besiegers advance on the
+  walls and trade blows with the garrison until one side breaks — the literal request fulfilled. View/spectator
+  only; the strategic dice-roll resolution and determinism are unaffected.
+
+### Backlog / next
+1. Optional: tune the spectator battle so its outcome better mirrors the abstract strategic result (currently an
+   independent representative skirmish); add death/clash SFX for the watched battle.
+2. (Carried) user ear-check of narration voice quality; ear-tune SFX.
+
 ## Iteration 107 — 2026-06-17  (Label the siege: an "under siege by X" banner for spectated cities)
 
 ### Source
