@@ -153,7 +153,7 @@ func _spawn_gold_flash(delta: int) -> void:
 	lbl.add_theme_color_override("font_color",
 		Color(0.4, 1.0, 0.4) if delta > 0 else Color(1.0, 0.4, 0.4))
 	# Position near the gold label in the top bar (top-left of screen)
-	lbl.position = Vector2(8, 38)
+	lbl.position = Vector2(30, 44)
 	lbl.size = Vector2(80, 20)
 	add_child(lbl)
 	var tw: Tween = create_tween()
@@ -169,14 +169,14 @@ func _build_all_panels() -> void:
 	if vp == Vector2.ZERO:
 		vp = Vector2(1280, 720)
 
-	_top_bar = _make_panel(Rect2(0, 0, vp.x, 38))
+	_top_bar = _make_panel(Rect2(0, 0, vp.x, 44))
 	_build_top_bar(vp)
 
-	_right_panel = _make_panel(Rect2(vp.x - 220, 40, 218, 240))
+	_right_panel = _make_panel(Rect2(vp.x - 222, 50, 220, 248))
 	_build_right_panel()
 
 	# Standing objective panel — the player's current goal, just below the realm panel.
-	_objective_panel = _make_panel(Rect2(vp.x - 220, 286, 218, 86))
+	_objective_panel = _make_panel(Rect2(vp.x - 222, 304, 220, 86))
 	_add_label(_objective_panel, "OBJECTIVE", Vector2(8, 6), 11, Color(1.0, 0.85, 0.35))
 	_objective_progress = _add_label(_objective_panel, "", Vector2(150, 6), 10, Color(0.7, 0.8, 0.95))
 	_objective_label = _add_label(_objective_panel, "Found your seat — build a Village Hall.",
@@ -194,17 +194,17 @@ func _build_all_panels() -> void:
 	_selection_panel = _make_panel(Rect2(vp.x * 0.65 + 2, vp.y - 200, vp.x * 0.35 - 222, 162))
 	_build_selection_panel()
 
-	_tech_panel = _make_panel(Rect2(vp.x - 440, 40, 438, vp.y - 80))
+	_tech_panel = _make_panel(Rect2(vp.x - 440, 50, 438, vp.y - 92))
 	_tech_panel.visible = false
 	_build_tech_panel()
 
-	_edict_panel = _make_panel(Rect2(vp.x - 440, 40, 438, vp.y - 80))
+	_edict_panel = _make_panel(Rect2(vp.x - 440, 50, 438, vp.y - 92))
 	_edict_panel.visible = false
 	_build_edict_panel()
 
 	# Stacking notification feed (replaces the old single-label notification)
 	_notification_feed = NotificationFeed.new()
-	_notification_feed.position = Vector2(vp.x * 0.5 - 200, 44)
+	_notification_feed.position = Vector2(vp.x * 0.5 - 200, 50)
 	_notification_feed.size = Vector2(400, 0)
 	add_child(_notification_feed)
 
@@ -276,20 +276,98 @@ func _add_button(parent: Control, text: String, pos: Vector2, sz: Vector2,
 
 # ── Top bar ───────────────────────────────────────────────────────────────────
 
+# A small drawn, colour-coded resource icon so the top bar is scannable at a glance
+# (the resource name lives in the value label's tooltip). 16×16, drawn via the draw signal.
+func _make_res_icon(parent: Control, pos: Vector2, kind: String) -> Control:
+	var ic := Control.new()
+	ic.position = pos
+	ic.size = Vector2(16, 16)
+	ic.custom_minimum_size = Vector2(16, 16)
+	ic.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	ic.draw.connect(func(): _draw_res_icon(ic, kind))
+	parent.add_child(ic)
+	return ic
+
+func _draw_res_icon(ci: Control, kind: String) -> void:
+	var c := Vector2(8, 8)
+	match kind:
+		"gold":
+			ci.draw_circle(c, 6.5, Color(0.86, 0.68, 0.24))
+			ci.draw_arc(c, 6.4, 0, TAU, 14, Color(0.52, 0.39, 0.12), 1.0)
+			ci.draw_arc(c, 3.2, 0, TAU, 12, Color(1.0, 0.92, 0.55), 1.0)
+		"wood":
+			ci.draw_rect(Rect2(1, 4, 14, 3.2), Color(0.55, 0.40, 0.25))
+			ci.draw_rect(Rect2(1, 8.5, 14, 3.2), Color(0.45, 0.32, 0.19))
+			ci.draw_circle(Vector2(2, 5.6), 1.7, Color(0.68, 0.52, 0.33))
+			ci.draw_circle(Vector2(2, 10.1), 1.7, Color(0.62, 0.46, 0.28))
+		"stone":
+			ci.draw_rect(Rect2(1.5, 3, 13, 10), Color(0.74, 0.72, 0.66))
+			ci.draw_line(Vector2(1.5, 8), Vector2(14.5, 8), Color(0.5, 0.49, 0.45), 1.0)
+			ci.draw_line(Vector2(8, 3), Vector2(8, 8), Color(0.5, 0.49, 0.45), 1.0)
+			ci.draw_line(Vector2(5, 8), Vector2(5, 13), Color(0.5, 0.49, 0.45), 1.0)
+			ci.draw_line(Vector2(11, 8), Vector2(11, 13), Color(0.5, 0.49, 0.45), 1.0)
+		"iron":
+			ci.draw_colored_polygon(PackedVector2Array([Vector2(3, 12), Vector2(13, 12), Vector2(11, 6), Vector2(5, 6)]), Color(0.55, 0.58, 0.64))
+			ci.draw_line(Vector2(5, 6), Vector2(11, 6), Color(0.78, 0.82, 0.88), 1.2)
+		"stock":
+			ci.draw_rect(Rect2(2, 3, 12, 11), Color(0.55, 0.41, 0.25))
+			ci.draw_rect(Rect2(2, 3, 12, 11), Color(0.36, 0.26, 0.15), false, 1.2)
+			ci.draw_line(Vector2(2.6, 3.6), Vector2(13.4, 13.4), Color(0.36, 0.26, 0.15), 1.0)
+			ci.draw_line(Vector2(13.4, 3.6), Vector2(2.6, 13.4), Color(0.36, 0.26, 0.15), 1.0)
+		"food":
+			ci.draw_circle(Vector2(8, 9), 5.4, Color(0.78, 0.24, 0.20))
+			ci.draw_circle(Vector2(6.2, 7.4), 1.6, Color(0.92, 0.45, 0.4))   # highlight
+			ci.draw_line(Vector2(8, 4), Vector2(8, 2), Color(0.4, 0.28, 0.16), 1.2)  # stem
+			ci.draw_colored_polygon(PackedVector2Array([Vector2(8, 3), Vector2(11, 2), Vector2(9.5, 4.2)]), Color(0.3, 0.55, 0.25))  # leaf
+		"ale":
+			ci.draw_rect(Rect2(3, 5, 8, 9), Color(0.80, 0.58, 0.22))         # mug body
+			ci.draw_rect(Rect2(3, 3.5, 8, 2.4), Color(0.95, 0.93, 0.86))     # foam
+			ci.draw_arc(Vector2(11.5, 9), 3.0, -PI * 0.5, PI * 0.5, 8, Color(0.62, 0.45, 0.18), 1.4)  # handle
+
+func _top_divider(x: float) -> void:
+	var d := ColorRect.new()
+	d.color = Color(0.74, 0.57, 0.26, 0.45)
+	d.position = Vector2(x, 11)
+	d.size = Vector2(1.5, 22)
+	d.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_top_bar.add_child(d)
+
+func _top_value(text: String, x: float, w: float, size_pt: int = 14, color: Color = Color.WHITE) -> Label:
+	var lbl := _add_label(_top_bar, text, Vector2(x, 12), size_pt, color)
+	lbl.size = Vector2(w, 20)
+	return lbl
+
 func _build_top_bar(vp: Vector2) -> void:
-	var x: float = 6.0
-	_gold_label    = _add_label(_top_bar, "Gold: 0",     Vector2(x, 8));     x += 110
-	_wood_label    = _add_label(_top_bar, "Wood: 0",     Vector2(x, 8));     x += 90
-	_stone_label   = _add_label(_top_bar, "Stone: 0",    Vector2(x, 8));     x += 90
-	_iron_label    = _add_label(_top_bar, "Iron: 0",     Vector2(x, 8));     x += 90
-	_storage_label = _add_label(_top_bar, "Stock: 0/0",  Vector2(x, 8), 12, Color(0.82, 0.76, 0.6)); x += 120
-	_food_label    = _add_label(_top_bar, "Food: 0",     Vector2(x, 8));     x += 110
-	_ale_label     = _add_label(_top_bar, "Ale: 0",      Vector2(x, 8));     x += 90
-	_day_label     = _add_label(_top_bar, "Day 0",       Vector2(x, 8), 13, Color.LIGHT_YELLOW); x += 90
-	_weather_label = _add_label(_top_bar, "Clear",       Vector2(x, 8), 12, Color.LIGHT_CYAN); x += 160
-	_prestige_label = _add_label(_top_bar, "Prestige: 0", Vector2(x, 8), 12, Color(0.95, 0.8, 0.3)); x += 130
-	_faith_label = _add_label(_top_bar, "Faith: 0", Vector2(x, 8), 12, Color(0.75, 0.85, 1.0)); x += 130
-	_health_label = _add_label(_top_bar, "Health: 100", Vector2(x, 8), 12, Color(0.6, 0.9, 0.6))
+	var x: float = 10.0
+	# ── Resources: colour-coded icon + value (name in tooltip) ──
+	_make_res_icon(_top_bar, Vector2(x, 12), "gold");  x += 20
+	_gold_label    = _top_value("0", x, 46); x += 50
+	_make_res_icon(_top_bar, Vector2(x, 12), "wood");  x += 20
+	_wood_label    = _top_value("0", x, 42); x += 46
+	_make_res_icon(_top_bar, Vector2(x, 12), "stone"); x += 20
+	_stone_label   = _top_value("0", x, 42); x += 46
+	_make_res_icon(_top_bar, Vector2(x, 12), "iron");  x += 20
+	_iron_label    = _top_value("0", x, 42); x += 46
+	_make_res_icon(_top_bar, Vector2(x, 12), "stock"); x += 20
+	_storage_label = _top_value("0/0", x, 66, 13, Color(0.82, 0.76, 0.6)); x += 70
+	_make_res_icon(_top_bar, Vector2(x, 12), "food");  x += 20
+	_food_label    = _top_value("0/0", x, 66); x += 70
+	_make_res_icon(_top_bar, Vector2(x, 12), "ale");   x += 20
+	_ale_label     = _top_value("0", x, 42); x += 46
+	_top_divider(x); x += 14
+	# ── World: day/time + season/weather ──
+	_day_label     = _top_value("Day 0", x, 146, 14, Color.LIGHT_YELLOW); x += 150
+	_weather_label = _top_value("Clear", x, 176, 13, Color.LIGHT_CYAN); x += 180
+	_top_divider(x); x += 14
+	# ── Realm: prestige / faith / health ──
+	_prestige_label = _top_value("Prestige: 0", x, 116, 13, Color(0.95, 0.8, 0.3)); x += 120
+	_faith_label    = _top_value("Faith: 0", x, 116, 13, Color(0.75, 0.85, 1.0)); x += 118
+	_health_label   = _top_value("Health: 100", x, 116, 13, Color(0.6, 0.9, 0.6))
+	# gold-coin name tooltips for the icon-only resources
+	_wood_label.tooltip_text  = "Wood — timber for building and tools."
+	_stone_label.tooltip_text = "Stone — masonry for walls and grand buildings."
+	_iron_label.tooltip_text  = "Iron — weapons, armour and tools."
+	_ale_label.tooltip_text   = "Ale — brewed from hops; served at inns to keep the people merry."
 
 func _refresh_top_bar() -> void:
 	if GameState.players.size() == 0:
@@ -299,16 +377,17 @@ func _refresh_top_bar() -> void:
 	var food: Dictionary = p.get("food", {})
 	var total_food: int = HUDController.get_total_food(p)
 	var total_ale: int  = int(food.get("ale", 0))
-	_gold_label.text         = "Gold: %d" % int(p.get("gold", 0))
+	_gold_label.text         = "%d" % int(p.get("gold", 0))
 	_gold_label.tooltip_text = HUDController.get_gold_tooltip(p, GameState.world)
-	_wood_label.text    = "Wood: %d" % int(res.get("wood", 0))
-	_stone_label.text   = "Stone: %d" % int(res.get("stone", 0))
-	_iron_label.text    = "Iron: %d" % int(res.get("iron", 0))
+	_wood_label.text    = "%d" % int(res.get("wood", 0))
+	_stone_label.text   = "%d" % int(res.get("stone", 0))
+	_iron_label.text    = "%d" % int(res.get("iron", 0))
 	if _storage_label != null:
-		_storage_label.text = "Stock: %d/%d" % [StorageSystem.get_stored(p), StorageSystem.get_capacity(p)]
+		_storage_label.text = "%d/%d" % [StorageSystem.get_stored(p), StorageSystem.get_capacity(p)]
 		_storage_label.tooltip_text = "Raw goods stored vs. stockpile capacity. Build stockpiles to store more; production stops when full."
-	_food_label.text    = "Food: %d/%d" % [total_food, FoodSystem.get_granary_capacity(p)]
-	_ale_label.text     = "Ale: %d" % total_ale
+	_food_label.text    = "%d/%d" % [total_food, FoodSystem.get_granary_capacity(p)]
+	_food_label.tooltip_text = "Food stored vs. granary capacity. Feeds your people daily."
+	_ale_label.text     = "%d" % total_ale
 	var _phase: Dictionary = HUDController.get_day_phase(SimulationClock.current_tick)
 	_day_label.text     = "Day %d · %s" % [SimulationClock.game_day(), _phase.get("phase", "Day")]
 	_day_label.tooltip_text = "Time of day: %s\nSeason: %s (Year %d, day %d/%d)" % [
@@ -350,52 +429,68 @@ func _refresh_top_bar() -> void:
 # ── Right panel ───────────────────────────────────────────────────────────────
 
 func _build_right_panel() -> void:
-	_add_label(_right_panel, "POPULARITY", Vector2(6, 6), 11, Color.LIGHT_YELLOW)
+	_add_label(_right_panel, "POPULARITY", Vector2(6, 5), 11, Color.LIGHT_YELLOW)
 	_pop_bar = ProgressBar.new()
-	_pop_bar.position = Vector2(6, 24)
-	_pop_bar.size = Vector2(204, 18)
+	_pop_bar.position = Vector2(6, 22)
+	_pop_bar.size = Vector2(206, 20)
+	_pop_bar.show_percentage = false
 	_pop_bar.min_value = 0; _pop_bar.max_value = 100; _pop_bar.value = 50
 	_pop_bar_fill = StyleBoxFlat.new()
 	_pop_bar_fill.bg_color = Color(0.55, 0.76, 0.29)  # "good" green default
+	_pop_bar_fill.set_corner_radius_all(3)
 	_pop_bar.add_theme_stylebox_override("fill", _pop_bar_fill)
+	var pop_bg := StyleBoxFlat.new()
+	pop_bg.bg_color = Color(0.08, 0.06, 0.04, 0.9)
+	pop_bg.set_corner_radius_all(3)
+	pop_bg.set_border_width_all(1)
+	pop_bg.border_color = Color(0.4, 0.32, 0.16, 0.8)
+	_pop_bar.add_theme_stylebox_override("background", pop_bg)
 	_right_panel.add_child(_pop_bar)
-	_pop_label = _add_label(_right_panel, "50%", Vector2(84, 24), 11)
+	# Readout centred over the bar so it never collides with the fill.
+	_pop_label = _add_label(_right_panel, "50%", Vector2(6, 23), 12)
+	_pop_label.size = Vector2(206, 18)
+	_pop_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_pop_label.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.8))
+	_pop_label.add_theme_constant_override("shadow_offset_y", 1)
 
-	_add_label(_right_panel, "Tax Rate:", Vector2(6, 50), 11)
-	_tax_label_disp = _add_label(_right_panel, "0 (None)", Vector2(90, 50), 11)
-	_tax_delta_label = _add_label(_right_panel, "", Vector2(154, 50), 9, Color.GRAY)
-	_tax_delta_label.size = Vector2(60, 20)
-	_add_button(_right_panel, "−", Vector2(6, 66), Vector2(30, 22), func(): _change_tax(-1),
-		"Lower tax rate\nReduces income, improves popularity")
-	_add_button(_right_panel, "+", Vector2(40, 66), Vector2(30, 22), func(): _change_tax(1),
-		"Raise tax rate\nIncreases income, reduces popularity")
-	_add_label(_right_panel, "◄Bribe  Free  Tax►", Vector2(74, 69), 8, Color(0.5, 0.5, 0.5))
+	# Each control row: label (left), value (mid), delta hint (right) — fixed widths, no overlap.
+	_make_slider_row("Tax Rate:", 50, func(): _change_tax(-1), func(): _change_tax(1),
+		"Lower tax rate — less income, happier people", "Raise tax rate — more income, angrier people",
+		"◄ Bribe · Free · Tax ►")
+	_tax_label_disp  = _add_label(_right_panel, "0 (None)", Vector2(74, 50), 11); _tax_label_disp.size = Vector2(78, 18)
+	_tax_delta_label = _add_label(_right_panel, "", Vector2(156, 50), 9, Color.GRAY); _tax_delta_label.size = Vector2(58, 18)
 
-	_add_label(_right_panel, "Food Ration:", Vector2(6, 98), 11)
-	_food_ration_label = _add_label(_right_panel, "Normal", Vector2(112, 98), 11, Color.LIGHT_GREEN)
-	_food_ration_delta = _add_label(_right_panel, "", Vector2(154, 98), 9, Color.GRAY)
-	_food_ration_delta.size = Vector2(60, 20)
-	_add_button(_right_panel, "−", Vector2(6, 114), Vector2(30, 22), func(): _change_food_ration(-1),
-		"Reduce food rations\nSaves food, reduces popularity")
-	_add_button(_right_panel, "+", Vector2(40, 114), Vector2(30, 22), func(): _change_food_ration(1),
-		"Increase food rations\nBoosts popularity, uses more food")
-	_add_label(_right_panel, "◄None  Norm  Dbl►", Vector2(74, 117), 8, Color(0.5, 0.5, 0.5))
+	_make_slider_row("Food Ration:", 98, func(): _change_food_ration(-1), func(): _change_food_ration(1),
+		"Reduce food rations — saves food, lowers popularity", "Increase food rations — boosts popularity, uses more food",
+		"◄ None · Norm · Dbl ►")
+	_food_ration_label = _add_label(_right_panel, "Normal", Vector2(96, 98), 11, Color.LIGHT_GREEN); _food_ration_label.size = Vector2(56, 18)
+	_food_ration_delta = _add_label(_right_panel, "", Vector2(156, 98), 9, Color.GRAY); _food_ration_delta.size = Vector2(58, 18)
 
-	_add_label(_right_panel, "Ale Ration:", Vector2(6, 146), 11)
-	_ale_ration_label = _add_label(_right_panel, "Half", Vector2(112, 146), 11, Color.LIGHT_BLUE)
-	_ale_ration_delta = _add_label(_right_panel, "", Vector2(154, 146), 9, Color.GRAY)
-	_ale_ration_delta.size = Vector2(60, 20)
-	_add_button(_right_panel, "−", Vector2(6, 162), Vector2(30, 22), func(): _change_ale_ration(-1),
-		"Reduce ale rations\nSaves ale, reduces popularity")
-	_add_button(_right_panel, "+", Vector2(40, 162), Vector2(30, 22), func(): _change_ale_ration(1),
-		"Increase ale rations\nBoosts popularity, uses more ale")
-	_add_label(_right_panel, "◄None  Half  Dbl►", Vector2(74, 165), 8, Color(0.5, 0.5, 0.5))
+	_make_slider_row("Ale Ration:", 146, func(): _change_ale_ration(-1), func(): _change_ale_ration(1),
+		"Reduce ale rations — saves ale, lowers popularity", "Increase ale rations — boosts popularity, uses more ale",
+		"◄ None · Half · Dbl ►")
+	_ale_ration_label = _add_label(_right_panel, "Half", Vector2(96, 146), 11, Color.LIGHT_BLUE); _ale_ration_label.size = Vector2(56, 18)
+	_ale_ration_delta = _add_label(_right_panel, "", Vector2(156, 146), 9, Color.GRAY); _ale_ration_delta.size = Vector2(58, 18)
 
-	_food_variety_label = _add_label(_right_panel, "Variety: none", Vector2(6, 186), 9, Color.GRAY)
-	_food_variety_label.size = Vector2(206, 18)
+	_food_variety_label = _add_label(_right_panel, "Variety: none", Vector2(6, 192), 9, Color.GRAY)
+	_food_variety_label.size = Vector2(208, 16)
+	# Divider above the realm totals.
+	var div := ColorRect.new(); div.color = Color(0.74, 0.57, 0.26, 0.4)
+	div.position = Vector2(6, 210); div.size = Vector2(206, 1)
+	_right_panel.add_child(div)
+	_add_label(_right_panel, "Population:", Vector2(6, 216), 11, Color.LIGHT_YELLOW)
+	_pop_count_label = _add_label(_right_panel, "0", Vector2(120, 216), 11, Color.LIGHT_CYAN)
+	_pop_count_label.size = Vector2(94, 18)
+	_pop_count_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 
-	_add_label(_right_panel, "Prestige:", Vector2(6, 206), 11, Color.LIGHT_YELLOW)
-	_pop_count_label = _add_label(_right_panel, "Pop: 0", Vector2(6, 222), 11, Color.LIGHT_CYAN)
+# A label + −/+ buttons + a scale hint, shared by the three control rows.
+func _make_slider_row(title: String, y: float, dec: Callable, inc: Callable,
+		dec_tip: String, inc_tip: String, scale_hint: String) -> void:
+	_add_label(_right_panel, title, Vector2(6, y), 11)
+	_add_button(_right_panel, "−", Vector2(6, y + 16), Vector2(30, 22), dec, dec_tip)
+	_add_button(_right_panel, "+", Vector2(40, y + 16), Vector2(30, 22), inc, inc_tip)
+	var hint := _add_label(_right_panel, scale_hint, Vector2(76, y + 20), 8, Color(0.55, 0.5, 0.42))
+	hint.size = Vector2(140, 16)
 
 func _refresh_right_panel() -> void:
 	if GameState.players.size() == 0:
@@ -448,7 +543,7 @@ func _refresh_right_panel() -> void:
 	_ale_ration_delta.add_theme_color_override("font_color", ale_col)
 
 	if _pop_count_label != null:
-		_pop_count_label.text = "Pop: %d" % int(p.get("population", 0))
+		_pop_count_label.text = "%d" % int(p.get("population", 0))
 
 	var var_bonus: int = HUDController.get_food_variety_bonus(p)
 	var var_types: Array = HUDController.get_food_variety_types(p)

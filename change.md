@@ -26,6 +26,50 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 50 — 2026-06-16  (DESIGN OVERHAUL #4 — HUD pass: top resource bar + popularity/rations panel)
+
+### Source
+Same multi-iteration directive. Roadmap step 3: the **HUD pass** — top resource bar + popularity/objective
+panels: spacing, type hierarchy, iconography.
+
+### Method
+Read HUDNode.gd and measured the live HUD. Found two concrete readability bugs: (a) the **top bar overflowed**
+— summed label offsets = 1316px > the 1280 screen, so the right-side stats ran off / overlapped; (b) the
+**right-panel value & delta labels overlapped** because `_add_label` defaults to a 150px width, so e.g.
+"Tax Rate:" / "Free" / "neutral" collided. Fixed both and modernised the look.
+
+### Change made (view/hud/HUDNode.gd — view-only)
+- **Top resource bar:** taller (38→44px), and each raw resource is now a **colour-coded drawn icon + value**
+  (coin / logs / stone-block / iron-ingot / crate / apple / ale-mug) with the name in the tooltip — far more
+  scannable than a row of "Word: n". Added **group dividers** separating *resources | world (day/weather) |
+  realm (prestige/faith/health)*, and re-laid-out so it **fits within 1280** with margin. Icons drawn via a
+  16×16 Control + the `draw` signal (`_make_res_icon`/`_draw_res_icon`).
+- **Right panel (popularity/rations):** popularity bar taller + rounded with a proper background box and a
+  **centred "% (tier)" readout** (no more collision with the fill); the three control rows refactored through
+  one `_make_slider_row` helper with **fixed-width columns** (label / value / delta-hint) so nothing overlaps;
+  a divider above the realm totals; the dangling value-less "Prestige:" line replaced with a clean
+  right-aligned **"Population: N"**.
+- Shifted the panels that anchor under the bar (right panel, objective, tech/edict, notification feed) down
+  to clear the taller bar.
+
+### Verified
+- **Live (Xvfb, staffed town):** no script errors, HUD rebuilds; top bar reads cleanly with icons + dividers
+  and no overflow; right panel rows are aligned with no overlap, popularity centred, "Population: 50" tidy.
+  Crops: /tmp/iter50_{topbar,right2}.png.
+- **Tests:** all suites green (1075 assertions, 0 failed).
+
+### Post-mortem
+- **UX (Human Experience):** the two most-glanced-at HUD elements are now legible and professional — the
+  player can read their whole economy in one scan (icon + number) and adjust tax/rations without squinting
+  at overlapping text. Directly supports the 20-min-engagement goal (less UI friction). **All 4 original
+  overhaul steps now done** (building art ×3 + HUD); next is the deeper menu/panel polish.
+
+### Backlog / next (overhaul roadmap)
+1. ~~Per-building hero detail~~ ✓ (iter 49)  ·  2. ~~Wall texture~~ ✓ (iter 48)  ·  3. ~~HUD pass~~ ✓ (iter 50)
+4. **Menus & panels** — build menu (bottom), tech/edict/diplomacy panels, MainMenu, selection panel:
+   spacing, button styling, type hierarchy.  ← next (iter 51)
+- (Carried) Diplomacy depth; a fresh full human playthrough at the new pace.
+
 ## Iteration 49 — 2026-06-16  (DESIGN OVERHAUL #3 — per-building HERO detail on the high-traffic types)
 
 ### Source
