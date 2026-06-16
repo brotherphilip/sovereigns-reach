@@ -303,6 +303,36 @@ const EVENTS: Array = [
 			{"label": "Show mercy — they were starving (+6 popularity)", "effect": {"popularity": 6}},
 		],
 	},
+
+	# ── Stone & iron happenings (close the materials gap — these feed walls & arms,
+	#    the prep that lets a seat endure the warlords' sieges) ───────────────────────
+	{
+		"id": "quarry_seam", "tone": "good", "weight": 8, "min_day": 4,
+		"title": "A Rich Quarry Seam",
+		"text": "Your masons strike a clean seam of building stone — easy to cut and haul.",
+		"effect": {"stone": 45},
+	},
+	{
+		"id": "iron_vein", "tone": "good", "weight": 7, "min_day": 5,
+		"title": "A Vein of Iron",
+		"text": "Diggers turn up good iron ore in the hill diggings; the smith will be glad of it.",
+		"effect": {"iron": 30},
+	},
+	{
+		"id": "mine_cave_in", "tone": "bad", "weight": 5, "min_day": 9,
+		"title": "A Shaft Caves In",
+		"text": "A digging collapses in the night; cut stone is buried and a week's labour is lost.",
+		"effect": {"stone": -18},
+	},
+	{
+		"id": "traveling_smith", "tone": "good", "weight": 6, "min_day": 6,
+		"title": "A Master Smith Passes Through",
+		"text": "A renowned smith offers to work your iron before he travels on. To what end shall he set his hammer?",
+		"choices": [
+			{"label": "Forge tools for the fields (−20 iron, +30 food, +4 popularity)", "effect": {"iron": -20, "food": 30, "popularity": 4}},
+			{"label": "Forge arms for the watch (−20 iron, +15 prestige)", "effect": {"iron": -20, "prestige": 15}},
+		],
+	},
 ]
 
 # Whether an event waits on a player decision (has choices) rather than auto-resolving.

@@ -15,12 +15,34 @@ func _init() -> void:
 	_test_min_day_gating()
 	_test_choice_events()
 	_test_seasonal_gating()
+	_test_material_events()
 	print("\n=== World Events Results: %d passed, %d failed ===" % [_pass, _fail])
 	quit(0 if _fail == 0 else 1)
 
 func ok(label: String, cond: bool) -> void:
 	if cond: _pass += 1; print("  PASS: %s" % label)
 	else: _fail += 1; print("  FAIL: %s" % label)
+
+# iter71: stone/iron windfalls + an iron-sink smith choice (close the materials gap).
+func _test_material_events() -> void:
+	print("\n[Material events — stone/iron windfalls + smith sink]")
+	# The new windfalls exist and a plain-effect apply credits the right resource.
+	var iron_ev := WorldEventSystem.event_by_id("iron_vein")
+	var stone_ev := WorldEventSystem.event_by_id("quarry_seam")
+	ok("iron_vein and quarry_seam are defined", not iron_ev.is_empty() and not stone_ev.is_empty())
+	ok("iron_vein grants iron", int(iron_ev.get("effect", {}).get("iron", 0)) > 0)
+	ok("quarry_seam grants stone", int(stone_ev.get("effect", {}).get("stone", 0)) > 0)
+	# The smith choice is a real iron SINK: forging tools spends iron and yields food.
+	var p := _player()  # iron: 20
+	var out := WorldEventSystem.resolve(p, "traveling_smith", 0)  # forge tools: −20 iron, +30 food
+	ok("smith resolve returns a summary", not out.is_empty())
+	ok("forging tools spent the iron", int(p["resources"].get("iron", 99)) == 0)
+	ok("forging tools fed the realm", int(p["food"].get("apples", 0)) == 130)
+	# Iron clamps at 0 even if a sink exceeds the stockpile (no negative resources).
+	var p2 := _player(); p2["resources"]["iron"] = 5
+	WorldEventSystem.resolve(p2, "traveling_smith", 1)  # forge arms: −20 iron, +15 prestige
+	ok("iron never goes negative from a sink", int(p2["resources"].get("iron", -1)) == 0)
+	ok("forging arms granted prestige", float(p2.get("prestige", 0.0)) >= 15.0)
 
 func _player() -> Dictionary:
 	return {

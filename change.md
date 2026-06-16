@@ -26,6 +26,36 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 71 — 2026-06-16  (Content density: stone/iron events close the materials gap)
+
+### Source
+Content-Density heuristic + top backlog item. The 35-event pool had a wood windfall (Storm-Felled Timber) but
+**no stone or iron** events at all — yet stone gates walls and iron gates the armory/recruits, the prep that lets
+a seat endure the warlords' sieges. The materials that keep you alive never showed up in the realm's life.
+
+### Change made (simulation/world/WorldEventSystem.gd)
+Four new events (data-only, bounded, clamped — positive-leaning balance preserved):
+- **A Rich Quarry Seam** (good, min_day 4): +45 stone — fortify before the sieges.
+- **A Vein of Iron** (good, min_day 5): +30 iron — feed the smith.
+- **A Shaft Caves In** (bad, min_day 9): −18 stone — a balancing setback so the windfalls aren't free.
+- **A Master Smith Passes Through** (choice, min_day 6): an iron **sink** — forge tools (−20 iron → +30 food,
+  +4 popularity) or arms (−20 iron → +15 prestige). Closes a gain→spend loop with the new iron windfall.
+
+### Verified
+- **New TestWorldEvents suite (`_test_material_events`, 46/0):** windfalls credit the right resource; the smith
+  choice truly spends iron (tools path: iron 20→0, food 100→130; arms path on 5 iron clamps to 0, +prestige).
+  Pool still passes structural validation (unique ids, required fields, good+bad tones) and bounded-effects
+  (no resource < 0). **Full suite: 0 FAIL across all 24 test files.** City view boots clean.
+
+### Post-mortem
+- **Content density / loop reinforcement:** 35→39 events (less repetition over a 100-day run), and the additions
+  feed the defence-prep loop directly — stone/iron now arrive through the realm's life, with a smith to spend them.
+  Low-risk, data-shaped.
+
+### Backlog / next
+1. Late-game milestone for a large standing army (military tracking is split levy/recruit — unify first).
+2. Richer battle/siege feedback on the world map; more seasonal/decision events as desired.
+
 ## Iteration 70 — 2026-06-16  (World map: glanceable army tags + hover-to-inspect)
 
 ### Source
