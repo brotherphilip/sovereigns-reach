@@ -26,6 +26,38 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 97 — 2026-06-17  (Honest trade feedback — stop confirming buys that failed)
+
+### Source
+Fresh-eyes pass on the market/trade system. Logic + UI are solid (buy/sell with price-trend glyphs and tooltips,
+well covered by TestPhase4). But the *feedback* was dishonest.
+
+### Bug (UX / misleading feedback)
+- Both view paths (`CityViewScene`, `GameBootstrap`) showed **"Bought 10 wood" / "Sold 10 wood" optimistically the
+  instant you clicked** — *before* the command resolved. So a trade that actually FAILS (trade embargo from a
+  refused tribute, insufficient gold, or no market building) still flashed a false "Bought!" confirmation, while
+  the real failure (`MarketSystem` returns `{ok:false, message:"Insufficient gold (need 120)"}` etc.) was silent.
+
+### Change made
+- **`simulation/core/GameState.gd`** (`_cmd_buy_resource` / `_cmd_sell_resource`): now emit the **authoritative**
+  result via `EventBus.realm_notice` for the human player — on success *"Bought 10 wood for 120 gold."* with the
+  REAL cost/earned, on failure *"Trade failed: Insufficient gold (need 120)."* (the actual reason).
+- **`view/cityview/CityViewScene.gd` + `view/main/GameBootstrap.gd`:** removed the optimistic "Bought/Sold" notices
+  — feedback now comes only from the resolved result (surfaced through the existing `realm_notice` → notification).
+
+### Verified
+- **Full suite: 0 FAIL across all 27 files** (Phase4 market tests 60/0, Economy 13/0 — `MarketSystem.buy/sell`
+  result shapes that the fix forwards are already covered). **Live boot clean** — GameState loads with the new
+  emits. (The emit is thin wiring over already-tested results; verified by boot + suite.)
+
+### Post-mortem
+- **UX / honest feedback:** trade now tells the truth — real cost on success, the real reason on failure — closing
+  a gap where a player could think they bought goods they never received (esp. under an embargo). Same authoritative
+  pattern already used for edicts/research. Minimal sim touch; no balance change.
+
+### Backlog / next
+1. (Carried) live siege-landing confirmation; ear-check narration; ear-tune SFX; more content as warranted.
+
 ## Iteration 96 — 2026-06-17  (Fresh-eyes playtest of Tech/Edicts → fix the right-panel overlap)
 
 ### Source

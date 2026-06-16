@@ -1857,7 +1857,12 @@ func _cmd_buy_resource(cmd: Dictionary) -> bool:
 	)
 	if result.get("ok", false):
 		EventBus.gold_changed.emit(pid, old_gold, players[pid].get("gold", 0))
+		if pid == 0:
+			EventBus.realm_notice.emit("Bought %d %s for %d gold." % [
+				int(payload.get("amount", 0)), String(payload.get("resource", "")), int(result.get("cost", 0))], "good")
 		return true
+	if pid == 0:
+		EventBus.realm_notice.emit("Trade failed: %s." % String(result.get("message", "the market refused")), "bad")
 	return false
 
 func _cmd_sell_resource(cmd: Dictionary) -> bool:
@@ -1874,7 +1879,12 @@ func _cmd_sell_resource(cmd: Dictionary) -> bool:
 	)
 	if result.get("ok", false):
 		EventBus.gold_changed.emit(pid, old_gold, players[pid].get("gold", 0))
+		if pid == 0:
+			EventBus.realm_notice.emit("Sold %d %s for %d gold." % [
+				int(payload.get("amount", 0)), String(payload.get("resource", "")), int(result.get("earned", 0))], "good")
 		return true
+	if pid == 0:
+		EventBus.realm_notice.emit("Trade failed: %s." % String(result.get("message", "the market refused")), "bad")
 	return false
 
 func _cmd_set_game_speed(cmd: Dictionary) -> bool:

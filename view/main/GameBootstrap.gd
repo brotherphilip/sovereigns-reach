@@ -262,12 +262,12 @@ func _on_activate_edict(edict_id: String) -> void:
 	_hud.show_notification("Edict activated: " + edict_id, 3.0)
 
 func _on_trade_buy(resource: String, amount: int) -> void:
+	# Authoritative feedback comes from EventBus.realm_notice (success with real cost, or the
+	# failure reason) once the trade resolves — no optimistic notice that could falsely confirm.
 	CommandQueue.enqueue(CT_BUY_RESOURCE, {"resource": resource, "amount": amount}, 0)
-	_hud.show_notification("Bought %d %s" % [amount, resource], 2.0)
 
 func _on_trade_sell(resource: String, amount: int) -> void:
 	CommandQueue.enqueue(CT_SELL_RESOURCE, {"resource": resource, "amount": amount}, 0)
-	_hud.show_notification("Sold %d %s" % [amount, resource], 2.0)
 
 # ── Combat and win/loss event handlers ───────────────────────────────────────
 

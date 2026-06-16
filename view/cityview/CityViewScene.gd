@@ -504,12 +504,13 @@ func _on_edict_expired(_pid: int, edict_id: String) -> void:
 	_hud.show_notification("📜 Edict lapsed: " + nm, 3.0)
 
 func _on_trade_buy(resource: String, amount: int) -> void:
+	# Feedback comes from the authoritative EventBus.realm_notice (only after the trade is
+	# actually resolved — success with the real cost, or the failure reason), so no optimistic
+	# "Bought X" notice here that would lie when the buy is refused (embargo/no gold/no market).
 	CommandQueue.enqueue(CT_BUY_RESOURCE, {"resource": resource, "amount": amount}, 0)
-	_hud.show_notification("Bought %d %s" % [amount, resource], 2.0)
 
 func _on_trade_sell(resource: String, amount: int) -> void:
 	CommandQueue.enqueue(CT_SELL_RESOURCE, {"resource": resource, "amount": amount}, 0)
-	_hud.show_notification("Sold %d %s" % [amount, resource], 2.0)
 
 # ── Navigation ────────────────────────────────────────────────────────────────
 
