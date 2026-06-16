@@ -14,7 +14,7 @@ extends Node
 #   objective_updated           → objective_updated     (generic; the goal text is dynamic)
 #   popularity_changed (<crit)  → popularity_critical   (edge-triggered with hysteresis)
 #   popularity_changed (<10)    → realm_fallen          (once; the revolt defeat capstone)
-#   ai_faction_defeated         → kingdom_fallen        (a rival crown is broken)
+#   ai_faction_defeated         → kingdom_fallen, or victory if it was the LAST rival
 
 const WavLoad = preload("res://simulation/audio/WavLoad.gd")
 const DIR := "res://audio/narration/"
@@ -51,7 +51,19 @@ func _ready() -> void:
 	if EventBus.has_signal("popularity_changed"):
 		EventBus.popularity_changed.connect(_on_popularity_changed)
 	if EventBus.has_signal("ai_faction_defeated"):
-		EventBus.ai_faction_defeated.connect(func(_fid): say("kingdom_fallen"))
+		EventBus.ai_faction_defeated.connect(_on_ai_faction_defeated)
+
+# A rival kingdom fell. If it was the LAST one, that's outright victory; otherwise it's
+# one more enemy crown broken.
+func _on_ai_faction_defeated(_faction_id: int) -> void:
+	var gs = get_node_or_null("/root/GameState")
+	var any_alive := false
+	if gs != null:
+		for fac in gs.ai_factions:
+			if fac is Dictionary and fac.get("is_alive", false):
+				any_alive = true
+				break
+	say("victory" if (gs != null and not any_alive and gs.ai_factions.size() > 0) else "kingdom_fallen")
 
 # Popularity dipped: warn once on the downward crossing, re-arm only after recovery.
 # At the revolt floor (<10) the realm falls — speak the defeat capstone once.

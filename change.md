@@ -26,6 +26,33 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 94 — 2026-06-17  (Voice the conquest victory — the last rival falls)
+
+### Source
+iter93 voiced the per-rival triumph (`kingdom_fallen`) and the revolt defeat (`realm_fallen`). The biggest
+positive capstone — winning outright by vanquishing the LAST rival kingdom — was still silent.
+
+### Change made
+- **1 new VO sting** `victory` — "The last rival crown is broken. The realm is yours, sovereign." (grim-herald, no FX).
+- **`NarrationPlayer`:** the `ai_faction_defeated` handler now checks (via `get_node_or_null("/root/GameState")`)
+  whether ANY faction is still alive — if none remain, it speaks `victory`; otherwise `kingdom_fallen`. No new
+  signal; reuses the existing one. (The day-100 reign win stays `reign_day100` from iter78, so both win paths are
+  voiced.)
+
+### Verified
+- **`tests/TestNarration.gd` → 64/0** (victory loads). **Full suite: 0 FAIL across all 27 files.** Live boot clean
+  — the GameState lookup in the autoload handler wires with no errors.
+
+### Post-mortem
+- **Engagement / audio feedback:** both ways to win (endure to Day 100; conquer every rival) and both ways to lose
+  (revolt; — keep-fallen still pending) now have the herald's voice, so the run's outcome always lands with weight.
+  View/audio-side only; zero sim/balance impact.
+
+### Backlog / next
+1. The last silent capstone: **keep-fallen defeat** (siege razes the hall while popularity is fine → no VO today;
+   needs a building_destroyed keep-check). Then the win/loss VO set is complete.
+2. (Carried) live siege-landing confirmation; ear-check narration; ear-tune SFX; fresh-eyes playtest of Tech/Edicts.
+
 ## Iteration 93 — 2026-06-17  (Voice the win/loss capstones — a rival falls, the realm falls)
 
 ### Source
