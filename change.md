@@ -26,6 +26,56 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 21 — 2026-06-16  (HUD honesty: the ale-ration row was lying to new players)
+
+### Heuristic focus
+Survival to Day 100 is solved and now *celebrated* (iter 20). So this round targets the directive's
+**Human Experience (UX)** + **"makes sense"** axis: a long-standing backlog wart (flagged iters 4 & 7)
+— the ale-ration display — finally chased to ground and fixed.
+
+### Finding — [MAKES-NO-SENSE] the ale-ration HUD label promised a bonus that didn't exist
+On the realm panel, the **Ale Ration** row showed an effect descriptor next to it. At the default
+("Half", level 1) it read **"½ bonus"** in neutral grey — implying a half-strength popularity boost
+from ale was active. It was a **double lie**:
+1. **No inn → no effect.** `PopularityEngine._ale_score` multiplies the ration's base by
+   `inn_coverage`, which is **0 until you build an Inn**. A fresh village (no inn, 0 ale) gets exactly
+   **0** popularity from ale, no matter the ration — yet the HUD claimed "½ bonus".
+2. **Level 1 is the neutral baseline anyway.** `ALE_RATION_POPULARITY[1] = 0` (Low = neutral). The
+   real bonus only starts at Normal (level 2 = +5). So even *with* an inn, "½ bonus" at level 1 was
+   wrong — it's 0.
+The popularity *tooltip* (HUDController) already computed ΔAle = base × inn_coverage correctly, so the
+inline row label silently contradicted the game's own breakdown. A new player tuning rations got false
+feedback on a core morale lever.
+
+### Changes made
+- **HUDController.get_ale_ration_effect(ale_ration, inn_coverage) → {text, tone}** (new, testable):
+  the honest descriptor. `inn_coverage <= 0` → **"no inn"** (neutral); else by the *actual* base —
+  level 0 = "↓pop" (bad), level 1 = "neutral", level 2+ = "↑pop" (good).
+- **HUDNode**: the ale-ration delta label now calls the helper (passing live `inn_coverage`) and maps
+  tone→colour, instead of the old ration-level-only "↓pop / ½ bonus / ↑pop" guess.
+- **TestPhase7**: +6 assertions — no-inn shows "no inn" at any ration; with an inn, level 0 hurts /
+  level 1 neutral / level 2 helps. Suite now 99/0.
+
+### Verified
+- Headless: the 6 new assertions pass; TestPhase4 (popularity) unchanged 60/0; TestPhase7 99/0.
+- **Live (real game on Xvfb)**: launched a fresh village, screenshotted the realm panel — the Ale
+  Ration row now reads **"no inn"** in grey (was "½ bonus"), Food Ration "normal", Tax "neutral".
+  The HUD no longer promises a morale bonus the player isn't receiving. The view code parses & renders
+  clean (game initialized, HUD drew correctly).
+
+### Post-mortem (no failure to analyse — survival is solved)
+- **Failure point:** n/a — this is an engagement/legibility fix, not a survival blocker.
+- **Fun/UX:** removes a small but corrosive trust-breaker — a HUD that lies about cause→effect makes
+  every other readout suspect. Honest feedback on the ration levers makes the management loop legible.
+- **Content density:** unchanged this round; the ale row now also *teaches* — "no inn" quietly points
+  the player at the Inn as the prerequisite for the ale morale lever.
+
+### Backlog / next
+- Worker labour cap (auto-staff can exceed idle villagers) — last untouched sim-correctness backlog item.
+- Strategic/world-map actions as the human (develop city / raise army / campaign / diplomacy) — still
+  largely unexercised; a future deep-dive.
+- More content (events/objectives); late-game popularity smoothing; a natural fresh-eyes onboarding pass.
+
 ## Iteration 20 — 2026-06-16  ⚜ THE GOAL HAS A PAYOFF NOW (Day-100 reign milestone)
 
 ### Finding

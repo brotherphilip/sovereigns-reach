@@ -431,15 +431,15 @@ func _refresh_right_panel() -> void:
 		_food_ration_delta.add_theme_color_override("font_color", Color.LIGHT_GREEN)
 
 	var ale_lvl: int = int(p.get("ale_ration", 1))
-	if ale_lvl == 0:
-		_ale_ration_delta.text = "↓pop"
-		_ale_ration_delta.add_theme_color_override("font_color", Color.ORANGE_RED)
-	elif ale_lvl == 1:
-		_ale_ration_delta.text = "½ bonus"
-		_ale_ration_delta.add_theme_color_override("font_color", Color.GRAY)
-	else:
-		_ale_ration_delta.text = "↑pop"
-		_ale_ration_delta.add_theme_color_override("font_color", Color.LIGHT_GREEN)
+	var ale_fx: Dictionary = HUDController.get_ale_ration_effect(ale_lvl, float(p.get("inn_coverage", 0.0)))
+	_ale_ration_delta.text = ale_fx.get("text", "")
+	var ale_tone: String = ale_fx.get("tone", "neutral")
+	var ale_col: Color = Color.GRAY
+	if ale_tone == "good":
+		ale_col = Color.LIGHT_GREEN
+	elif ale_tone == "bad":
+		ale_col = Color.ORANGE_RED
+	_ale_ration_delta.add_theme_color_override("font_color", ale_col)
 
 	if _pop_count_label != null:
 		_pop_count_label.text = "Pop: %d" % int(p.get("population", 0))

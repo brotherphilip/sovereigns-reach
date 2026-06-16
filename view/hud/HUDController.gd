@@ -74,6 +74,22 @@ static func get_ration_label(level: int) -> String:
 		return "?"
 	return RATION_LABELS[level]
 
+# Honest descriptor for the ale-ration row's popularity effect.
+# Ale only sways popularity once an Inn is actually serving it (inn_coverage > 0),
+# and even then level 1 ("Low") is the neutral baseline (base 0) — so labelling the
+# default as "½ bonus" with no inn was doubly misleading. Returns {text, tone}
+# where tone is "good" | "bad" | "neutral" (HUD maps tone → colour).
+static func get_ale_ration_effect(ale_ration: int, inn_coverage: float) -> Dictionary:
+	const ALE_POP: Dictionary = {0: -8, 1: 0, 2: 5, 3: 10, 4: 16}
+	if inn_coverage <= 0.001:
+		return {"text": "no inn", "tone": "neutral"}
+	var base: int = int(ALE_POP.get(ale_ration, 0))
+	if base < 0:
+		return {"text": "↓pop", "tone": "bad"}
+	elif base == 0:
+		return {"text": "neutral", "tone": "neutral"}
+	return {"text": "↑pop", "tone": "good"}
+
 # Returns the display label for a tax rate (-3 to +3).
 static func get_tax_label(rate: int) -> String:
 	var idx: int = clampi(rate + 3, 0, TAX_LABELS.size() - 1)

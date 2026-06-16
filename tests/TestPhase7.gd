@@ -118,6 +118,14 @@ func _test_hud_controller() -> void:
 	ok("ration label 4=Double", HUDController.get_ration_label(4) == "Double")
 	ok("ration label out-of-range=?", HUDController.get_ration_label(5) == "?")
 
+	# 10b. Ale-ration effect is honest about the Inn gate (fresh village = no inn = no effect)
+	ok("ale fx no inn -> 'no inn'", HUDController.get_ale_ration_effect(1, 0.0).get("text") == "no inn")
+	ok("ale fx no inn even at double -> 'no inn'", HUDController.get_ale_ration_effect(4, 0.0).get("text") == "no inn")
+	ok("ale fx no inn tone neutral", HUDController.get_ale_ration_effect(4, 0.0).get("tone") == "neutral")
+	ok("ale fx with inn, low(1) is neutral baseline", HUDController.get_ale_ration_effect(1, 1.0).get("tone") == "neutral")
+	ok("ale fx with inn, none(0) hurts", HUDController.get_ale_ration_effect(0, 1.0).get("tone") == "bad")
+	ok("ale fx with inn, normal(2) helps", HUDController.get_ale_ration_effect(2, 1.0).get("tone") == "good")
+
 	# 11. format_tick_time
 	ok("format tick day 1", HUDController.format_tick_time(240).begins_with("Day 1"))
 
