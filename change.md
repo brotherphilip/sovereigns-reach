@@ -26,6 +26,41 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 84 — 2026-06-17  (Three new decisions + a settled finding on headless survival tests)
+
+### Source
+Probed the deferred "headless 100-day survival regression" first: a one-line experiment confirmed that under
+`--script`, the autoload identifier `EventBus` does NOT resolve ("Identifier not found"). Since `GameState.gd`
+uses `EventBus` as a bare global throughout, it can't even be *loaded* in a `--script` test — so that regression
+needs either a GameState refactor (decouple EventBus) or a full scene-tree fast-forward runner. **Properly
+deferred** (logged below). Pivoted to the engagement half of the goal: more **decision events** — the richest,
+most interactive content the realm offers (they pause time and demand a real choice).
+
+### Change made
+- **`simulation/world/WorldEventSystem.gd`:** +3 choice events (bounded, can't end a run), each with a genuine
+  trade-off and a fresh theme:
+  - **A Grand Tourney** (day 14+): host for −60 gold → +8 popularity, +12 prestige, or keep the coin.
+  - **A Marriage Alliance** (day 18+): pay a −70 gold dowry → +20 prestige, +4 popularity, or decline.
+  - **A Neighbour's Plea** (day 10+): send grain (−25 food → +6 pop, +8 prestige) or refuse (−3 pop) — a moral beat.
+- **VO per the standing rule:** rendered `audio/narration/event_{grand_tourney,marriage_alliance,neighbours_plea}.wav`
+  (same grim-herald recipe — Chatterbox serious/0.85, plain text, no FX, 16-bit mono PCM). No code change needed —
+  `NarrationPlayer` + `EventChoicePanel` handle them generically.
+
+### Verified
+- **TestWorldEvents 46/0** (event schema/tick/resolve still valid), **TestNarration 60/0** (key-parity now covers
+  the 3 new ids — a content event without a clip would fail the suite). **Full suite: 0 FAIL across all 26 files.**
+- **Live Xvfb boot clean** — the expanded EVENTS array loads with no parse/runtime errors.
+
+### Post-mortem
+- **Content density / "fun factor":** decision events are the highest-engagement content per the Phase-4 heuristics
+  — three more means more variety and more meaningful choices across a 100-day reign, with no balance risk (effects
+  bounded, choices optional). The VO rule + key-parity test made "add content" automatically pull its own audio.
+
+### Backlog / next
+1. **Deferred (needs design):** headless survival regression — extract a sim tick-orchestrator that takes EventBus
+   as a parameter (testable), OR a scene-tree headless runner that fast-forwards the clock to day 100.
+2. (Carried) ear-check narration takes; standing-army milestone; ear-tune SFX; more events as warranted.
+
 ## Iteration 83 — 2026-06-17  (Make the auto-re-point legible: a tab pulse)
 
 ### Source

@@ -35,7 +35,7 @@
 <header>
   <h1>⚜ Sovereign's Reach — Systems Reference</h1>
   <p>A medieval city-builder &amp; strategy game in Godot 4.6.3. Living document — updated each dev iteration.</p>
-  <p class="muted">Last updated: iteration 83 (2026-06-17) — build menu follows the objective arc and now PULSES the tab when it auto-re-points (legible guidance, Civic→Food→Defense…); herald VO covers all 41 world events + dynamic-text stings (edict/objective/popularity) + milestones/reign/siege; UI click + procedural event SFX; living ground cover; world-map battle markers</p>
+  <p class="muted">Last updated: iteration 84 (2026-06-17) — +3 decision events (grand tourney, marriage alliance, neighbour's plea), all voiced; build menu follows the objective arc and pulses the tab when it auto-re-points; herald VO covers all 44 world events + dynamic-text stings (edict/objective/popularity) + milestones/reign/siege; UI click + procedural event SFX; living ground cover; world-map battle markers</p>
 </header>
 <nav>
   <a href="#overview">Overview</a>
@@ -196,12 +196,13 @@
   <h2>World Events &amp; Decisions</h2>
   <p><span class="file">simulation/world/WorldEventSystem.gd</span></p>
   <ul>
-    <li><b>34 data-driven daily events</b> (bounded, positive-leaning): merchants, foraging, weddings, a
+    <li><b>44 data-driven daily events</b> (bounded, positive-leaning): merchants, foraging, weddings, a
       wanderer joining, wolves, theft… plus <b>seasonal</b> ones (Spring Fair, Long Summer Days, Harvest
       Home, Harvest Moon, Hearth Tales, First Snow, Deep Frost) gated to their season, and night-flavoured
       beats (A Starlit Night).</li>
     <li><b>Choice events</b> (a popup that pauses time): a baron's loan, brigand toll, refugees at the gate,
-      a knight errant, poachers — each with real trade-offs applied via a command.</li>
+      a knight errant, poachers, a grand tourney, a marriage alliance, a neighbour's plea — each with real
+      trade-offs applied via a command.</li>
     <li>Effects are clamped (never below 0 / never instant-revolt); content compounds by adding dict entries.</li>
     <li><b>Fully voiced (iter 79):</b> all 41 events have a "grim war herald" VO (<span class="file">audio/narration/event_&lt;id&gt;.wav</span>, raw Chatterbox, no FX) that <span class="file">NarrationPlayer</span> speaks the moment the pop-up appears — the realm narrates its own life.</li>
   </ul>

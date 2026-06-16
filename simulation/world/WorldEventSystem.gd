@@ -333,6 +333,35 @@ const EVENTS: Array = [
 			{"label": "Forge arms for the watch (−20 iron, +15 prestige)", "effect": {"iron": -20, "prestige": 15}},
 		],
 	},
+
+	# ── More decisions (iter84 — variety over the 100-day reign) ─────────────────────
+	{
+		"id": "grand_tourney", "tone": "good", "weight": 6, "min_day": 14,
+		"title": "A Grand Tourney",
+		"text": "Knights clamour to break lances in your honour. A tourney would gladden the realm — but the coffers would feel it.",
+		"choices": [
+			{"label": "Host the tourney (−60 gold, +8 popularity, +12 prestige)", "effect": {"gold": -60, "popularity": 8, "prestige": 12}},
+			{"label": "A quiet season — keep the coin", "effect": {}},
+		],
+	},
+	{
+		"id": "marriage_alliance", "tone": "neutral", "weight": 6, "min_day": 18,
+		"title": "A Marriage Alliance",
+		"text": "A neighbouring house offers a marriage to bind your lines. Their friendship is worth much — and a dowry is expected.",
+		"choices": [
+			{"label": "Pay the dowry (−70 gold, +20 prestige, +4 popularity)", "effect": {"gold": -70, "prestige": 20, "popularity": 4}},
+			{"label": "Decline the match", "effect": {}},
+		],
+	},
+	{
+		"id": "neighbours_plea", "tone": "neutral", "weight": 6, "min_day": 10,
+		"title": "A Neighbour's Plea",
+		"text": "A neighbouring village, struck by fire, begs grain to see them through. Charity, or do you husband your own stores?",
+		"choices": [
+			{"label": "Send grain (−25 food, +6 popularity, +8 prestige)", "effect": {"food": -25, "popularity": 6, "prestige": 8}},
+			{"label": "Refuse — our own come first (−3 popularity)", "effect": {"popularity": -3}},
+		],
+	},
 ]
 
 # Whether an event waits on a player decision (has choices) rather than auto-resolving.
