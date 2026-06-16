@@ -348,6 +348,23 @@ func _test_medium_fixes() -> void:
 	var p_gold: Dictionary = _fresh_player(60)
 	p_gold["gold"] = 400
 	ok("treasury_300 fires at 300+ gold", "treasury_300" in MilestoneSystem.check(p_gold, _gs.world, {}, [], 5))
+	# standing_army fires once the player musters STANDING_ARMY_SIZE living soldiers (iter84/85).
+	var p_army: Dictionary = _fresh_player(60)
+	p_army["units"] = []
+	for _i in range(MilestoneSystem.STANDING_ARMY_SIZE - 1):
+		p_army["units"].append({"is_alive": true})
+	ok("standing_army does NOT fire below the threshold",
+		"standing_army" not in MilestoneSystem.check(p_army, _gs.world, {}, [], 5))
+	p_army["units"].append({"is_alive": true})  # now at the threshold
+	ok("standing_army fires at %d living soldiers" % MilestoneSystem.STANDING_ARMY_SIZE,
+		"standing_army" in MilestoneSystem.check(p_army, _gs.world, {}, [], 5))
+	# Dead units don't count toward the standing army.
+	var p_dead: Dictionary = _fresh_player(60)
+	p_dead["units"] = []
+	for _i in range(MilestoneSystem.STANDING_ARMY_SIZE + 2):
+		p_dead["units"].append({"is_alive": false})
+	ok("standing_army ignores the fallen", "standing_army" not in MilestoneSystem.check(p_dead, _gs.world, {}, [], 5))
+
 	# Latch EVERY milestone → a subsequent check (even at day 60, rich) earns nothing.
 	var latched: Dictionary = {}
 	for mid in MilestoneSystem.DEFINITIONS.keys():

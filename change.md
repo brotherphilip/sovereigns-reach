@@ -26,6 +26,38 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 85 — 2026-06-17  (A standing-army milestone — close the military reward gap)
+
+### Source
+Carried backlog. The milestone reward loop (the steady "you did X, +50 prestige" drumbeat that keeps the long
+middle of the run feeling like progress) covered economy, population, buildings, treasury and survival — but had
+**no military beat**, even though raising a force is the very thing that lets a seat outlast the warlord siege
+(the run's main loss condition). A player who invests in soldiers got no acknowledgement.
+
+### Change made
+- **`simulation/core/MilestoneSystem.gd`:** new `standing_army` milestone — fires when the player musters
+  `STANDING_ARMY_SIZE` (5) **living** soldiers (`player.units` with `is_alive`). Counts only the living, so the
+  fallen don't paper over losses. Placed in the mid/late tier so it lands when the player is readying for war.
+  Label: *"Five soldiers answer your call — a standing company musters."* (+50 prestige like the rest.)
+- **VO per the standing rule:** `audio/narration/milestone_standing_army.wav` (grim-herald recipe, no FX).
+  Fires through the existing `milestone_earned → milestone_<id>` path — no wiring change.
+
+### Verified
+- **TestPhase10 78/0** (new: fires at 5 living soldiers, NOT at 4, and ignores the fallen — plus the existing
+  "all latched never re-fire" sweep now covers the new id). **TestNarration 61/0** (key parity requires + finds
+  the new clip). **Full suite: 0 FAIL across all 26 files.** Live Xvfb boot clean.
+
+### Post-mortem
+- **Engagement / reward loop:** every major investment axis a player can pursue across the 20 minutes —
+  economy, people, building out, wealth, *and now arms* — has a milestone that rewards it, so the prestige
+  drip never goes silent for the military-leaning player. Sim-layer + fully unit-tested; zero balance risk
+  (latched one-time prestige, same as the others).
+
+### Backlog / next
+1. **Deferred (needs design):** headless survival regression (decouple GameState from the EventBus autoload, or a
+   scene-tree fast-forward runner).
+2. (Carried) ear-check narration takes; ear-tune SFX; deeper mid-game playtest; more events/milestones as warranted.
+
 ## Iteration 84 — 2026-06-17  (Three new decisions + a settled finding on headless survival tests)
 
 ### Source

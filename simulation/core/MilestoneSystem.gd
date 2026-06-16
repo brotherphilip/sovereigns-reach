@@ -20,8 +20,13 @@ const DEFINITIONS: Dictionary = {
 	"first_watchtower": "The first watchtower rises — your seat can weather a siege.",
 	"town_of_ten":      "Ten buildings stand — your settlement is now a town.",
 	"treasury_300":     "Three hundred gold in the treasury — a prosperous realm.",
+	"standing_army":    "Five soldiers answer your call — a standing company musters.",
 	"reign_day_50":     "Fifty days of rule — half a season survived, and the realm holds.",
 }
+
+# A standing army of this many living soldiers earns the standing_army milestone — a
+# military reward signpost beyond the wall-or-unit siege-readiness check.
+const STANDING_ARMY_SIZE: int = 5
 
 # Returns Array[String] of milestone ids newly earned this call.
 # Mutates milestones dict in-place (adds earned keys = true).
@@ -77,6 +82,15 @@ static func check(player: Dictionary, _world: Dictionary, milestones: Dictionary
 		if player.get("gold", 0) >= 300:
 			milestones["treasury_300"] = true
 			earned.append("treasury_300")
+
+	if not milestones.has("standing_army"):
+		var soldiers: int = 0
+		for u in player.get("units", []):
+			if u is Dictionary and u.get("is_alive", false):
+				soldiers += 1
+		if soldiers >= STANDING_ARMY_SIZE:
+			milestones["standing_army"] = true
+			earned.append("standing_army")
 
 	if not milestones.has("reign_day_50"):
 		if day >= 50:
