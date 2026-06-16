@@ -26,6 +26,45 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 61 — 2026-06-16  (Siege balance: fix the 48-day assembly bug → telegraphed, paced, mitigable sieges)
+
+### Source
+Iter-60 observation: mid-game lacked real pressure. Root cause found this cycle.
+
+### Diagnosis (a latent bug + missing mitigation)
+- `SIEGE_ASSEMBLY_TICKS = TICKS_PER_DAY * 48` = **48 game-days** (the comment said "48h"). A siege took ~9.6
+  real minutes to muster, so sieges almost never landed in a 20-min/100-day session — the mid-game had no
+  teeth (explains the too-comfortable survival in iters 54/60).
+- Defences didn't reduce the abstract siege's flat 150 damage, so a player couldn't meaningfully "prepare."
+
+### Change made
+- **AIFaction:** `SIEGE_ASSEMBLY_TICKS` 48 → **4 game-days** (a clear, telegraphed muster). Added
+  `SIEGE_COOLDOWN_DAYS = 15` and a cooldown gate in `should_attack` (no back-to-back sieges).
+- **GameState siege resolution:** seat damage is now **75 if the ruler is `is_siege_ready`** (walls/towers/
+  garrison ≥ 3) **else 150** — so the pre-siege warning is actionable and defending genuinely pays off. Emits
+  a `siege_struck_defended`/`siege_struck_open` event.
+- **MacroViewController:** the siege-tent progress + ETA now derive from `AIFaction.SIEGE_ASSEMBLY_TICKS`
+  (was a duplicated hardcoded `240*48`), so the on-map countdown stays correct.
+
+### Balance (with hall 500 HP, ~day-30 King's Peace lift, 15-day cooldown)
+- **Defended:** ~75/siege every 15 days → survives to day 100 (tense, ~125 HP left). **Undefended:** 150/siege
+  → seat falls ~day 79. Defending is necessary *and* sufficient → fair but demanding.
+
+### Verified
+- **New tests (TestPhase6):** cooldown blocks back-to-back sieges; faction can siege again after the cooldown;
+  muster is a short telegraph (≤7 days). TestPhase7 tent-progress updated for the 4-day muster.
+- **Tests:** full suite **1085 assertions, 0 failed**. City view boots clean (no runtime errors).
+
+### Post-mortem
+- The mid-to-late game now has genuine, telegraphed, paced siege pressure that rewards preparation — the
+  "challenges fair but demanding" beat the 20-min loop needed. The existing `ai_siege_assembling` warning +
+  the corrected ETA give the player a real window to ready defences.
+
+### Backlog / next
+1. A louder in-HUD siege-landing notification ("walls hold!" / "seat gutted!") wired from the new events.
+2. Fresh full playtest to confirm a defended run survives to day 100 with the new pressure.
+3. (Carried) marching-army inspect + stance toggle; distance-scaled strategic travel.
+
 ## Iteration 60 — 2026-06-16  (Live verification: the diplomacy depth loop works end-to-end)
 
 ### Plan

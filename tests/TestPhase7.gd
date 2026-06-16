@@ -467,7 +467,7 @@ func _test_macro_view_controller() -> void:
 		"threat_level": 0.6,
 		"siege_assembly": {
 			"target_player_id": 0, "target_x": 50, "target_y": 50,
-			"ticks_elapsed": 240 * 24,  # 24 game-days elapsed of 48
+			"ticks_elapsed": 240 * 2,  # 2 game-days elapsed of the 4-day muster
 		}
 	}]
 	var tents: Array = MacroViewController.get_siege_tent_data(tents_factions)

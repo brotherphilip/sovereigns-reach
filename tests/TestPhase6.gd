@@ -397,6 +397,19 @@ func _test_ai_factions() -> void:
 	DiplomacySystem.refuse({"id": 0, "popularity": 50.0}, dipf2)
 	ok("refusing tribute nurses a persistent grievance", dipf2.get("grievance", 0.0) > g0)
 
+	# 8c. Sieges are paced + telegraphed (fair-but-demanding mid-game escalation).
+	var sf := BanditKing.make(11, 0, 0)
+	sf["days_alive"] = AIFaction.PLAYER_GRACE_DAYS + 5
+	sf["threat_level"] = 80.0
+	var t_now := 200 * 240
+	sf["last_attack_tick"] = t_now - 3 * 240   # attacked 3 days ago (within cooldown)
+	ok("siege cooldown blocks back-to-back sieges",
+		AIFaction.should_attack(sf, player_stub, t_now).get("attack") == false)
+	sf["last_attack_tick"] = t_now - (AIFaction.SIEGE_COOLDOWN_DAYS + 1) * 240   # past cooldown
+	ok("after the cooldown the faction can siege again",
+		AIFaction.should_attack(sf, player_stub, t_now).get("attack") == true)
+	ok("siege musters in a short telegraph (~days, not 48)", AIFaction.SIEGE_ASSEMBLY_TICKS <= 240 * 7)
+
 	# 9. Ashen tribute demands after 14+ game-days
 	var ab2: Dictionary = AshenBarony.make(8, 0, 0)
 	var player_stub2 := [{"id": 0, "is_alive": true, "keep_x": 5, "keep_y": 5}]

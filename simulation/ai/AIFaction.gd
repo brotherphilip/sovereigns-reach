@@ -41,7 +41,14 @@ const ARCHETYPE_IRONHAND     = "ironhand"
 const ARCHETYPE_ASHEN_BARONY = "ashen_barony"
 
 # Siege tent assembly: 48 game-days (GDD §1.1.4)
-const SIEGE_ASSEMBLY_TICKS: int = TICKS_PER_DAY * 48
+# A siege musters over ~4 game-days, telegraphed on the macro map and via the
+# "siege assembling" warning, so the player has a clear window to ready defences.
+# (Was mistakenly TICKS_PER_DAY * 48 = 48 days — sieges almost never landed in a
+# 20-min/100-day session, leaving the mid-game with no real pressure.)
+const SIEGE_ASSEMBLY_TICKS: int = TICKS_PER_DAY * 4
+# Minimum days between sieges from one faction, so they're paced (a recurring,
+# survivable threat) rather than back-to-back once the threshold is crossed.
+const SIEGE_COOLDOWN_DAYS: int = 15
 
 # "King's Peace" — establishment grace. A freshly-arrived faction will not launch
 # a siege against a player for its first PLAYER_GRACE_DAYS (≈ the first 6 real
@@ -278,6 +285,10 @@ static func should_attack(faction: Dictionary, players: Array, tick: int = 0) ->
 		return {"attack": false, "target_player_id": -1}
 	# Tribute recently paid buys peace — an appeased faction won't besiege you yet.
 	if tick > 0 and tick < int(faction.get("tribute_peace_until", 0)):
+		return {"attack": false, "target_player_id": -1}
+	# Pace sieges: no new assault within SIEGE_COOLDOWN_DAYS of the last one landing.
+	var last_atk: int = int(faction.get("last_attack_tick", 0))
+	if tick > 0 and last_atk > 0 and tick - last_atk < SIEGE_COOLDOWN_DAYS * TICKS_PER_DAY:
 		return {"attack": false, "target_player_id": -1}
 
 	var arch: String = faction.get("archetype", "")

@@ -1329,12 +1329,17 @@ func simulate_tick(tick: int) -> void:
 									shire["owner_is_player"] = false
 									EventBus.shire_ownership_changed.emit(captured_id, old_owner, faction.get("id", -1))
 									break
-						# Siege damage: deal 150 HP to the village hall (defeat = 3-4 sieges)
+						# Siege damage to the seat. A PREPARED ruler (walls/towers/garrison)
+						# blunts the assault badly; an undefended seat is gutted — so the
+						# pre-siege warning is actionable and defending genuinely pays off.
+						var siege_dmg: int = 75 if is_siege_ready(tgt) else 150
+						EventBus.command_processed.emit({"type": "ai_event",
+							"event": ("siege_struck_defended" if is_siege_ready(tgt) else "siege_struck_open")}, true)
 						for bld in tgt.get("buildings", []):
 							if not bld is Dictionary:
 								continue
 							if bld.get("type", "") in ["village_hall", "keep"]:
-								if BuildingState.take_damage(bld, 150):
+								if BuildingState.take_damage(bld, siege_dmg):
 									PrestigeSystem.apply_defeat_loss(tgt)
 									EventBus.building_destroyed.emit(tgt.get("id", 0), bld.get("id", -1), "siege")
 								break

@@ -121,7 +121,7 @@ static func get_siege_tent_data(ai_factions: Array) -> Array:
 			continue
 		var asm: Dictionary = fac["siege_assembly"]
 		var elapsed: int    = asm.get("ticks_elapsed", 0)
-		var total: int      = 240 * 48  # SIEGE_ASSEMBLY_TICKS
+		var total: int      = preload("res://simulation/ai/AIFaction.gd").SIEGE_ASSEMBLY_TICKS
 		var progress: float = clampf(float(elapsed) / float(total), 0.0, 1.0)
 		var remaining: int  = maxi(0, total - elapsed)
 		var days_left: int  = remaining / 240
