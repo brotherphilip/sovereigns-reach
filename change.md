@@ -26,6 +26,39 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 78 — 2026-06-16  (Spoken narration: a herald voices the key pop-ups)
+
+### Source
+User directive: the game's pop-ups/instructions should be spoken by a narrator. After auditioning voices in the
+Vocalis TTS studio (~/Documents/Projects/TTS), the user chose a "grim war herald" — and was clear it must be the
+**raw performance, no audio effects** (reverb/pitch/EQ were rejected). New standing rule: every pop-up gets a VO;
+add one whenever a missing one is noticed.
+
+### Change made
+- **Pre-rendered VO** (Vocalis/Chatterbox, style=serious intensity 0.85, plain text, **no FX** — just transcoded
+  to 16-bit mono PCM) in `audio/narration/<key>.wav`: all **9 milestones** (lines match their on-screen labels),
+  **reign_day100**, and **siege_incoming**.
+- **`simulation/audio/WavLoad.gd`:** loads a raw 16-bit WAV → AudioStreamWAV at runtime (no Godot import step;
+  missing file → null → silent).
+- **`simulation/audio/NarrationPlayer.gd`** (new autoload): connects EventBus signals → plays the matching clip
+  (latest line cuts off any still playing). Map: `milestone_earned(id)`→`milestone_<id>`;
+  `sovereign_reign_reached`→`reign_day100`; `ai_siege_assembling`→`siege_incoming`; `world_event(id)`→`event_<id>`
+  (silent until those files exist). Adding a VO for an existing trigger = just drop in the `.wav`.
+
+### Verified
+- **New `tests/TestNarration.gd` (12/0):** every milestone has a loadable clip (key parity vs MilestoneSystem),
+  reign + siege load, a missing key returns null (graceful silence). **Full suite: 0 FAIL across all 26 files.**
+  Clean boot with the autoload active and a staffed town (milestones firing) — no errors.
+
+### Post-mortem
+- **Engagement / UX:** the realm now speaks at its big moments. System is generic + data-driven — the ~40 world
+  events, objectives, and other pop-ups can be voiced by dropping in more keyed clips (next batches).
+- **Lesson logged:** no post-FX on the narration (user rejected them); the raw Chatterbox take is the voice.
+
+### Backlog / next
+1. Voice the ~40 WorldEventSystem events (`event_<id>.wav`); then objectives / tutorial lines.
+2. (Carried) unify military tracking → standing-army milestone; more seasonal/decision events.
+
 ## Iteration 77 — 2026-06-16  (Audio, part 2: a click for every button)
 
 ### Source
