@@ -26,6 +26,56 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 48 — 2026-06-16  (DESIGN OVERHAUL #2 — wall surface texture: masonry / timber / plank)
+
+### Source
+Same multi-iteration directive: "every building needs much, much more detail and style — they're bland."
+Roadmap step 2 (logged iter 47): **wall surface texture** — stone-course / timber-frame / plank hatching
+per material. Walls were still flat colour fills after the iter-47 roof/shadow pass.
+
+### Method
+Re-used the high-leverage lever: walls are drawn by the single shared `_box` primitive, so adding a
+material-aware texture there lifts every box-building at once (no per-type rewrites). Launched the staffed
+town on Xvfb, zoomed onto the keep + church (the most prominent stone) to confirm the masonry reads, and
+checked the wooden barns.
+
+### Change made (view/micro/BuildingModels.gd)
+- **`_box` now takes a `tex` arg** (TEX_NONE/STONE/TIMBER/PLANK) and routes it through a new `_wall_tex`
+  dispatcher drawn on the two visible front faces, after the face fills and before the base AO grounds them.
+- **`_stone_tex`** — ashlar masonry: horizontal courses + **staggered (brick-bonded) vertical joints**,
+  recessed-mortar colour; course count scales with wall height.
+- **`_timber_tex`** — half-timber framing: vertical studs at intervals + a horizontal mid-rail in dark
+  beams over the (lighter daub) wall fill — the classic medieval look.
+- **`_plank_tex`** — vertical board cladding + a couple of cross-battens, for barns/sheds.
+- **Routed per material:** STONE → keep, great_tower, stone_wall, gatehouse, guildhall, armory, church
+  (nave + bell tower), forge. TIMBER → village_hall, inn. PLANK → trading_post, barracks, brewery, dairy barn.
+- **Removed** the redundant hand-drawn course loops in keep / great_tower / stone_wall and the manual
+  framing lines in village_hall / inn — the shared texture now does it (richer + consistent, less code).
+
+### Verified
+- **Parse:** `load()` of BuildingModels.gd → LOAD_OK.
+- **Live (Xvfb, staffed town):** masonry courses render crisply on the keep and church — both now read as
+  real stone (course rows + offset joints) instead of flat fills; church/keep/bakery/watchtower/brewery/
+  iron-mine all draw correctly; iter-47 roof courses + grounding shadows intact; medieval vibe preserved.
+  Stable through ~day 10, no crashes. Screens: /tmp/iter48_{ring,church_close,keep,brewery}.png.
+- **Tests:** all suites green (1075 assertions, 0 failed). View-only change, logic untouched.
+
+### Post-mortem
+- **UX (Human Experience heuristic):** the buildings are now clearly more detailed and "built" — stone
+  walls have masonry, wood barns have boards, halls/inns have timber framing. Combined with the iter-47
+  roofs/shadows, the town reads far less like papercraft. Two of the four overhaul steps now done with
+  zero risk to logic (shared-primitive lever again).
+- **Content density:** plaster buildings (bakery, hovel) intentionally left untextured — flat plaster is
+  correct for them; the contrast between stone/timber/plank/plaster now helps tell building types apart.
+
+### Backlog / next (overhaul roadmap)
+1. **Per-building hero detail** — bespoke flourishes on high-traffic types (hall, keep, church, market,
+   inn, mill) now that base materials + textures read well.  ← next (iter 49)
+2. ~~Wall surface texture~~ ✓ done (iter 48).
+3. **HUD pass** — top resource bar, popularity/objective panels: spacing, type hierarchy, iconography.
+4. **Menus & panels** — MainMenu, build menu, tech/edict/diplomacy panels.
+- (Carried) Diplomacy depth; a fresh full human playthrough at the new pace.
+
 ## Iteration 47 — 2026-06-16  (DESIGN OVERHAUL #1 — building art: textured roofs, grounded shadows)
 
 ### Source

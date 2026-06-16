@@ -33,15 +33,25 @@ const WATER   := Color(0.18, 0.42, 0.66)
 const RED     := Color(0.74, 0.20, 0.18)
 const EDGE    := Color(0.0, 0.0, 0.0, 0.28)
 
+# Wall surface textures (passed to _box so masonry/timber/plank lift every box-building).
+const TEX_NONE   := 0
+const TEX_STONE  := 1   # ashlar courses + staggered joints
+const TEX_TIMBER := 2   # half-timber framing (studs + mid-rail) over a daub infill
+const TEX_PLANK  := 3   # vertical board cladding (barns/sheds)
+
 # ── Primitives ──────────────────────────────────────────────────────────────────
 
-static func _box(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vector2, ht: float, wall: Color) -> PackedVector2Array:
+static func _box(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vector2, ht: float, wall: Color, tex: int = TEX_NONE) -> PackedVector2Array:
 	var u := Vector2(0, -ht)
 	var tu := t + u; var ru := r + u; var bu := b + u; var lu := l + u
 	# Faces, with a touch more contrast between the shaded and lit sides than before.
 	ci.draw_colored_polygon(PackedVector2Array([l, b, bu, lu]), wall.darkened(0.34))   # front-left (shaded)
 	ci.draw_colored_polygon(PackedVector2Array([b, r, ru, bu]), wall.darkened(0.10))   # front-right (lit)
 	ci.draw_colored_polygon(PackedVector2Array([tu, ru, bu, lu]), wall.lightened(0.08))# top
+	# Surface texture on the two visible front faces (masonry/timber/plank) so the
+	# walls read as built material instead of a flat colour fill.
+	if tex != TEX_NONE:
+		_wall_tex(ci, l, b, r, ht, wall, tex)
 	# Ambient occlusion: the wall grounds darker where it meets the earth, so the
 	# building sits in the world instead of floating as a flat slab.
 	var aoh: float = minf(ht * 0.24, 7.0)
@@ -55,6 +65,65 @@ static func _box(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vector2,
 	ci.draw_polyline(PackedVector2Array([l, b, r]), EDGE, 0.6)
 	ci.draw_polyline(PackedVector2Array([l, lu, bu, ru, r]), EDGE, 0.5)
 	return PackedVector2Array([tu, ru, bu, lu])
+
+# Wall surface texture on the two front faces of a _box. The left face spans l→b
+# (ground) up by ht; the right face spans b→r. Drawn after the face fills so the
+# joints/beams sit on top, before the base ambient-occlusion grounds them.
+static func _wall_tex(ci: CanvasItem, l: Vector2, b: Vector2, r: Vector2, ht: float, wall: Color, kind: int) -> void:
+	match kind:
+		TEX_STONE:  _stone_tex(ci, l, b, r, ht, wall)
+		TEX_TIMBER: _timber_tex(ci, l, b, r, ht, wall)
+		TEX_PLANK:  _plank_tex(ci, l, b, r, ht, wall)
+
+# Ashlar masonry: horizontal courses + staggered vertical joints, brick-bonded so
+# each row offsets the one below. Joint colour is a recessed (darker) mortar line.
+static func _stone_tex(ci: CanvasItem, l: Vector2, b: Vector2, r: Vector2, ht: float, wall: Color) -> void:
+	var joint := wall.darkened(0.26)
+	var n: int = int(clampf(ht / 7.0, 3.0, 7.0))
+	for k in range(1, n):
+		var lo := Vector2(0, -ht * float(k) / float(n))
+		ci.draw_line(l + lo, b + lo, joint, 0.6)
+		ci.draw_line(b + lo, r + lo, joint, 0.6)
+	var per := 3
+	for k in range(n):
+		var y0 := Vector2(0, -ht * float(k) / float(n))
+		var y1 := Vector2(0, -ht * float(k + 1) / float(n))
+		var stag: float = 0.0 if k % 2 == 0 else 0.5
+		for s in range(per + 1):
+			var f := (float(s) + stag) / float(per)
+			if f <= 0.02 or f >= 0.98:
+				continue
+			ci.draw_line(l.lerp(b, f) + y0, l.lerp(b, f) + y1, joint, 0.5)
+			ci.draw_line(b.lerp(r, f) + y0, b.lerp(r, f) + y1, joint, 0.5)
+
+# Half-timber framing: vertical studs at intervals + a horizontal mid-rail, in dark
+# beams over the (lighter daub) wall fill — the classic medieval timber-frame look.
+static func _timber_tex(ci: CanvasItem, l: Vector2, b: Vector2, r: Vector2, ht: float, wall: Color) -> void:
+	var beam := WOOD_D
+	var u := Vector2(0, -ht)
+	var studs := 4
+	for s in range(1, studs):
+		var f := float(s) / float(studs)
+		ci.draw_line(l.lerp(b, f), l.lerp(b, f) + u, beam, 1.0)
+		ci.draw_line(b.lerp(r, f), b.lerp(r, f) + u, beam, 1.0)
+	var rail := Vector2(0, -ht * 0.5)
+	ci.draw_line(l + rail, b + rail, beam, 1.0)
+	ci.draw_line(b + rail, r + rail, beam, 1.0)
+
+# Vertical board cladding for barns/sheds: thin vertical lines + a couple of cross
+# battens, in a darker tone of the wall.
+static func _plank_tex(ci: CanvasItem, l: Vector2, b: Vector2, r: Vector2, ht: float, wall: Color) -> void:
+	var line := wall.darkened(0.20)
+	var u := Vector2(0, -ht)
+	var n := 6
+	for s in range(1, n):
+		var f := float(s) / float(n)
+		ci.draw_line(l.lerp(b, f), l.lerp(b, f) + u, line, 0.5)
+		ci.draw_line(b.lerp(r, f), b.lerp(r, f) + u, line, 0.5)
+	for yf in [0.32, 0.72]:
+		var lo := Vector2(0, -ht * yf)
+		ci.draw_line(l + lo, b + lo, line.darkened(0.10), 0.4)
+		ci.draw_line(b + lo, r + lo, line.darkened(0.10), 0.4)
 
 # Shingle/tile courses across a roof slope. `eave` = the down-slope edge vertices
 # (left→right); r0/r1 = the ridge ends matching eave's first/last vertex. Lines run
@@ -243,10 +312,7 @@ static func draw_finished(ci: CanvasItem, btype: String, cat: int, w: int, h: in
 # ── CIVIC ────────────────────────────────────────────────────────────────────────
 
 static func _village_hall(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vector2, ctr: Vector2) -> void:
-	var c := _box(ci, t, r, b, l, 26.0, WOOD_L)
-	# timber framing on the front faces
-	for f in [0.4, 0.7]:
-		ci.draw_line(l.lerp(b, 0.5) + Vector2(0, -26.0 * f), b.lerp(r, 0.5) + Vector2(0, -26.0 * f), WOOD_D, 0.8)
+	var c := _box(ci, t, r, b, l, 26.0, WOOD_L, TEX_TIMBER)
 	_door(ci, l, b, 26.0)
 	_win(ci, l.lerp(b, 0.25) + Vector2(0, -16))
 	_win(ci, b.lerp(r, 0.75) + Vector2(0, -16))
@@ -257,11 +323,7 @@ static func _village_hall(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l:
 	ci.draw_colored_polygon(PackedVector2Array([tp, tp + Vector2(11, 3), tp + Vector2(0, 8)]), RED)
 
 static func _keep(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vector2, ctr: Vector2, time: float) -> void:
-	var c := _box(ci, t, r, b, l, 40.0, STONE)
-	# stone courses
-	for i in range(1, 5):
-		ci.draw_line(l + Vector2(0, -40.0 * i / 5.0), b + Vector2(0, -40.0 * i / 5.0), STONE_D, 0.5)
-		ci.draw_line(b + Vector2(0, -40.0 * i / 5.0), r + Vector2(0, -40.0 * i / 5.0), STONE_D, 0.5)
+	var c := _box(ci, t, r, b, l, 40.0, STONE, TEX_STONE)
 	_door(ci, l, b, 40.0, Color(0.20, 0.14, 0.10))
 	# crenellated parapet around the top diamond
 	_merlons(ci, c[3], c[2], STONE_L, 4)
@@ -298,7 +360,7 @@ static func _market(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vecto
 	_crate(ci, ctr + Vector2(0, 6), 4.0)
 
 static func _trading_post(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vector2, ctr: Vector2) -> void:
-	var c := _box(ci, t, r, b, l, 18.0, WOOD)
+	var c := _box(ci, t, r, b, l, 18.0, WOOD, TEX_PLANK)
 	_door(ci, l, b, 18.0)
 	_gable(ci, c, 11.0, WOOD_D)
 	# hanging coin sign
@@ -319,7 +381,7 @@ static func _well(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vector2
 	ci.draw_rect(Rect2(ctr.x - 2, ctr.y - 8, 4, 4), WOOD)  # bucket
 
 static func _guildhall(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vector2, ctr: Vector2) -> void:
-	var c := _box(ci, t, r, b, l, 24.0, STONE_L)
+	var c := _box(ci, t, r, b, l, 24.0, STONE_L, TEX_STONE)
 	# columns on the front-left face
 	for f in [0.25, 0.5, 0.75]:
 		var bp: Vector2 = l.lerp(b, f)
@@ -449,7 +511,7 @@ static func _pen(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vector2,
 static func _dairy(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vector2, ctr: Vector2) -> void:
 	ci.draw_colored_polygon(PackedVector2Array([t, r, b, l]), Color(0.42, 0.58, 0.30))
 	# red barn
-	var c := _box(ci, t.lerp(ctr, 0.2), r.lerp(ctr, 0.3), ctr.lerp(b, 0.3), l.lerp(ctr, 0.3), 16.0, RED.lightened(0.05))
+	var c := _box(ci, t.lerp(ctr, 0.2), r.lerp(ctr, 0.3), ctr.lerp(b, 0.3), l.lerp(ctr, 0.3), 16.0, RED.lightened(0.05), TEX_PLANK)
 	_gable(ci, c, 9.0, Color(0.85, 0.82, 0.78))
 	_door(ci, l.lerp(ctr, 0.2), ctr.lerp(b, 0.3), 16.0, Color(0.5, 0.12, 0.10))
 	_fence(ci, b.lerp(l, 0.0), r)
@@ -524,7 +586,7 @@ static func _bakery(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vecto
 	ci.draw_circle(l.lerp(b, 0.5) + Vector2(0, -5), 2.0, Color(1.0, 0.6, 0.2, 0.6))
 
 static func _brewery(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vector2, ctr: Vector2) -> void:
-	var c := _box(ci, t.lerp(ctr, 0.2), r.lerp(ctr, 0.2), b.lerp(ctr, 0.2), l.lerp(ctr, 0.2), 16.0, WOOD)
+	var c := _box(ci, t.lerp(ctr, 0.2), r.lerp(ctr, 0.2), b.lerp(ctr, 0.2), l.lerp(ctr, 0.2), 16.0, WOOD, TEX_PLANK)
 	_gable(ci, c, 8.0, THATCH_D)
 	# big barrels out front
 	_barrel(ci, b.lerp(l, 0.5) + Vector2(0, 3), 5.0)
@@ -532,10 +594,7 @@ static func _brewery(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vect
 	_barrel(ci, b + Vector2(0, 8), 5.0)
 
 static func _inn(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vector2, ctr: Vector2) -> void:
-	var c := _box(ci, t, r, b, l, 24.0, WOOD_L)   # two storeys
-	for f in [0.5]:
-		ci.draw_line(l + Vector2(0, -24.0 * f), b + Vector2(0, -24.0 * f), WOOD_D, 0.8)
-		ci.draw_line(b + Vector2(0, -24.0 * f), r + Vector2(0, -24.0 * f), WOOD_D, 0.8)
+	var c := _box(ci, t, r, b, l, 24.0, WOOD_L, TEX_TIMBER)   # two storeys
 	_door(ci, l, b, 24.0)
 	for p in [l.lerp(b, 0.3), b.lerp(r, 0.7)]:
 		_win(ci, (p as Vector2) + Vector2(0, -7)); _win(ci, (p as Vector2) + Vector2(0, -18))
@@ -558,7 +617,7 @@ static func _granary(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vect
 static func _church(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vector2, ctr: Vector2, grand: bool) -> void:
 	var wallc := STONE_L if grand else STONE
 	var nave_h := 26.0 if grand else 18.0
-	var c := _box(ci, t, r, b, l, nave_h, wallc)
+	var c := _box(ci, t, r, b, l, nave_h, wallc, TEX_STONE)
 	# tall steep roof
 	_gable(ci, c, 18.0 if grand else 13.0, SLATE)
 	# arched windows on front-left
@@ -567,7 +626,7 @@ static func _church(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vecto
 		ci.draw_colored_polygon(PackedVector2Array([p + Vector2(-1.6, 2), p + Vector2(1.6, 2), p + Vector2(1.6, -2), p + Vector2(0, -4), p + Vector2(-1.6, -2)]), Color(0.45, 0.62, 0.86))
 	# bell tower at the back with spire + cross
 	var tg := t.lerp(ctr, 0.35)
-	var tc := _box(ci, tg + Vector2(0, -6), tg + Vector2(6, -3), tg + Vector2(0, 0), tg + Vector2(-6, -3), nave_h + 14.0, wallc)
+	var tc := _box(ci, tg + Vector2(0, -6), tg + Vector2(6, -3), tg + Vector2(0, 0), tg + Vector2(-6, -3), nave_h + 14.0, wallc, TEX_STONE)
 	var apx := _hip(ci, tc, 12.0 if grand else 8.0, SLATE)
 	var cr := apx + Vector2(0, -2)
 	ci.draw_line(cr, cr + Vector2(0, -12), GOLD, 2.0)
@@ -578,7 +637,7 @@ static func _church(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vecto
 # ── MILITARY ───────────────────────────────────────────────────────────────────
 
 static func _barracks(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vector2, ctr: Vector2) -> void:
-	var c := _box(ci, t, r, b, l, 18.0, WOOD_D.lightened(0.05))
+	var c := _box(ci, t, r, b, l, 18.0, WOOD_D.lightened(0.05), TEX_PLANK)
 	_gable(ci, c, 9.0, SLATE)
 	_door(ci, l, b, 18.0, Color(0.18, 0.12, 0.08))
 	# war banners
@@ -607,7 +666,7 @@ static func _siege(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vector
 	ci.draw_rect(Rect2(piv.x + 4, piv.y - 2, 5, 6), IRON_D)  # counterweight
 
 static func _forge(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vector2, ctr: Vector2, time: float) -> void:
-	var c := _box(ci, t, r, b, l, 14.0, STONE_D)
+	var c := _box(ci, t, r, b, l, 14.0, STONE_D, TEX_STONE)
 	_gable(ci, c, 7.0, SLATE)
 	# stone chimney with glowing forge
 	var ch := c[1].lerp(c[2], 0.5)
@@ -621,7 +680,7 @@ static func _forge(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vector
 	ci.draw_rect(Rect2(an.x - 1, an.y - 1, 2, 3), IRON_D)
 
 static func _armory(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vector2, ctr: Vector2) -> void:
-	var c := _box(ci, t, r, b, l, 15.0, STONE)
+	var c := _box(ci, t, r, b, l, 15.0, STONE, TEX_STONE)
 	_gable(ci, c, 8.0, SLATE)
 	_door(ci, l, b, 15.0)
 	# shield + crossed swords on the front-right face
@@ -658,14 +717,12 @@ static func _palisade(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vec
 		ci.draw_colored_polygon(PackedVector2Array([tp + Vector2(-1.6, 0), tp + Vector2(1.6, 0), tp + Vector2(0, -3)]), WOOD_L)
 
 static func _stone_wall(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vector2) -> void:
-	var c := _box(ci, t, r, b, l, 13.0, STONE)
+	var c := _box(ci, t, r, b, l, 13.0, STONE, TEX_STONE)
 	_merlons(ci, c[3], c[2], STONE_L, 3)
 	_merlons(ci, c[2], c[1], STONE_L, 3)
-	for i in range(1, 3):
-		ci.draw_line(l + Vector2(0, -13.0 * i / 3.0), b + Vector2(0, -13.0 * i / 3.0), STONE_D, 0.5)
 
 static func _gatehouse(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vector2, ctr: Vector2) -> void:
-	var c := _box(ci, t, r, b, l, 20.0, STONE)
+	var c := _box(ci, t, r, b, l, 20.0, STONE, TEX_STONE)
 	# archway through the front
 	var ar := l.lerp(b, 0.5)
 	ci.draw_colored_polygon(PackedVector2Array([ar + Vector2(-4, 0), ar + Vector2(4, 0), ar + Vector2(4, -10), ar + Vector2(0, -14), ar + Vector2(-4, -10)]), Color(0.06, 0.06, 0.08))
@@ -691,10 +748,7 @@ static func _watchtower(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: V
 	ci.draw_colored_polygon(PackedVector2Array([rc[0], rc[1], apex]), THATCH)
 
 static func _great_tower(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vector2, ctr: Vector2) -> void:
-	var c := _box(ci, t, r, b, l, 38.0, STONE)
-	for i in range(1, 5):
-		ci.draw_line(l + Vector2(0, -38.0 * i / 5.0), b + Vector2(0, -38.0 * i / 5.0), STONE_D, 0.5)
-		ci.draw_line(b + Vector2(0, -38.0 * i / 5.0), r + Vector2(0, -38.0 * i / 5.0), STONE_D, 0.5)
+	var c := _box(ci, t, r, b, l, 38.0, STONE, TEX_STONE)
 	_door(ci, l, b, 38.0, Color(0.18, 0.12, 0.10))
 	_merlons(ci, c[3], c[2], STONE_L, 4)
 	_merlons(ci, c[2], c[1], STONE_L, 4)

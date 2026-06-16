@@ -35,7 +35,7 @@
 <header>
   <h1>⚜ Sovereign's Reach — Systems Reference</h1>
   <p>A medieval city-builder &amp; strategy game in Godot 4.6.3. Living document — updated each dev iteration.</p>
-  <p class="muted">Last updated: iteration 47 (2026-06-16)</p>
+  <p class="muted">Last updated: iteration 48 (2026-06-16)</p>
 </header>
 <nav>
   <a href="#overview">Overview</a>
@@ -225,12 +225,17 @@
     <li><b>Isometric city view</b> with animated villager pawns, per-type unit bodies, walkable fields,
       seasonal terrain/foliage tints, weather, and a minimap.</li>
     <li><b>Building art</b> (<span class="file">view/micro/BuildingModels.gd</span>): bespoke low-poly iso
-      models per building type. A <b>design-overhaul pass (iter 47)</b> reworked the shared primitives so all
-      ~40 types gained surface detail at once — <b>tile/shingle courses</b> on every gable &amp; hip roof,
-      <b>bright ridge caps</b> + darker eave overhangs, <b>banding rings</b> on cones (granary/silo/turret),
-      wall-base <b>ambient occlusion</b> + edge highlights, and <b>soft elliptical grounding shadows</b>
-      (a broad faint pool with a denser core) instead of the old hard footprint diamond. Further iterations
-      add per-building "hero" detail, then the menus &amp; panels.</li>
+      models per building type. A <b>design overhaul</b> reworked the shared primitives so all ~40 types
+      gained surface detail at once. <b>Roofs/shadows (iter 47):</b> <b>tile/shingle courses</b> on every
+      gable &amp; hip roof, <b>bright ridge caps</b> + darker eave overhangs, <b>banding rings</b> on cones
+      (granary/silo/turret), wall-base <b>ambient occlusion</b> + edge highlights, and <b>soft elliptical
+      grounding shadows</b> (a broad faint pool with a denser core) instead of the old hard footprint
+      diamond. <b>Wall surface texture (iter 48):</b> the shared <span class="file">_box</span> now draws a
+      material-aware skin on its front faces — <b>ashlar masonry</b> (courses + staggered brick-bonded
+      joints) on stone (keep/tower/wall/gatehouse/church/forge/armory/guildhall), <b>half-timber framing</b>
+      on halls &amp; inns, and <b>vertical plank cladding</b> on wooden barns (brewery/dairy/trading post/
+      barracks); plaster buildings stay smooth so the materials read distinctly. Further iterations add
+      per-building "hero" detail, then the menus &amp; panels.</li>
     <li><b>Day/night lighting</b> (two layers): <span class="file">NightLayer.gd</span> draws the darkening
       wash (warm dusk/dawn → cool moonlit-blue midnight); <span class="file">NightLampLayer.gd</span> draws
       the building lamps with an <b>additive blend</b> + a <b>radial gradient</b>, so each lamp genuinely
