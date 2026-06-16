@@ -35,7 +35,7 @@
 <header>
   <h1>⚜ Sovereign's Reach — Systems Reference</h1>
   <p>A medieval city-builder &amp; strategy game in Godot 4.6.3. Living document — updated each dev iteration.</p>
-  <p class="muted">Last updated: iteration 45 (2026-06-16)</p>
+  <p class="muted">Last updated: iteration 46 (2026-06-16)</p>
 </header>
 <nav>
   <a href="#overview">Overview</a>
@@ -227,8 +227,8 @@
     <li><b>Day/night lighting</b> (two layers): <span class="file">NightLayer.gd</span> draws the darkening
       wash (warm dusk/dawn → cool moonlit-blue midnight); <span class="file">NightLampLayer.gd</span> draws
       the building lamps with an <b>additive blend</b> + a <b>radial gradient</b>, so each lamp genuinely
-      brightens the ground around it (a wide ~130px soft pool of warm light, not a flat colour overlay). The
-      HUD stays readable.</li>
+      brightens the ground around it (a wide ~130px soft pool of warm light, not a flat colour overlay).
+      Lamps <b>flicker</b> per-building (out of phase) like living firelight. The HUD stays readable.</li>
     <li><b>HUD:</b> resource bar, day + time-of-day phase, season + weather, popularity/tax/ration sliders
       (with honest effect labels — e.g. ale shows "no inn" until an Inn serves it), a standing Objective
       tracker, and a stacking notification feed. Notifications never show raw ids/ticks.</li>

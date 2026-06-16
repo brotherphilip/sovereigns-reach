@@ -26,6 +26,31 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 46 — 2026-06-16  (lamp flame flicker — the lit town feels alive)
+
+### Heuristic focus
+Atmosphere finishing touch on the iter-45 lighting: the additive lamp pools were static. Real firelight
+shimmers, so a gentle per-lamp flicker makes the night town feel alive rather than a set of fixed glows.
+
+### Change made
+- **NightLampLayer**: each lamp's glow/core/flame now pulses with a **per-building flicker**
+  = <code>1 + 0.10·sin(t·6.3 + φ) + 0.05·sin(t·11.7 + 1.7φ)</code>, where φ is unique per building
+  (from its grid coords) so lamps shimmer out of phase like real fires. Drives the additive alphas + the
+  core/flame radius. A wall-clock accumulator (<code>_t</code>) advances the flicker each frame.
+
+### Verified
+- **Live (Xvfb, staffed town, 5× to night)**: the additive warm light pools render cleanly with the
+  flicker applied (no glitches); the per-lamp pulse is a subtle live shimmer (animation, so a static frame
+  shows one moment). View-only; full suite unaffected; clean boot.
+
+### Post-mortem
+- **Atmosphere:** the lamp-lit town now subtly breathes — the warm pools shimmer slightly and out of
+  sync, reading as living firelight. Completes the lighting work (iters 38/41/45/46).
+
+### Backlog / next
+- Diplomacy depth (tribute/alliance/expiry); a fresh full human playthrough at the new pace; optional
+  campfire/unit lights.
+
 ## Iteration 45 — 2026-06-16  (building lighting overhaul — additive radial lights, not a colour overlay)
 
 ### Source

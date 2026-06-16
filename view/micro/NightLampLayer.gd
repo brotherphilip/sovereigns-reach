@@ -18,6 +18,7 @@ var _night: float = 0.0
 var _buildings: Array = []
 var _refresh_accum: float = 1.0
 var _grad: GradientTexture2D = null
+var _t: float = 0.0   # wall-clock seconds, for flame flicker
 
 func _ready() -> void:
 	# Additive blend so the light ADDS to the darkened scene below.
@@ -38,6 +39,7 @@ func _ready() -> void:
 	_grad.height = 128
 
 func _process(delta: float) -> void:
+	_t += delta
 	var n: float = SeasonSystem.night_factor(SimulationClock.current_tick)
 	_refresh_accum += delta
 	if _refresh_accum >= 1.0:
@@ -75,15 +77,19 @@ func _draw() -> void:
 		var gx: int = int(b.get("grid_x", 0))
 		var gy: int = int(b.get("grid_y", 0))
 		var c: Vector2 = Vector2((gx - gy) * HALF_W, (gx + gy) * HALF_H) - Vector2(0, HALF_H * 0.5)
-		_draw_light(c, lit)
+		# Per-building flame flicker: a gentle pulse with a phase unique to each lamp so
+		# the lit town shimmers like real firelight rather than sitting flat.
+		var phase: float = float((gx * 7 + gy * 13) % 628) * 0.01
+		var flicker: float = 1.0 + 0.10 * sin(_t * 6.3 + phase) + 0.05 * sin(_t * 11.7 + phase * 1.7)
+		_draw_light(c, lit, flicker)
 
-func _draw_light(c: Vector2, lit: float) -> void:
+func _draw_light(c: Vector2, lit: float, flicker: float) -> void:
 	# Wide soft glow (reaches far) — additive, so it lifts the dark ground to warm light.
-	_blit(c, GLOW_RADIUS, Color(WARM.r, WARM.g, WARM.b, 0.45 * lit))
+	_blit(c, GLOW_RADIUS, Color(WARM.r, WARM.g, WARM.b, 0.45 * lit * flicker))
 	# Brighter inner core near the lamp.
-	_blit(c, CORE_RADIUS, Color(WARM.r, WARM.g, WARM.b, 0.55 * lit))
-	# The flame itself — a small near-white point.
-	draw_circle(c, 3.5, Color(1.0, 0.95, 0.7, 0.95 * lit))
+	_blit(c, CORE_RADIUS * flicker, Color(WARM.r, WARM.g, WARM.b, 0.55 * lit * flicker))
+	# The flame itself — a small near-white point that bobs a touch.
+	draw_circle(c, 3.5 * flicker, Color(1.0, 0.95, 0.7, 0.95 * lit))
 
 func _blit(c: Vector2, r: float, col: Color) -> void:
 	draw_texture_rect(_grad, Rect2(c - Vector2(r, r), Vector2(r * 2.0, r * 2.0)), false, col)
