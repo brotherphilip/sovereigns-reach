@@ -26,6 +26,44 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 113 — 2026-06-17  (Voice the tutorial-hint pop-ups — onboarding now speaks)
+
+### Source
+Standing VO rule + iter110's backlog: the last un-voiced pop-up class was `TutorialSystem.tutorial_hint`.
+Confirmed by grep — the signal is shown as a HUD toast in `GameBootstrap` and `CityViewScene` but
+`NarrationPlayer` never hooked it, so welcome / the new defence warning / low-popularity / disease /
+tribute hints were all silent. (The iter112 defence hint I just added was itself a silent pop-up.)
+
+### Change made
+- **1 new VO sting** (grim-herald, raw Chatterbox, NO FX): `tutorial_hint` — *"Heed this counsel, my liege.
+  The path to a lasting realm lies before you."* Rendered via `~/Documents/Projects/TTS/scripts/sr_iter113.py`,
+  transcoded with the plain `-ar 24000 -ac 1 -c:a pcm_s16le` recipe (no `-af`).
+- **`simulation/audio/NarrationPlayer.gd`:** `call_deferred("_connect_tutorial")` (TutorialSystem loads AFTER us
+  in the autoload order, so its node isn't in the tree at our `_ready`); `_connect_tutorial()` connects
+  `TutorialSystem.tutorial_hint` → `say("tutorial_hint")`. Hint text is dynamic, so — like `edict_proclaimed` /
+  `objective_updated` — one generic instructional sting voices every onboarding pop-up.
+
+### Verified (real harness evidence)
+- **Runtime wiring check** (live autoloads via a throwaway `SceneTree` script): `tutorial_hint` connection
+  count = **1**, connected to **NarrationPlayer = true**; `say("tutorial_hint")` resolves an `AudioStreamWAV`
+  of **197,760 bytes**. So the deferred hookup took and the clip plays end-to-end — not merely present on disk.
+- **`tests/TestNarration.gd` → 77/0** (new clip loads; 74 clips scanned, none silent, peak ≥ 800).
+- **Full suite: 1305 passed / 0 failed across all 30 test files** (robust aggregation across both summary
+  formats; no SCRIPT ERROR / Parse Error / FATAL in any file). **Clean real main-scene boot** (`MainMenuScene`)
+  with only the harmless headless V-Sync warning — the deferred connect raised nothing.
+
+### Post-mortem
+- **Failure class: NONE** — audio-only feature addition; every verification green.
+- **Honesty note:** this change does NOT touch survival/balance, so I did **not** drive a fresh live 20-min
+  xdotool playthrough or capture gameplay screenshots this iteration (there is nothing visual to inspect). The
+  100-day survival guarantee remains test-proven via `TestSurvival`/`TestSiege` (part of the 0-fail suite above).
+- **Audio feedback:** every tracked pop-up in the game now speaks in the herald's voice — onboarding included.
+
+### Backlog / next (optional polish)
+1. Live managed Day-100 *win* run (capstone demo; survival already test-proven). (Carried) user ear-check of
+   narration voice quality; ear-tune SFX. Minor spectator-battle edge cases (player-owned besiegers render red;
+   battle re-spawns on re-entry).
+
 ## Iteration 112 — 2026-06-17  (Tutorial teaches DEFENCE — close the endgame-siege onboarding gap)
 
 ### Source
