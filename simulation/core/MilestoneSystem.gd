@@ -7,18 +7,26 @@ extends RefCounted
 const PRESTIGE_BONUS: float = 50.0
 
 # Milestone definitions: id → {label, condition checked in check()}
+# Paced across the whole 20-min (100-day) life: the first five land in the early
+# game, the rest fill the mid/late session so the reward loop never goes quiet.
 const DEFINITIONS: Dictionary = {
+	# ── Early game ──
 	"first_woodcutter": "Felled the first tree — your lumber trade begins.",
 	"first_farm":       "Sowed the first field — your people will not starve.",
 	"population_50":    "50 souls call your realm home.",
 	"first_edict":      "Your will is law — the first royal edict proclaimed.",
 	"three_shires":     "Three shires fly your banner — a kingdom takes shape.",
+	# ── Mid / late game (pace the long middle of the run) ──
+	"first_watchtower": "The first watchtower rises — your seat can weather a siege.",
+	"town_of_ten":      "Ten buildings stand — your settlement is now a town.",
+	"treasury_300":     "Three hundred gold in the treasury — a prosperous realm.",
+	"reign_day_50":     "Fifty days of rule — half a season survived, and the realm holds.",
 }
 
 # Returns Array[String] of milestone ids newly earned this call.
 # Mutates milestones dict in-place (adds earned keys = true).
 # Grants PRESTIGE_BONUS to player for each newly earned milestone.
-static func check(player: Dictionary, _world: Dictionary, milestones: Dictionary, active_edicts: Array) -> Array:
+static func check(player: Dictionary, _world: Dictionary, milestones: Dictionary, active_edicts: Array, day: int = 0) -> Array:
 	var earned: Array = []
 
 	if not milestones.has("first_woodcutter"):
@@ -51,6 +59,29 @@ static func check(player: Dictionary, _world: Dictionary, milestones: Dictionary
 		if player.get("shire_ids", []).size() >= 3:
 			milestones["three_shires"] = true
 			earned.append("three_shires")
+
+	# ── Mid / late game ──
+	if not milestones.has("first_watchtower"):
+		for b in player.get("buildings", []):
+			if b is Dictionary and b.get("type", "") == "watchtower":
+				milestones["first_watchtower"] = true
+				earned.append("first_watchtower")
+				break
+
+	if not milestones.has("town_of_ten"):
+		if player.get("buildings", []).size() >= 10:
+			milestones["town_of_ten"] = true
+			earned.append("town_of_ten")
+
+	if not milestones.has("treasury_300"):
+		if player.get("gold", 0) >= 300:
+			milestones["treasury_300"] = true
+			earned.append("treasury_300")
+
+	if not milestones.has("reign_day_50"):
+		if day >= 50:
+			milestones["reign_day_50"] = true
+			earned.append("reign_day_50")
 
 	if not earned.is_empty():
 		var bonus: float = float(earned.size()) * PRESTIGE_BONUS

@@ -329,6 +329,32 @@ func _test_medium_fixes() -> void:
 	var earned2: Array = MilestoneSystem.check(p_ms, _gs.world, {"three_shires": true}, [])
 	ok("three_shires does not re-fire", "three_shires" not in earned2)
 
+	# Mid/late-game milestones (iter 69): keep the reward loop alive past the early game.
+	# reign_day_50 fires on the day-50 survival beat (and only then).
+	var p_day: Dictionary = _fresh_player(60)
+	ok("reign_day_50 does NOT fire before day 50", "reign_day_50" not in MilestoneSystem.check(p_day, _gs.world, {}, [], 49))
+	ok("reign_day_50 fires at day 50", "reign_day_50" in MilestoneSystem.check(p_day, _gs.world, {}, [], 50))
+	# town_of_ten fires once the settlement reaches 10 buildings.
+	var p_town: Dictionary = _fresh_player(60)
+	p_town["buildings"] = []
+	for _i in range(10):
+		p_town["buildings"].append(BuildingState.create("hovel", 0, 10 + _i, 10, 1))
+	ok("town_of_ten fires at 10 buildings", "town_of_ten" in MilestoneSystem.check(p_town, _gs.world, {}, [], 5))
+	# first_watchtower fires when a watchtower is raised (survival-aligned reward).
+	var p_tower: Dictionary = _fresh_player(60)
+	p_tower["buildings"] = [BuildingState.create("watchtower", 0, 20, 20, 1)]
+	ok("first_watchtower fires with a watchtower built", "first_watchtower" in MilestoneSystem.check(p_tower, _gs.world, {}, [], 5))
+	# treasury_300 fires when gold crosses 300, and none re-fire once latched.
+	var p_gold: Dictionary = _fresh_player(60)
+	p_gold["gold"] = 400
+	ok("treasury_300 fires at 300+ gold", "treasury_300" in MilestoneSystem.check(p_gold, _gs.world, {}, [], 5))
+	# Latch EVERY milestone → a subsequent check (even at day 60, rich) earns nothing.
+	var latched: Dictionary = {}
+	for mid in MilestoneSystem.DEFINITIONS.keys():
+		latched[mid] = true
+	ok("all latched milestones do not re-fire",
+		MilestoneSystem.check(p_gold, _gs.world, latched, [], 60).is_empty())
+
 	# S11: a second village_hall (unique) is rejected by the placement validator.
 	var p_uniq: Dictionary = _fresh_player(60)
 	p_uniq["buildings"] = [BuildingState.create("village_hall", 0, 40, 40, 1)]

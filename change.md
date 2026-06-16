@@ -26,6 +26,38 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 69 — 2026-06-16  (Reward loop: mid/late-game milestones fill the long middle)
+
+### Source
+Fun-Factor heuristic. The 5 milestones all fired in the *early* game (first woodcutter/farm, pop 50, first
+edict, three shires); after ~day 20 the reward loop went silent until the day-100 reign celebration — a long
+quiet stretch across the exact window a player must stay engaged for the 20-minute goal.
+
+### Change made (simulation/core/MilestoneSystem.gd)
+Added four **mid/late-game** milestones (each +50 prestige + a toast via the existing `milestone_earned` path),
+paced to land across days ~20–60:
+- **first_watchtower** — built a watchtower. Survival-aligned: it rewards the very thing that lets a seat endure
+  a siege (proven in iters 10/64).
+- **town_of_ten** — 10 buildings standing ("your settlement is now a town").
+- **treasury_300** — 300+ gold ("a prosperous realm").
+- **reign_day_50** — day ≥ 50. A *guaranteed* halfway survival beat at the session midpoint (added a defaulted
+  `day` param to `check()`; `_tick_player_economy` passes `tick / TICKS_PER_GAME_DAY`).
+
+### Verified
+- **New TestPhase10 milestone tests (75/0):** reign_day_50 fires at day 50 but not day 49; town_of_ten at 10
+  buildings; first_watchtower with a watchtower; treasury_300 at 300+ gold; every milestone latches (no re-fire).
+  **Full suite: 0 FAIL across all 24 test files.** City view boots clean. New entries flow through the same
+  `get_label → EventBus.milestone_earned → HUD toast` path the early milestones already use.
+
+### Post-mortem
+- **Fun / pacing:** the reward loop now has beats across the whole life, not just the opening — including one
+  guaranteed mid-session payoff (day 50) and one that nudges the player toward the defences that keep them alive.
+  Low-risk (modest one-time prestige), data-shaped.
+
+### Backlog / next
+1. More seasonal/decision events (content density) as desired.
+2. (Optional) hover-to-inspect armies + on-map ETA label; late-game milestone for a large standing army.
+
 ## Iteration 68 — 2026-06-16  (World map: click a marching host to inspect it)
 
 ### Source

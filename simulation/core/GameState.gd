@@ -554,7 +554,8 @@ func _tick_player_economy(player: Dictionary, tick: int) -> void:
 			player["edict_points"] = mini(ep_cap, player.get("edict_points", 0) + 2)
 
 		# Milestones (GDD §1.4.3): check once per day, emit per newly earned
-		var new_milestones: Array = MilestoneSystem.check(player, world, milestones, player.get("active_edicts", []))
+		var ms_day: int = tick / SimulationClock.TICKS_PER_GAME_DAY
+		var new_milestones: Array = MilestoneSystem.check(player, world, milestones, player.get("active_edicts", []), ms_day)
 		for ms_id in new_milestones:
 			EventBus.milestone_earned.emit(player["id"], ms_id, MilestoneSystem.PRESTIGE_BONUS)
 
