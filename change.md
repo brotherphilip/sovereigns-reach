@@ -26,6 +26,38 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 117 — 2026-06-17  (Managed capstone run reaches day 91/100 — dies to the siege, economy fully solved)
+
+### Source
+Backlog: extend the managed run toward day 100. Build food + DEFENSE by mouse, set 5×, dismiss any blocking
+world-event modal, and measure the real max day reached.
+
+### Change made
+None (game code). Harness/playtest: a full mouse-driven managed run. First confirmed from source that only
+**EventChoicePanel** (world choice events) pauses the sim; **DiplomacyPanel** (envoy tribute) does not — so the
+only long-run blocker is the choice modal (its buttons ≈ screen x640,y260–315), which the run periodically clicks.
+
+### Playtest (REAL — Xvfb :99, one long live run ~290 s, SR_TELEMETRY + 14 screenshots)
+- **Survived & THRIVED to day 91/100:** food pegged at the ~200 cap the whole way; **popularity rose 50 → 72.3**;
+  gold 500 → 585; 8 persistent buildings; FPS steady ~15. The economy is fully solved via real mouse play.
+- **LEGITIMATE DEATH at day 91:** the final screenshot is the **"DEFEAT — Your keep has fallen! Day 91 reached"**
+  game-over screen. The keep was razed by the endgame siege.
+
+### Post-mortem — failure class: LEGITIMATE DEATH (siege), NOT balance/economy
+- **Cause:** only **8 of 13** attempted buildings stuck — the built-phase screenshot shows a yellow *"Cannot
+  build: Terrain not suitable for placement"* toast. The food buildings (placed near the keep) all stuck and
+  carried the economy; the DEFENSE tiles I scripted (lower edge / far right / near the lake) were rejected as
+  unbuildable, so the seat was effectively **undefended** → razed at exactly the documented day-91 siege
+  (matches `TestSiege`'s "undefended seat razed ~day 91"). The game behaved correctly throughout (clear build
+  feedback, healthy economy, enforced siege). **This is a harness placement-scripting gap, not a game bug.**
+- **Proven-buildable region:** screen ≈ x720–960, y340–500 (where every food building landed). Saved to memory.
+
+### Backlog / next
+**Design (capstone — 91/100, so close):** re-run with DEFENSE placed on GOOD tiles (the central band) so the
+seat is `is_siege_ready` before the day-91 siege; then the managed run should reach day 100 = MILESTONE.
+Evidence: this run thrived to day 91 and died only because defense placements hit bad terrain. (Carried) user
+ear-check of narration; ear-tune SFX; minor spectator-battle edge cases.
+
 ## Iteration 116 — 2026-06-17  (First MANAGED live run — a mouse-built food economy survives healthy to day 41)
 
 ### Source
