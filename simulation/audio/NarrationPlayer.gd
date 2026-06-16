@@ -17,6 +17,7 @@ extends Node
 #   ai_faction_defeated         → kingdom_fallen, or victory if it was the LAST rival
 #   building_destroyed (seat)   → keep_fallen           (the player's hall/keep razed = defeat)
 #   unit_spawned (player unit)  → unit_trained          (a soldier finishes training)
+#   ai_siege_struck             → siege_held / siege_breached  (by the defended flag)
 
 const WavLoad = preload("res://simulation/audio/WavLoad.gd")
 const DIR := "res://audio/narration/"
@@ -58,6 +59,8 @@ func _ready() -> void:
 		EventBus.building_destroyed.connect(_on_building_destroyed)
 	if EventBus.has_signal("unit_spawned"):
 		EventBus.unit_spawned.connect(func(unit): if unit is Dictionary and int(unit.get("owner_id", -1)) == 0: say("unit_trained"))
+	if EventBus.has_signal("ai_siege_struck"):
+		EventBus.ai_siege_struck.connect(func(_f, _t, defended, _d): say("siege_held" if defended else "siege_breached"))
 
 # The player's seat (Village Hall / Keep) was razed — that's the run-ending defeat. Only the
 # human player's seat speaks (not an AI's), and only the seat (not every lost building).

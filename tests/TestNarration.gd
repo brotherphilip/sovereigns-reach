@@ -57,6 +57,8 @@ func _test_fixed_clips() -> void:
 	ok("victory.wav loads", _loads("victory"))
 	ok("keep_fallen.wav loads", _loads("keep_fallen"))
 	ok("unit_trained.wav loads", _loads("unit_trained"))
+	ok("siege_held.wav loads", _loads("siege_held"))
+	ok("siege_breached.wav loads", _loads("siege_breached"))
 
 # Peak absolute 16-bit sample amplitude (0..32768) — 0 ≈ silence, a real voice clip peaks high.
 func _peak16(s: AudioStreamWAV) -> int:

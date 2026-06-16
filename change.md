@@ -26,6 +26,26 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 105 — 2026-06-17  (Voice the siege strike — the assault lands with weight)
+
+### Source
+The siege-strike notification (held/breached) was the dramatic climax of the core challenge but had no VO (only
+the earlier "siege assembling" warning did). Per the standing rule, the assault landing deserves the herald.
+
+### Change made
+- **2 new VO stings** (grim-herald, no FX): `siege_held` ("their assault breaks upon your walls — the seat holds")
+  and `siege_breached` ("they storm your defenceless seat! to arms"). **`NarrationPlayer`** hooks `ai_siege_struck`
+  and picks by the `defended` flag — matching the green/red strike notifications.
+
+### Verified
+- **TestNarration 74/0** (71 clips, none silent). **Full suite: 0 FAIL across all 28 files.** Live boot clean.
+
+### Backlog / next
+1. **USER-REPORTED (iter106):** attacking troops aren't visible in the city view when a city is besieged — the
+   siege strike is abstract (damage + notice), but the marching/attacking army doesn't render on the grid you
+   enter. Investigate + make besiegers visible.
+2. (Carried) user ear-check of narration voice quality; ear-tune SFX.
+
 ## Iteration 104 — 2026-06-17  (The siege, confirmed end-to-end: a regression test for the core challenge)
 
 ### Source
