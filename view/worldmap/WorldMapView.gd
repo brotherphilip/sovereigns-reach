@@ -91,6 +91,12 @@ func _input(event: InputEvent) -> void:
 			_hovered_city_id = hov
 			city_hovered.emit(hov)
 			queue_redraw()
+		# No city under the cursor → if a marching host is, read it into the panel too
+		# (hover-to-inspect, the lighter sibling of click-to-inspect).
+		if hov < 0:
+			var army: Dictionary = WorldMapController.find_army_near(_data, event.position, 16.0, _army_frac)
+			if not army.is_empty():
+				army_inspected.emit(army)
 
 # ── Background (procedural biome continent) ────────────────────────────────────
 
@@ -284,6 +290,18 @@ func _draw_armies() -> void:
 					tip + dir * 6.0, tip - dir * 2.0 + perp, tip - dir * 2.0 - perp,
 				]), Color(col.r, col.g, col.b, 0.8))
 		_draw_army_marker(p, col, int(a.get("size_band", 0)), int(a.get("size", 0)))
+		# Your own marching hosts get a glanceable destination + ETA tag, so you can
+		# read where your troops are bound without clicking (few of them, no clutter).
+		if a.get("is_player", false) and a.get("moving", false):
+			var dest: String = String(a.get("dest_name", ""))
+			if dest != "":
+				var eta: int = int(a.get("eta_days", 0))
+				var tag: String = "→ %s (%dd)" % [dest, eta]
+				var tp := p + Vector2(6, 10)
+				draw_string(ThemeDB.fallback_font, tp + Vector2(1, 1), tag,
+					HORIZONTAL_ALIGNMENT_LEFT, -1, 9, Color(0.04, 0.06, 0.03, 0.9))
+				draw_string(ThemeDB.fallback_font, tp, tag,
+					HORIZONTAL_ALIGNMENT_LEFT, -1, 9, Color(0.70, 0.96, 0.62))
 
 # A heraldic banner whose size and number of pennants grow with the host's strength,
 # so a lone raiding party and a great army read differently at a glance.

@@ -268,6 +268,7 @@ func _test_army_inspect() -> void:
 	_ok(String(a0.get("dest_name", "")) == "Bastion", "host reports its destination city")
 	_ok(int(a0.get("eta_days", 0)) == 3, "host reports the distance-scaled ETA (3 days)")
 	_ok(bool(a0.get("moving", false)), "host is flagged as moving")
+	_ok(bool(a0.get("is_player", false)), "host owned by the player faction is flagged is_player (drives the on-map ETA tag)")
 
 	# find_army_near picks it at its position; an off-road point finds nothing.
 	var hit: Dictionary = WorldMapController.find_army_near(map_data, a0.get("pos", Vector2.ZERO), 16.0)

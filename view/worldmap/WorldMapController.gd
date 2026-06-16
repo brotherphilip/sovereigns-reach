@@ -82,6 +82,7 @@ static func get_army_render_list(data: Dictionary, march_frac: float = 0.4) -> A
 				"color_hex": col_hex,
 				"owner": k.get("id", -1),
 				"owner_name": String(k.get("name", "A kingdom")),
+				"is_player": k.get("id", -1) == data.get("player_faction_id", -1),
 				"army_id": a.get("id", -1),
 				"dest_name": dest_name,
 				"eta_days": eta_days,

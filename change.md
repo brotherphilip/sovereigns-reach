@@ -26,6 +26,35 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 70 — 2026-06-16  (World map: glanceable army tags + hover-to-inspect)
+
+### Source
+Backlog polish completing the iter-68 army-inspection UX, and the world-map directive ("the world map does not
+show the armies that are moving"). Click-to-inspect existed, but a player had to click each host to learn where
+it was bound — their own marching troops weren't self-explaining at a glance.
+
+### Change made
+- **WorldMapController:** army render entries now carry `is_player` (`owner == player_faction_id`).
+- **WorldMapView `_draw_armies`:** the player's OWN moving hosts get a small green destination/ETA tag drawn by
+  the banner — e.g. *"→ Bastion (2d)"* (distance-scaled ETA from iter 67). Rival hosts stay untagged so the map
+  doesn't clutter with five AI kingdoms' marches.
+- **WorldMapView `_input` (motion):** hover-to-inspect — moving the cursor over a host (when no city is under it)
+  now reads the same who/strength/heading/ETA readout into the info panel, the lighter sibling of click-to-inspect.
+
+### Verified
+- **TestPhase9 (62/0):** new assertion that a player-owned host is flagged `is_player` (drives the on-map tag);
+  the iter-68 inspection assertions still pass. **Full suite: 0 FAIL across all 24 test files.** WorldMapScene
+  boots clean on Xvfb (the new `_draw` label path renders without error).
+
+### Post-mortem
+- **UX / world-map legibility:** your troops now narrate themselves on the map (where bound, how many days out),
+  and any host is readable on hover. Directly closes the "armies on the move aren't visible/legible" gap. No
+  survival-spine or balance impact — pure clarity.
+
+### Backlog / next
+1. More seasonal/decision events (content density) as desired.
+2. (Optional) late-game milestone for a large standing army; richer battle/siege feedback on the map.
+
 ## Iteration 69 — 2026-06-16  (Reward loop: mid/late-game milestones fill the long middle)
 
 ### Source
