@@ -66,7 +66,7 @@ const BUILDINGS: Dictionary = {
 	},
 	"hovel": {
 		"name": "Hovel", "category": Category.CIVIC,
-		"width": 1, "height": 1,
+		"width": 2, "height": 2,
 		"cost": {"wood": 8},
 		"max_workers": 0, "worker_slots": 0,
 		"terrain_req": TERRAIN_ANY, "fire_risk": 0.04, "hp": 60,
@@ -231,7 +231,7 @@ const BUILDINGS: Dictionary = {
 	},
 	"bakery": {
 		"name": "Bakery", "category": Category.FOOD,
-		"width": 1, "height": 1,
+		"width": 2, "height": 2,
 		"cost": {"wood": 10},
 		"max_workers": 1, "worker_slots": 1,
 		"terrain_req": TERRAIN_ANY, "fire_risk": 0.04, "hp": 60,

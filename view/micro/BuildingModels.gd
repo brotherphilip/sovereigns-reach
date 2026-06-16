@@ -406,9 +406,10 @@ static func _merlons(ci: CanvasItem, a: Vector2, bb: Vector2, col: Color, n: int
 		ci.draw_rect(Rect2(p.x - 2.4, p.y - 4.5, 4.8, 4.5), col)
 
 static func _hovel(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vector2) -> void:
-	var c := _box(ci, t, r, b, l, 11.0, Color(0.72, 0.62, 0.45))
-	_door(ci, l, b, 11.0)
-	_gable(ci, c, 8.0, THATCH)
+	var c := _box(ci, t, r, b, l, 17.0, Color(0.72, 0.62, 0.45))
+	_win(ci, b.lerp(r, 0.5) + Vector2(0, -10))
+	_door(ci, l, b, 17.0)
+	_gable(ci, c, 12.0, THATCH)
 
 static func _market(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vector2, ctr: Vector2) -> void:
 	# open-air stalls: striped awnings on posts + crates
@@ -665,9 +666,9 @@ static func _windmill(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vec
 	ci.draw_circle(hub, 2.0, IRON_D)
 
 static func _bakery(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vector2, ctr: Vector2, time: float) -> void:
-	var c := _box(ci, t, r, b, l, 13.0, Color(0.78, 0.70, 0.55))
-	_door(ci, l, b, 13.0)
-	_gable(ci, c, 7.0, TILE)
+	var c := _box(ci, t, r, b, l, 18.0, Color(0.78, 0.70, 0.55))
+	_door(ci, l, b, 18.0)
+	_gable(ci, c, 11.0, TILE)
 	# big chimney with smoke + oven glow at door
 	var ch := c[1].lerp(c[2], 0.5) + Vector2(0, -2)
 	ci.draw_rect(Rect2(ch.x - 2.5, ch.y - 12, 5, 12), STONE_D)

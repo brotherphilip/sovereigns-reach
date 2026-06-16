@@ -42,19 +42,21 @@ func _code(btype: String, gx: int, gy: int, grid, player) -> int:
 func _test_min_spacing() -> void:
 	print("\n[Min spacing between buildings]")
 	var grid := WorldGrid.new(40, 40)
-	# Register an existing hovel (1x1) at (20,20) on the grid.
+	# Register an existing hovel (2x2) at (20,20)..(21,21) on the grid.
 	var player := _player_with(_bld("hovel", 20, 20))
-	grid.set_building_at(20, 20, 1)
+	for dy in range(2):
+		for dx in range(2):
+			grid.set_building_at(20 + dx, 20 + dy, 1)
 	ok("edge-adjacent placement is rejected (too close)",
-		_code("hovel", 21, 20, grid, player) == PlacementValidator.ValidationResult.TOO_CLOSE)
-	ok("a 1-tile gap is still too close (gap rule is 2)",
 		_code("hovel", 22, 20, grid, player) == PlacementValidator.ValidationResult.TOO_CLOSE)
+	ok("a 1-tile gap is still too close (gap rule is 2)",
+		_code("hovel", 23, 20, grid, player) == PlacementValidator.ValidationResult.TOO_CLOSE)
 	ok("placement with the full gap is allowed",
-		_code("hovel", 23, 20, grid, player) == PlacementValidator.ValidationResult.OK)
+		_code("hovel", 24, 20, grid, player) == PlacementValidator.ValidationResult.OK)
 	ok("a defensive wall may sit flush against a building (exempt)",
-		_code("wooden_palisade", 21, 20, grid, player) == PlacementValidator.ValidationResult.OK)
+		_code("wooden_palisade", 22, 20, grid, player) == PlacementValidator.ValidationResult.OK)
 	ok("a path may sit flush against a building (exempt)",
-		_code("path", 21, 20, grid, player) == PlacementValidator.ValidationResult.OK)
+		_code("path", 22, 20, grid, player) == PlacementValidator.ValidationResult.OK)
 
 func _test_path_validation() -> void:
 	print("\n[Path placement validation]")
