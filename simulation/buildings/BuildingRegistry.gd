@@ -97,7 +97,7 @@ const BUILDINGS: Dictionary = {
 	},
 	"apothecary": {
 		"name": "Apothecary", "category": Category.CIVIC,
-		"width": 1, "height": 1,
+		"width": 2, "height": 2,
 		"cost": {"wood": 10, "gold": 5},
 		"max_workers": 1, "worker_slots": 1,
 		"terrain_req": TERRAIN_ANY, "fire_risk": 0.01, "hp": 80,
@@ -118,7 +118,7 @@ const BUILDINGS: Dictionary = {
 	# ── §5.2 Harvesting ─────────────────────────────────────────────────────
 	"woodcutter_camp": {
 		"name": "Woodcutter's Camp", "category": Category.HARVESTING,
-		"width": 1, "height": 1,
+		"width": 2, "height": 2,
 		"cost": {"wood": 4},
 		"max_workers": 3, "worker_slots": 3,
 		"terrain_req": TERRAIN_FOREST, "fire_risk": 0.03, "hp": 50,
@@ -318,7 +318,7 @@ const BUILDINGS: Dictionary = {
 	},
 	"fletcher": {
 		"name": "Fletcher", "category": Category.MILITARY,
-		"width": 1, "height": 1,
+		"width": 2, "height": 2,
 		"cost": {"wood": 12},
 		"max_workers": 1, "worker_slots": 1,
 		"terrain_req": TERRAIN_ANY, "fire_risk": 0.02, "hp": 60,
@@ -328,7 +328,7 @@ const BUILDINGS: Dictionary = {
 	},
 	"poleturner": {
 		"name": "Poleturner", "category": Category.MILITARY,
-		"width": 1, "height": 1,
+		"width": 2, "height": 2,
 		"cost": {"wood": 8},
 		"max_workers": 1, "worker_slots": 1,
 		"terrain_req": TERRAIN_ANY, "fire_risk": 0.02, "hp": 50,
@@ -348,7 +348,7 @@ const BUILDINGS: Dictionary = {
 	},
 	"tannery": {
 		"name": "Tannery", "category": Category.MILITARY,
-		"width": 1, "height": 1,
+		"width": 2, "height": 2,
 		"cost": {"wood": 10},
 		"max_workers": 1, "worker_slots": 1,
 		"terrain_req": TERRAIN_ANY, "fire_risk": 0.03, "hp": 60,
@@ -368,7 +368,7 @@ const BUILDINGS: Dictionary = {
 	},
 	"crossbow_workshop": {
 		"name": "Crossbow Workshop", "category": Category.MILITARY,
-		"width": 1, "height": 1,
+		"width": 2, "height": 2,
 		"cost": {"wood": 14, "iron": 4},
 		"max_workers": 1, "worker_slots": 1,
 		"terrain_req": TERRAIN_ANY, "fire_risk": 0.02, "hp": 60,

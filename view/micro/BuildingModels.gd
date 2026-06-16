@@ -473,8 +473,8 @@ static func _guildhall(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Ve
 
 static func _woodcutter(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vector2, ctr: Vector2) -> void:
 	# lean-to + log pile + chopping block with axe
-	var c := _box(ci, t.lerp(ctr, 0.3), r.lerp(ctr, 0.3), b.lerp(ctr, 0.3), l.lerp(ctr, 0.3), 9.0, WOOD)
-	_gable(ci, c, 5.0, THATCH_D)
+	var c := _box(ci, t.lerp(ctr, 0.3), r.lerp(ctr, 0.3), b.lerp(ctr, 0.3), l.lerp(ctr, 0.3), 13.0, WOOD)
+	_gable(ci, c, 7.0, THATCH_D)
 	# log stack
 	for i in range(3):
 		_log(ci, b.lerp(l, 0.5) + Vector2(-2 + i * 5, 2 - i * 3), 5.0)
@@ -811,15 +811,15 @@ static func _armory(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vecto
 	ci.draw_line(fc + Vector2(5, 4), fc + Vector2(-5, -6), IRON, 1.0)
 
 static func _poleturner(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vector2, ctr: Vector2) -> void:
-	var c := _box(ci, t.lerp(ctr, 0.25), r.lerp(ctr, 0.25), b.lerp(ctr, 0.25), l.lerp(ctr, 0.25), 11.0, WOOD)
-	_gable(ci, c, 6.0, THATCH_D)
+	var c := _box(ci, t.lerp(ctr, 0.25), r.lerp(ctr, 0.25), b.lerp(ctr, 0.25), l.lerp(ctr, 0.25), 15.0, WOOD)
+	_gable(ci, c, 8.0, THATCH_D)
 	# stacked pikes leaning
 	for i in range(4):
 		ci.draw_line(b.lerp(l, 0.5) + Vector2(-4 + i * 3, 4), b.lerp(l, 0.5) + Vector2(2 + i * 3, -14), WOOD_L, 1.0)
 
 static func _tannery(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vector2, ctr: Vector2) -> void:
-	var c := _box(ci, t.lerp(ctr, 0.25), r.lerp(ctr, 0.25), b.lerp(ctr, 0.25), l.lerp(ctr, 0.25), 10.0, WOOD)
-	_gable(ci, c, 5.0, THATCH_D)
+	var c := _box(ci, t.lerp(ctr, 0.25), r.lerp(ctr, 0.25), b.lerp(ctr, 0.25), l.lerp(ctr, 0.25), 14.0, WOOD)
+	_gable(ci, c, 7.0, THATCH_D)
 	# stretched hides on frames
 	for i in range(2):
 		var fr := b.lerp(r, 0.4) + Vector2(i * 9 - 4, 3)
@@ -886,11 +886,11 @@ static func _generic(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vect
 	_gable(ci, c, 9.0, roof)
 
 static func _shop(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vector2, ctr: Vector2, accent: Color, sign: String) -> void:
-	var c := _box(ci, t, r, b, l, 12.0, WOOD)
-	_door(ci, l, b, 12.0)
-	_gable(ci, c, 7.0, THATCH_D)
+	var c := _box(ci, t, r, b, l, 16.0, WOOD)
+	_door(ci, l, b, 16.0)
+	_gable(ci, c, 10.0, THATCH_D)
 	# hanging sign with an icon
-	var sp := b.lerp(r, 0.5) + Vector2(0, -11)
+	var sp := b.lerp(r, 0.5) + Vector2(0, -15)
 	ci.draw_line(sp, sp + Vector2(6, 0), WOOD_D, 1.0)
 	var ic := sp + Vector2(6, 5)
 	ci.draw_rect(Rect2(ic.x - 3, ic.y - 3, 6, 6), accent.darkened(0.1))
