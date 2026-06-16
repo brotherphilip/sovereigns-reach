@@ -3,1019 +3,252 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Sovereign's Reach — Systems Bibliography</title>
+<title>Sovereign's Reach — Systems Reference</title>
 <style>
   :root {
-    --bg: #1a1a2e; --surface: #16213e; --card: #0f3460;
-    --accent: #e94560; --gold: #ffd700; --green: #4caf50;
-    --text: #e0e0e0; --muted: #888; --code-bg: #0d1117;
+    --bg:#14110f; --surface:#1d1813; --card:#241d16; --line:#3a2f24;
+    --accent:#e0a94a; --gold:#ffd27a; --green:#7bc36a; --red:#d2664a; --blue:#6fa8d8;
+    --text:#e8ddca; --muted:#9b8e78; --code:#0e0c0a;
   }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; line-height: 1.6; }
-  header { background: linear-gradient(135deg, var(--card), var(--accent)); padding: 2rem; text-align: center; }
-  header h1 { font-size: 2.5rem; color: var(--gold); text-shadow: 2px 2px 8px #000; }
-  header p { color: #ccc; margin-top: 0.5rem; }
-  .phase-badge { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 0.75rem; font-weight: bold; margin-left: 8px; }
-  .complete { background: var(--green); color: #000; }
-  .pending { background: var(--muted); color: #000; }
-  nav { background: var(--surface); padding: 1rem 2rem; border-bottom: 1px solid #333; position: sticky; top: 0; z-index: 100; }
-  nav a { color: var(--gold); text-decoration: none; margin-right: 1.5rem; font-size: 0.9rem; }
-  nav a:hover { text-decoration: underline; }
-  main { max-width: 1400px; margin: 0 auto; padding: 2rem; }
-  .system-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(600px, 1fr)); gap: 1.5rem; margin-top: 1.5rem; }
-  .card { background: var(--surface); border: 1px solid #2a2a4a; border-radius: 8px; padding: 1.5rem; }
-  .card h2 { color: var(--gold); font-size: 1.1rem; border-bottom: 1px solid #333; padding-bottom: 0.5rem; margin-bottom: 1rem; }
-  .card h3 { color: var(--accent); font-size: 0.95rem; margin: 1rem 0 0.5rem; }
-  .file-path { font-family: monospace; font-size: 0.8rem; background: var(--code-bg); color: #79c0ff; padding: 2px 6px; border-radius: 4px; }
-  table { width: 100%; border-collapse: collapse; font-size: 0.85rem; margin-top: 0.5rem; }
-  th { background: var(--card); color: var(--gold); padding: 6px 10px; text-align: left; }
-  td { padding: 5px 10px; border-bottom: 1px solid #2a2a4a; }
-  td:first-child { font-family: monospace; color: #79c0ff; white-space: nowrap; }
-  .flow { background: var(--code-bg); border-left: 3px solid var(--accent); padding: 0.75rem 1rem; font-family: monospace; font-size: 0.82rem; margin-top: 0.5rem; white-space: pre; overflow-x: auto; }
-  .note { background: #1a2a1a; border-left: 3px solid var(--green); padding: 0.5rem 1rem; font-size: 0.85rem; margin-top: 0.5rem; border-radius: 0 4px 4px 0; }
-  .warn { background: #2a1a0a; border-left: 3px solid #ff9800; padding: 0.5rem 1rem; font-size: 0.85rem; margin-top: 0.5rem; border-radius: 0 4px 4px 0; }
-  section { margin-top: 2.5rem; }
-  section > h2 { font-size: 1.4rem; color: var(--gold); border-bottom: 2px solid var(--accent); padding-bottom: 0.5rem; }
-  .arch-diagram { background: var(--code-bg); border: 1px solid #333; border-radius: 8px; padding: 1.5rem; font-family: monospace; font-size: 0.85rem; line-height: 2; overflow-x: auto; white-space: pre; }
-  .signal-list { columns: 2; gap: 1rem; }
-  .signal-list li { font-family: monospace; font-size: 0.8rem; color: #79c0ff; list-style: none; padding: 2px 0; }
-  .cmd-enum { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.5rem; }
-  .cmd-tag { background: var(--card); color: var(--text); font-family: monospace; font-size: 0.75rem; padding: 2px 8px; border-radius: 12px; }
-  footer { text-align: center; padding: 2rem; color: var(--muted); font-size: 0.85rem; border-top: 1px solid #333; margin-top: 3rem; }
-  .toc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 0.75rem; margin-top: 1rem; }
-  .toc-item { background: var(--surface); border: 1px solid #2a2a4a; border-radius: 6px; padding: 0.75rem; }
-  .toc-item a { color: var(--gold); text-decoration: none; font-weight: bold; font-size: 0.9rem; }
-  .toc-item p { font-size: 0.78rem; color: var(--muted); margin-top: 0.25rem; }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;line-height:1.6}
+  header{background:linear-gradient(135deg,#2a2118,#5a3f1e);padding:2rem;text-align:center;border-bottom:2px solid var(--accent)}
+  header h1{font-size:2.4rem;color:var(--gold);text-shadow:2px 2px 6px #000}
+  header p{color:#d8c6a4;margin-top:.4rem}
+  nav{background:var(--surface);padding:.8rem 1.5rem;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:10;display:flex;flex-wrap:wrap;gap:1.1rem}
+  nav a{color:var(--accent);text-decoration:none;font-size:.85rem}
+  nav a:hover{color:var(--gold);text-decoration:underline}
+  main{max-width:1100px;margin:0 auto;padding:1.5rem}
+  section{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:1.2rem 1.4rem;margin:1.2rem 0}
+  h2{color:var(--gold);font-size:1.4rem;border-bottom:1px solid var(--line);padding-bottom:.3rem;margin-bottom:.7rem}
+  h3{color:var(--accent);font-size:1.05rem;margin:.9rem 0 .3rem}
+  p,li{color:var(--text)}
+  ul{margin:.2rem 0 .2rem 1.3rem}
+  code{background:var(--code);color:var(--gold);padding:1px 5px;border-radius:4px;font-size:.86em}
+  .muted{color:var(--muted)}
+  .tag{display:inline-block;background:#3a2f24;color:var(--gold);border-radius:10px;padding:1px 9px;font-size:.72rem;margin-left:6px}
+  .file{color:var(--blue);font-size:.84em}
+  footer{color:var(--muted);text-align:center;padding:2rem;font-size:.8rem}
 </style>
 </head>
 <body>
-
 <header>
-  <h1>⚔ Sovereign's Reach</h1>
-  <p>Systems Bibliography — Living Codebase Encyclopedia</p>
-  <p style="color:#aaa; font-size:0.85rem">Engine: Godot 4.6.3 · Architecture: Multiplayer-First (MFA) · Last updated: 2026-06-13</p>
+  <h1>⚜ Sovereign's Reach — Systems Reference</h1>
+  <p>A medieval city-builder &amp; strategy game in Godot 4.6.3. Living document — updated each dev iteration.</p>
+  <p class="muted">Last updated: iteration 44 (2026-06-16)</p>
 </header>
-
 <nav>
-  <a href="#architecture">Architecture</a>
-  <a href="#phase1">Phase 1</a>
-  <a href="#phase2">Phase 2</a>
-  <a href="#phase3">Phase 3</a>
-  <a href="#phase4">Phase 4</a>
-  <a href="#phase5">Phase 5</a>
-  <a href="#phase6">Phase 6</a>
-  <a href="#eventbus">EventBus</a>
-  <a href="#commandqueue">CommandQueue</a>
-  <a href="#simclock">SimulationClock</a>
-  <a href="#gamestate">GameState</a>
-  <a href="#roadmap">Roadmap</a>
+  <a href="#overview">Overview</a>
+  <a href="#time">Time &amp; Calendar</a>
+  <a href="#economy">Economy</a>
+  <a href="#people">People &amp; Citizens</a>
+  <a href="#buildings">Buildings</a>
+  <a href="#popularity">Popularity &amp; Survival</a>
+  <a href="#military">Military &amp; Combat</a>
+  <a href="#strategic">Strategic Layer</a>
+  <a href="#events">Events &amp; Decrees</a>
+  <a href="#progression">Tech &amp; Edicts</a>
+  <a href="#presentation">Presentation</a>
+  <a href="#testing">Testing</a>
 </nav>
-
 <main>
 
-<!-- ═══════════════════════════════════════════════════════════════════════ -->
-<section id="architecture">
-  <h2>Core Architecture — Multiplayer-First (MFA)</h2>
-  <p style="margin-top:1rem; color:#ccc">The entire game is coded as if it were a networked game with a server predicting local state. This means:</p>
-  <ul style="margin: 1rem 0 1rem 1.5rem; color:#ccc; font-size:0.9rem; line-height:2">
-    <li><strong>Simulation layer</strong> (pure GDScript Nodes — no rendering, no scene tree dependencies)</li>
-    <li><strong>View layer</strong> (Godot scenes, TileMaps, UI) reads state but never writes it</li>
-    <li><strong>Input → Command → Simulation → View</strong> — all state changes go through this pipeline</li>
-    <li>All state is JSON-serializable (no Vector2, no Node references in state dictionaries)</li>
-    <li>Fixed 20 Hz timestep — game logic is independent of render framerate</li>
+<section id="overview">
+  <h2>Overview &amp; Architecture</h2>
+  <p>Two linked play spaces: a tactical <b>City View</b> (build and run one settlement) and a strategic
+  <b>World Map</b> (rule a kingdom of cities). Engine: <b>Godot 4.6.3</b>, GDScript.</p>
+  <ul>
+    <li><b>Deterministic simulation core</b> driven by a fixed-tick <code>SimulationClock</code>
+      (20 ticks/s; 240 ticks = one game-day = 12 s at Normal speed). <span class="file">simulation/core/SimulationClock.gd</span></li>
+    <li><b>GameState</b> autoload holds the world, players, AI factions, citizens; <code>simulate_tick(t)</code>
+      advances everything each tick. <span class="file">simulation/core/GameState.gd</span></li>
+    <li>Player actions route through a <b>CommandQueue</b> (drained inside the tick) for determinism; a few
+      view-only/clock-independent actions call GameState directly (e.g. speed, world-map orders).</li>
+    <li>Pure-data systems over shared dictionaries; the view layer (<span class="file">view/</span>) only renders.</li>
   </ul>
-
-  <div class="arch-diagram">
-INPUT (Keyboard/Mouse)
-        │
-        ▼
-┌─────────────────┐     enqueue(cmd)
-│  InputMapper    │ ──────────────────►  CommandQueue
-│  (View layer)   │                          │
-└─────────────────┘                          │ dequeue_all() each tick
-                                             ▼
-                                    SimulationClock._advance_tick()
-                                             │
-                              ┌──────────────┼──────────────┐
-                              ▼              ▼              ▼
-                        apply_command()  simulate_tick()  emit(tick)
-                              │              │              │
-                              └──────────────┴──────►  GameState
-                                                           │
-                                              ┌────────────┴────────────┐
-                                              ▼                         ▼
-                                         View reads               EventBus
-                                         GameState              (signals out)
-  </div>
+  <p><b>The build goal:</b> a human can start a new game and play an engaged 20-minute life — survive,
+  understand what's happening, and never hit a wall. (Verified end-to-end via the change.md playtest loop.)</p>
 </section>
 
-<!-- ═══════════════════════════════════════════════════════════════════════ -->
-<section id="phase1">
-  <h2>Phase 1 Systems <span class="phase-badge complete">COMPLETE</span></h2>
-  <p style="margin-top:0.5rem; color:#ccc; font-size:0.9rem">69/69 tests passing. Headless run: <code style="background:var(--code-bg);padding:2px 6px;border-radius:4px">godot --headless --script tests/TestPhase1.gd</code></p>
-
-  <div class="system-grid" style="margin-top:1.5rem">
-
-    <!-- EventBus -->
-    <div class="card" id="eventbus">
-      <h2>EventBus <span class="file-path">simulation/core/EventBus.gd</span></h2>
-      <p style="color:#ccc;font-size:0.85rem">Pure signal hub. Defines ALL game-wide signals across 9 categories. Contains zero logic. All emitters call EventBus signals; all consumers connect to them.</p>
-      <h3>Signal Categories</h3>
-      <ul class="signal-list">
-        <li>command_issued(command)</li>
-        <li>command_processed(command, ok)</li>
-        <li>simulation_tick(tick)</li>
-        <li>game_speed_changed(mult)</li>
-        <li>view_mode_changed(mode)</li>
-        <li>view_rotated(index)</li>
-        <li>popularity_changed(pid, old, new)</li>
-        <li>resource_changed(pid, type, old, new)</li>
-        <li>gold_changed(pid, old, new)</li>
-        <li>prestige_changed(pid, old, new)</li>
-        <li>building_placed(pid, type, x, y, id)</li>
-        <li>building_demolished(pid, id)</li>
-        <li>building_destroyed(pid, id, cause)</li>
-        <li>unit_spawned(unit_data)</li>
-        <li>unit_killed(id, killer, cause)</li>
-        <li>unit_moved(id, fx, fy, tx, ty)</li>
-        <li>ai_siege_assembling(fid, pid, eta)</li>
-        <li>ai_envoy_sent(fid, demand)</li>
-        <li>ai_faction_defeated(fid)</li>
-        <li>weather_changed(type, ticks)</li>
-        <li>shire_ownership_changed(sid, old, new)</li>
-        <li>edict_activated(pid, id, ticks)</li>
-        <li>edict_expired(pid, id)</li>
-        <li>save_requested()</li>
-        <li>save_completed(path)</li>
-        <li>load_requested(path)</li>
-        <li>load_completed(ok)</li>
-      </ul>
-      <div class="note">Why: Decouples simulation from view. AI from economy. Nothing imports anything directly — all communication is via signals.</div>
-    </div>
-
-    <!-- CommandQueue -->
-    <div class="card" id="commandqueue">
-      <h2>CommandQueue <span class="file-path">simulation/core/CommandQueue.gd</span></h2>
-      <p style="color:#ccc;font-size:0.85rem">Autoload intent queue. Player input is NEVER applied directly. InputMapper enqueues a typed Command dict; SimulationClock drains it each tick and applies commands to GameState.</p>
-      <h3>Command Structure</h3>
-      <div class="flow">{
-  "type":          CommandType (int enum),
-  "payload":       Dictionary,   # type-specific data
-  "player_id":     int,          # which player issued it
-  "issued_at_tick": int          # tick when issued
-}</div>
-      <h3>CommandType Enum (25 types)</h3>
-      <div class="cmd-enum">
-        <span class="cmd-tag">SET_TAX_RATE</span>
-        <span class="cmd-tag">SET_RATION_FOOD</span>
-        <span class="cmd-tag">SET_RATION_ALE</span>
-        <span class="cmd-tag">DONATE_TO_CAPITAL</span>
-        <span class="cmd-tag">SET_TRADE_ROUTE</span>
-        <span class="cmd-tag">BUY_RESOURCE</span>
-        <span class="cmd-tag">SELL_RESOURCE</span>
-        <span class="cmd-tag">PLACE_BUILDING</span>
-        <span class="cmd-tag">DEMOLISH_BUILDING</span>
-        <span class="cmd-tag">SET_BUILDING_WORKERS</span>
-        <span class="cmd-tag">UPGRADE_BUILDING</span>
-        <span class="cmd-tag">RECRUIT_UNIT</span>
-        <span class="cmd-tag">ISSUE_MOVE_ORDER</span>
-        <span class="cmd-tag">ISSUE_ATTACK_ORDER</span>
-        <span class="cmd-tag">ISSUE_PATROL_ORDER</span>
-        <span class="cmd-tag">DISBAND_UNIT</span>
-        <span class="cmd-tag">ACTIVATE_EDICT</span>
-        <span class="cmd-tag">SELECT_ENTITY</span>
-        <span class="cmd-tag">DESELECT</span>
-        <span class="cmd-tag">SET_BUILD_PREVIEW</span>
-        <span class="cmd-tag">SET_GAME_SPEED</span>
-        <span class="cmd-tag">TOGGLE_VIEW_MODE</span>
-        <span class="cmd-tag">ROTATE_VIEW</span>
-        <span class="cmd-tag">SAVE_GAME</span>
-        <span class="cmd-tag">LOAD_GAME</span>
-      </div>
-      <h3>Key Methods</h3>
-      <table>
-        <tr><th>Method</th><th>Returns</th><th>Description</th></tr>
-        <tr><td>enqueue(type, payload, pid)</td><td>void</td><td>Adds command, emits EventBus.command_issued</td></tr>
-        <tr><td>dequeue_all()</td><td>Array[Dictionary]</td><td>Drains and returns all queued commands</td></tr>
-        <tr><td>peek()</td><td>Array[Dictionary]</td><td>Non-destructive view of queue</td></tr>
-        <tr><td>clear()</td><td>void</td><td>Empties queue</td></tr>
-        <tr><td>serialize()</td><td>Dictionary</td><td>JSON-safe snapshot</td></tr>
-        <tr><td>deserialize(data)</td><td>void</td><td>Restores from snapshot</td></tr>
-      </table>
-    </div>
-
-    <!-- SimulationClock -->
-    <div class="card" id="simclock">
-      <h2>SimulationClock <span class="file-path">simulation/core/SimulationClock.gd</span></h2>
-      <p style="color:#ccc;font-size:0.85rem">The heartbeat. Runs 20 Hz fixed timestep via <code>_process(delta)</code> with an accumulator. Speed multipliers scale wall-clock time consumed per tick.</p>
-      <h3>Constants</h3>
-      <table>
-        <tr><th>Constant</th><th>Value</th><th>Notes</th></tr>
-        <tr><td>TICK_RATE</td><td>20.0</td><td>Ticks per real second at 1× speed</td></tr>
-        <tr><td>TICK_INTERVAL</td><td>0.05</td><td>Real seconds per tick (1/20)</td></tr>
-        <tr><td>TICKS_PER_GAME_DAY</td><td>240</td><td>= 12 real seconds per day at 1×</td></tr>
-      </table>
-      <h3>Speed Modes</h3>
-      <table>
-        <tr><th>Constant</th><th>Multiplier</th><th>Real secs/game-day</th></tr>
-        <tr><td>SPEED_PAUSED (0)</td><td>0×</td><td>—</td></tr>
-        <tr><td>SPEED_NORMAL (1)</td><td>1×</td><td>12s</td></tr>
-        <tr><td>SPEED_FAST (2)</td><td>2×</td><td>6s</td></tr>
-        <tr><td>SPEED_FASTEST (3)</td><td>5×</td><td>2.4s</td></tr>
-      </table>
-      <h3>_advance_tick() flow</h3>
-      <div class="flow">current_tick++
-→ CommandQueue.dequeue_all()
-→ for cmd: GameState.apply_command(cmd)
-→ GameState.simulate_tick(current_tick)
-→ EventBus.simulation_tick.emit(current_tick)</div>
-      <div class="note">Why: All game logic runs here, not in _process. delta is accumulated; no logic reads delta directly. Deterministic at any speed.</div>
-    </div>
-
-    <!-- GameState -->
-    <div class="card" id="gamestate">
-      <h2>GameState <span class="file-path">simulation/core/GameState.gd</span></h2>
-      <p style="color:#ccc;font-size:0.85rem">Single source of truth. ALL mutable game data lives here. No Godot types (Vector2, Node) — only int/float/bool/String/Dictionary/Array. Fully JSON-serializable.</p>
-      <h3>Top-Level State Fields</h3>
-      <table>
-        <tr><th>Field</th><th>Type</th><th>Description</th></tr>
-        <tr><td>world</td><td>Dictionary</td><td>Map data (Phase 2)</td></tr>
-        <tr><td>players</td><td>Array</td><td>Per-player state dicts</td></tr>
-        <tr><td>ai_factions</td><td>Array</td><td>AI faction state dicts (Phase 6)</td></tr>
-        <tr><td>weather</td><td>Dictionary</td><td>Current weather + effects</td></tr>
-        <tr><td>active_edicts</td><td>Array</td><td>Server-wide active edicts</td></tr>
-        <tr><td>server_config</td><td>Dictionary</td><td>Tick rate, map size, difficulty</td></tr>
-        <tr><td>milestones</td><td>Dictionary</td><td>Cooperative milestone tracking</td></tr>
-      </table>
-      <h3>Per-Player State</h3>
-      <table>
-        <tr><th>Field</th><th>Notes</th></tr>
-        <tr><td>gold, popularity, prestige</td><td>Core economy scalars</td></tr>
-        <tr><td>tax_rate</td><td>-3 (bribe) to +3 (heavy). Input to P formula.</td></tr>
-        <tr><td>food_ration, ale_ration</td><td>0–4 sliders. Inputs to P formula.</td></tr>
-        <tr><td>keep_x, keep_y</td><td>Int coords (no Vector2i for JSON safety)</td></tr>
-        <tr><td>resources{}</td><td>8 raw materials (wood, stone, iron, pitch, hops, wheat, flour, leather)</td></tr>
-        <tr><td>food{}</td><td>5 food types (apples, cheese, meat, bread, ale)</td></tr>
-        <tr><td>armory{}</td><td>6 weapon/armor types</td></tr>
-        <tr><td>buildings[], units[]</td><td>Arrays of int IDs (detail in Phase 3/6)</td></tr>
-        <tr><td>tech_unlocks[], active_edicts[]</td><td>Progress tracking (Phase 5)</td></tr>
-        <tr><td>fog_of_war{}</td><td>"x,y"->true for revealed tiles (Phase 2)</td></tr>
-      </table>
-      <h3>apply_command() dispatch</h3>
-      <p style="font-size:0.85rem;color:#ccc;margin-top:0.5rem">Routes each CommandType to a private handler. Phase 1 handlers: SET_TAX_RATE, SET_RATION_FOOD, SET_RATION_ALE, SET_GAME_SPEED, TOGGLE_VIEW_MODE, ROTATE_VIEW, SAVE_GAME. Future phases add more.</p>
-      <h3>simulate_tick(tick)</h3>
-      <p style="font-size:0.85rem;color:#ccc;margin-top:0.5rem">Currently a stub (pass). Phase 2 adds economy tick, weather tick. Phase 4 adds the full Popularity Engine formula P = ΔF + ΔA + ΔR − T ± E.</p>
-    </div>
-
-    <!-- InputMapper -->
-    <div class="card" id="inputmapper">
-      <h2>InputMapper + InputSetup <span class="file-path">simulation/core/InputMapper.gd</span></h2>
-      <p style="color:#ccc;font-size:0.85rem"><strong>InputMapper</strong> is the ONLY file in the codebase that calls Godot's Input API. It translates physical events into Command dicts and enqueues them. It is NOT an autoload — it attaches to a View scene node.</p>
-      <p style="color:#ccc;font-size:0.85rem;margin-top:0.5rem"><strong>InputSetup</strong> is an autoload that registers all input actions programmatically (avoiding Godot's verbose project.godot event serialization).</p>
-      <h3>Input Actions Registered</h3>
-      <table>
-        <tr><th>Action</th><th>Key</th><th>Command Issued</th></tr>
-        <tr><td>cmd_pause</td><td>Space</td><td>SET_GAME_SPEED (toggle)</td></tr>
-        <tr><td>cmd_toggle_map_view</td><td>M</td><td>TOGGLE_VIEW_MODE</td></tr>
-        <tr><td>cmd_rotate_view</td><td>R</td><td>ROTATE_VIEW</td></tr>
-        <tr><td>cmd_cancel</td><td>Escape</td><td>DESELECT</td></tr>
-        <tr><td>ui_speed_1</td><td>1</td><td>SET_GAME_SPEED (NORMAL)</td></tr>
-        <tr><td>ui_speed_2</td><td>2</td><td>SET_GAME_SPEED (FAST)</td></tr>
-        <tr><td>ui_speed_3</td><td>3</td><td>SET_GAME_SPEED (FASTEST)</td></tr>
-        <tr><td>ui_save</td><td>F5</td><td>SAVE_GAME</td></tr>
-        <tr><td>cam_pan_*</td><td>WASD / Arrows</td><td>(View layer only)</td></tr>
-      </table>
-      <h3>Public API (called by View layer)</h3>
-      <table>
-        <tr><th>Method</th><th>Description</th></tr>
-        <tr><td>issue_place_building(type, x, y)</td><td>PLACE_BUILDING command</td></tr>
-        <tr><td>issue_select(id, type)</td><td>SELECT_ENTITY command</td></tr>
-        <tr><td>issue_set_tax_rate(rate)</td><td>SET_TAX_RATE command</td></tr>
-        <tr><td>issue_set_food_ration(level)</td><td>SET_RATION_FOOD command</td></tr>
-        <tr><td>issue_set_ale_ration(level)</td><td>SET_RATION_ALE command</td></tr>
-        <tr><td>set_active_build_type(type)</td><td>Tracks current build selection (view state)</td></tr>
-      </table>
-    </div>
-
-    <!-- Test Suite -->
-    <div class="card">
-      <h2>TestPhase1 <span class="file-path">tests/TestPhase1.gd</span></h2>
-      <p style="color:#ccc;font-size:0.85rem">Headless test runner (extends SceneTree). Accesses autoloads via <code>root.get_node_or_null()</code> to avoid compile-time autoload resolution in <code>--script</code> mode.</p>
-      <h3>Test Coverage (69 tests)</h3>
-      <table>
-        <tr><th>Suite</th><th>Tests</th><th>Status</th></tr>
-        <tr><td>CommandQueue</td><td>10</td><td style="color:var(--green)">✓ PASS</td></tr>
-        <tr><td>GameState initialization</td><td>22</td><td style="color:var(--green)">✓ PASS</td></tr>
-        <tr><td>Serialization round-trip</td><td>8</td><td style="color:var(--green)">✓ PASS</td></tr>
-        <tr><td>Command application</td><td>8</td><td style="color:var(--green)">✓ PASS</td></tr>
-        <tr><td>SimulationClock</td><td>21</td><td style="color:var(--green)">✓ PASS</td></tr>
-      </table>
-      <div class="flow">godot --headless --script tests/TestPhase1.gd</div>
-    </div>
-
-  </div>
+<section id="time">
+  <h2>Time &amp; Calendar <span class="tag">reworked iter 38–44</span></h2>
+  <p><span class="file">simulation/world/SeasonSystem.gd</span></p>
+  <h3>Day / night cycle (decoupled from the game-day)</h3>
+  <ul>
+    <li>A full day↔night spans <code>DAY_NIGHT_TICKS = 18000</code> ≈ <b>15 real minutes</b> at Normal
+      (~3 min at Fastest), opening at noon.</li>
+    <li><code>night_factor(tick)</code> 0 (noon) … 1 (midnight); a power curve (<code>NIGHT_SKEW 1.8</code>)
+      keeps <b>night the shorter ~⅓</b> (≈10 min day, ≈5 min night). <code>is_night()</code>, <code>phase_name()</code>
+      → Day/Dusk/Night/Dawn (shown in the HUD).</li>
+    <li>Decoupled from the 240-tick economy game-day so the village runs lively while the sky moves slowly.</li>
+  </ul>
+  <h3>Seasonal calendar (keyed to the day/night cycle)</h3>
+  <ul>
+    <li>A "day" = one day/night. <code>SKY_DAYS_PER_SEASON = 2</code> → an <b>8-day year</b> (~2 hours);
+      seasons advance at the same scale as the year (no more flickering within a day).</li>
+    <li><code>season_at_tick(tick)</code> drives harvest gating, weather, terrain/foliage tints, seasonal events.</li>
+    <li>Spring/Summer/Autumn/Winter affect crop yields, snow (winter-only), and visuals.</li>
+  </ul>
 </section>
 
-<!-- ═══════════════════════════════════════════════════════════════════════ -->
-<section id="roadmap">
-  <h2>Phase Roadmap</h2>
-  <div class="toc-grid" style="margin-top:1rem">
-    <div class="toc-item">
-      <a href="#phase1">Phase 1 ✅</a>
-      <p>Core Architecture & Input</p>
-    </div>
-    <div class="toc-item">
-      <a href="#phase2">Phase 2 ✅</a>
-      <p>Simulation Loop — Grid, Weather, Popularity Engine</p>
-    </div>
-    <div class="toc-item">
-      <a href="#phase3">Phase 3 ✅</a>
-      <p>Player Controller — Buildings, Workers, Camera</p>
-    </div>
-    <div class="toc-item">
-      <a href="#phase4">Phase 4 ✅</a>
-      <p>Core Gameplay — Food/Ale/Tax/Disease/Market</p>
-    </div>
-    <div class="toc-item">
-      <a href="#phase5">Phase 5 ✅</a>
-      <p>Progression — Save/Load, Tech Tree, Edicts</p>
-    </div>
-    <div class="toc-item">
-      <a href="#phase6">Phase 6 ✅</a>
-      <p>AI & Entities — 4 Archetypes, Pathfinding, Combat</p>
-    </div>
-    <div class="toc-item">
-      <a href="#">Phase 7 ⬜</a>
-      <p>UI & View — Isometric, Macro Map, HUD</p>
-    </div>
-  </div>
+<section id="economy">
+  <h2>Economy — physical hauling</h2>
+  <p><span class="file">simulation/economy/ResourceTick.gd, StorageSystem.gd · simulation/world/CitizenSystem.gd</span></p>
+  <ul>
+    <li><b>Hauling chain:</b> a worker physically walks to a resource node, gathers, carries to its building,
+      processes, and <b>delivers to a stockpile/granary</b> — output is credited only on delivery.</li>
+    <li><b>Storage caps:</b> production stops when storage is full; build stockpiles/granaries to store more.</li>
+    <li><b>Food:</b> the no-tech <code>apple_orchard</code> is the staple. Harvest gating gives a <b>bumper crop
+      in-season and an 0.85× year-round trickle off-season</b> (raised from 0.6 when seasons were lengthened,
+      so the staple feeds the village even across a long off-season). Granary stores food; population eats daily.</li>
+    <li>Chains: woodcutter→stockpile, quarry, iron mine, wheat→mill→bakery (bread), hops→brewery (ale),
+      pig/dairy farms (meat/cheese/leather), trading post (gold).</li>
+    <li>Weather &amp; shire biome modifiers scale farm/mine output; drought/snow can zero crop yields.</li>
+  </ul>
 </section>
 
-<!-- ═══════════════════════════════════════════════════════════════════════ -->
-<section id="phase2">
-  <h2>Phase 2 Systems <span class="phase-badge complete">COMPLETE</span></h2>
-  <p style="margin-top:0.5rem; color:#ccc; font-size:0.9rem">90/90 tests passing. Headless run: <code style="background:var(--code-bg);padding:2px 6px;border-radius:4px">godot --headless --script tests/TestPhase2.gd</code></p>
-
-  <div class="system-grid" style="margin-top:1.5rem">
-
-    <div class="card">
-      <h2>WorldGrid <span class="file-path">simulation/world/WorldGrid.gd</span></h2>
-      <p style="color:#ccc;font-size:0.85rem">200×200 flat-array tile grid. All spatial data lives here. Pure data class (extends RefCounted). Seeded procedural generation.</p>
-      <h3>Terrain Types (11)</h3>
-      <div class="flow">GRASS=0  FOREST=1  MOUNTAIN=2  RIVER=3  MARSH=4
-ROCK=5   ORE_VEIN=6  VALLEY=7  COASTAL=8  ROAD=9  RUIN=10</div>
-      <h3>Passability Masks</h3>
-      <table><tr><th>Constant</th><th>Bit</th><th>Blocked by</th></tr>
-        <tr><td>PASSABLE_FOOT</td><td>0b0001</td><td>—</td></tr>
-        <tr><td>PASSABLE_CAVALRY</td><td>0b0010</td><td>Mountain, Marsh</td></tr>
-        <tr><td>PASSABLE_CART</td><td>0b0100</td><td>Forest, Mountain, Marsh, Rock, Ore</td></tr>
-        <tr><td>PASSABLE_SIEGE</td><td>0b1000</td><td>All non-flat terrain</td></tr>
-      </table>
-      <h3>Key Methods</h3>
-      <table><tr><th>Method</th><th>Returns</th><th>Purpose</th></tr>
-        <tr><td>generate(seed, shires)</td><td>void</td><td>Procedural: rivers, mountains, forests, ore, valleys, coastal</td></tr>
-        <tr><td>get_terrain(x,y)</td><td>int</td><td>Terrain enum value (returns RIVER if OOB)</td></tr>
-        <tr><td>get_farm_yield(x,y)</td><td>float</td><td>0.0–1.5 multiplier (VALLEY=1.5, GRASS=1.0)</td></tr>
-        <tr><td>is_passable(x,y,mask)</td><td>bool</td><td>Unit type can cross this tile</td></tr>
-        <tr><td>get_building_at(x,y)</td><td>int</td><td>0=empty, >0=building ID</td></tr>
-        <tr><td>set_building_at(x,y,id)</td><td>void</td><td>Marks tile occupied (0 to clear)</td></tr>
-        <tr><td>in_bounds(x,y)</td><td>bool</td><td>Within 0..width-1, 0..height-1</td></tr>
-        <tr><td>serialize()</td><td>Dict</td><td>Base64 PackedArrays (terrain/shire_id/elevation/resource_density). Building IDs NOT serialized — reconstructed from player state on load.</td></tr>
-      </table>
-    </div>
-
-    <div class="card">
-      <h2>ShireMap <span class="file-path">simulation/world/ShireMap.gd</span></h2>
-      <p style="color:#ccc;font-size:0.85rem">Manages shire ownership, tax zones, and regional capitals. Up to 16 shires. Per-shire influence radius controls where players can build.</p>
-      <h3>Biome Traits</h3>
-      <table><tr><th>Biome</th><th>Farm Bonus</th><th>Mine Bonus</th><th>Trade Bonus</th></tr>
-        <tr><td>PLAINS</td><td>+25%</td><td>—</td><td>—</td></tr>
-        <tr><td>HIGHLAND</td><td>—</td><td>+30%</td><td>—</td></tr>
-        <tr><td>COAST</td><td>—</td><td>—</td><td>+20%</td></tr>
-        <tr><td>FOREST</td><td>—</td><td>+10%</td><td>—</td></tr>
-        <tr><td>TUNDRA</td><td>−30%</td><td>—</td><td>—</td></tr>
-      </table>
-      <h3>Capital Upgrades</h3>
-      <p style="color:#ccc;font-size:0.85rem;margin-top:0.5rem">Levels 0–5. Each level adds a <code>prestige_multiplier_N</code> buff to the shire's <code>active_buffs</code> array. Capped at level 5. Donation tracking per player per resource.</p>
-    </div>
-
-    <div class="card">
-      <h2>PopularityEngine <span class="file-path">simulation/economy/PopularityEngine.gd</span></h2>
-      <p style="color:#ccc;font-size:0.85rem">Static functions only. Implements GDD §3 Popularity formula: <strong>P = ΔF + ΔA + ΔR − T ± E</strong></p>
-      <h3>Formula Components</h3>
-      <table><tr><th>Component</th><th>Source</th><th>Range</th></tr>
-        <tr><td>ΔF (Food)</td><td>food_ration slider + variety bonus</td><td>−15 to +25</td></tr>
-        <tr><td>ΔA (Ale)</td><td>ale_ration + inn coverage</td><td>−8 to +16</td></tr>
-        <tr><td>ΔR (Religion)</td><td>church/cathedral coverage ratio</td><td>0 to +10</td></tr>
-        <tr><td>T (Tax)</td><td>TAX_POPULARITY_DELTA[tax_rate]</td><td>−12 to +10</td></tr>
-        <tr><td>E (Events)</td><td>external events array</td><td>−12 per active siege</td></tr>
-      </table>
-      <div class="note">TAX_POPULARITY_DELTA already encodes sign — use <code>+tax_delta</code> not <code>−tax_delta</code>. The double-negation bug was found and fixed in Phase 2.</div>
-      <h3>Key Methods</h3>
-      <table><tr><th>Method</th><th>Purpose</th></tr>
-        <tr><td>calculate_delta(player, events)</td><td>Returns raw delta without mutating state</td></tr>
-        <tr><td>apply_tick(player, events)</td><td>Mutates player.popularity, returns new value. Only called at tick % 240 == 0.</td></tr>
-        <tr><td>is_desertion_risk(player)</td><td>Returns true if popularity &lt; 20</td></tr>
-        <tr><td>get_prestige_multiplier(player)</td><td>Prestige tier multiplier for income</td></tr>
-      </table>
-    </div>
-
-    <div class="card">
-      <h2>ResourceTick <span class="file-path">simulation/economy/ResourceTick.gd</span></h2>
-      <p style="color:#ccc;font-size:0.85rem">Static functions. 15 production buildings, each with a tick interval and optional input/output chains.</p>
-      <h3>Production Intervals (ticks)</h3>
-      <div class="flow">woodcutter_camp:30  stone_quarry:120  iron_mine:180  pitch_rig:60
-apple_orchard:300  pig_farm:600  dairy_farm:480  hops_farm:360
-wheat_farm:480  mill:120  bakery:180  brewery:240
-fletcher:90  poleturner:60  blacksmith:300</div>
-      <h3>Key Methods</h3>
-      <table><tr><th>Method</th><th>Purpose</th></tr>
-        <tr><td>tick_building(building, player, tick)</td><td>Returns change dict or empty. Guard: tick==0 OR tick%interval!=0 → no production.</td></tr>
-        <tr><td>tick_food_consumption(player, tick)</td><td>Only fires at tick%240==0 (day boundary). Deducts food by ration level.</td></tr>
-        <tr><td>apply_changes(player, changes)</td><td>Mutates player resources. Returns true if shortage detected.</td></tr>
-      </table>
-    </div>
-
-    <div class="card">
-      <h2>WeatherSystem <span class="file-path">simulation/world/WeatherSystem.gd</span></h2>
-      <p style="color:#ccc;font-size:0.85rem">Static functions. 6 weather states with probability-weighted transitions.</p>
-      <h3>Weather States & Effects</h3>
-      <table><tr><th>State</th><th>Move Pen.</th><th>Farm Mult</th><th>Food Drain</th><th>Pop Δ</th></tr>
-        <tr><td>CLEAR</td><td>0</td><td>1.0</td><td>0</td><td>0</td></tr>
-        <tr><td>RAIN</td><td>0.2</td><td>0.8</td><td>0</td><td>0</td></tr>
-        <tr><td>DROUGHT</td><td>0</td><td>0.0</td><td>0</td><td>0</td></tr>
-        <tr><td>SNOW</td><td>0.5</td><td>0.0</td><td>2.0</td><td>−5</td></tr>
-        <tr><td>FOG</td><td>0.3</td><td>0.9</td><td>0</td><td>0</td></tr>
-        <tr><td>STORM</td><td>0.8</td><td>0.0</td><td>0</td><td>−8</td></tr>
-      </table>
-      <div class="warn">Named <code>weather_name()</code> not <code>get_name()</code> — <code>Object.get_name()</code> is a built-in that shadows user-defined methods when called on a preloaded GDScript.</div>
-    </div>
-
-  </div>
+<section id="people">
+  <h2>People &amp; Citizens <span class="tag">day/night behaviour iter 38</span></h2>
+  <p><span class="file">simulation/world/PeopleSystem.gd, CitizenSystem.gd</span></p>
+  <ul>
+    <li><b>Living villagers</b> with life-stages (baby→child→adult→midlife→elder), families, genetics
+      (inherited skin/hair), births gated on housing rooms. Aging keys off its own scale (48 game-days =
+      1 life-year), independent of the seasonal calendar.</li>
+    <li>Only working-age adults take jobs; <code>CitizenSystem</code> pulls idle villagers into job-workers
+      (woodcutter/reaper/smith…) that walk to buildings and toil, and into <b>builders</b> for unfinished sites.</li>
+    <li><b>At night</b> the idle townsfolk walk to their <b>allotted house</b> (round-robin over hovels/hall)
+      and sleep; assigned <b>workers keep a night shift</b> so production isn't paused. (Opt-in <code>day_night</code>
+      flag; the real game enables it.)</li>
+    <li><b>Construction is pure builder labour</b> (no materials needed); builders come only from idle
+      villagers. AI towns reserve builders when works are pending; the player is warned if every villager is
+      employed and works stall.</li>
+  </ul>
 </section>
 
-<!-- ═══════════════════════════════════════════════════════════════════════ -->
-<section id="phase3">
-  <h2>Phase 3 Systems <span class="phase-badge complete">COMPLETE</span></h2>
-  <p style="margin-top:0.5rem; color:#ccc; font-size:0.9rem">89/89 tests passing. Headless run: <code style="background:var(--code-bg);padding:2px 6px;border-radius:4px">godot --headless --script tests/TestPhase3.gd</code></p>
-
-  <div class="system-grid" style="margin-top:1.5rem">
-
-    <div class="card">
-      <h2>BuildingRegistry <span class="file-path">simulation/buildings/BuildingRegistry.gd</span></h2>
-      <p style="color:#ccc;font-size:0.85rem">Immutable static definitions for all 30+ building types (GDD §5). Never instantiated. All runtime state is in BuildingState.</p>
-      <h3>Categories</h3>
-      <div class="flow">CIVIC=0  HARVESTING=1  FOOD=2  MILITARY=3  DEFENSE=4</div>
-      <h3>Terrain Bitmasks</h3>
-      <div class="flow">TERRAIN_GRASS=1&lt;&lt;0  TERRAIN_FOREST=1&lt;&lt;1  TERRAIN_MARSH=1&lt;&lt;4
-TERRAIN_ROCK=1&lt;&lt;5   TERRAIN_ORE=1&lt;&lt;6    TERRAIN_VALLEY=1&lt;&lt;7
-TERRAIN_FLAT = GRASS|VALLEY|COASTAL|ROAD
-TERRAIN_ANY = 0 (no terrain restriction)</div>
-      <h3>Key Methods</h3>
-      <table><tr><th>Method</th><th>Purpose</th></tr>
-        <tr><td>lookup(building_type)</td><td>Returns definition dict or empty dict. Named <code>lookup</code> not <code>get</code> to avoid conflict with <code>Object.get()</code> built-in.</td></tr>
-        <tr><td>is_valid_type(building_type)</td><td>Returns bool</td></tr>
-        <tr><td>get_by_category(category)</td><td>Returns Array of type names</td></tr>
-        <tr><td>coverage_radius(building_type)</td><td>Returns int (0 if not applicable)</td></tr>
-        <tr><td>requiring_tech(tech_id)</td><td>Returns Array of building types that need this tech</td></tr>
-        <tr><td>get_recruitment_cost(unit_type)</td><td>Placeholder costs until Phase 6 UnitRegistry</td></tr>
-      </table>
-      <h3>Notable Buildings</h3>
-      <table><tr><th>Type</th><th>Size</th><th>Special</th></tr>
-        <tr><td>village_hall</td><td>3×3</td><td>unique:true — only one per player</td></tr>
-        <tr><td>pitch_rig</td><td>1×1</td><td>fire_risk:0.08, requires MARSH</td></tr>
-        <tr><td>armory</td><td>2×2</td><td>explosive:true</td></tr>
-        <tr><td>cathedral</td><td>4×4</td><td>immune_to_fire:true, coverage_radius:30</td></tr>
-        <tr><td>wheat_farm</td><td>3×3</td><td>requires crop_tiers tech</td></tr>
-        <tr><td>great_tower</td><td>2×2</td><td>worker_slots:8, requires advanced_masonry</td></tr>
-      </table>
-    </div>
-
-    <div class="card">
-      <h2>BuildingState <span class="file-path">simulation/buildings/BuildingState.gd</span></h2>
-      <p style="color:#ccc;font-size:0.85rem">Factory and mutation functions for per-building instance state. All output is serializable Dictionaries. Static functions only.</p>
-      <h3>Instance Keys</h3>
-      <div class="flow">id, type, player_id, grid_x, grid_y
-workers, max_workers, is_active, is_on_fire
-hp, max_hp, production_ticks, terrain_yield
-storage_used, storage_max, coverage_radius, coverage_active
-is_open (gates), upgrade_level, applied_bonuses</div>
-      <h3>Key Methods</h3>
-      <table><tr><th>Method</th><th>Returns</th><th>Purpose</th></tr>
-        <tr><td>create(type, pid, gx, gy, bid)</td><td>Dict</td><td>Factory. Uses BuildingRegistry.lookup() for defaults.</td></tr>
-        <tr><td>worker_efficiency(b, keep_x, keep_y)</td><td>float</td><td>1.0 at ≤10 tiles, −1%/tile beyond. Min 0.1.</td></tr>
-        <tr><td>take_damage(b, amount)</td><td>bool</td><td>Returns true if destroyed (hp→0, is_active→false)</td></tr>
-        <tr><td>repair(b, amount)</td><td>void</td><td>Raises hp, caps at max_hp, sets is_active=true</td></tr>
-        <tr><td>ignite(b)</td><td>bool</td><td>Sets is_on_fire=true only if fire_risk&gt;0 and not immune. Returns success.</td></tr>
-        <tr><td>tick_fire(b)</td><td>bool</td><td>Deals 8 HP/tick (40 for pitch_rig/armory). Returns true if destroyed.</td></tr>
-      </table>
-    </div>
-
-    <div class="card">
-      <h2>PlacementValidator <span class="file-path">simulation/buildings/PlacementValidator.gd</span></h2>
-      <p style="color:#ccc;font-size:0.85rem">Validates PLACE_BUILDING commands before any state mutation. Pure functions — never mutates state except <code>deduct_cost()</code>.</p>
-      <h3>Validation Pipeline (in order)</h3>
-      <div class="flow">1. is_valid_type → INVALID_TYPE
-2. bounds check (all footprint tiles) → OUT_OF_BOUNDS
-3. occupancy check (all footprint tiles) → OCCUPIED
-4. terrain bitmask check (all footprint tiles) → WRONG_TERRAIN
-5. tech requirements → MISSING_TECH
-6. resource / gold cost → MISSING_RESOURCES
-7. shire influence radius (if shire_id &gt;= 0) → OUTSIDE_BORDERS</div>
-      <h3>ValidationResult Enum</h3>
-      <div class="flow">OK=0  OUT_OF_BOUNDS=1  OCCUPIED=2  WRONG_TERRAIN=3
-MISSING_TECH=4  MISSING_RESOURCES=5  OUTSIDE_BORDERS=6  INVALID_TYPE=7</div>
-      <div class="warn">Multi-tile buildings (e.g. 2×2 stone_quarry) check ALL tiles against terrain_req. Setting only the origin tile to ROCK is not enough — all 4 tiles must be ROCK.</div>
-    </div>
-
-    <div class="card">
-      <h2>WorkerSystem <span class="file-path">simulation/player/WorkerSystem.gd</span></h2>
-      <p style="color:#ccc;font-size:0.85rem">Manages peasant ↔ building assignment. Available workers = population − military_strength − total_assigned. Static functions only.</p>
-      <h3>Priority Order (auto_assign)</h3>
-      <div class="flow">FOOD → HARVESTING → CIVIC → MILITARY → DEFENSE</div>
-      <h3>Key Methods</h3>
-      <table><tr><th>Method</th><th>Returns</th><th>Purpose</th></tr>
-        <tr><td>assign_workers(b, count, player)</td><td>int</td><td>Returns net change. Capped by max_workers AND available workers.</td></tr>
-        <tr><td>unassign_workers(b, player)</td><td>int</td><td>Frees all workers from building. Returns count freed.</td></tr>
-        <tr><td>auto_assign(player)</td><td>void</td><td>Fills all buildings by priority category.</td></tr>
-        <tr><td>total_assigned(player)</td><td>int</td><td>Sum of workers across all buildings.</td></tr>
-        <tr><td>levy_peasants(count, player)</td><td>int</td><td>Pulls workers from buildings (GDD §7.3.2 Levy edict). Returns actual count pulled.</td></tr>
-        <tr><td>calculate_inn_coverage(player, buildings)</td><td>float</td><td>0.0–1.0 ratio of hovels covered by active inns (each inn≈4 hovels).</td></tr>
-        <tr><td>calculate_religion_coverage(buildings)</td><td>float</td><td>0.0–1.0 based on church/cathedral coverage_radius vs. hovel count.</td></tr>
-      </table>
-    </div>
-
-  </div>
+<section id="buildings">
+  <h2>Buildings &amp; Construction</h2>
+  <p><span class="file">simulation/buildings/BuildingRegistry.gd, BuildingState.gd</span></p>
+  <ul>
+    <li>Categories: <b>Civic</b> (Village Hall, Hovel, Market, Apothecary, Well…), <b>Harvesting</b>,
+      <b>Food</b>, <b>Military</b>, <b>Defense</b> (palisade, stone wall, gatehouse, towers).</li>
+    <li>A fresh game starts with no buildings — the player must place a <b>Village Hall</b> first (onboarding
+      tutorial guides this). Freshly-finished workplaces auto-staff to max.</li>
+    <li>Buildable <b>road paths</b> (built over time, speed up movement); minimum spacing between buildings.</li>
+    <li>Fire can ignite buildings (weather/risk); apothecary/well provide sanitation; disease scales with crowding.</li>
+  </ul>
 </section>
 
-<!-- ═══════════════════════════════════════════════════════════════════════ -->
-<section id="phase4">
-  <h2>Phase 4 Systems <span class="phase-badge complete">COMPLETE</span></h2>
-  <p style="margin-top:0.5rem; color:#ccc; font-size:0.9rem">60/60 tests passing. Headless run: <code style="background:var(--code-bg);padding:2px 6px;border-radius:4px">godot --headless --script tests/TestPhase4.gd</code></p>
-
-  <div class="system-grid" style="margin-top:1.5rem">
-
-    <div class="card">
-      <h2>FoodSystem <span class="file-path">simulation/economy/FoodSystem.gd</span></h2>
-      <p style="color:#ccc;font-size:0.85rem">GDD §3.1. Manages granary capacity, food distribution, starvation detection, and spoilage caps.</p>
-      <h3>Consumption Order</h3>
-      <div class="flow">apples → bread → cheese → meat  (cheapest first)</div>
-      <h3>Ration Drains (food/peasant/day)</h3>
-      <div class="flow">0=0.0  1=0.5  2=1.0  3=1.5  4=2.0</div>
-      <h3>Key Methods</h3>
-      <table><tr><th>Method</th><th>Returns</th><th>Purpose</th></tr>
-        <tr><td>get_total_food(player)</td><td>int</td><td>Sum across all food dict values</td></tr>
-        <tr><td>get_granary_capacity(player)</td><td>int</td><td>Sum of building storage_max; default 200 if no granary</td></tr>
-        <tr><td>tick(player, tick)</td><td>Dict</td><td>Day boundary only. Returns {food_consumed, food_shortage, starving}. Sets player.is_starving.</td></tr>
-        <tr><td>apply_granary_cap(player)</td><td>void</td><td>Spills cheapest food first if above capacity</td></tr>
-        <tr><td>get_food_variety_count(player)</td><td>int</td><td>Count of food types with stock &gt; 0</td></tr>
-      </table>
-      <div class="note">FoodSystem.tick() handles starvation flags. GameState still calls ResourceTick.tick_food_consumption() for production-side food deduction; FoodSystem.apply_granary_cap() runs after.</div>
-    </div>
-
-    <div class="card">
-      <h2>AleSystem <span class="file-path">simulation/economy/AleSystem.gd</span></h2>
-      <p style="color:#ccc;font-size:0.85rem">GDD §3.2. Inn coverage ratio and ale consumption chain. Updates player.inn_coverage on every tick.</p>
-      <h3>Coverage Formula</h3>
-      <div class="flow">inn_coverage = clamp(staffed_inn_count × 4 / hovel_count, 0.0, 1.0)
-(an inn must have workers > 0 and is_active = true to count)</div>
-      <h3>Key Methods</h3>
-      <table><tr><th>Method</th><th>Returns</th><th>Purpose</th></tr>
-        <tr><td>compute_inn_coverage(player)</td><td>float</td><td>0.0–1.0 coverage ratio</td></tr>
-        <tr><td>tick(player, tick)</td><td>Dict</td><td>Always updates inn_coverage. Day boundary: consumes ale per inn × ration_mult (ration × 0.5).</td></tr>
-      </table>
-    </div>
-
-    <div class="card">
-      <h2>ReligionSystem <span class="file-path">simulation/economy/ReligionSystem.gd</span></h2>
-      <p style="color:#ccc;font-size:0.85rem">GDD §3.3. Church/Cathedral coverage → religion_coverage → ΔR in Popularity Engine.</p>
-      <h3>Coverage Formula</h3>
-      <div class="flow">coverage_sum = Σ(building.coverage_radius / 4.0)  per church/cathedral
-religion_coverage = clamp(coverage_sum / hovel_count, 0.0, 1.0)
-
-Church radius=12, Cathedral radius=30. Both require "monastic_orders" tech.</div>
-      <h3>Key Methods</h3>
-      <table><tr><th>Method</th><th>Returns</th><th>Purpose</th></tr>
-        <tr><td>compute_religion_coverage(player)</td><td>float</td><td>0.0–1.0 from buildings</td></tr>
-        <tr><td>coverage_to_popularity_delta(cov)</td><td>float</td><td>coverage × 10.0 (MAX_RELIGION_DELTA)</td></tr>
-        <tr><td>tick(player)</td><td>float</td><td>Updates player.religion_coverage every tick</td></tr>
-      </table>
-    </div>
-
-    <div class="card">
-      <h2>TaxSystem <span class="file-path">simulation/economy/TaxSystem.gd</span></h2>
-      <p style="color:#ccc;font-size:0.85rem">GDD §3.4. Replaced GameState._collect_taxes(). Fires at day boundaries only.</p>
-      <h3>Gold Formula</h3>
-      <div class="flow">daily_gold = sign(tax_rate) × abs(tax_rate) × 0.5 × population × shire_modifier
-  positive → player earns gold
-  negative → player loses gold (bribe cost)
-  gold floored at 0</div>
-      <h3>Key Methods</h3>
-      <table><tr><th>Method</th><th>Returns</th><th>Purpose</th></tr>
-        <tr><td>calculate_daily_gold(player, world)</td><td>int</td><td>Gold delta (negative for bribes)</td></tr>
-        <tr><td>tick(player, world, tick)</td><td>Dict</td><td>Day boundary only. Returns {old_gold, new_gold, delta} or {} if no change.</td></tr>
-      </table>
-    </div>
-
-    <div class="card">
-      <h2>DiseaseSystem <span class="file-path">simulation/economy/DiseaseSystem.gd</span></h2>
-      <p style="color:#ccc;font-size:0.85rem">GDD §3.5.3. Crowded housing without apothecary coverage triggers outbreaks. Returns event strings for PopularityEngine.</p>
-      <h3>Thresholds</h3>
-      <div class="flow">CROWDING_THRESHOLD = 5 hovels
-apothecary_coverage = clamp(apothecary_count × 6.0 / hovel_count, 0.0, 1.0)
-is_crowding_risk = hovel_count ≥ 5 AND coverage &lt; 0.5
-OUTBREAK_PROBABILITY = 8%/day
-DISEASE_DEATH_RATE = 2 peasants/day when active
-cure = coverage ≥ 0.8</div>
-      <h3>Key Methods</h3>
-      <table><tr><th>Method</th><th>Returns</th><th>Purpose</th></tr>
-        <tr><td>compute_apothecary_coverage(player)</td><td>float</td><td>0.0–1.0 based on staffed apothecaries vs hovels</td></tr>
-        <tr><td>is_crowding_risk(player)</td><td>bool</td><td>True if hovel_count ≥ 5 AND coverage &lt; 0.5</td></tr>
-        <tr><td>tick(player, rng, tick)</td><td>Array</td><td>Day boundary. Returns ["disease_outbreak"] if disease active or triggered. Kills/cures accordingly.</td></tr>
-      </table>
-    </div>
-
-    <div class="card">
-      <h2>MarketSystem <span class="file-path">simulation/economy/MarketSystem.gd</span></h2>
-      <p style="color:#ccc;font-size:0.85rem">GDD §5.1.3. BUY/SELL commands, server-wide fluctuating prices. Requires a market building.</p>
-      <h3>Pricing</h3>
-      <div class="flow">BASE_PRICES: wood=3 stone=5 iron=8 pitch=6 hops=4 wheat=3 bread=5 ale=8 ...
-buy_price  = ceili(base × 1.2)   ← 20% markup, rounded UP
-sell_price = base
-PRICE_VARIANCE = ±30% every 2400 ticks (10 game-days)</div>
-      <div class="warn">Uses ceili() not int() for buy price. int(3×1.2)=int(3.6)=3=sell_price (no margin). ceili(3.6)=4 &gt; 3.</div>
-      <h3>Key Methods</h3>
-      <table><tr><th>Method</th><th>Returns</th><th>Purpose</th></tr>
-        <tr><td>initialize_prices(world)</td><td>void</td><td>Sets world["market_prices"] from BASE_PRICES (idempotent)</td></tr>
-        <tr><td>tick_prices(world, rng, tick)</td><td>void</td><td>Fluctuates all prices every 2400 ticks. Must be called by player 0's tick.</td></tr>
-        <tr><td>get_buy_price(resource, world)</td><td>int</td><td>ceili(base × 1.2)</td></tr>
-        <tr><td>get_sell_price(resource, world)</td><td>int</td><td>base price</td></tr>
-        <tr><td>buy(player, resource, qty, world)</td><td>Dict</td><td>{ok, message, cost}. Requires market building + sufficient gold.</td></tr>
-        <tr><td>sell(player, resource, qty, world)</td><td>Dict</td><td>{ok, message, earned}. Requires market building + stock.</td></tr>
-      </table>
-    </div>
-
-  </div>
+<section id="popularity">
+  <h2>Popularity &amp; Survival</h2>
+  <p><span class="file">simulation/economy/PopularityEngine.gd</span></p>
+  <ul>
+    <li>Daily popularity delta = food ration + variety + ale (×inn coverage) + religion + tax + events,
+      smoothed ×0.05/day. <b>Loss conditions:</b> keep/hall destroyed, popularity &lt; 10 (revolt), or
+      starvation → collapse.</li>
+    <li><b>Siege morale</b> is defense-aware: an unready realm panics under a looming siege
+      (<code>active_siege</code> −8/day) while a prepared one (walls/towers + garrison) holds
+      (<code>active_siege_defended</code> −3/day). The siege telegraph names the kingdom, gives the ETA in
+      days, and tells you if your defences are steadying the people.</li>
+    <li>A one-time <b>restless-people</b> warning fires when popularity drifts low, pointing at the morale
+      levers (Village Feast edict, lower taxes, church/inn).</li>
+    <li>The day-boundary also warns when <b>construction has stalled for lack of free builders</b>.</li>
+  </ul>
 </section>
 
-<!-- ═══════════════════════════════════════════════════════════════════════ -->
-<section id="phase5">
-  <h2>Phase 5 Systems <span class="phase-badge complete">COMPLETE</span></h2>
-  <p style="margin-top:0.5rem; color:#ccc; font-size:0.9rem">98/98 tests passing. Headless run: <code style="background:var(--code-bg);padding:2px 6px;border-radius:4px">godot --headless --script tests/TestPhase5.gd</code></p>
-
-  <div class="system-grid" style="margin-top:1.5rem">
-
-    <div class="card">
-      <h2>SaveManager <span class="file-path">simulation/persistence/SaveManager.gd</span></h2>
-      <p style="color:#ccc;font-size:0.85rem">GDD §1.5.4. JSON file I/O with version guard. All GameState data is JSON-safe per MFA constraint.</p>
-      <h3>Save Envelope Format</h3>
-      <div class="flow">{"save_version": 1, "saved_at": unix_timestamp, "state": {...}}</div>
-      <h3>Key Methods</h3>
-      <table><tr><th>Method</th><th>Returns</th><th>Purpose</th></tr>
-        <tr><td>save(state, path)</td><td>bool</td><td>Writes JSON to file. Returns false if empty or IO error.</td></tr>
-        <tr><td>load_save(path)</td><td>Dict</td><td>Returns state dict or {} if missing/corrupt/wrong version.</td></tr>
-        <tr><td>save_exists(path)</td><td>bool</td><td>FileAccess.file_exists check.</td></tr>
-        <tr><td>delete_save(path)</td><td>bool</td><td>Removes file via DirAccess.</td></tr>
-        <tr><td>get_save_metadata(path)</td><td>Dict</td><td>Returns {save_version, saved_at, valid} without loading full state.</td></tr>
-      </table>
-    </div>
-
-    <div class="card">
-      <h2>TechTree <span class="file-path">simulation/tech/TechTree.gd</span></h2>
-      <p style="color:#ccc;font-size:0.85rem">GDD §4. 20 techs across 5 branches. Prerequisite DAG. Prestige is the research currency.</p>
-      <h3>Branches</h3>
-      <div class="flow">AGRICULTURE: crop_tiers → farming_speed/storage_capacity → animal_husbandry → advanced_tools
-INDUSTRY:    resource_unlocks → mining_speed/transport_logistics → refining_processing → advanced_masonry
-MILITARY:    weapon_crafting → armor_forging/unit_unlocks → training_speed → siege_engines
-STATECRAFT:  scouting_vision → monastic_orders/army_logistics/royal_edicts → diplomacy</div>
-      <h3>Key Methods</h3>
-      <table><tr><th>Method</th><th>Returns</th><th>Purpose</th></tr>
-        <tr><td>lookup(tech_id)</td><td>Dict</td><td>Full tech definition or {}.</td></tr>
-        <tr><td>can_research(player, tech_id)</td><td>{ok, reason}</td><td>Validates unlocks + prestige.</td></tr>
-        <tr><td>research(player, tech_id)</td><td>Dict</td><td>Deducts prestige, adds to tech_unlocks, returns unlocked lists.</td></tr>
-        <tr><td>get_researchable(player)</td><td>Array</td><td>All techs the player can research right now.</td></tr>
-        <tr><td>get_all_modifiers(player)</td><td>Dict</td><td>Merged stat bonuses from all researched techs.</td></tr>
-      </table>
-    </div>
-
-    <div class="card">
-      <h2>PrestigeSystem <span class="file-path">simulation/tech/PrestigeSystem.gd</span></h2>
-      <p style="color:#ccc;font-size:0.85rem">GDD §4.1. Prestige accumulates over game-days; spent via TechTree.research().</p>
-      <h3>Daily Generation Formula</h3>
-      <div class="flow">delta = (5 + variety × 2 + active_buildings × 1) × popularity_mult × capital_mult
-popularity_mult: 0.3 (@&lt;20) 0.7 (@20+) 1.0 (@40+) 1.2 (@60+) 1.5 (@80+)
-capital_mult: +0.1 per capital level (shire_id linkage)
-Starvation: delta = 0  |  Defeat: player.prestige -= 50</div>
-      <h3>Key Methods</h3>
-      <table><tr><th>Method</th><th>Returns</th><th>Purpose</th></tr>
-        <tr><td>tick(player, world, tick)</td><td>Dict</td><td>Day boundary. Returns {old, new, delta} or {}.</td></tr>
-        <tr><td>spend(player, amount)</td><td>bool</td><td>Deducts prestige, floored at 0. Returns false if insufficient.</td></tr>
-        <tr><td>can_afford(player, cost)</td><td>bool</td><td>player.prestige &gt;= cost</td></tr>
-        <tr><td>apply_defeat_loss(player)</td><td>float</td><td>Deducts DEFEAT_PRESTIGE_LOSS (50). Returns amount lost.</td></tr>
-      </table>
-    </div>
-
-    <div class="card">
-      <h2>CapitalSystem <span class="file-path">simulation/world/CapitalSystem.gd</span></h2>
-      <p style="color:#ccc;font-size:0.85rem">GDD §7.5. Shire capital upgrades via player donations. Levels 0–5 grant server-wide buffs.</p>
-      <h3>Level Buffs</h3>
-      <div class="flow">Level 0: (none)
-Level 1: prestige_mult +0.1
-Level 2: prestige_mult +0.2, edict_tier_cap 1
-Level 3: prestige_mult +0.3, edict_tier_cap 2, iron_mining_bonus +0.15  (Grand Forge)
-Level 4: prestige_mult +0.4, edict_tier_cap 3, ai_warning_bonus +2      (Watchtower)
-Level 5: prestige_mult +0.5, edict_tier_cap 4, border_radius_bonus +0.2 (Grand Surveyor)</div>
-      <h3>Key Methods</h3>
-      <table><tr><th>Method</th><th>Returns</th><th>Purpose</th></tr>
-        <tr><td>record_donation(player, shire, resource, amount)</td><td>void</td><td>Appends to shire.capital_donations[player_id][resource].</td></tr>
-        <tr><td>can_upgrade(shire, world)</td><td>{ok, reason}</td><td>Checks donations vs UPGRADE_COSTS[current_level].</td></tr>
-        <tr><td>upgrade(shire, world)</td><td>int</td><td>Increments level, resets donations. Returns new level.</td></tr>
-        <tr><td>get_capital_buffs(shire)</td><td>Dict</td><td>Returns buff dict for current level.</td></tr>
-      </table>
-    </div>
-
-    <div class="card">
-      <h2>EdictSystem <span class="file-path">simulation/edicts/EdictSystem.gd</span></h2>
-      <p style="color:#ccc;font-size:0.85rem">GDD §7. 20 Edicts across Economy/Military/Logistics. Active edicts expire; passive edicts apply while slotted.</p>
-      <h3>Notable Edicts</h3>
-      <table><tr><th>ID</th><th>Type</th><th>Effect</th></tr>
-        <tr><td>agrarian_subsidies</td><td>Passive</td><td>Orchard yield +15%</td></tr>
-        <tr><td>taxation_bumps</td><td>Active (1d)</td><td>Tax ×2, popularity −15</td></tr>
-        <tr><td>levy_summons</td><td>Active (instant)</td><td>+50 peasants, popularity −50</td></tr>
-        <tr><td>siege_repairs</td><td>Active (instant)</td><td>Heals all stone walls +500 HP</td></tr>
-        <tr><td>festival_decree</td><td>Active (instant)</td><td>Triggers festival event (+8 popularity)</td></tr>
-        <tr><td>weather_resistance</td><td>Passive</td><td>Nullifies rain movement penalty, stops lightning fires</td></tr>
-      </table>
-      <h3>Key Methods</h3>
-      <table><tr><th>Method</th><th>Returns</th><th>Purpose</th></tr>
-        <tr><td>can_activate(player, edict_id, tick)</td><td>{ok, reason}</td><td>Validates tech, points, not-already-active, not-cooldown.</td></tr>
-        <tr><td>activate(player, edict_id, tick)</td><td>Dict</td><td>Deducts edict_points, adds active entry, sets cooldown.</td></tr>
-        <tr><td>tick(player, current_tick)</td><td>Array</td><td>Expires active edicts past expires_at. Returns expired IDs.</td></tr>
-        <tr><td>get_active_modifiers(player)</td><td>Dict</td><td>Merged modifier dict from all active edicts.</td></tr>
-      </table>
-    </div>
-
-  </div>
+<section id="military">
+  <h2>Military &amp; Combat</h2>
+  <p><span class="file">simulation/units/*, simulation/combat/CombatSystem.gd, simulation/ai/*</span></p>
+  <ul>
+    <li>20 unit types (peasants→militia→pikemen/swordsmen/archers/crossbows, captains, siege engines).
+      Recruit at a Barracks; units muster at the campfire and take orders.</li>
+    <li>Tactical combat: 8-direction A* pathfinding, arrows as projectiles, siege engines, auto-aggro defense.
+      <b>Friend-or-foe</b> shown via blue (yours) / red (enemy) discs under each unit.</li>
+    <li><b>King's Peace:</b> rival factions can't siege for the first 30 game-days; a siege then assembles over
+      48 days (telegraphed) before it can fell the keep.</li>
+    <li>AI factions (incl. The Ashen Barony) grow economies, recruit, demand tribute (payable in gold/iron),
+      and march.</li>
+  </ul>
 </section>
 
-<!-- Phase 6 -->
-<section id="phase6">
-  <h2>Phase 6 Systems <span class="phase-badge complete">COMPLETE</span></h2>
-  <p style="margin-top:0.5rem; color:#ccc">AI &amp; Entities: unit roster, A* pathfinding, 4 AI archetypes, and a deterministic combat engine. 81 tests, all passing.</p>
-  <div class="system-grid">
-
-    <div class="card">
-      <h2>UnitRegistry.gd <span class="file-path">simulation/units/UnitRegistry.gd</span></h2>
-      <p>Static registry of 20 unit types across 4 categories (GDD §6). Each definition is a plain Dictionary: max_hp, attack, defense, attack_type, armor_type, range, speed, cost_gold, cost_resources, requires_tech, requires_building, train_ticks, morale_buff.</p>
-      <h3>Attack/Armor Type Constants</h3>
-      <table><tr><th>Constant</th><th>Value</th><th>Notes</th></tr>
-        <tr><td>ATTACK_PIERCE</td><td>"pierce"</td><td>Archers, crossbowmen — 1.5× vs unarmored, 0.75× vs heavy</td></tr>
-        <tr><td>ATTACK_SIEGE</td><td>"siege"</td><td>Rams, catapults — 3× vs structure, 1× vs any armor</td></tr>
-        <tr><td>ARMOR_HEAVY</td><td>"heavy"</td><td>Plate armor; melee 0.5×, pierce 0.75×, siege 1×</td></tr>
-        <tr><td>ARMOR_STRUCTURE</td><td>"structure"</td><td>Buildings/walls; melee 0.1×, pierce 0.05×, siege 3×</td></tr>
-      </table>
-      <h3>Key Methods</h3>
-      <table><tr><th>Method</th><th>Returns</th><th>Purpose</th></tr>
-        <tr><td>lookup(unit_type)</td><td>Dictionary</td><td>Returns definition dict; {} if unknown.</td></tr>
-        <tr><td>can_recruit(type, player)</td><td>{ok, reason}</td><td>Validates tech and building gates.</td></tr>
-        <tr><td>has_equipment(type, player)</td><td>bool</td><td>Checks armory for required weapons/armor.</td></tr>
-        <tr><td>get_by_category(cat)</td><td>Array</td><td>All unit type strings in a category.</td></tr>
-      </table>
-    </div>
-
-    <div class="card">
-      <h2>UnitState.gd <span class="file-path">simulation/units/UnitState.gd</span></h2>
-      <p>Per-unit serializable state. All fields are plain Dictionary — no Godot objects. The attack_type × armor_type damage multiplier table lives here as <code>_damage_multiplier()</code>.</p>
-      <h3>State Fields</h3>
-      <div class="flow">id, type, owner_id, hp, max_hp, attack, defense
-attack_type, armor_type, range, speed
-morale, order (idle/move/attack/patrol/garrison/training)
-pos_x, pos_y, target_x, target_y, target_id
-is_alive, ticks_in_training, is_garrisoned, modifiers</div>
-      <h3>Key Methods</h3>
-      <table><tr><th>Method</th><th>Returns</th><th>Purpose</th></tr>
-        <tr><td>create(type, owner_id, x, y, uid)</td><td>Dictionary</td><td>Factory; copies stats from UnitRegistry.</td></tr>
-        <tr><td>apply_damage(unit, raw, attack_type)</td><td>{killed, damage, remaining_hp}</td><td>Applies mult table, subtracts defense, clamps to 1 min.</td></tr>
-        <tr><td>issue_move_order(unit, tx, ty)</td><td>void</td><td>Sets order=move, target coords.</td></tr>
-        <tr><td>issue_attack_order(unit, tx, ty, target_id)</td><td>void</td><td>Sets order=attack with target.</td></tr>
-      </table>
-      <div class="note">Damage formula: effective = max(1, int(raw × mult) − defense). Killed when hp ≤ 0; is_alive set false.</div>
-    </div>
-
-    <div class="card">
-      <h2>Pathfinder.gd <span class="file-path">simulation/pathfinding/Pathfinder.gd</span></h2>
-      <p>A* on WorldGrid or a test Dictionary grid. 4-directional movement. Returns Array of [x,y] waypoints from start (exclusive) to goal (inclusive). Empty Array if unreachable.</p>
-      <h3>Passability Masks</h3>
-      <table><tr><th>Mask</th><th>Value</th><th>Terrain blocked for this type</th></tr>
-        <tr><td>PASS_FOOT</td><td>0b0001</td><td>Only RIVER (all other terrain passable)</td></tr>
-        <tr><td>PASS_CAVALRY</td><td>0b0010</td><td>RIVER, FOREST, MOUNTAIN, MARSH, ROCK, ORE_VEIN</td></tr>
-        <tr><td>PASS_SIEGE</td><td>0b1000</td><td>RIVER, FOREST, MOUNTAIN, MARSH, ROCK, ORE_VEIN, COASTAL</td></tr>
-      </table>
-      <h3>Key Methods</h3>
-      <table><tr><th>Method</th><th>Purpose</th></tr>
-        <tr><td>find_path(grid_instance, fx, fy, tx, ty, mask)</td><td>A* on WorldGrid object. Uses grid.get_terrain().</td></tr>
-        <tr><td>find_path_dict(grid_dict, fx, fy, tx, ty, mask)</td><td>A* on {"width","height","tiles":[[int]]}. For unit tests.</td></tr>
-      </table>
-      <div class="warn">Road tiles (cost 0.5) are strongly preferred over grass (1.0). Forest (2.5), Mountain (3.0), River (99.0).</div>
-    </div>
-
-    <div class="card">
-      <h2>CombatSystem.gd <span class="file-path">simulation/combat/CombatSystem.gd</span></h2>
-      <p>Damage calculations, captain morale buffs, army-level combat resolution, and siege targeting priorities (GDD §2.5.2).</p>
-      <h3>Siege Priorities</h3>
-      <table><tr><th>Unit Type</th><th>Target</th><th>GDD Reference</th></tr>
-        <tr><td>battering_ram</td><td>gatehouse</td><td>§2.5.2 "Rams hit gates"</td></tr>
-        <tr><td>trebuchet</td><td>great_tower</td><td>§2.5.2 "Trebuchets hit towers"</td></tr>
-        <tr><td>swordsman</td><td>keep</td><td>§2.5.2 "Swordsmen rush the keep"</td></tr>
-        <tr><td>archer / armed_peasant</td><td>farm</td><td>§2.5.2 "AI burns farms first"</td></tr>
-        <tr><td>tunneler</td><td>stone_wall</td><td>§8.3.5 "tunnelers on walls"</td></tr>
-      </table>
-      <h3>Key Methods</h3>
-      <table><tr><th>Method</th><th>Returns</th><th>Notes</th></tr>
-        <tr><td>calculate_damage(attacker, defender)</td><td>{damage, kills, remaining_hp}</td><td>Applies halberdier anti-armor bonus; blocks pierce on battering_ram.</td></tr>
-        <tr><td>resolve_combat(atk_army, def_army, rng)</td><td>{atk_casualties, def_casualties}</td><td>Each unit attacks a random live enemy. Mutates both arrays.</td></tr>
-        <tr><td>get_morale_attack_bonus(army)</td><td>int</td><td>+10 if captain present, 0 otherwise.</td></tr>
-        <tr><td>get_army_value(army)</td><td>int</td><td>Sum of (attack+defense+hp) for alive units.</td></tr>
-      </table>
-    </div>
-
-    <div class="card">
-      <h2>AIFaction.gd + Archetypes <span class="file-path">simulation/ai/</span></h2>
-      <p>Base AI logic shared by all four archetypes. Each archetype has a <code>make()</code> factory and a <code>tick()</code> function. GameState dispatches by matching <code>faction["archetype"]</code>.</p>
-      <h3>AI Archetypes (GDD §8)</h3>
-      <table><tr><th>Archetype</th><th>File</th><th>Attack Threshold</th><th>Army Focus</th></tr>
-        <tr><td>bandit_king</td><td>BanditKing.gd</td><td>15 threat</td><td>armed_peasant 50% + archer 40%</td></tr>
-        <tr><td>merchant_prince</td><td>MerchantPrince.gd</td><td>60 threat</td><td>crossbowman 60% + swordsman/pikeman</td></tr>
-        <tr><td>ironhand</td><td>Ironhand.gd</td><td>50 threat + 50-unit gate</td><td>swordsman + trebuchet + ram + tunneler</td></tr>
-        <tr><td>ashen_barony</td><td>AshenBarony.gd</td><td>40 threat</td><td>swordsman + trebuchet + crossbowman</td></tr>
-      </table>
-      <h3>Shared State Fields</h3>
-      <div class="flow">archetype, is_alive, capital_x/y, gold, prestige
-resources{}, food{}, units[], buildings[]
-tech_unlocks[], shire_ids[], threat_level (0-100)
-days_alive, siege_assembly{}, tribute_demands[]
-daily_income_gold/wood/iron</div>
-      <h3>Key Methods (AIFaction.gd)</h3>
-      <table><tr><th>Method</th><th>Purpose</th></tr>
-        <tr><td>make_faction(id, name, archetype, cx, cy)</td><td>Creates base faction Dictionary.</td></tr>
-        <tr><td>tick(faction, world, tick)</td><td>Day-boundary: processes economy, advances siege assembly, updates threat.</td></tr>
-        <tr><td>should_attack(faction, players)</td><td>Returns {attack, target_player_id} when threat ≥ threshold.</td></tr>
-        <tr><td>start_siege(faction, pid, tx, ty)</td><td>Begins 48-day siege tent assembly (GDD §1.1.4).</td></tr>
-        <tr><td>send_tribute_demand(faction, pid, res, amt, tick)</td><td>Adds demand entry (Ashen Barony pattern).</td></tr>
-      </table>
-      <div class="note">Threat level formula: (army_value / 10) + (gold / 100) + (days_alive / 5), capped at 100.</div>
-    </div>
-
-  </div>
+<section id="strategic">
+  <h2>Strategic Layer — the World Map <span class="tag">interactive iter 30–42</span></h2>
+  <p><span class="file">simulation/strategic/*, view/worldmap/*</span></p>
+  <p>A procedural biome continent of cities held by rival kingdoms (incl. the player's "Emerald March").
+  Kingdoms grow, develop cities, raise armies, wage campaigns, and conduct diplomacy each strategic day —
+  and the player can do all of it too, via the world-map UI:</p>
+  <ul>
+    <li><b>Right-click a city to select it</b> (cyan ring); left-click enters/rules it.</li>
+    <li><b>⚒ Develop</b> a selected own city (spends treasury/wood/stone, raises its development).</li>
+    <li><b>⚔ Raise Army</b> at a selected own city (levies soldiers for gold).</li>
+    <li><b>⚔ March</b> a city's army → right-click an enemy target to launch a campaign (BFS road path).</li>
+    <li><b>🕊 Diplomacy</b> — offer a truce to / declare war on a rival kingdom; a sworn <b>truce is honoured</b>
+      by AI targeting (they keep off your lands).</li>
+    <li><b>Realm stores</b> (treasury/wood/stone/cities) shown on the map so investment is plannable.</li>
+    <li>The realm's strategic economy advances even while you play your city, so these actions stay fundable.</li>
+    <li><b>Seat-shield:</b> your actively-ruled seat city can't be taken by an abstract strategic assault — it
+      falls only through a tactical siege that fells its keep. Peripheral cities are still at stake.</li>
+  </ul>
+  <p>Entering a rival city spectates a generated town sized to its development (CityGenerator); it grows
+  buildings as its development rises.</p>
 </section>
 
-<section id="phase7">
-<h2 style="margin:2rem 0 1rem">Phase 7 — UI &amp; View Integration</h2>
-<p style="color:#aaa;margin-bottom:1.5rem">Pure view controllers: GameState snapshot → render data. No simulation logic, no Node inheritance (except MainController). All methods testable headless.</p>
-<div class="grid">
+<section id="events">
+  <h2>World Events &amp; Decisions</h2>
+  <p><span class="file">simulation/world/WorldEventSystem.gd</span></p>
+  <ul>
+    <li><b>34 data-driven daily events</b> (bounded, positive-leaning): merchants, foraging, weddings, a
+      wanderer joining, wolves, theft… plus <b>seasonal</b> ones (Spring Fair, Long Summer Days, Harvest
+      Home, Harvest Moon, Hearth Tales, First Snow, Deep Frost) gated to their season, and night-flavoured
+      beats (A Starlit Night).</li>
+    <li><b>Choice events</b> (a popup that pauses time): a baron's loan, brigand toll, refugees at the gate,
+      a knight errant, poachers — each with real trade-offs applied via a command.</li>
+    <li>Effects are clamped (never below 0 / never instant-revolt); content compounds by adding dict entries.</li>
+  </ul>
+</section>
 
-  <div class="card">
-    <h2>HUDController.gd <span class="file-path">view/hud/HUDController.gd</span></h2>
-    <p>Extracts all HUD display data from a player dict + weather dict + current tick. No simulation calls; all inputs are plain Dictionaries.</p>
-    <h3>Popularity Tiers</h3>
-    <table><tr><th>Range</th><th>Tier</th><th>Hex Color</th></tr>
-      <tr><td>&lt; 20</td><td>revolt</td><td>#e94560</td></tr>
-      <tr><td>20–40</td><td>poor</td><td>#ff9800</td></tr>
-      <tr><td>40–60</td><td>fair</td><td>#ffd700</td></tr>
-      <tr><td>60–80</td><td>good</td><td>#8bc34a</td></tr>
-      <tr><td>≥ 80</td><td>excellent</td><td>#4caf50</td></tr>
-    </table>
-    <h3>Key Methods</h3>
-    <table><tr><th>Method</th><th>Returns</th></tr>
-      <tr><td>get_hud_data(player, weather, tick)</td><td>Full HUD dict (gold, prestige, popularity, labels, food, edict_points…)</td></tr>
-      <tr><td>get_popularity_tier(pop)</td><td>"revolt"|"poor"|"fair"|"good"|"excellent"</td></tr>
-      <tr><td>get_popularity_color(tier)</td><td>Hex color string</td></tr>
-      <tr><td>get_ration_label(level)</td><td>"None"|"Half"|"Normal"|"Extra"|"Double" (index 0–4)</td></tr>
-      <tr><td>get_tax_label(rate)</td><td>"Bribe ×3" … "Tax ×3" (rate –3 to +3)</td></tr>
-      <tr><td>get_total_food(player)</td><td>Sum of all food values across food dict</td></tr>
-      <tr><td>is_revolt_risk(player)</td><td>bool — true if popularity &lt; 20</td></tr>
-      <tr><td>format_tick_time(tick)</td><td>"Day N (T/240)"</td></tr>
-    </table>
-  </div>
+<section id="progression">
+  <h2>Tech &amp; Edicts</h2>
+  <p><span class="file">simulation/tech/*, simulation/edicts/EdictSystem.gd</span></p>
+  <ul>
+    <li><b>Technology tree</b> (Agriculture/Industry/Military/Statecraft) — research with prestige to unlock
+      buildings (e.g. Crop Tiers → Wheat/Hops farms). Research fires a readable "unlocked X" notice.</li>
+    <li><b>Royal Edicts</b> — decrees with edict-point costs/cooldowns. The early no-tech <b>Village Feast</b>
+      (+6 popularity) is the reachable morale lever; festivals and others unlock via Statecraft. Edict
+      notices read the decree's name, not its raw id.</li>
+  </ul>
+</section>
 
-  <div class="card">
-    <h2>TechTreePanelController.gd <span class="file-path">view/hud/TechTreePanelController.gd</span></h2>
-    <p>Extracts tech branch and status data for the research panel. Delegates all unlock logic to TechTree.gd.</p>
-    <h3>Tech Status Values</h3>
-    <table><tr><th>Status</th><th>Condition</th></tr>
-      <tr><td>researched</td><td>In player.tech_unlocks</td></tr>
-      <tr><td>available</td><td>Prerequisites met AND can afford</td></tr>
-      <tr><td>unaffordable</td><td>Prerequisites met, prestige insufficient</td></tr>
-      <tr><td>locked</td><td>Prerequisites not met</td></tr>
-    </table>
-    <h3>Key Methods</h3>
-    <table><tr><th>Method</th><th>Returns</th></tr>
-      <tr><td>get_panel_data(player)</td><td>{branches, prestige, unlocked_count}</td></tr>
-      <tr><td>get_researchable_items(player)</td><td>Array of {id, name, cost_prestige, status="available"}</td></tr>
-      <tr><td>get_tech_status(player, tech_id)</td><td>One of the four status strings above</td></tr>
-    </table>
-  </div>
+<section id="presentation">
+  <h2>Presentation &amp; UX</h2>
+  <p><span class="file">view/cityview/*, view/micro/*, view/hud/*</span></p>
+  <ul>
+    <li><b>Isometric city view</b> with animated villager pawns, per-type unit bodies, walkable fields,
+      seasonal terrain/foliage tints, weather, and a minimap.</li>
+    <li><b>Day/night lighting</b> (<span class="file">view/micro/NightLayer.gd</span>): a darkening wash that
+      grades warm at dusk/dawn → cool moonlit blue at midnight, plus a warm lamp glow on every building. The
+      HUD stays readable. <span class="muted">(Lighting overhaul queued next per design feedback.)</span></li>
+    <li><b>HUD:</b> resource bar, day + time-of-day phase, season + weather, popularity/tax/ration sliders
+      (with honest effect labels — e.g. ale shows "no inn" until an Inn serves it), a standing Objective
+      tracker, and a stacking notification feed. Notifications never show raw ids/ticks.</li>
+    <li><b>Reign milestone:</b> reaching Day 100 alive ("a 20-minute reign") is celebrated with a dismissible
+      gold overlay (+200 prestige).</li>
+  </ul>
+</section>
 
-  <div class="card">
-    <h2>EdictPanelController.gd <span class="file-path">view/hud/EdictPanelController.gd</span></h2>
-    <p>Extracts edict card data for the edict panel. Separates active / available / locked into three arrays.</p>
-    <h3>Key Methods</h3>
-    <table><tr><th>Method</th><th>Returns</th></tr>
-      <tr><td>get_panel_data(player, tick)</td><td>{active, available, locked, edict_points}</td></tr>
-      <tr><td>get_active_cards(player, tick)</td><td>Active edicts with remaining_ticks + remaining_label</td></tr>
-      <tr><td>get_remaining_ticks(player, id, tick)</td><td>int — ticks until expiry (0 if expired)</td></tr>
-      <tr><td>get_cooldown_remaining(player, id, tick)</td><td>int — ticks until cooldown clears</td></tr>
-      <tr><td>format_ticks(ticks)</td><td>"Xd Y%" for multi-day; "Y%" for sub-day; "Ready" for 0</td></tr>
-    </table>
-  </div>
-
-  <div class="card">
-    <h2>BuildingRenderer.gd <span class="file-path">view/micro/BuildingRenderer.gd</span></h2>
-    <p>Maps a BuildingState dict to visual display data. No rendering; callers read the returned dict and drive TileMap / AnimationPlayer.</p>
-    <h3>Visual States</h3>
-    <table><tr><th>State</th><th>Condition</th><th>Color Tint</th></tr>
-      <tr><td>fire</td><td>on_fire = true</td><td>fire_orange</td></tr>
-      <tr><td>damaged</td><td>hp/max_hp &lt; 0.3</td><td>damaged_gray</td></tr>
-      <tr><td>empty</td><td>not operational OR workers = 0</td><td>dark</td></tr>
-      <tr><td>working</td><td>operational AND workers &gt; 0</td><td>normal</td></tr>
-    </table>
-    <h3>Tile Layer Mapping</h3>
-    <table><tr><th>Category</th><th>Layer</th></tr>
-      <tr><td>FOOD</td><td>0</td></tr>
-      <tr><td>HARVESTING</td><td>1</td></tr>
-      <tr><td>MILITARY</td><td>2</td></tr>
-      <tr><td>CIVIC</td><td>3</td></tr>
-      <tr><td>DEFENSE</td><td>4</td></tr>
-    </table>
-    <div class="note">has_progress_bar() returns true if the building has a non-empty "produces" dict.</div>
-  </div>
-
-  <div class="card">
-    <h2>UnitRenderer.gd <span class="file-path">view/micro/UnitRenderer.gd</span></h2>
-    <p>Maps a UnitState dict to sprite/animation data. Dead units always return animation="die", color_tint="dead".</p>
-    <h3>Order → Animation</h3>
-    <table><tr><th>Order</th><th>Animation</th></tr>
-      <tr><td>idle, garrison, training</td><td>idle</td></tr>
-      <tr><td>move, patrol</td><td>walk</td></tr>
-      <tr><td>attack</td><td>attack</td></tr>
-    </table>
-    <h3>Color Tint Rules</h3>
-    <table><tr><th>owner_id</th><th>Tint</th></tr>
-      <tr><td>0–7</td><td>"player_N"</td></tr>
-      <tr><td>&lt; 0 (AI)</td><td>"enemy"</td></tr>
-      <tr><td>dead</td><td>"dead"</td></tr>
-    </table>
-  </div>
-
-  <div class="card">
-    <h2>MicroViewController.gd <span class="file-path">view/micro/MicroViewController.gd</span></h2>
-    <p>Isometric coordinate transforms. 4-way camera rotation; build preview validation; render list extraction.</p>
-    <h3>Rotation Transforms</h3>
-    <table><tr><th>Rotation</th><th>Facing</th><th>ax,ay,bx,by</th></tr>
-      <tr><td>0</td><td>NW</td><td>1, 1,−1, 1</td></tr>
-      <tr><td>1</td><td>NE</td><td>1,−1, 1, 1</td></tr>
-      <tr><td>2</td><td>SE</td><td>−1,−1, 1,−1</td></tr>
-      <tr><td>3</td><td>SW</td><td>−1, 1,−1,−1</td></tr>
-    </table>
-    <div class="flow">screen_x = (TILE_WIDTH/2)  × (ax×gx + bx×gy)
-screen_y = (TILE_HEIGHT/2) × (ay×gx + by×gy)</div>
-  </div>
-
-  <div class="card">
-    <h2>MacroViewController.gd <span class="file-path">view/macro/MacroViewController.gd</span></h2>
-    <p>World-map render data: shire owner colors, army banner positions, AI siege tent progress, fog of war.</p>
-    <h3>Color Palettes</h3>
-    <table><tr><th>Key</th><th>Color</th></tr>
-      <tr><td>SHIRE_COLORS[0..7]</td><td>8 distinct player hex colors</td></tr>
-      <tr><td>bandit_king</td><td>#8d6e63 (brown)</td></tr>
-      <tr><td>merchant_prince</td><td>#ffd54f (gold)</td></tr>
-      <tr><td>ironhand</td><td>#90a4ae (steel gray)</td></tr>
-      <tr><td>ashen_barony</td><td>#7e57c2 (purple)</td></tr>
-    </table>
-  </div>
-
-  <div class="card">
-    <h2>MainController.gd <span class="file-path">view/main/MainController.gd</span></h2>
-    <p>Root Node. Connects EventBus.state_changed, manages view mode switching, calls all panel controller refresh methods.</p>
-    <h3>ViewMode Enum</h3>
-    <table><tr><th>Mode</th><th>Visible Nodes</th></tr>
-      <tr><td>MICRO</td><td>MicroView</td></tr>
-      <tr><td>MACRO</td><td>MacroView</td></tr>
-      <tr><td>TECH_TREE</td><td>MicroView + TechTreePanel</td></tr>
-      <tr><td>EDICTS</td><td>MicroView + EdictPanel</td></tr>
-    </table>
-    <div class="note">Refresh calls use has_method() checks — silently skips child nodes that don't implement the apply_* interface.</div>
-  </div>
-
-</div>
+<section id="testing">
+  <h2>Testing &amp; Dev Harness</h2>
+  <ul>
+    <li>24 headless suites: <code>godot --headless --script tests/Test*.gd</code> (Phase1–14, Economy,
+      People, Workers, Paths, Pathfinding, Seasons, Objectives, WorldEvents, StrategicAI, CityGeneration,
+      UnitAI). All green.</li>
+    <li><b>Probes</b> (<span class="file">tools/ProbePopularity.gd</span>) drive the real GameState for
+      balance measurement (e.g. the 100-day popularity trajectory).</li>
+    <li><b>Live playtest</b> on an isolated Xvfb display via xdotool clicks + screenshots; <code>SR_*</code>
+      env hooks (SR_WORKERS, SR_SEASON, SR_SPAWN_UNITS, SR_REIGN, SR_SHOT…) set up showcase states.</li>
+  </ul>
 </section>
 
 </main>
-
-<footer>
-  <p>Sovereign's Reach — Auto-generated systems encyclopedia. Updated at the end of every phase.</p>
-  <p style="margin-top:0.5rem">GDD: 8 sections · 40 subsections · 200 mechanics defined · Phase 1–7 complete (585 tests passing)</p>
-</footer>
-
+<footer>Sovereign's Reach — systems reference · regenerated iteration 44 · kept current each dev loop.</footer>
 </body>
 </html>

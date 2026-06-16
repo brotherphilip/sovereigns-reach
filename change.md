@@ -26,6 +26,43 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 44 — 2026-06-16  (seasons re-keyed to the 15-min-day year + systems HTML rewritten; user requests)
+
+### Source
+User: "the seasons don't match the year LOL — rework the seasons to suit the new year cycle… check all
+scripts match the new time and season rules." And separately: keep `systems_bibliography.html` current,
+rewriting from scratch, and update it every iteration. (Two new standing report rules also logged:
+include an "iterations since last command/compact" line; update the HTML each iteration.)
+
+### Change made — seasons
+- **SeasonSystem**: the seasonal calendar now keys off the **day/night cycle**, not the 240-tick game-day.
+  `SKY_DAYS_PER_SEASON=2` → an **8-day year** (~2 hours); `season_at_tick()` counts sky-days; added
+  `sky_day_of/sky_day_in_year/year_of`. (Was: 12-game-day seasons = 9.6-min year, so ~6 seasons flickered
+  within one 15-min day.)
+- **Consumers updated** (the audit): GameState weather + `world["season"]` (now from `season_at_tick`,
+  dev offset in ticks), WorldEventSystem seasonal gating (converts game-day→tick), the SR_SEASON hook,
+  and the HUD (shows the **Season** with weather + a Year/Day-in-year tooltip).
+- **Food balance for the long (~30-min) seasons**: off-season yield **0.6 → 0.85** so the no-tech orchard
+  feeds the village year-round (a session is now often entirely off-season; new avg 0.85 > old effective
+  ~0.7, so survival is preserved/improved). Relabeled the day-48 "winter" objective (winter no longer maps
+  to day 48) to an establishment checkpoint.
+
+### Change made — systems HTML
+- **Rewrote `systems_bibliography.html` from scratch** to current truths: overview/architecture, time &
+  calendar (day/night + seasons), hauling economy, people & day/night home behaviour, buildings,
+  popularity & defense-aware siege morale, military, the interactive strategic layer + seat-shield, 34
+  world events, tech/edicts, presentation (lighting/HUD), testing. **This HTML is now updated every
+  iteration** (Phase 5 task).
+
+### Verified
+- Headless: full suite green (24/24) after updating TestSeasons (sky-day season math) and TestWorldEvents
+  (seasonal windows → ~150 game-days/season). Live boot clean; HUD shows "Day 0 · Day" + "Spring · Clear".
+
+### Backlog / next
+- **Next: building-lighting overhaul** (user: "the lights suck — better lighting, spread further, not just
+  a colour overlay") — proper additive/radial light, larger reach.
+- Diplomacy depth; a fresh full human playthrough at the new pace.
+
 ## Iteration 43 — 2026-06-16  (content density: +6 world events, incl. night/season flavour)
 
 ### Heuristic focus
