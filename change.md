@@ -26,6 +26,38 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 82 — 2026-06-16  (Build menu follows the objective arc)
+
+### Source
+Generalises iter81. That fix pointed the build menu at the FIRST objective's tab (Civic); but as objectives
+advance (feed the people → grow → ready for war), the menu would stay on whatever tab it was last on. The build
+bar should keep pointing at wherever the *current* goal lives, so the player never has to hunt for the next tab.
+
+### Change made
+- **`simulation/core/ObjectiveSystem.gd`:** added a data-driven `BUILD_CATEGORY` map (objective id → build tab) and
+  `static func build_category_for(id) -> int` (returns -1 for endure-to-day objectives that need no building, so
+  the menu is left alone). Map: found_hall→Civic, feed_people→Food, grow_village→Civic, ready_for_war→Defense.
+- **`view/hud/HUDNode.gd`:** `_on_objective_updated` now auto-opens the build menu on `build_category_for(current
+  objective)`. `objective_updated` only fires when an objective is newly completed (or day 1), so the tab re-points
+  exactly at the helpful moment — never mid-fiddling — and a player can still freely switch tabs afterward.
+
+### Verified (live + headless)
+- **`tests/TestObjectives.gd` → 30/0** (new `[Build-category mapping]`: each id maps to the right tab; the two
+  time-based objectives + unknown ids return -1; every mapped category is a real tab 0–4). **Full suite: 0 FAIL
+  across all 26 files.**
+- **Live Xvfb boot clean:** day-1 `objective_updated` runs the new handler with no errors and the menu opens on
+  Civic (the first objective's tab) — `/tmp/iter82_tabs.png`. Advancement re-points (feed_people→Food,
+  ready_for_war→Defense) are proven by the unit map + the shared `_show_build_category` wiring.
+
+### Post-mortem
+- **UX / "makes sense to a human operator":** the build bar is now a *guided* surface, not a static menu — it
+  tracks the player's running goal the whole way to Day 100. Logic lives in the sim layer (testable), the HUD just
+  calls it. Zero sim/balance/determinism impact (HUD-only effect; the map is pure data).
+
+### Backlog / next
+1. Consider a subtle pulse/glow on the build-menu tab when it auto-switches, so the player notices the re-point.
+2. (Carried) ear-check narration takes; standing-army milestone; more seasonal/decision events; ear-tune SFX.
+
 ## Iteration 81 — 2026-06-16  (Onboarding fix: build menu opens where the first objective points)
 
 ### Source

@@ -11,6 +11,7 @@ func _init() -> void:
 	_test_definitions()
 	_test_individual_completions()
 	_test_evaluate_progression()
+	_test_build_category_mapping()
 	print("\n=== Objectives Results: %d passed, %d failed ===" % [_pass, _fail])
 	quit(0 if _fail == 0 else 1)
 
@@ -85,3 +86,21 @@ func _test_evaluate_progression() -> void:
 		if o.get("id") == "rule_to_100": got_rule = true
 	# survive_winter (day>=48) and rule_to_100 (day>=100) both complete at day 100.
 	ok("day-100 eval completes the time-based objectives", got_rule)
+
+# The HUD auto-opens the build menu on the category each objective needs (iter82).
+func _test_build_category_mapping() -> void:
+	print("\n[Build-category mapping]")
+	var BR = preload("res://simulation/buildings/BuildingRegistry.gd")
+	ok("found_hall → CIVIC", ObjectiveSystem.build_category_for("found_hall") == BR.Category.CIVIC)
+	ok("feed_people → FOOD", ObjectiveSystem.build_category_for("feed_people") == BR.Category.FOOD)
+	ok("grow_village → CIVIC", ObjectiveSystem.build_category_for("grow_village") == BR.Category.CIVIC)
+	ok("ready_for_war → DEFENSE", ObjectiveSystem.build_category_for("ready_for_war") == BR.Category.DEFENSE)
+	ok("survive_winter → -1 (no build, menu untouched)", ObjectiveSystem.build_category_for("survive_winter") == -1)
+	ok("rule_to_100 → -1 (no build)", ObjectiveSystem.build_category_for("rule_to_100") == -1)
+	ok("unknown id → -1 (safe)", ObjectiveSystem.build_category_for("nonsense") == -1)
+	# Every objective that maps to a category must map to a REAL build tab (0..4).
+	var all_valid := true
+	for o in ObjectiveSystem.OBJECTIVES:
+		var c: int = ObjectiveSystem.build_category_for(o.get("id", ""))
+		if c != -1 and (c < 0 or c > int(BR.Category.DEFENSE)): all_valid = false
+	ok("all mapped categories are valid tabs", all_valid)

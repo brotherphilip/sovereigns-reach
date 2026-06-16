@@ -8,6 +8,7 @@ const HUDController = preload("res://view/hud/HUDController.gd")
 const TechTreePanelController = preload("res://view/hud/TechTreePanelController.gd")
 const EdictPanelController = preload("res://view/hud/EdictPanelController.gd")
 const BuildingRegistry = preload("res://simulation/buildings/BuildingRegistry.gd")
+const ObjectiveSystem = preload("res://simulation/core/ObjectiveSystem.gd")
 const TechTree = preload("res://simulation/tech/TechTree.gd")
 const StorageSystem = preload("res://simulation/economy/StorageSystem.gd")
 const FoodSystem = preload("res://simulation/economy/FoodSystem.gd")
@@ -139,6 +140,14 @@ func _on_objective_updated(index: int, total: int, text: String) -> void:
 	if _objective_progress != null:
 		# All done → show full; else show how many are behind us.
 		_objective_progress.text = "(%d/%d)" % [mini(index, total), total]
+	# Auto-point the build menu at the category the new objective needs, so the player
+	# always opens the bar onto the right tab (generalises the iter81 Civic default).
+	# Only fires when an objective advances (or day 1); objectives with no build leave it be.
+	if _build_item_container != null and index >= 0 and index < ObjectiveSystem.OBJECTIVES.size():
+		var oid: String = String(ObjectiveSystem.OBJECTIVES[index].get("id", ""))
+		var cat: int = ObjectiveSystem.build_category_for(oid)
+		if cat >= 0:
+			_show_build_category(cat)
 
 func _on_gold_changed(_player_id: int, old_amount: int, new_amount: int) -> void:
 	_refresh_top_bar()

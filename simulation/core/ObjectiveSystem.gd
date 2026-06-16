@@ -17,6 +17,21 @@ const OBJECTIVES: Array = [
 	{"id": "rule_to_100",    "text": "Endure — rule your realm to Day 100 (20 minutes)."},
 ]
 
+# Which build-menu category the player needs for each objective — so the HUD can auto-open
+# the build menu on the right tab as objectives advance (generalises the iter81 Civic default).
+# Objectives with no associated build (endure-to-day) are absent → the menu is left alone.
+const BUILD_CATEGORY: Dictionary = {
+	"found_hall":    BuildingRegistry.Category.CIVIC,    # Village Hall
+	"feed_people":   BuildingRegistry.Category.FOOD,     # Orchard + Granary
+	"grow_village":  BuildingRegistry.Category.CIVIC,    # Hovels
+	"ready_for_war": BuildingRegistry.Category.DEFENSE,  # Wall/Tower (survival vs the siege)
+}
+
+# The build category an objective points at, or -1 if it needs no building (caller leaves the
+# menu untouched). Safe for any id, including unknown ones.
+static func build_category_for(id: String) -> int:
+	return int(BUILD_CATEGORY.get(id, -1))
+
 static func _built_types(player: Dictionary) -> Array:
 	var out: Array = []
 	for b in player.get("buildings", []):
