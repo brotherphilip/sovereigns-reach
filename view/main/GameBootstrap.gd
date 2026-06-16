@@ -275,7 +275,11 @@ func _on_ai_siege_assembling(faction_id: int, _target_player_id: int, eta_ticks:
 	if _hud == null: return
 	var who: String = GameState.get_faction_display_name(faction_id)
 	var days: int = maxi(1, int(round(float(eta_ticks) / 240.0)))
-	_hud.show_notification("⚠ %s is marshalling a siege against your seat — ready in ~%d days. Raise walls, towers and a garrison!" % [who, days], 9.0, Color(1.0, 0.55, 0.2))
+	var ready: bool = GameState.players.size() > 0 and GameState.is_siege_ready(GameState.players[0])
+	if ready:
+		_hud.show_notification("⚠ %s is marshalling a siege against your seat — ready in ~%d days. Your walls and garrison steady the people's nerve." % [who, days], 9.0, Color(1.0, 0.8, 0.3))
+	else:
+		_hud.show_notification("⚠ %s is marshalling a siege against your seat — ready in ~%d days. Raise walls, towers and a garrison before it lands!" % [who, days], 9.0, Color(1.0, 0.55, 0.2))
 
 func _on_unit_killed(unit_id: int, _killer_id: int, cause: String) -> void:
 	# Find out if it's a player unit for notification

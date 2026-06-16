@@ -414,19 +414,19 @@ func _test_gamestate_integration() -> void:
 	ok("unknown faction id falls back to a title (never a raw number)", _gs.get_faction_display_name(999) == "A rival lord")
 	_gs.ai_factions.clear()
 
-	# 2c. _is_siege_ready: a prepared realm (defences + garrison) earns the lighter siege penalty
+	# 2c. is_siege_ready: a prepared realm (defences + garrison) earns the lighter siege penalty
 	var undef := {"buildings": [{"type": "village_hall", "built": true}], "units": []}
-	ok("no defences -> not siege-ready", not _gs._is_siege_ready(undef))
+	ok("no defences -> not siege-ready", not _gs.is_siege_ready(undef))
 	var walled := {"buildings": [
 		{"type": "stone_wall", "built": true}, {"type": "lookout_tower", "built": true},
 		{"type": "gatehouse", "built": true}], "units": []}
-	ok("walls+tower+gatehouse -> siege-ready", _gs._is_siege_ready(walled))
+	ok("walls+tower+gatehouse -> siege-ready", _gs.is_siege_ready(walled))
 	var garrisoned := {"buildings": [], "units": [
 		{"is_alive": true}, {"is_alive": true}, {"is_alive": true}]}
-	ok("a standing garrison -> siege-ready", _gs._is_siege_ready(garrisoned))
+	ok("a standing garrison -> siege-ready", _gs.is_siege_ready(garrisoned))
 	var dead_garrison := {"buildings": [], "units": [
 		{"is_alive": false}, {"is_alive": false}, {"is_alive": false}]}
-	ok("a fallen garrison does not count", not _gs._is_siege_ready(dead_garrison))
+	ok("a fallen garrison does not count", not _gs.is_siege_ready(dead_garrison))
 
 	# 3. RECRUIT_UNIT command (player has no barracks → should fail)
 	var p: Dictionary = _fresh_player()

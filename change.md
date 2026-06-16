@@ -26,6 +26,42 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 27 — 2026-06-16  (make the defended-siege mechanic legible — the warning adapts)
+
+### Heuristic focus
+The directive's **UX/feedback** axis: iter 26 made siege morale depend on readiness, but the relief was
+**invisible** — a player who walled up had no way to *know* it helped. A mechanic the player can't
+perceive isn't engaging. So this round surfaces it where attention already is: the siege telegraph.
+
+### Change made
+- **`GameState.is_siege_ready(player)`** promoted from private (`_is_siege_ready`) to a **public query**
+  (the view needs it; tests + the day-boundary call updated to match).
+- **Adaptive siege telegraph** (`_on_ai_siege_assembling`, both `CityViewScene` and `GameBootstrap`):
+  the iter-23 warning now reads the realm's actual readiness and changes its tone + advice:
+  - **Unready** (orange): "⚠ <Kingdom> is marshalling a siege … ~N days. **Raise walls, towers and a
+    garrison before it lands!**" (the call to action)
+  - **Ready** (gold): "⚠ <Kingdom> is marshalling a siege … ~N days. **Your walls and garrison steady
+    the people's nerve.**" (confirms the iter-26 morale relief is in effect)
+  So the same alert that warns you also *teaches* the mechanic and rewards preparation in words.
+
+### Verified
+- **Probe** (real `is_siege_ready`, mirroring the handler) prints both end-to-end:
+  - `… Raise walls, towers and a garrison before it lands!` (no defences)
+  - `… Your walls and garrison steady the people's nerve.` (walls + tower + gatehouse)
+- Headless: full suite green (24/24); the renamed `is_siege_ready` test cases still pass (TestPhase6).
+- **Live (Xvfb)**: clean boot, no script/parse errors — both refactored handlers wire up.
+
+### Post-mortem
+- **Failure point:** none.
+- **Fun/UX:** closes the loop opened in iter 26 — the player now *sees* that readying defences calmed
+  the realm, so the reward is felt, not just simulated. The siege beat reads as a clear
+  prepare-and-be-rewarded arc.
+
+### Backlog / next
+- Optional: a persistent HUD "defence readiness" pip so it's legible even outside a siege alert.
+- Strategic/world-map actions as the human — largest unexercised area; a future deep-dive.
+- Building-specific events / multi-step decisions; a fresh-eyes onboarding pass.
+
 ## Iteration 26 — 2026-06-16  (defense-dependent siege morale — preparation now pays off)
 
 ### Heuristic focus

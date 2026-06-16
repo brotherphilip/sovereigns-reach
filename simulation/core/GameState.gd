@@ -455,7 +455,7 @@ func _tick_player_economy(player: Dictionary, tick: int) -> void:
 		for faction in ai_factions:
 			if faction is Dictionary and not faction.get("siege_assembly", {}).is_empty():
 				if faction["siege_assembly"].get("target_player_id", -1) == pid:
-					events.append("active_siege_defended" if _is_siege_ready(player) else "active_siege")
+					events.append("active_siege_defended" if is_siege_ready(player) else "active_siege")
 					break
 
 		# Wedding events from churches (GDD §3.3 — "Marriage events give popularity spikes")
@@ -676,7 +676,7 @@ func get_faction_display_name(faction_id: int) -> String:
 # siege morale penalty so a prepared ruler's people keep their nerve. Threshold 3 =
 # e.g. a short wall + a tower, or a few mustered soldiers.
 const SIEGE_READY_THRESHOLD: int = 3
-func _is_siege_ready(player: Dictionary) -> bool:
+func is_siege_ready(player: Dictionary) -> bool:
 	var points: int = 0
 	for b in player.get("buildings", []):
 		if not b is Dictionary or not b.get("built", false):
