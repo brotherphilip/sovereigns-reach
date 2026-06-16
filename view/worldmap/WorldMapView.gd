@@ -11,6 +11,13 @@ const WorldMapData       = preload("res://simulation/world/WorldMapData.gd")
 
 var _data: Dictionary = {}
 var _hovered_city_id: int = -1
+var _selected_city_id: int = -1   # right-click-selected city (drawn with a selection ring)
+
+# Mark a city as selected (or -1 to clear) and redraw the selection ring.
+func set_selected_city(city_id: int) -> void:
+	if city_id != _selected_city_id:
+		_selected_city_id = city_id
+		queue_redraw()
 
 # Cached render lists rebuilt on apply_data
 var _city_list:    Array = []
@@ -207,6 +214,11 @@ func _draw_cities() -> void:
 		# Hover highlight
 		if is_hovered:
 			draw_arc(p, 18.0, 0, TAU, 24, Color.WHITE.darkened(0.1), 2.0)
+
+		# Selection ring — the city the player has right-clicked for orders.
+		if c.get("id", -1) == _selected_city_id:
+			draw_arc(p, 24.0, 0, TAU, 28, Color(0.30, 0.90, 1.0, 0.95), 3.0)
+			draw_arc(p, 27.0, 0, TAU, 28, Color(0.30, 0.90, 1.0, 0.35), 1.5)
 
 		_draw_castle_icon(p, col, tier, is_player_owned)
 

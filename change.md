@@ -26,6 +26,35 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 36 — 2026-06-16  (world-map selection ring — see what you've selected)
+
+### Heuristic focus
+The directive's **UX/feedback** axis. Iters 30–35 added four strategic actions driven by right-click
+selection, but selection had **no visual presence on the map** — you could only tell what was selected
+by reading the info-panel text. Acting on a city you can't see you've picked is error-prone.
+
+### Change made
+- **WorldMapView**: `set_selected_city(id)` + a distinct **cyan double-ring** drawn around the
+  right-click-selected city (separate from the gold owned-city ring and the white hover ring).
+- **WorldMapScene**: `_on_city_selected` calls `set_selected_city`, so every right-click marks its city.
+
+### Verified
+- **Live (Xvfb, real right-click)**: right-clicked Cresthollow → a bright cyan double-ring appears around
+  it, clearly distinct from the surrounding gold owned-city rings. Selection is now legible at a glance.
+- Headless: full suite green (24/24) — view-only draw addition, no sim impact.
+
+### Post-mortem
+- **Failure point:** none.
+- **UX:** closes the feedback gap on the strategic layer — the player now *sees* which city their
+  Develop/Raise/March/Diplomacy buttons will act on, not just reads it. Small change, large clarity gain
+  for the whole world-map control scheme.
+
+### Backlog / next
+- Marching-army route/strength indicator (so launched campaigns are legible on the map too).
+- A brief in-map legend for the four strategic controls (Develop/Raise/March/Diplomacy) + the
+  right-click-to-select model, for first-time discoverability.
+- Diplomacy depth (tribute/alliance/expiry).
+
 ## Iteration 35 — 2026-06-16  🕊 Diplomacy — the last strategic action, and truces that actually hold
 
 ### Heuristic focus

@@ -475,6 +475,8 @@ func _on_city_selected(city_id: int) -> void:
 	var c: Dictionary = GameState.get_city(city_id)
 	if c.is_empty():
 		return
+	if _world_view != null:
+		_world_view.set_selected_city(city_id)   # visual selection ring
 
 	# Campaign targeting: an army is awaiting a destination.
 	if _campaign_army_id >= 0:
