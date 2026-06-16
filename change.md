@@ -26,6 +26,48 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 38 — 2026-06-16  🌙 Day/night cycle — townsfolk sleep, building lamps light the dark (user request)
+
+### Heuristic focus
+A direct user request (content/atmosphere): a day↔night cycle where citizens return to their houses at
+night and head back out in the morning, with a lamp on each building lighting the area. Implemented with
+a hard constraint: **must not break the tuned survival economy or the test suite.**
+
+### Change made
+- **SeasonSystem**: a day/night model on the 240-tick day — `night_factor(tick)` (0 = full noon … 1 =
+  deepest midnight, smooth cosine; the day opens at noon so a fresh game starts in daylight),
+  `is_night(tick)`, `phase_name(tick)` (Day/Dusk/Night/Dawn).
+- **CitizenSystem**: opt-in `day_night` param (tests keep the old always-day behaviour, so the suite is
+  untouched). At night the **idle townsfolk walk to their allotted house** (round-robin over built
+  homes — hovels/hall — via `_assign_homes`, stored as `home_bx/home_by`) and sleep there; in the
+  morning they resume. **Assigned workers keep a night shift**, so production is NOT paused — survival
+  and the economy are unaffected by construction. `_go_home`/`_release_worker` now route to the house.
+- **NightLayer** (new, drawn last in `_world_root`): a cool darkening wash scaled by `night_factor`
+  (capped at 0.6 so play stays readable), plus a **warm lamp glow at every built building** (layered
+  circles + a bright flame dot) that cuts through the dark. The HUD (separate CanvasLayer) stays bright.
+- **GameState**: passes `day_night = true` to the citizen tick so the real game (and spectated towns)
+  get the cycle.
+
+### Verified
+- Headless: full suite green (24/24) — the opt-in param keeps every citizen/economy test on the old
+  daylight path; SeasonSystem additions are pure math.
+- **Live (Xvfb, staffed town, full day cycle captured)**: noon frame = clear bright daylight; midnight
+  frame = the whole map under a cool darkening wash with a **warm lamp glow on every building** (orchards,
+  church, watchtower, blacksmith, market, granary — each with a bright flame dot), and the townsfolk
+  gathered home. The cycle reads exactly as intended and the HUD stays fully readable.
+
+### Post-mortem
+- **Failure point:** none. Survival protected by design (workers keep working; only the idle majority
+  sleeps). Tests protected by the opt-in flag.
+- **Atmosphere/engagement:** the town now breathes — bustling by day, dark and lamp-lit with folk abed
+  by night — adding visible rhythm to the 20-minute life without changing its difficulty.
+
+### Backlog / next
+- Optional: a HUD time-of-day / phase indicator (Day/Dusk/Night) and a softer dawn/dusk colour grade.
+- Consider whether deep-night should slow (not stop) production for a gentle economic rhythm (would need
+  a survival re-probe).
+- (Deferred from iter 37) shield the actively-played seat city from strategic capture.
+
 ## Iteration 37 — 2026-06-16  (strategic layer: verified fundable during city play + a controls legend)
 
 ### Heuristic focus

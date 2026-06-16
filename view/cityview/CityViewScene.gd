@@ -175,6 +175,11 @@ func _build_scene() -> void:
 	_citizen_layer.name = "CitizenLayer"
 	_world_root.add_child(_citizen_layer)
 
+	# Day/night lighting — drawn last so its wash + lamp glows sit over the world.
+	var night_layer := preload("res://view/micro/NightLayer.gd").new()
+	night_layer.name = "NightLayer"
+	_world_root.add_child(night_layer)
+
 	_hud = preload("res://view/hud/HUDNode.gd").new()
 	_hud.name  = "HUD"
 	_hud.layer = 10

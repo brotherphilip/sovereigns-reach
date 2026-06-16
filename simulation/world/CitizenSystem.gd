@@ -121,7 +121,8 @@ static func _is_working_age(c: Dictionary) -> bool:
 # Returns the list of tiles whose terrain changed this tick (felled forests, spent
 # ore/rock) so the caller can repaint them (GameState emits EventBus.terrain_painted).
 static func tick(citizens: Array, player, rng: RandomNumberGenerator,
-		_tick_count: int, grid: Object = null, farm_mult: float = 1.0) -> Array:
+		_tick_count: int, grid: Object = null, farm_mult: float = 1.0,
+		day_night: bool = false) -> Array:
 	var pdict: Dictionary = player if player is Dictionary else {"buildings": player}
 	# Ensure the economy sub-dicts exist so the hauler can read/credit without crashing.
 	if not pdict.has("resources"): pdict["resources"] = {}
@@ -129,6 +130,21 @@ static func tick(citizens: Array, player, rng: RandomNumberGenerator,
 	if not pdict.has("armory"): pdict["armory"] = {}
 	var buildings: Array = pdict.get("buildings", [])
 	var changed: Array = []
+
+	# ── Night (opt-in via day_night; tests keep the old always-day behaviour) ──
+	# The idle townsfolk retire to their allotted houses to sleep; a small night shift
+	# of assigned workers keeps essential production going (so the food economy doesn't
+	# collapse overnight). Construction assignment pauses; day resumes it below.
+	var night: bool = day_night and SeasonSystem.is_night(_tick_count)
+	if night:
+		_assign_homes(citizens, buildings)
+		_reconcile_workers(citizens, buildings, rng, grid)   # keep existing workers at post
+		var nseason: int = SeasonSystem.season_at_tick(_tick_count)
+		for c in citizens:
+			if c is Dictionary and c.get("is_alive", false):
+				_tick_citizen(c, buildings, citizens, rng, grid, nseason, pdict, farm_mult, changed, true)
+		return changed
+
 	var sites: Array = []
 	for b in buildings:
 		if is_site(b):
@@ -171,7 +187,7 @@ static func tick(citizens: Array, player, rng: RandomNumberGenerator,
 	var season: int = SeasonSystem.season_at_tick(_tick_count)
 	for c in citizens:
 		if c is Dictionary and c.get("is_alive", false):
-			_tick_citizen(c, buildings, citizens, rng, grid, season, pdict, farm_mult, changed)
+			_tick_citizen(c, buildings, citizens, rng, grid, season, pdict, farm_mult, changed, false)
 	return changed
 
 # Match worker pawns to each built building's assigned `workers` count. Pulls idle
@@ -241,7 +257,7 @@ static func _release_worker(c: Dictionary, grid: Object = null) -> void:
 	c["work_anim"] = ""
 	c["state"] = STATE_WALK
 	c["path"] = []
-	var home := _snap_to_free(grid, Vector2(c.get("hx", c.get("x", 0.0)), c.get("hy", c.get("y", 0.0))))
+	var home := _snap_to_free(grid, _home_target(c))
 	c["tx"] = home.x
 	c["ty"] = home.y
 
@@ -495,7 +511,7 @@ static func _hauler_deposit(c: Dictionary, wb: Dictionary, player: Dictionary, s
 
 static func _tick_citizen(c: Dictionary, buildings: Array, citizens: Array,
 		rng: RandomNumberGenerator, grid: Object, season: int = 0,
-		player: Dictionary = {}, farm_mult: float = 1.0, changed: Array = []) -> void:
+		player: Dictionary = {}, farm_mult: float = 1.0, changed: Array = [], night: bool = false) -> void:
 	# Safety net: if a pawn somehow ends up standing inside a building or on
 	# impassable terrain (a building raised on top of it, a bad push), pop it out
 	# to the nearest free tile so it can never get trapped in/on a structure.
@@ -572,6 +588,17 @@ static func _tick_citizen(c: Dictionary, buildings: Array, citizens: Array,
 					c["ty"] = spot.y
 					c["state"] = STATE_WALK
 		STATE_WANDER:
+			# At night, hold by the allotted house and settle to idle (sleep) rather than amble.
+			if night:
+				var hp := _home_target(c)
+				if pos.distance_to(hp) > ARRIVE_DIST:
+					c["state"] = STATE_WALK
+					c["tx"] = hp.x; c["ty"] = hp.y
+				else:
+					c["state"] = STATE_IDLE
+					c["state_ticks"] = rng.randi_range(IDLE_TICKS.x, IDLE_TICKS.y)
+				c["vx"] = 0.0; c["vy"] = 0.0
+				return
 			var to_home := Vector2(c["hx"], c["hy"]) - pos
 			var steer := to_home * 0.05 + Vector2(rng.randf_range(-1, 1), rng.randf_range(-1, 1))
 			if to_home.length() > WANDER_RADIUS:
@@ -591,6 +618,14 @@ static func _tick_citizen(c: Dictionary, buildings: Array, citizens: Array,
 				c["state_ticks"] = rng.randi_range(IDLE_TICKS.x, IDLE_TICKS.y)
 		_:  # IDLE
 			c["vx"] = 0.0; c["vy"] = 0.0
+			# At night, head to the allotted house (if not already there) and sleep —
+			# don't drift back into wandering.
+			if night:
+				var hp := _home_target(c)
+				if pos.distance_to(hp) > ARRIVE_DIST:
+					c["state"] = STATE_WALK
+					c["tx"] = hp.x; c["ty"] = hp.y
+				return
 			c["state_ticks"] = int(c.get("state_ticks", 0)) - 1
 			if c["state_ticks"] <= 0:
 				c["state"] = STATE_WANDER
@@ -726,6 +761,33 @@ static func _field_node(b: Dictionary, slot: int, rng: RandomNumberGenerator, gr
 		gy += rng.randf_range(-0.3, 0.3)
 	return _snap_to_free(grid, Vector2(gx, gy))
 
+# Where a citizen calls home: their allotted house building (home_bx/home_by, set at
+# night) if assigned, else the keep/campfire anchor (hx/hy).
+static func _home_target(c: Dictionary) -> Vector2:
+	if c.has("home_bx"):
+		return Vector2(c.get("home_bx", c.get("hx", 0.0)), c.get("home_by", c.get("hy", 0.0)))
+	return Vector2(c.get("hx", 0.0), c.get("hy", 0.0))
+
+# Residential building types a villager can bed down in at night.
+const RESIDENTIAL: Array = ["hovel", "village_hall", "keep"]
+
+# Assign each living villager an allotted house (round-robin over built homes) so they
+# return to a real dwelling at night. Falls back to the home anchor when no homes exist.
+static func _assign_homes(citizens: Array, buildings: Array) -> void:
+	var homes: Array = []
+	for b in buildings:
+		if b is Dictionary and b.get("built", true) and String(b.get("type", "")) in RESIDENTIAL:
+			homes.append(_site_center(b))
+	if homes.is_empty():
+		return
+	var i: int = 0
+	for c in citizens:
+		if c is Dictionary and c.get("is_alive", false):
+			var h: Vector2 = homes[i % homes.size()]
+			c["home_bx"] = h.x
+			c["home_by"] = h.y
+			i += 1
+
 static func _go_home(c: Dictionary, rng: RandomNumberGenerator, grid: Object = null) -> void:
 	c["role"] = "peasant"
 	c["job"] = -1
@@ -735,7 +797,7 @@ static func _go_home(c: Dictionary, rng: RandomNumberGenerator, grid: Object = n
 	c["path"] = []
 	# Snap the home target to a free tile so a campfire ring spot on the hall
 	# doesn't leave the pawn pathing into a wall.
-	var home := _snap_to_free(grid, Vector2(c["hx"], c["hy"]))
+	var home := _snap_to_free(grid, _home_target(c))
 	c["tx"] = home.x; c["ty"] = home.y
 	# Arrive-home is handled by the WALK case → falls back to idle there.
 	if Vector2(c["x"], c["y"]).distance_to(home) <= ARRIVE_DIST:

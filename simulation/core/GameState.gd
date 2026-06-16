@@ -1147,7 +1147,7 @@ func simulate_tick(tick: int) -> void:
 	# economy for player 0. Felled/spent resource tiles come back so we repaint them.
 	if not citizens.is_empty() and not players.is_empty():
 		var farm_mult: float = weather.get("effects", {}).get("farm_yield_mult", 1.0)
-		var felled: Array = CitizenSystem.tick(citizens, players[0], _citizen_rng, tick, _grid, farm_mult)
+		var felled: Array = CitizenSystem.tick(citizens, players[0], _citizen_rng, tick, _grid, farm_mult, true)
 		for t in felled:
 			EventBus.terrain_painted.emit(t.x, t.y)
 		# A finished path-site becomes ROAD terrain and the placeholder building is removed.
