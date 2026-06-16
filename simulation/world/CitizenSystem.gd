@@ -40,6 +40,7 @@ const STATE_WANDER = "wander"   # ambling near home
 const STATE_WALK   = "walk"     # heading to a target (tx,ty)
 const STATE_BUILD  = "build"    # at a construction site, hammering
 const STATE_WORK   = "work"     # at an assigned workplace, doing the job
+const STATE_INSIDE = "inside"   # gone in through a door (not drawn) — e.g. asleep at home at night
 
 # How long a worker labours at one spot before tending to another part of the site.
 const WORK_TICKS := Vector2i(150, 360)
@@ -587,16 +588,21 @@ static func _tick_citizen(c: Dictionary, buildings: Array, citizens: Array,
 					c["tx"] = spot.x
 					c["ty"] = spot.y
 					c["state"] = STATE_WALK
+		STATE_INSIDE:
+			# Indoors (not drawn). Step back out into the street when day returns.
+			c["vx"] = 0.0; c["vy"] = 0.0
+			if not night:
+				c["state"] = STATE_IDLE
+				c["state_ticks"] = rng.randi_range(IDLE_TICKS.x, IDLE_TICKS.y)
 		STATE_WANDER:
-			# At night, hold by the allotted house and settle to idle (sleep) rather than amble.
+			# At night, walk to the home door and step inside rather than amble.
 			if night:
-				var hp := _home_target(c)
-				if pos.distance_to(hp) > ARRIVE_DIST:
+				var hd := _home_door(c)
+				if pos.distance_to(hd) > ARRIVE_DIST:
 					c["state"] = STATE_WALK
-					c["tx"] = hp.x; c["ty"] = hp.y
+					c["tx"] = hd.x; c["ty"] = hd.y
 				else:
-					c["state"] = STATE_IDLE
-					c["state_ticks"] = rng.randi_range(IDLE_TICKS.x, IDLE_TICKS.y)
+					c["state"] = STATE_INSIDE
 				c["vx"] = 0.0; c["vy"] = 0.0
 				return
 			var to_home := Vector2(c["hx"], c["hy"]) - pos
@@ -618,13 +624,15 @@ static func _tick_citizen(c: Dictionary, buildings: Array, citizens: Array,
 				c["state_ticks"] = rng.randi_range(IDLE_TICKS.x, IDLE_TICKS.y)
 		_:  # IDLE
 			c["vx"] = 0.0; c["vy"] = 0.0
-			# At night, head to the allotted house (if not already there) and sleep —
-			# don't drift back into wandering.
+			# At night, head to the home DOOR and step inside to sleep — don't drift
+			# back into wandering, and don't loiter in the street.
 			if night:
-				var hp := _home_target(c)
-				if pos.distance_to(hp) > ARRIVE_DIST:
+				var hd := _home_door(c)
+				if pos.distance_to(hd) > ARRIVE_DIST:
 					c["state"] = STATE_WALK
-					c["tx"] = hp.x; c["ty"] = hp.y
+					c["tx"] = hd.x; c["ty"] = hd.y
+				else:
+					c["state"] = STATE_INSIDE   # in through the door for the night
 				return
 			c["state_ticks"] = int(c.get("state_ticks", 0)) - 1
 			if c["state_ticks"] <= 0:
@@ -768,6 +776,13 @@ static func _home_target(c: Dictionary) -> Vector2:
 		return Vector2(c.get("home_bx", c.get("hx", 0.0)), c.get("home_by", c.get("hy", 0.0)))
 	return Vector2(c.get("hx", 0.0), c.get("hy", 0.0))
 
+# The doorway approach point of a citizen's home (front face, just outside), so they
+# walk to the door before stepping inside for the night. Falls back to the home centre.
+static func _home_door(c: Dictionary) -> Vector2:
+	if c.has("home_dx"):
+		return Vector2(c.get("home_dx", 0.0), c.get("home_dy", 0.0))
+	return _home_target(c)
+
 # Residential building types a villager can bed down in at night.
 const RESIDENTIAL: Array = ["hovel", "village_hall", "keep"]
 
@@ -777,15 +792,21 @@ static func _assign_homes(citizens: Array, buildings: Array) -> void:
 	var homes: Array = []
 	for b in buildings:
 		if b is Dictionary and b.get("built", true) and String(b.get("type", "")) in RESIDENTIAL:
-			homes.append(_site_center(b))
+			homes.append(b)
 	if homes.is_empty():
 		return
 	var i: int = 0
 	for c in citizens:
 		if c is Dictionary and c.get("is_alive", false):
-			var h: Vector2 = homes[i % homes.size()]
-			c["home_bx"] = h.x
-			c["home_by"] = h.y
+			var hb: Dictionary = homes[i % homes.size()]
+			var ctr: Vector2 = _site_center(hb)
+			c["home_bx"] = ctr.x
+			c["home_by"] = ctr.y
+			# Door of the home: the front (l→b) face, one tile outside the footprint —
+			# where pawns walk to and step INSIDE for the night.
+			var dh: int = BuildingRegistry.lookup(hb.get("type", "")).get("height", 1)
+			c["home_dx"] = ctr.x
+			c["home_dy"] = ctr.y + dh * 0.5 + 0.5
 			i += 1
 
 static func _go_home(c: Dictionary, rng: RandomNumberGenerator, grid: Object = null) -> void:

@@ -55,6 +55,8 @@ func _draw() -> void:
 	for c in GameState.citizens:
 		if not (c is Dictionary and c.get("is_alive", false)):
 			continue
+		if c.get("state", "") == "inside":
+			continue   # gone in through a door (e.g. asleep at home) — not on the street
 		var sx: float = (c["x"] - c["y"]) * HALF_W
 		var sy: float = (c["x"] + c["y"]) * HALF_H
 		if c.get("role", "") == "worker":
