@@ -26,6 +26,40 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 104 — 2026-06-17  (The siege, confirmed end-to-end: a regression test for the core challenge)
+
+### Source
+The one piece of the 20-min experience never confirmed end-to-end: a siege actually *landing*. iter90 tested the
+strike damage and `should_attack`; the live xdotool runs (iter88) never reached a landing. Now that GameState is
+drivable headlessly (iter91) — and AI factions can be spawned via `add_ai_faction` — the whole chain can be run
+and asserted reliably.
+
+### What the live-but-headless run showed
+- Spawn a bandit faction near the player → at **day 30** (King's Peace ends) the siege **assembles** (telegraphed,
+  eta ~4 days), the army marches, and it **strikes** ~every 19 days (assembly + cooldown).
+- **Undefended seat:** strikes of **150** → the 500-HP hall is **razed at day 91** (you lose just before Day 100).
+- **Defended seat** (walls + tower + gatehouse → `is_siege_ready`): strikes of **75** → 4×75 = 300, hall ends at
+  **200 HP → SURVIVES to Day 100**. The exact 20-min dynamic: *defend or lose the endgame siege.*
+
+### Change made
+- **`tests/TestSiege.gd` (new, 6/0):** drives the live `GameState` autoload with a hostile bandit faction and
+  asserts the full chain — siege telegraphed (`ai_siege_assembling`), siege lands (`ai_siege_struck`), an
+  **undefended** seat is razed (real threat), and a **prepared** seat (siege-ready defences) **survives to Day
+  100** (preparation wins). Resets sim state between the two cases. ~25 s headless.
+
+### Verified
+- **TestSiege 6/0; full suite: 0 FAIL across all 28 files.** Test-only addition (drives live GameState — that *is*
+  the integration check; no production code touched).
+
+### Post-mortem
+- **The core mid/late challenge is now proven AND guarded:** the siege genuinely assembles → marches → strikes,
+  an unprepared ruler falls ~day 91, and defending carries you to the 20-minute finish. Combined with iter90
+  (one-strike-can't-kill) and iter91 (economic survival smoke), the whole "survive 20 minutes" promise — economy
+  AND siege — is encoded in CI. The live confirmation I'd chased since iter88 is finally nailed (reliably).
+
+### Backlog / next
+1. (Carried) user ear-check of narration voice quality; ear-tune SFX; more content as warranted.
+
 ## Iteration 103 — 2026-06-17  (A day-75 milestone — keep the reward loop alive in the endgame)
 
 ### Source
