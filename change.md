@@ -26,6 +26,36 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 98 — 2026-06-17  (Recruitment UX checked; voice the "soldier trained" pop-up)
+
+### Source
+Fresh-eyes pass on unit recruitment — a survival-relevant action (a garrison defends the siege and earns the
+standing-army milestone). Checked the UX and the standing VO rule against it.
+
+### Findings (recruitment UX is already solid)
+- Recruit buttons live in the selection panel of a training building (Barracks etc.), each gated by
+  `can_recruit` (disabled with the reason in the tooltip when you can't afford it / lack housing) — so you can't
+  even click a doomed recruit (no false-confirmation bug like trade had).
+- Feedback is **authoritative**: the "⚔ X is trained and ready for battle" notice fires on `unit_spawned` (when the
+  unit actually finishes training), not optimistically on click. No fix needed there.
+- **Gap (VO rule):** that "trained and ready" pop-up had no voice-over.
+
+### Change made
+- **1 new VO sting** `unit_trained` — "A new soldier answers your call." (grim-herald, no FX).
+- **`NarrationPlayer`:** hooks `unit_spawned`, speaks `unit_trained` **only for the human player's units**
+  (`owner_id == 0`, mirroring the view's filter). Training is time-gated, so no rapid-fire spam.
+
+### Verified
+- **`tests/TestNarration.gd` → 66/0** (unit_trained loads). **Full suite: 0 FAIL across all 27 files.** Live boot
+  clean — the new `unit_spawned` connection wires with no errors.
+
+### Post-mortem
+- **Audio feedback:** growing your military — the path to surviving the siege — now has a voiced beat, matching
+  the standing-army milestone's prestige reward. View/audio-only; zero balance impact.
+
+### Backlog / next
+1. (Carried) live siege-landing confirmation; ear-check narration; ear-tune SFX; more content as warranted.
+
 ## Iteration 97 — 2026-06-17  (Honest trade feedback — stop confirming buys that failed)
 
 ### Source

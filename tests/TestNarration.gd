@@ -55,6 +55,7 @@ func _test_fixed_clips() -> void:
 	ok("realm_fallen.wav loads", _loads("realm_fallen"))
 	ok("victory.wav loads", _loads("victory"))
 	ok("keep_fallen.wav loads", _loads("keep_fallen"))
+	ok("unit_trained.wav loads", _loads("unit_trained"))
 
 # A missing key must fail gracefully (null), so unknown events stay silent.
 func _test_loader_is_robust() -> void:
