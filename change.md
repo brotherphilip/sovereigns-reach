@@ -26,6 +26,50 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 86 — 2026-06-17  (Deep mid-game playtest → grace-aware diplomacy text)
+
+### Source
+The deferred deeper playtest, run for real: drove the live game on Xvfb to ~Day 30, exercised the build flow,
+hit a diplomacy demand, and read the realm's state.
+
+### Playtest log (live, Xvfb :99)
+- **Build flow confirmed working:** click Civic tab → Village Hall **Build** → hover grass (green placement ghost
+  appears) → click to place. My earlier "misses" were two harness mistakes, now logged in memory: (a) pressing
+  `Escape` first opens the pause menu and eats clicks; (b) the Build buttons sit at screen y≈674, not ~690.
+- **Diplomacy demand fired on schedule:** at the 14-day cooldown the **Ashen Barony** demanded tribute (30 gold,
+  12 iron) via a clear modal — threat meter, flavor, Pay/Refuse with stated consequences. Accepted → iron 50→38
+  (paid ✓), peace held. Working as designed.
+- **State at Day 30 (paused):** gold 530, prestige **330** (milestones/events firing steadily — reward loop
+  healthy), but **food/apples 13/200 (red)** — starving. All EXPECTED: this was an *unmanaged* run (no hall, no
+  farms). Takeaway: an untended fresh start still survives ~30 days before food bites — the early game is
+  forgiving, which suits the "never wall the run before 20 min" goal.
+
+### Failure point
+None — no crash, no soft-lock; every system (build, diplomacy, events, milestones, King's-Peace gating) behaved.
+One **clarity bug** surfaced instead:
+
+### Change made (the fix the playtest motivated)
+- **`view/hud/DiplomacyPanel.gd`:** the Refuse consequence used to always read *"grievance deepens & they may
+  march."* But during the **King's Peace** (a rival's first `PLAYER_GRACE_DAYS`=30, when sieges are gated), they
+  *can't* march — so a day-14 demand threatened a siege the rules forbid for 16 more days. Now grace-aware: while
+  the Peace holds it reads *"grievance deepens (now <standing>); the King's Peace stays their hand ~N days more."*
+  and only warns of a march once grace has lapsed. Pulls `days_alive` from the live faction + `AIFaction.PLAYER_GRACE_DAYS`.
+
+### Verified
+- **Full suite: 0 FAIL across all 26 files** (view-only change). **Live boot clean** — the panel compiles with the
+  new AIFaction preload + grace logic. (The day-14 demand text itself is verified by inspection; re-triggering a
+  live demand needs ~3 min of unmanaged run, so not re-shown this iteration.)
+
+### Post-mortem
+- **UX / "makes sense to a human operator":** the diplomacy choice no longer over-threatens during the protected
+  opening — the stakes now match the actual rules, so an early refuse reads as the calculated risk it is.
+
+### Backlog / next
+1. **Deferred:** headless 100-day survival regression (decouple GameState from the EventBus autoload).
+2. Consider: is "survives 30 days unmanaged" too soft? Maybe a gentler early food-pressure nudge. (Needs a managed
+   playtest to judge — build the hall + farms and play properly.)
+3. (Carried) ear-check narration takes; ear-tune SFX.
+
 ## Iteration 85 — 2026-06-17  (A standing-army milestone — close the military reward gap)
 
 ### Source

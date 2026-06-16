@@ -5,6 +5,7 @@ extends PanelContainer
 
 const CT_DIPLOMACY_RESPONSE = 26  # CommandQueue.CommandType.DIPLOMACY_RESPONSE
 const ModalGate = preload("res://view/hud/ModalGate.gd")
+const AIFaction = preload("res://simulation/ai/AIFaction.gd")
 
 # Archetype-specific opening lines for tribute demands
 const ARCH_FLAVOR: Dictionary = {
@@ -129,10 +130,20 @@ func _present(faction_id: int, demand: Dictionary) -> void:
 		standing = "[color=#ffaa44]aggrieved[/color]"
 	else:
 		standing = "[color=#cfc488]wary[/color]"
+	# Refuse consequence is grace-aware: while the King's Peace holds (the rival's
+	# establishment window), refusing deepens the grievance but they CANNOT march yet —
+	# so don't threaten a siege the rules won't allow. Once grace lapses, they can march.
+	var days_alive: int = int(fac.get("days_alive", 9999)) if fac != null else 9999
+	var grace_left: int = AIFaction.PLAYER_GRACE_DAYS - days_alive
+	var refuse_tail: String
+	if grace_left > 0:
+		refuse_tail = "grievance deepens (now %s); the King's Peace stays their hand ~%d days more." % [standing, grace_left]
+	else:
+		refuse_tail = "grievance deepens (now %s) & they may march." % standing
 	_label.text = ("[i]%s[/i]\n\n[b]%s[/b] demands tribute: %s.\n\n" +
 		"[color=#9fe08a]Pay[/color] → they hold the peace ~14 days.    " +
-		"[color=#ffaa66]Refuse[/color] → grievance deepens (now %s) & they may march.") % [
-		flavor, faction_name, ", ".join(parts), standing]
+		"[color=#ffaa66]Refuse[/color] → %s") % [
+		flavor, faction_name, ", ".join(parts), refuse_tail]
 
 	# History + active agreements
 	_refresh_history()
