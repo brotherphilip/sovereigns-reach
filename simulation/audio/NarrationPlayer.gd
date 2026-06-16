@@ -13,6 +13,8 @@ extends Node
 #   edict_expired               → edict_lapsed
 #   objective_updated           → objective_updated     (generic; the goal text is dynamic)
 #   popularity_changed (<crit)  → popularity_critical   (edge-triggered with hysteresis)
+#   popularity_changed (<10)    → realm_fallen          (once; the revolt defeat capstone)
+#   ai_faction_defeated         → kingdom_fallen        (a rival crown is broken)
 
 const WavLoad = preload("res://simulation/audio/WavLoad.gd")
 const DIR := "res://audio/narration/"
@@ -25,6 +27,7 @@ const _POP_SAFE := 25.0
 var _player: AudioStreamPlayer
 var _cache: Dictionary = {}
 var _pop_low := false
+var _realm_fallen_said := false  # the revolt defeat line fires at most once
 
 func _ready() -> void:
 	_player = AudioStreamPlayer.new()
@@ -47,14 +50,20 @@ func _ready() -> void:
 		EventBus.objective_updated.connect(func(_i, _t, _txt): say("objective_updated"))
 	if EventBus.has_signal("popularity_changed"):
 		EventBus.popularity_changed.connect(_on_popularity_changed)
+	if EventBus.has_signal("ai_faction_defeated"):
+		EventBus.ai_faction_defeated.connect(func(_fid): say("kingdom_fallen"))
 
 # Popularity dipped: warn once on the downward crossing, re-arm only after recovery.
+# At the revolt floor (<10) the realm falls — speak the defeat capstone once.
 func _on_popularity_changed(_pid: int, _old: float, new_value: float) -> void:
 	if not _pop_low and new_value < _POP_CRIT:
 		_pop_low = true
 		say("popularity_critical")
 	elif _pop_low and new_value >= _POP_SAFE:
 		_pop_low = false
+	if not _realm_fallen_said and new_value < 10.0:
+		_realm_fallen_said = true
+		say("realm_fallen")
 
 # Speak a narration key. Latest line wins (a new one cuts off any still playing, so two
 # heralds never talk over each other). Unknown/missing keys are silently ignored.

@@ -50,6 +50,9 @@ func _test_fixed_clips() -> void:
 	ok("edict_lapsed.wav loads", _loads("edict_lapsed"))
 	ok("objective_updated.wav loads", _loads("objective_updated"))
 	ok("popularity_critical.wav loads", _loads("popularity_critical"))
+	# Win/loss capstones (iter93).
+	ok("kingdom_fallen.wav loads", _loads("kingdom_fallen"))
+	ok("realm_fallen.wav loads", _loads("realm_fallen"))
 
 # A missing key must fail gracefully (null), so unknown events stay silent.
 func _test_loader_is_robust() -> void:

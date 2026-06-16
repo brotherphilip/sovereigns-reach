@@ -26,6 +26,34 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 93 — 2026-06-17  (Voice the win/loss capstones — a rival falls, the realm falls)
+
+### Source
+Standing VO rule. Two of the game's most dramatic pop-ups were still silent: vanquishing a rival kingdom (a
+triumph) and the people revolting (the defeat capstone). Both deserve the herald's voice.
+
+### Change made
+- **2 new VO stings** (grim-herald recipe, no FX, 16-bit mono PCM):
+  - `kingdom_fallen` — "A rival crown lies broken. Your enemies dwindle, my liege." (a rival kingdom vanquished)
+  - `realm_fallen` — "The people have risen against you. Your reign is ended." (the revolt defeat)
+- **`NarrationPlayer`** wires two more triggers: `ai_faction_defeated` → `kingdom_fallen`; and a once-only
+  `realm_fallen` when `popularity_changed` crosses below the 10 revolt floor (a `_realm_fallen_said` latch so the
+  capstone speaks exactly once as the run ends). Both reuse existing EventBus signals — no new plumbing.
+
+### Verified
+- **`tests/TestNarration.gd` → 63/0** (both capstones load). **Full suite: 0 FAIL across all 27 files.** Live boot
+  clean — the new autoload connections wire with no errors.
+
+### Post-mortem
+- **Engagement / audio feedback:** the run's emotional bookends now land with the same voice that narrates the
+  rest of the realm — a rival's fall feels like a win, and a revolt feels like an ending, instead of silent text.
+  View/audio-side only; zero sim/determinism/balance impact.
+
+### Backlog / next
+1. Remaining un-voiced pop-ups (add as warranted, avoid spam): keep-fallen defeat (needs a building_destroyed
+   keep-check), victory ("all enemies vanquished"), tutorial hints (dynamic text). 
+2. (Carried) live siege-landing confirmation; ear-check narration; ear-tune SFX.
+
 ## Iteration 92 — 2026-06-17  (Survival-test limits charted; winter food-prep taught in the objective)
 
 ### Source
