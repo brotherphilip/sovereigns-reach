@@ -26,6 +26,37 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 41 — 2026-06-16  (warm dawn/dusk colour grade for the day/night wash)
+
+### Heuristic focus
+Atmosphere polish on the day/night feature (the user is actively shaping it). With 15-min days, the
+dawn/dusk transitions now last minutes — long enough that the flat cool-blue wash looked wrong during
+them. A warm sunset/sunrise grade makes those long transitions read right. (The A/B economic-calendar
+question from iter 40 is still open with the user; this is safe, on-theme work meanwhile.)
+
+### Change made
+- **NightLayer**: the darkening wash now **grades its hue** — warm sunset/sunrise (`DUSK_TINT`
+  0.45/0.20/0.06) at low darkness (dusk & dawn) → cool moonlit blue (`NIGHT_TINT`) at deep night, via
+  `smoothstep(0.2, 0.7, night_factor)`. Alpha still tracks `night_factor` (capped 0.6). Lamps unchanged.
+
+### Verified
+- **Live (Xvfb, staffed town, 5× across a night)**: nights now read warm/amber and lamp-lit rather than
+  flat cool-blue — a cozy dusk glow over the darkened map. (The cool-blue deep-midnight end of the grade is
+  subtle in a lamp-dense town, since the warm lamp pools dominate; far-from-lamp areas still cool off.)
+  Renders cleanly; no glitches.
+- View-only change; full suite unaffected (it doesn't load the view layer); clean boot (NightLayer parses
+  and renders).
+
+### Post-mortem
+- **Failure point:** none.
+- **Atmosphere:** sunsets/sunrises now glow warm and midnight is cold-blue — the long 15-min cycle feels
+  like a real day passing rather than a flat dimmer.
+
+### Backlog / next
+- **Awaiting user:** A (keep lively village + slow sky) vs B (slow the whole economy for a literal 8-day
+  year + rebalance).
+- Diplomacy depth; seat-shield from strategic capture.
+
 ## Iteration 40 — 2026-06-16  (day/night to 15-min days: 10 day / 5 night; user request)
 
 ### Source

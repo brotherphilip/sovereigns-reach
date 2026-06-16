@@ -39,12 +39,18 @@ func _refresh_buildings() -> void:
 					arr.append(b)
 	_buildings = arr
 
+const DUSK_TINT: Color = Color(0.45, 0.20, 0.06)   # warm sunset/sunrise glow
+
 func _draw() -> void:
 	if _night < 0.03:
 		return
 	# Darkening wash over the whole iso map (huge rect; it pans/zooms with the world).
+	# The hue grades warm (dusk/dawn) → cool moonlit blue (deep night), so the long
+	# 15-min sunsets/sunrises read warm and the midnight is cold.
+	var grade: float = smoothstep(0.2, 0.7, _night)
+	var tint: Color = DUSK_TINT.lerp(NIGHT_TINT, grade)
 	draw_rect(Rect2(Vector2(-9000, -3000), Vector2(18000, 12000)),
-		Color(NIGHT_TINT.r, NIGHT_TINT.g, NIGHT_TINT.b, _night * MAX_DARK))
+		Color(tint.r, tint.g, tint.b, _night * MAX_DARK))
 	# Warm lamp pools at each built building, cutting through the dark.
 	for b in _buildings:
 		if not (b is Dictionary) or not b.get("built", true):
