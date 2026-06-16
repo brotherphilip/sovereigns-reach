@@ -85,10 +85,11 @@ func _ready() -> void:
 
 	EventBus.ai_envoy_sent.connect(_on_envoy)
 
-func _on_envoy(_faction_id: int, demand: Dictionary) -> void:
+func _on_envoy(faction_id: int, demand: Dictionary) -> void:
 	if demand.get("player_id", -1) != 0:
 		return
 	_current = demand
+	var _fid: int = int(demand.get("faction_id", faction_id))
 
 	# Threat bar
 	var threat: float = demand.get("threat_level", 0.0)
@@ -107,11 +108,31 @@ func _on_envoy(_faction_id: int, demand: Dictionary) -> void:
 	for res in demand.get("demands", {}):
 		parts.append("%d %s" % [demand["demands"][res], res])
 	var faction_name: String = demand.get("faction_name", "A rival lord")
-	_label.text = "[i]%s[/i]\n\n[b]%s[/b] demands tribute: %s." % [flavor, faction_name, ", ".join(parts)]
+	# Standing readout: the faction's current grievance, so the choice's stakes are clear.
+	var fac = _live_faction(_fid)
+	var grievance: float = float(fac.get("grievance", 0.0)) if fac != null else 0.0
+	var standing: String = "wary"
+	if grievance >= 30.0:
+		standing = "[color=#ff6644]seething[/color]"
+	elif grievance >= 12.0:
+		standing = "[color=#ffaa44]aggrieved[/color]"
+	else:
+		standing = "[color=#cfc488]wary[/color]"
+	_label.text = ("[i]%s[/i]\n\n[b]%s[/b] demands tribute: %s.\n\n" +
+		"[color=#9fe08a]Pay[/color] → they hold the peace ~14 days.    " +
+		"[color=#ffaa66]Refuse[/color] → grievance deepens (now %s) & they may march.") % [
+		flavor, faction_name, ", ".join(parts), standing]
 
 	# History + active agreements
 	_refresh_history()
 	visible = true
+
+# The live faction dict (for grievance/peace standing) by id, or null.
+func _live_faction(fid: int):
+	for f in GameState.ai_factions:
+		if f is Dictionary and int(f.get("id", -1)) == fid:
+			return f
+	return null
 
 func _get_active_agreement_lines() -> Array:
 	var lines: Array = []

@@ -26,6 +26,35 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 59 — 2026-06-16  (Diplomacy panel: surface the faction's standing so the choice is legible)
+
+### Source
+Backlog from iter 58: the new tribute mechanic (pay→peace, refuse→grievance) was invisible — the player
+couldn't see the stakes when deciding.
+
+### Change made (view/hud/DiplomacyPanel.gd — view-only)
+- The tribute-demand panel now reads the **live faction's grievance** and shows a **standing word**
+  (wary / [color]aggrieved[/color] / [color]seething[/color]) plus explicit **consequence guidance**:
+  "Pay → they hold the peace ~14 days.   Refuse → grievance deepens (now <standing>) & they may march."
+- Added `_live_faction(fid)` lookup; threaded the envoy's faction id through `_on_envoy`.
+
+### Verified
+- **Parse:** DiplomacyPanel.gd loads clean (no syntax errors). **Tests:** full suite 1082 assertions, 0
+  failed (view-only; sim untouched).
+- **Visual:** not captured this iteration — the Xvfb harness got wedged by this long session's accumulated
+  render launches (lesson reinforced: foreground `SR_SHOT` boots can hang; background-launch + poll is the
+  reliable pattern), and the new line only appears when an actual Ashen tribute demand fires. The change is a
+  low-risk label + lookup, parse-verified; will eyeball it live next clean boot.
+
+### Post-mortem
+- The diplomacy decision is now self-explanatory at the moment it's made — the player sees the faction's mood
+  and exactly what each button does. Completes the iter-58 depth work's legibility.
+
+### Backlog / next
+1. Eyeball the new panel line live (next clean render) when a demand fires.
+2. (Carried) click-to-inspect marching army + stance toggle; distance-scaled strategic travel; broad 20-min
+   engagement tuning.
+
 ## Iteration 58 — 2026-06-16  (Diplomacy depth: tribute now matters — pay buys peace, refuse escalates)
 
 ### Source
