@@ -26,6 +26,36 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 66 — 2026-06-16  (Player agency: unit GUARD ⇄ AGGRESSIVE stance toggle)
+
+### Source
+Backlog + the iter-56 troop-predictability work: give the player a choice over the leash — let some troops
+hold their post while others pursue freely.
+
+### Change made
+- **CommandQueue:** new `SET_UNIT_STANCE` command (= int 32, appended for save stability).
+- **UnitState:** `STANCE_GUARD` / `STANCE_AGGRESSIVE` constants; units default to **guard**.
+- **GameState:** `_cmd_set_unit_stance` sets a player unit's stance (and clears any active leash). The idle
+  auto-aggro now only **leashes GUARD-stance units** — AGGRESSIVE units (like rallying raiders) pursue freely
+  and don't return to post.
+- **HUDNode selection panel:** a themed **"Stance: Guard/Aggressive"** toggle on a selected player combat
+  unit, routed through the command pipeline (with a tooltip explaining each).
+
+### Verified
+- **New tests (TestUnitAI 23/0):** at the tick level, a far-from-post unit with a gone target **marches back
+  when GUARD** but **holds its ground when AGGRESSIVE** — proving the stance gates the leash. The iter-56
+  guard-return + chase/kiting/patrol/raider tests still pass.
+- **Tests:** full suite **1093 assertions, 0 failed**. City view boots clean.
+
+### Post-mortem
+- **Player agency / control feel:** players who liked predictable defenders keep them (guard), but can now set
+  a strike force to AGGRESSIVE and send it hunting — the control the troop-management directive was building
+  toward. Default guard keeps the predictable behaviour everyone expects.
+
+### Backlog / next
+1. (Carried) distance-scaled strategic travel time; marching-army click-to-inspect.
+2. Reward-loop / milestone-variety polish; more seasonal/decision events as desired.
+
 ## Iteration 65 — 2026-06-16  (Content density: four new decision world-events)
 
 ### Source

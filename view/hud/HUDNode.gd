@@ -876,6 +876,18 @@ func show_selected_unit(unit: Dictionary) -> void:
 	_sel_workers_label.add_theme_color_override("font_color", cat_d[1])
 	for c in _sel_actions.get_children(): c.queue_free()
 
+	# Stance toggle for the player's own combat units: Guard (hold post, leashed) ⇄
+	# Aggressive (pursue any foe freely). Routes through the command pipeline.
+	if int(unit.get("owner_id", -1)) == 0 and int(defn.get("attack", 0)) > 0:
+		var uid: int = int(unit.get("id", -1))
+		var cur: String = String(unit.get("stance", "guard"))
+		var sb: Button = _make_card_button("Stance: %s" % ("Aggressive" if cur == "aggressive" else "Guard"), true)
+		sb.custom_minimum_size = Vector2(130, 24)
+		sb.tooltip_text = "Guard: hold your post and return after a fight.\nAggressive: chase any foe freely.\nClick to toggle."
+		var next_stance: String = "guard" if cur == "aggressive" else "aggressive"
+		sb.pressed.connect(func(): CommandQueue.enqueue(32, {"unit_id": uid, "stance": next_stance}, 0))
+		_sel_actions.add_child(sb)
+
 func clear_selection() -> void:
 	if not _sel_title: return
 	_sel_title.text = "Nothing selected"

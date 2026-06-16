@@ -26,6 +26,7 @@ func _init() -> void:
 	_gs.setup_world(77, 4)
 	_test_auto_aggro_and_combat()
 	_test_guard_leash_returns_to_post()
+	_test_aggressive_stance_no_leash()
 	_test_attack_move_chase()
 	_test_ranged_kiting()
 	_test_ranged_projectile()
@@ -94,6 +95,31 @@ func _test_guard_leash_returns_to_post() -> void:
 	_run(900)   # time to march back to its post
 	var back: int = abs(guard.get("pos_x", 0) - 50) + abs(guard.get("pos_y", 0) - 50)
 	ok("the unit returned to its post after the fight (didn't wander off)", back <= 2)
+
+# ── 1c. AGGRESSIVE stance pursues — it does NOT leash back to its post ───────────
+
+func _test_aggressive_stance_no_leash() -> void:
+	print("\n[Aggressive stance: no leash]")
+	_arena(50, 50)
+	# Both units have chased far from their post (guard at 50,50; now at 65,50) and
+	# their target is gone. A GUARD unit marches back; an AGGRESSIVE one holds.
+	var guard_u := _mk_player_unit("swordsman", 65, 50, 9061)
+	guard_u["guard_x"] = 50; guard_u["guard_y"] = 50
+	guard_u["stance"] = UnitState.STANCE_GUARD
+	guard_u["auto_aggro"] = true
+	guard_u["order"] = UnitState.ORDER_ATTACK
+	guard_u["target_id"] = 99999   # no such enemy → "target gone"
+	_gs._tick_force_units(_gs.players[0], [guard_u], [], 80, Vector2i(-1, -1))
+	ok("guard unit marches back to its post when the foe is gone", guard_u.get("order") == UnitState.ORDER_MOVE)
+
+	var aggr_u := _mk_player_unit("swordsman", 65, 50, 9062)
+	aggr_u["guard_x"] = 50; aggr_u["guard_y"] = 50
+	aggr_u["stance"] = UnitState.STANCE_AGGRESSIVE
+	aggr_u["auto_aggro"] = false   # aggressive units never arm the leash
+	aggr_u["order"] = UnitState.ORDER_ATTACK
+	aggr_u["target_id"] = 99999
+	_gs._tick_force_units(_gs.players[0], [aggr_u], [], 80, Vector2i(-1, -1))
+	ok("aggressive unit holds its ground (no leash back to post)", aggr_u.get("order") != UnitState.ORDER_MOVE)
 
 # ── 2. Attack-move chases a distant target ──────────────────────────────────────
 

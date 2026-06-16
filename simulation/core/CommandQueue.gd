@@ -54,6 +54,7 @@ enum CommandType {
 	LAUNCH_CAMPAIGN,
 	STRATEGIC_DIPLOMACY,
 	RESOLVE_EVENT_CHOICE,   # player picked an option on a World Event (= int 31)
+	SET_UNIT_STANCE,        # player set a unit's combat stance (guard/aggressive) (= int 32)
 }
 
 var _queue: Array[Dictionary] = []

@@ -13,6 +13,12 @@ const ORDER_PATROL  = "patrol"
 const ORDER_GARRISON = "garrison"
 const ORDER_TRAINING = "training"
 
+# Combat stance — how a unit reacts to foes that wander into its aggro radius.
+# GUARD: defend the post (auto-acquire, but leashed — return after the fight).
+# AGGRESSIVE: pursue any foe freely (no leash), like a player-issued attack.
+const STANCE_GUARD      = "guard"
+const STANCE_AGGRESSIVE = "aggressive"
+
 static func create(unit_type: String, owner_id: int, x: int, y: int, uid: int) -> Dictionary:
 	var defn: Dictionary = UnitRegistry.lookup(unit_type)
 	if defn.is_empty():
@@ -39,6 +45,7 @@ static func create(unit_type: String, owner_id: int, x: int, y: int, uid: int) -
 		"is_alive": true,
 		"ticks_in_training": 0,
 		"is_garrisoned": false,
+		"stance": STANCE_GUARD,
 		"modifiers": {},
 	}
 

@@ -780,8 +780,9 @@ func _tick_unit_idle(owner: Dictionary, unit: Dictionary, tick: int, tpd: int, e
 		var tgt: Dictionary = _nearest_enemy(unit.get("pos_x", 0), unit.get("pos_y", 0), enemies, AGGRO_RADIUS)
 		if not tgt.is_empty():
 			UnitState.issue_attack_order(unit, tgt.get("pos_x", 0), tgt.get("pos_y", 0), tgt.get("id", -1))
-			# Holding units are LEASHED to their post; rallying raiders pursue freely.
-			unit["auto_aggro"] = holding
+			# GUARD-stance holding units are LEASHED to their post; AGGRESSIVE units (and
+			# rallying raiders) pursue freely.
+			unit["auto_aggro"] = holding and unit.get("stance", UnitState.STANCE_GUARD) == UnitState.STANCE_GUARD
 			return
 	if unit.has("patrol_a"):
 		unit["order"] = UnitState.ORDER_PATROL
@@ -1134,6 +1135,8 @@ func apply_command(command: Dictionary) -> void:
 			success = _cmd_strategic_diplomacy(command)
 		CommandQueue.CommandType.RESOLVE_EVENT_CHOICE:
 			success = _cmd_resolve_event_choice(command)
+		CommandQueue.CommandType.SET_UNIT_STANCE:
+			success = _cmd_set_unit_stance(command)
 		CommandQueue.CommandType.SAVE_GAME:
 			EventBus.save_requested.emit()
 			success = true
@@ -1957,6 +1960,25 @@ func _cmd_resolve_event_choice(cmd: Dictionary) -> bool:
 	# so the notice is just a confirmation of what the lord decreed.
 	EventBus.realm_notice.emit("You decreed: " + String(outcome.get("label", "your will")), outcome.get("tone", "neutral"))
 	return true
+
+# Set a player unit's combat stance (guard ↔ aggressive). Guard units hold their post
+# and return after a fight; aggressive units pursue any foe freely.
+func _cmd_set_unit_stance(cmd: Dictionary) -> bool:
+	var pid: int = cmd["player_id"]
+	if not _valid_player(pid):
+		return false
+	var payload: Dictionary = cmd["payload"]
+	var uid: int = int(payload.get("unit_id", -1))
+	var stance: String = String(payload.get("stance", UnitState.STANCE_GUARD))
+	if stance != UnitState.STANCE_GUARD and stance != UnitState.STANCE_AGGRESSIVE:
+		return false
+	for u in players[pid].get("units", []):
+		if u is Dictionary and u.get("id", -1) == uid:
+			u["stance"] = stance
+			# Drop any active leash so the new stance takes effect on the current fight.
+			u["auto_aggro"] = false
+			return true
+	return false
 
 func _cmd_research_tech(cmd: Dictionary) -> bool:
 	var pid: int = cmd["player_id"]
