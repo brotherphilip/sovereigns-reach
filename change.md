@@ -26,6 +26,35 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 101 — 2026-06-17  (Guard the narration set: every clip must carry real audio)
+
+### Source
+~68 narration clips have been rendered, but they can't be auditioned in the headless harness — and
+`TestNarration` only checked each clip *loads* (non-empty + 16-bit). A silent/empty/garbled-to-zero render would
+pass unnoticed. Closed that gap with a programmatic signal check (the closest thing to "ear-check" available in CI).
+
+### Change made
+- **`tests/TestNarration.gd`:** new `_test_all_clips_have_signal()` scans **every** `.wav` in `audio/narration/`,
+  decodes the 16-bit PCM, and asserts each clip's **peak amplitude ≥ 800** (real takes peak in the thousands;
+  silence ≈ 0) — plus a sanity check that the set is healthy (≥ 60 clips). Catches a broken/silent render pipeline
+  for any future clip, automatically.
+
+### Verified
+- **TestNarration → 71/0:** **68 clips checked, none silent** — every shipped narration clip contains real audio
+  signal (verified programmatically; voice *quality* still wants the user's ear, but emptiness/silence is now
+  impossible to ship undetected). **Full suite: 0 FAIL across all 27 files.** Test-only change; no production code
+  touched.
+
+### Post-mortem
+- **Audio quality net:** the VO set was previously guarded for key-parity (every pop-up has a clip) and
+  loadability; now also for *content* (every clip has audio). The three together make the narration system robust
+  to silent regressions. View/test-side only; zero gameplay impact.
+
+### Backlog / next
+1. **User ear-check** of narration *voice quality* remains the one thing CI can't do (stochastic Chatterbox garble
+   on a word would still pass the signal check — re-render that single key if heard).
+2. (Carried) live siege-landing confirmation; ear-tune SFX; more content as warranted.
+
 ## Iteration 100 — 2026-06-17  (End-to-end verification of the REAL player entry flow)
 
 ### Source

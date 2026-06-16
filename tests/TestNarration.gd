@@ -14,6 +14,7 @@ func _init() -> void:
 	_test_every_milestone_has_voice()
 	_test_every_world_event_has_voice()
 	_test_fixed_clips()
+	_test_all_clips_have_signal()
 	_test_loader_is_robust()
 	print("\n=== Narration Results: %d passed, %d failed ===" % [_pass, _fail])
 	quit(0 if _fail == 0 else 1)
@@ -56,6 +57,43 @@ func _test_fixed_clips() -> void:
 	ok("victory.wav loads", _loads("victory"))
 	ok("keep_fallen.wav loads", _loads("keep_fallen"))
 	ok("unit_trained.wav loads", _loads("unit_trained"))
+
+# Peak absolute 16-bit sample amplitude (0..32768) — 0 ≈ silence, a real voice clip peaks high.
+func _peak16(s: AudioStreamWAV) -> int:
+	var data: PackedByteArray = s.data
+	var peak: int = 0
+	var n: int = data.size()
+	var i: int = 0
+	while i + 1 < n:
+		var v: int = data[i] | (data[i + 1] << 8)
+		if v >= 32768:
+			v -= 65536
+		var a: int = absi(v)
+		if a > peak:
+			peak = a
+		i += 2
+	return peak
+
+# Every shipped clip must contain ACTUAL audio, not just a valid-but-silent WAV — a guard
+# against a broken/garbled render pipeline (the clips can't be auditioned headlessly).
+const _SIGNAL_FLOOR: int = 800   # real takes peak in the thousands; silence ≈ 0
+func _test_all_clips_have_signal() -> void:
+	print("\n[Every clip carries real audio signal]")
+	var dir := DirAccess.open(DIR)
+	if dir == null:
+		ok("narration dir opens", false)
+		return
+	var checked: int = 0
+	var silent: Array = []
+	for f in dir.get_files():
+		if not f.ends_with(".wav"):
+			continue
+		checked += 1
+		var s = WavLoad.load_wav(DIR + f)
+		if not (s is AudioStreamWAV) or _peak16(s) < _SIGNAL_FLOOR:
+			silent.append(f)
+	ok("found a healthy set of clips to check (>= 60)", checked >= 60)
+	ok("no silent/empty clips among %d (silent: %s)" % [checked, str(silent)], silent.is_empty())
 
 # A missing key must fail gracefully (null), so unknown events stay silent.
 func _test_loader_is_robust() -> void:
