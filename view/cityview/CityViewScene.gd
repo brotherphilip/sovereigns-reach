@@ -236,9 +236,43 @@ func _build_scene() -> void:
 		var SeasonRef2 = preload("res://simulation/world/SeasonSystem.gd")
 		var nf: float = clampf(float(OS.get_environment("SR_NIGHT")), 0.0, 1.0)
 		SimulationClock.current_tick = int(round(nf * 0.5 * SeasonRef2.DAY_NIGHT_TICKS))
+	# Dev hook: append a real game-state telemetry row (~1/sec) to the SR_TELEMETRY CSV, so a
+	# live playtest yields an HONEST state-over-time capture (day, popularity, gold, food, unit
+	# & building counts, FPS) read straight from the running sim — not guessed from screenshots.
+	if OS.get_environment("SR_TELEMETRY") != "":
+		_dev_telemetry(OS.get_environment("SR_TELEMETRY"))
 	# Dev hook: render for SR_SHOT_DELAY seconds then save a PNG to SR_SHOT and quit.
 	if OS.get_environment("SR_SHOT") != "":
 		_dev_screenshot(OS.get_environment("SR_SHOT"))
+
+func _dev_telemetry(path: String) -> void:
+	var f := FileAccess.open(path, FileAccess.WRITE)
+	if f == null:
+		push_warning("[CityView] SR_TELEMETRY: cannot open %s" % path)
+		return
+	f.store_line("real_s,game_day,popularity,gold,food,units,buildings,fps")
+	f.flush()
+	var HUDCtl = preload("res://view/hud/HUDController.gd")
+	var t0: int = Time.get_ticks_msec()
+	var timer := Timer.new()
+	timer.name = "SR_TelemetryTimer"
+	timer.wait_time = 1.0
+	timer.one_shot = false
+	add_child(timer)
+	timer.timeout.connect(func() -> void:
+		if GameState.players.is_empty():
+			return
+		var p: Dictionary = GameState.players[0]
+		var real_s: float = float(Time.get_ticks_msec() - t0) / 1000.0
+		f.store_line("%.1f,%d,%.1f,%d,%d,%d,%d,%.0f" % [
+			real_s, SimulationClock.game_day(),
+			float(p.get("popularity", 50.0)), int(p.get("gold", 0)),
+			HUDCtl.get_total_food(p), (p.get("units", []) as Array).size(),
+			(p.get("buildings", []) as Array).size(), Engine.get_frames_per_second()])
+		f.flush()
+	)
+	timer.start()
+	print("[CityView] SR_TELEMETRY writing to %s" % path)
 
 func _dev_reign_preview() -> void:
 	await get_tree().create_timer(2.0).timeout
