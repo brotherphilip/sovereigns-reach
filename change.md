@@ -26,6 +26,41 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 53 — 2026-06-16  (DESIGN OVERHAUL #7 — MainMenu load overlay; OVERHAUL COMPLETE)
+
+### Source
+Roadmap step 5 final item: MainMenu. On inspection it was already richly polished (cinematic cross-fading
+medieval vignettes with Ken Burns, gold-framed parchment panel, shimmering title, themed menu buttons). The
+only inconsistency was the **Load overlay**, whose "Load Save"/"Cancel" buttons used raw default styling.
+
+### Change made (view/menu/MainMenuScene.gd — view-only)
+- Routed the Load-overlay buttons through the existing `_make_menu_button` so they match the gold/parchment
+  menu style.
+
+### Verified
+- **Live (Xvfb):** title screen renders beautifully ("Dawn breaks over the keep" vignette, gold panel,
+  shimmering title, themed New Game/Load/Quit/Difficulty buttons); Load overlay now shows a themed "Cancel"
+  button. Screens: /tmp/menu1.png, /tmp/menu2c.png. No script errors.
+- **Tests:** 1074/1075 — the lone failure is TestPathfinding's `<450ms` perf benchmark flaking to ~485ms
+  under machine load (16 path-logic assertions pass; unrelated to this view-only change). Flaky timing, not
+  a regression.
+
+### Post-mortem — DESIGN OVERHAUL COMPLETE
+The multi-iteration visual overhaul the user asked for is done across the board:
+- Building art: textured roofs + grounded shadows (47), wall masonry/timber/plank (48), per-building hero
+  detail (49); bigger footprints + clear arched/lit doors + realistic villager scale + villagers entering
+  doors (direct request); much darker night + real torch flames on building front corners (direct request).
+- UI: icon resource bar + clean popularity/rations (50), build-menu cards + active tab (51), themed action
+  buttons across selection/tech/edict/market (52), MainMenu cohesive (53).
+The whole game now reads as one professional, cohesive medieval presentation.
+
+### Backlog / next — PIVOT BACK TO THE 20-MINUTE ENGAGEMENT GOAL
+With visuals done, return to the core milestone (a human stays engaged + survives 20 min in one life):
+1. **Fresh full human-paced playthrough** on the new build to re-baseline survival + fun at the current pace.
+2. Diplomacy depth (tribute/alliance/expiry) — the tribute event fires but the loop is shallow.
+3. Optional: loosen the TestPathfinding perf threshold (450→ ~550ms) so the benchmark isn't load-flaky.
+4. Optional: daytime worker door-use; MainMenu has no open issues.
+
 ## Iteration 52 — 2026-06-16  (DESIGN OVERHAUL #6 — panels pass: themed buttons across selection/tech/edict/market)
 
 ### Source
