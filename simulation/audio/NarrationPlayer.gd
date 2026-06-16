@@ -19,6 +19,7 @@ extends Node
 #   unit_spawned (player unit)  → unit_trained          (a soldier finishes training)
 #   ai_siege_struck             → siege_held / siege_breached  (by the defended flag)
 #   save_completed / load_completed → game_saved / game_loaded  (the realm's chronicle)
+#   TutorialSystem.tutorial_hint    → tutorial_hint        (generic; the onboarding text is dynamic)
 
 const WavLoad = preload("res://simulation/audio/WavLoad.gd")
 const DIR := "res://audio/narration/"
@@ -66,6 +67,15 @@ func _ready() -> void:
 		EventBus.save_completed.connect(func(_path): say("game_saved"))
 	if EventBus.has_signal("load_completed"):
 		EventBus.load_completed.connect(func(success): if success: say("game_loaded"))
+	# TutorialSystem loads AFTER us (see project.godot autoload order), so its node isn't in the
+	# tree yet — defer the hookup. Its hint TEXT is dynamic, so (like edicts/objectives) a single
+	# generic instructional sting voices every onboarding pop-up: welcome, defence warning, etc.
+	call_deferred("_connect_tutorial")
+
+func _connect_tutorial() -> void:
+	var ts = get_node_or_null("/root/TutorialSystem")
+	if ts != null and ts.has_signal("tutorial_hint"):
+		ts.tutorial_hint.connect(func(_msg): say("tutorial_hint"))
 
 # The player's seat (Village Hall / Keep) was razed — that's the run-ending defeat. Only the
 # human player's seat speaks (not an AI's), and only the seat (not every lost building).

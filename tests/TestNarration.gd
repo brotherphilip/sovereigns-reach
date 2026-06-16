@@ -61,6 +61,7 @@ func _test_fixed_clips() -> void:
 	ok("siege_breached.wav loads", _loads("siege_breached"))
 	ok("game_saved.wav loads", _loads("game_saved"))
 	ok("game_loaded.wav loads", _loads("game_loaded"))
+	ok("tutorial_hint.wav loads", _loads("tutorial_hint"))  # generic onboarding sting (iter113)
 
 # Peak absolute 16-bit sample amplitude (0..32768) — 0 ≈ silence, a real voice clip peaks high.
 func _peak16(s: AudioStreamWAV) -> int:
