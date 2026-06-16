@@ -26,6 +26,46 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 114 — 2026-06-17  (Real telemetry + a live harness run — honest state-over-time, and a confirmed input limit)
+
+### Source
+Backlog #1 (live managed Day-100 capstone) + the loop's honesty ground rule, which demands real
+*captured state over time* — the harness could only screenshot, from which exact resource/popularity
+values can't be honestly read. So: build the missing instrumentation, then run a real live session.
+
+### Change made
+- **`view/cityview/CityViewScene.gd`:** new `SR_TELEMETRY=<path>` dev hook — a 1 Hz Timer appends a CSV
+  row of real game-state read straight from the running sim: `real_s, game_day, popularity, gold, food,
+  units, buildings, fps`. (Committed `88ac510`, BEFORE the playtest.)
+
+### Playtest (REAL — Xvfb :99, live game, telemetry + 7 screenshots)
+- **Telemetry hook verified end-to-end:** 131 real rows captured over ~131 s.
+- **Clean run, zero errors:** the game booted and ran **10 game-days with no script error/exception**;
+  screenshots at boot and day-10 show a correct render — legible HUD, build bar, side panels, terrain/lake,
+  no desync or overlap. FPS steady ~12 (llvmpipe software renderer — not hardware-representative).
+- **Unmanaged baseline curve (real numbers):** popularity **50.0 → 51.0** (stable, slightly rising);
+  food **200 → 143** over 10 days (≈ 7/day drain → projects starvation ~day 30, matching the documented
+  ~30-day unmanaged baseline); gold flat 500; 0 units / 0 buildings (nothing was built — see below).
+
+### Post-mortem — failure class: HARNESS/INFRA (keyboard input), NOT a game failure
+- **The scripted speed keypress (`3` → 5×) did NOT register:** the realm reached only **day 10 in 130 s =
+  exactly 1× (NORMAL) speed**, so the game never sped up. Confirmed with a second isolated experiment
+  (`/tmp/sr_input_test.sh`): both `windowfocus --sync` + XTEST `key`, AND `key --window` (XSendEvent)
+  left it at 1× (day 2 in 30 s). **Root cause:** bare Xvfb has **no window manager** to grant keyboard
+  input focus, and Godot ignores XSendEvent synthetic events. **Mouse/pointer events bypass focus**, which
+  is why prior click-driven runs worked but keyboard does not. No WM (openbox/fluxbox/etc.) is installed.
+- **Honesty note:** because no input registered, this was an **unmanaged** capture — I did NOT drive the
+  game and do NOT claim a managed/win run. What's real here: the telemetry instrumentation, the clean-render
+  + clean-run evidence, and the unmanaged baseline curve.
+
+### Backlog / next (optional polish)
+**Required (harness):** to run the managed Day-100 capstone via real player controls, solve the input path —
+either (a) install a minimal WM under Xvfb for keyboard, or (b) drive the run purely via MOUSE clicks at 1×
+over 20 real minutes (20 min = 100 days at NORMAL speed = the literal goal; no speed key needed). Evidence:
+this run's confirmed keyboard-under-Xvfb failure.
+**Design (optional):** Live managed Day-100 win run (now telemetry-supported; survival already test-proven).
+(Carried) user ear-check of narration; ear-tune SFX. Minor spectator-battle edge cases.
+
 ## Iteration 113 — 2026-06-17  (Voice the tutorial-hint pop-ups — onboarding now speaks)
 
 ### Source
