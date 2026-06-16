@@ -61,7 +61,10 @@ static func get_army_render_list(data: Dictionary, march_frac: float = 0.4) -> A
 				var nxt: Dictionary = _city(data, path[0])
 				if not nxt.is_empty():
 					to_pos = Vector2(nxt.get("pos_x", 0.0), nxt.get("pos_y", 0.0))
-					pos = from_pos.lerp(to_pos, clampf(march_frac, 0.0, 1.0))  # animated march
+					# Prefer the army's TRUE travel progress (distance-scaled by the
+					# sim); fall back to the caller's sweep only for legacy armies.
+					var frac: float = a.get("march_frac", march_frac)
+					pos = from_pos.lerp(to_pos, clampf(frac, 0.0, 1.0))  # animated march
 			result.append({
 				"pos":   pos,
 				"to":    to_pos,

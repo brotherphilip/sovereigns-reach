@@ -41,6 +41,7 @@ func _init() -> void:
 	_run_player_ui_actions()
 	_test_seat_shield()
 	_test_ai_building_economy()
+	_test_distance_scaled_travel()
 	print("\n=== Strategic AI Results: %d passed, %d failed ===" % [_pass, _fail])
 	quit(0 if _fail == 0 else 1)
 
@@ -78,6 +79,54 @@ func _test_ai_building_economy() -> void:
 		AIFaction.tick(b, {}, day * 240)
 	ok("the AI built a production economy", b.get("buildings", []).size() > 0)
 	ok("and accrued goods from it", int(b["resources"].get("wood", 0)) > 0)
+
+# Armies take REAL TIME to cross the map: a leg's duration scales with the
+# geographic distance between cities, and the host creeps along it day by day.
+func _test_distance_scaled_travel() -> void:
+	print("\n── Distance-scaled strategic travel ──")
+	# Two same-owner cities 540px apart on a road → 540/180 = exactly 3 days.
+	var world: Dictionary = {
+		"world_map": {
+			"cities": [
+				{"id": 0, "pos_x": 0.0, "pos_y": 0.0, "owner_faction_id": 1, "faction_id": 1, "connected_to": [1], "garrison": 5, "development": 3},
+				{"id": 1, "pos_x": 540.0, "pos_y": 0.0, "owner_faction_id": 1, "faction_id": 1, "connected_to": [0], "garrison": 0, "development": 3},
+			],
+			"kingdoms": [{"id": 1, "armies": [], "treasury": 1000, "resources": {}}],
+			"player_faction_id": -1,
+		}
+	}
+	var kingdom: Dictionary = world["world_map"]["kingdoms"][0]
+	ok("hop_days scales with distance (540px / 180 = 3 days)", CampaignSystem.hop_days(world, 0, 1) == 3)
+	ok("a zero-length hop is at least 1 day", CampaignSystem.hop_days(world, 0, 0) == 1)
+
+	var aid: int = CampaignSystem.raise_army(world, kingdom, 0, 10)
+	ok("raised a field army at city 0", aid >= 0)
+	ok("launch_campaign sets a march path", CampaignSystem.launch_campaign(world, kingdom, aid, 1))
+	var army: Dictionary = CampaignSystem.find_army(kingdom, aid)
+	ok("travel clock initialised (3 days total, 0 elapsed)",
+		int(army.get("hop_total_days", 0)) == 3 and int(army.get("hop_elapsed", -1)) == 0)
+	ok("days_to_destination == 3 at launch", CampaignSystem.days_to_destination(world, army) == 3)
+
+	# Day 1: still on the road, hasn't reached the next city; frac ≈ 1/3.
+	CampaignSystem.tick_armies(world, kingdom, [], 240)
+	army = CampaignSystem.find_army(kingdom, aid)
+	ok("after 1 day the host is STILL travelling (not teleported)",
+		int(army.get("location_city_id", -1)) == 0 and not army.get("path", []).is_empty())
+	ok("march_frac advanced to ~1/3 (animated creep)",
+		absf(float(army.get("march_frac", 0.0)) - (1.0 / 3.0)) < 0.02)
+	ok("days_to_destination counted down to 2", CampaignSystem.days_to_destination(world, army) == 2)
+
+	# Day 2: still travelling.
+	CampaignSystem.tick_armies(world, kingdom, [], 480)
+	army = CampaignSystem.find_army(kingdom, aid)
+	ok("after 2 days still en route", int(army.get("location_city_id", -1)) == 0 and not army.is_empty())
+
+	# Day 3: arrives — friendly destination folds the host into the garrison.
+	var garr_before: int = int(world["world_map"]["cities"][1].get("garrison", 0))
+	CampaignSystem.tick_armies(world, kingdom, [], 720)
+	ok("arrived after EXACTLY 3 days (merged into destination garrison)",
+		CampaignSystem.find_army(kingdom, aid).is_empty()
+		and int(world["world_map"]["cities"][1].get("garrison", 0)) > garr_before)
 
 # ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -437,8 +486,10 @@ func _run_live_integration() -> void:
 
 	# Advance to the next game-day boundary so _tick_strategic_layer runs and the
 	# army (path length 1, adjacent target) assaults.
+	# Travel is now distance-scaled, so an adjacent leg can take several game-days;
+	# give the host enough days to actually reach and storm the target.
 	var captured_target := false
-	for _i in range(TICKS_PER_DAY + 5):
+	for _i in range(TICKS_PER_DAY * 8 + 5):
 		sc._advance_tick()
 		if CampaignMap.owner_of(CampaignMap.city_by_id(gs.world, target_id)) == pfid:
 			captured_target = true

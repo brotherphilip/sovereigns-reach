@@ -2095,7 +2095,7 @@ func player_marching_armies() -> Array:
 		out.append({
 			"size": int(a.get("size", 0)),
 			"dest_name": String(dest.get("name", "enemy lands")) if not dest.is_empty() else "enemy lands",
-			"eta_days": path.size(),
+			"eta_days": CampaignSystem.days_to_destination(world, a),
 		})
 	return out
 

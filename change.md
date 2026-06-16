@@ -26,6 +26,42 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 67 — 2026-06-16  (World map: distance-scaled army travel — "real time to travel there")
+
+### Source
+Carried backlog + the world-map/troop-movement directive ("armies should be sent to other cities but take
+real time to travel there"). Until now every road hop cost exactly 1 game-day regardless of how far apart the
+cities were, and the marching icon slid on a cosmetic sweep decoupled from the sim — a cross-map march felt the
+same as a march to the next town.
+
+### Change made
+- **CampaignSystem:** new `MARCH_SPEED_PX = 180` (map-px/game-day). `hop_days(world, from, to)` =
+  `max(1, ceil(distance / 180))`, so a neighbouring leg is ~1 day and a long leg costs several. Each army now
+  carries a **per-leg travel clock** (`hop_total_days` / `hop_elapsed` / `march_frac`). `tick_armies` increments
+  the clock each game-day and the host only *arrives* (marches through / assaults) once it has covered the whole
+  leg — otherwise it creeps along the road. `_begin_hop` (re)starts the clock on launch and at each new leg.
+  `days_to_destination()` sums the partially-travelled current leg + remaining legs for a true ETA.
+- **WorldMapController.get_army_render_list:** prefers each army's real `march_frac` (falls back to the caller's
+  sweep only for legacy armies), so the icon's position on the road reflects actual sim progress.
+- **GameState.player_marching_armies:** `eta_days` now uses `CampaignSystem.days_to_destination` (real distance)
+  instead of the raw hop count — the "⚔ Your army marches on X — ~D days away" banner is now honest.
+
+### Verified
+- **New TestStrategicAI suite (`_test_distance_scaled_travel`, 81/0):** a 540px leg = exactly 3 days; a
+  zero-length hop ≥1 day; after launch the clock reads 3 total / 0 elapsed; after 1 day the host is **still
+  travelling** (not teleported) with `march_frac ≈ 1/3` and ETA counted down to 2; it arrives on **exactly day 3**
+  (folding into the destination garrison). Widened the existing capture test's window (adjacent legs can now take
+  several days). **Full suite: 0 FAIL lines across all 24 test files.** City view boots clean.
+
+### Post-mortem
+- **World-map believability / engagement:** marches now have weight — sending a host across the map is a real
+  commitment of days, and you watch it crawl the road. Doesn't touch the survival spine (the ruled seat is
+  siege-shielded from strategic capture), so it's pure depth with no balance risk to the 20-min run.
+
+### Backlog / next
+1. (Carried) marching-army click-to-inspect (now that armies occupy a true mid-road position).
+2. Reward-loop / milestone-variety polish; more seasonal/decision events as desired.
+
 ## Iteration 66 — 2026-06-16  (Player agency: unit GUARD ⇄ AGGRESSIVE stance toggle)
 
 ### Source

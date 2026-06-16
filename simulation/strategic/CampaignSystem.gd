@@ -13,6 +13,49 @@ const KingdomEconomy = preload("res://simulation/strategic/KingdomEconomy.gd")
 const GOLD_PER_SOLDIER: int = 5
 const MAX_ARMY_SIZE: int = 40
 
+# Strategic march speed in map-pixels per game-day. The world map is 1600×900 with
+# cities ≥120px apart, so a neighbouring hop is ~1 day and a long leg costs several —
+# armies take *real time* to cross the map proportional to the actual distance.
+const MARCH_SPEED_PX: float = 180.0
+
+# How many game-days it takes to march the road leg between two adjacent cities,
+# scaled by their geographic separation (minimum one day).
+static func hop_days(world: Dictionary, from_id: int, to_id: int) -> int:
+	var a: Dictionary = CampaignMap.city_by_id(world, from_id)
+	var b: Dictionary = CampaignMap.city_by_id(world, to_id)
+	if a.is_empty() or b.is_empty():
+		return 1
+	var pa := Vector2(a.get("pos_x", 0.0), a.get("pos_y", 0.0))
+	var pb := Vector2(b.get("pos_x", 0.0), b.get("pos_y", 0.0))
+	return maxi(1, int(ceil(pa.distance_to(pb) / MARCH_SPEED_PX)))
+
+# (Re)initialise the per-hop travel clock for an army's CURRENT leg (path[0]).
+static func _begin_hop(world: Dictionary, army: Dictionary) -> void:
+	var path: Array = army.get("path", [])
+	if path.is_empty():
+		army["hop_total_days"] = 0
+		army["hop_elapsed"] = 0
+		army["march_frac"] = 0.0
+		return
+	army["hop_total_days"] = hop_days(world, army.get("location_city_id", -1), path[0])
+	army["hop_elapsed"] = 0
+	army["march_frac"] = 0.0
+
+# Total game-days remaining until an army reaches the end of its current path,
+# counting the partially-travelled current leg. Used for the player's ETA readout.
+static func days_to_destination(world: Dictionary, army: Dictionary) -> int:
+	var path: Array = army.get("path", [])
+	if path.is_empty():
+		return 0
+	# Current leg: remaining days from where we are toward path[0].
+	var total: int = army.get("hop_total_days", hop_days(world, army.get("location_city_id", -1), path[0]))
+	var elapsed: int = army.get("hop_elapsed", 0)
+	var days: int = maxi(0, total - elapsed)
+	# Remaining legs, chained city-to-city.
+	for i in range(path.size() - 1):
+		days += hop_days(world, path[i], path[i + 1])
+	return maxi(1, days)
+
 # ── Raising armies ─────────────────────────────────────────────────────────────
 
 static func can_raise_army(world: Dictionary, kingdom: Dictionary, city_id: int, size: int) -> bool:
@@ -73,6 +116,7 @@ static func launch_campaign(world: Dictionary, kingdom: Dictionary, army_id: int
 		return false
 	army["dest_city_id"] = target_city_id
 	army["path"] = path
+	_begin_hop(world, army)  # start the travel clock for the first leg
 	return true
 
 # ── Marching + battles (daily) ─────────────────────────────────────────────────
@@ -97,11 +141,23 @@ static func tick_armies(world: Dictionary, kingdom: Dictionary, _players: Array,
 			army["path"] = []
 			continue
 
+		# Distance-scaled travel: each leg takes hop_total_days; the army only
+		# *arrives* once it has marched the whole leg. Until then it creeps along
+		# the road (march_frac drives the world-map animation).
+		if not army.has("hop_total_days"):
+			_begin_hop(world, army)  # legacy/in-flight army: start its clock
+		army["hop_elapsed"] = army.get("hop_elapsed", 0) + 1
+		var total_days: int = maxi(1, army.get("hop_total_days", 1))
+		army["march_frac"] = clampf(float(army["hop_elapsed"]) / float(total_days), 0.0, 1.0)
+		if army["hop_elapsed"] < total_days:
+			continue  # still on the road this leg
+
 		if CampaignMap.owner_of(next_city) == fid:
-			# Friendly territory: march through.
+			# Friendly territory: march through, then start the next leg's clock.
 			army["location_city_id"] = next_id
 			path.remove_at(0)
 			army["path"] = path
+			_begin_hop(world, army)
 		else:
 			# Hostile city on the path: assault it now.
 			var outcome: Dictionary = _resolve_assault(world, kingdom, army, next_city, tick)
@@ -111,6 +167,9 @@ static func tick_armies(world: Dictionary, kingdom: Dictionary, _players: Array,
 			# Win or lose, the campaign halts at the contested city.
 			army["path"] = []
 			army["dest_city_id"] = -1
+			army["hop_total_days"] = 0
+			army["hop_elapsed"] = 0
+			army["march_frac"] = 0.0
 
 	# Recycle idle armies sitting on an owned city into its garrison, and purge
 	# destroyed armies. Keeps the army list bounded over long campaigns.
