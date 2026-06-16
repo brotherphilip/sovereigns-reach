@@ -39,6 +39,7 @@ func _init() -> void:
 	_run_determinism()
 	_run_live_integration()
 	_run_player_ui_actions()
+	_test_seat_shield()
 	_test_ai_building_economy()
 	print("\n=== Strategic AI Results: %d passed, %d failed ===" % [_pass, _fail])
 	quit(0 if _fail == 0 else 1)
@@ -325,6 +326,32 @@ func _run_player_ui_actions() -> void:
 	ok("player_develop_city refused when unaffordable", not gs.player_develop_city(cid))
 	ok("can_player_raise_army false when treasury empty", not gs.can_player_raise_army(cid, 10))
 	ok("player_raise_army refused when unaffordable", not gs.player_raise_army(cid, 10))
+
+# The player's actively-ruled seat city is immune to abstract strategic capture
+# (CampaignSystem._resolve_assault); it can only fall via the tactical siege.
+func _test_seat_shield() -> void:
+	print("\n[E] Seat-shield: the actively-ruled seat can't be taken by a strategic assault")
+	var world := _make_world(2024)
+	CampaignMap.ensure_initialized(world, [])
+	var cities: Array = CampaignMap.cities(world)
+	var seat: Dictionary = cities[0]
+	var other: Dictionary = cities[1]
+	var atkfid: int = CampaignMap.owner_of(other) if CampaignMap.owner_of(other) != CampaignMap.owner_of(seat) else CampaignMap.owner_of(cities[2])
+	var attacker := {"id": atkfid}
+	# An overwhelming host that would trivially capture an unshielded city.
+	var army := {"id": 999001, "owner_faction_id": atkfid, "size": 500}
+	# 1) Not the seat → falls.
+	world["player_seat_city_id"] = -1
+	var owner_before: int = CampaignMap.owner_of(seat)
+	var r_open: Dictionary = CampaignSystem._resolve_assault(world, attacker, army.duplicate(), seat, 7)
+	ok("an unshielded city falls to an overwhelming assault", r_open.get("captured", false))
+	# 2) Mark it the player's seat → repelled, not captured.
+	CampaignMap.set_owner(world, seat.get("id", -1), owner_before)  # restore ownership
+	world["player_seat_city_id"] = seat.get("id", -1)
+	var r_seat: Dictionary = CampaignSystem._resolve_assault(world, attacker, army.duplicate(), seat, 7)
+	ok("the player's seat is NOT captured", not r_seat.get("captured", false))
+	ok("the seat assault is flagged repelled", r_seat.get("repelled_seat", false))
+	ok("the seat stays under its owner", CampaignMap.owner_of(seat) == owner_before)
 
 func _run_live_integration() -> void:
 	print("\n[C] Live integration via GameState + CommandQueue")

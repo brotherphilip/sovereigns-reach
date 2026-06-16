@@ -149,6 +149,15 @@ static func _resolve_assault(world: Dictionary, attacker: Dictionary, army: Dict
 		"defender_fid": defender_fid,
 	}
 
+	# The player's ACTIVELY-RULED seat can't fall to an abstract strategic assault — it
+	# is defended through the tactical city view (its keep). The attack is turned back
+	# here (the host bloodied), so you never lose the city you're personally holding to
+	# an off-screen battle; only a tactical siege that fells the keep can take it.
+	if city.get("id", -1) == int(world.get("player_seat_city_id", -1)):
+		army["size"] = int(float(atk) * rng.randf_range(0.1, 0.4))
+		result["repelled_seat"] = true
+		return result
+
 	if atk_roll > def_roll:
 		# City falls. Attacker takes casualties proportional to the defence faced.
 		var casualties: int = mini(atk - 1, int(float(defense) * rng.randf_range(0.4, 0.8)))

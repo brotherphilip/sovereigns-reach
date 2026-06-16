@@ -26,6 +26,40 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 42 — 2026-06-16  (seat-shield: your actively-ruled city can't fall to an off-screen battle)
+
+### Heuristic focus
+A coherence/"makes-sense" fix surfaced in iter 37's probe (and deferred): while you play your seat city
+tactically, an enemy AI army could **capture it on the strategic map via an abstract battle** — you'd be
+ruling a city you no longer own. (Backlog item; safe, on-theme work while the A/B calendar question is
+still open with the user.)
+
+### Finding
+`CampaignSystem._resolve_assault` captured any city via `set_owner` with **no protection for the player's
+seat** (`world.player_seat_city_id`). Enemy kingdoms (whose AI still targets the player's cities) could
+take the seat off-screen mid-play.
+
+### Change made
+- **CampaignSystem._resolve_assault**: if the assaulted city **is the player's actively-ruled seat**, the
+  strategic assault is **repelled** (the attacking host is bloodied, the city holds, `repelled_seat` flag
+  set) — the seat can now fall ONLY through the tactical siege that fells its keep, which is the system the
+  player actually defends against in the city view. Peripheral cities are still capturable (real stakes).
+
+### Verified
+- Headless: +4 tests (TestStrategicAI 69/0): an *unshielded* city falls to an overwhelming assault; the
+  same assault on the flagged seat is **not captured**, is flagged repelled, and the seat keeps its owner.
+  Full suite green (24/24). Clean live boot (pure-sim change parses/renders).
+
+### Post-mortem
+- **Failure point:** none — closes an incoherence where the world map could strip the city you're
+  personally ruling. Now strategic pressure costs you *peripheral* holdings (you must use Diplomacy/armies
+  to hold them), but your throne stands until a real siege takes it.
+
+### Backlog / next
+- **Awaiting user:** A (keep lively village + slow sky — shipped) vs B (slow economy for a literal 8-day
+  year + rebalance).
+- Diplomacy depth (tribute/alliance/expiry); more content/events.
+
 ## Iteration 41 — 2026-06-16  (warm dawn/dusk colour grade for the day/night wash)
 
 ### Heuristic focus
