@@ -488,6 +488,12 @@ func _run_live_integration() -> void:
 	# army (path length 1, adjacent target) assaults.
 	# Travel is now distance-scaled, so an adjacent leg can take several game-days;
 	# give the host enough days to actually reach and storm the target.
+	# Capture the war-news the player now hears (these battles resolved silently before).
+	var event_bus = root.get_node_or_null("EventBus")
+	var war_news: Array = []
+	var news_cb := func(text: String, _tone: String): war_news.append(text)
+	if event_bus != null:
+		event_bus.realm_notice.connect(news_cb)
 	var captured_target := false
 	for _i in range(TICKS_PER_DAY * 8 + 5):
 		sc._advance_tick()
@@ -495,6 +501,15 @@ func _run_live_integration() -> void:
 			captured_target = true
 			break
 	ok("player campaign captured the enemy city (parity proven)", captured_target)
+	# The capture announced itself to the player via a realm notice.
+	var heard_victory := false
+	for n in war_news:
+		if "Your host has taken" in String(n):
+			heard_victory = true
+			break
+	ok("player capture announces war news (realm_notice fires)", heard_victory)
+	if event_bus != null:
+		event_bus.realm_notice.disconnect(news_cb)
 
 	# 4) STRATEGIC_DIPLOMACY: declare war/truce changes relations.
 	var other_fid := -1

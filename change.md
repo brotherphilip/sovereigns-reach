@@ -26,6 +26,40 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 72 — 2026-06-16  (The war speaks: strategic battle outcomes now reach the player)
+
+### Source
+The world-map/"attacks" directive + a real gap found by tracing the signals: `battle_resolved`,
+`city_captured`, and `kingdom_defeated` were emitted by `_tick_strategic_layer` but **no view listened** — the
+entire strategic war resolved silently. A player could lose a city, win a campaign, or watch a rival fall and
+never be told. (The standing-army milestone was deferred: `military_strength` is labour accounting, not a soldier
+count — keying a milestone on it would be wrong; noted in change.md backlog.)
+
+### Change made (simulation/core/GameState.gd)
+`_announce_strategic_battle(cid, afid, dfid, captured)` turns each resolved battle into a readable `realm_notice`
+(the city-view toast the player already sees wherever they are), plus a notice when a kingdom is wiped out:
+- **Your campaign:** "⚔ Your host has taken <city>!" (good) / "Your assault on <city> was thrown back." (bad).
+- **Your city attacked:** "💥 <Kingdom> has seized your city of <city>!" (bad) / "🛡 Your garrison at <city> held
+  against <Kingdom>." (good).
+- **Distant AI war:** "⚑ <A> has captured <city> from <B>." — only on an actual capture, so the feed isn't spammed
+  by border skirmishes.
+- **Elimination:** "⚑ <Kingdom> has been wiped from the map."
+
+### Verified
+- **TestStrategicAI (82/0):** during the existing player-campaign-captures-a-city flow, a `realm_notice`
+  collector confirms "Your host has taken …" fires. **Full suite: 0 FAIL across all 24 test files.** City view
+  boots clean. (Test note: autoloads aren't compile-time globals under `--script`; reach `EventBus` via
+  `root.get_node_or_null`.)
+
+### Post-mortem
+- **Engagement / UX:** the war is no longer invisible — your campaigns pay off with a victory notice, threats to
+  your realm are announced, and the wider map's conquests read as world news. Pure feedback (notifications only),
+  no survival-spine or balance impact, directly on the user's "world map + attacks" focus.
+
+### Backlog / next
+1. Unify military tracking (levy vs recruit both should account labour) → then a standing-army milestone.
+2. World-map visual battle flash at the contested city; more seasonal/decision events as desired.
+
 ## Iteration 71 — 2026-06-16  (Content density: stone/iron events close the materials gap)
 
 ### Source

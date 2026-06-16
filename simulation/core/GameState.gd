@@ -1606,7 +1606,10 @@ func _tick_strategic_layer() -> void:
 				"army_raised":     EventBus.army_raised.emit(fid, -1, 0)
 				"campaign_launched": EventBus.campaign_launched.emit(fid, -1, -1)
 				"city_developed":  EventBus.city_developed.emit(fid, -1, 0)
-				"kingdom_defeated": EventBus.kingdom_defeated.emit(fid)
+				"kingdom_defeated":
+					EventBus.kingdom_defeated.emit(fid)
+					# World news: a rival realm has been wiped from the map.
+					EventBus.realm_notice.emit("⚑ %s has been wiped from the map." % _kingdom_name(fid), "neutral")
 		for b in r.get("battles", []):
 			if not b is Dictionary:
 				continue
@@ -1617,6 +1620,40 @@ func _tick_strategic_layer() -> void:
 			EventBus.battle_resolved.emit(cid, afid, dfid, captured)
 			if captured:
 				EventBus.city_captured.emit(cid, dfid, afid)
+			# Surface the war to the player — these resolved silently before. Player-
+			# relevant battles always notify; distant AI-vs-AI fights only when a city
+			# actually changes hands (so the feed isn't spammed by border skirmishes).
+			_announce_strategic_battle(cid, afid, dfid, captured)
+
+func _kingdom_name(fid: int) -> String:
+	var k: Dictionary = CampaignMap.kingdom_by_id(world, fid)
+	return String(k.get("name", "A kingdom")) if not k.is_empty() else "A kingdom"
+
+func _strategic_city_name(cid: int) -> String:
+	var c: Dictionary = CampaignMap.city_by_id(world, cid)
+	return String(c.get("name", "a city")) if not c.is_empty() else "a city"
+
+# Turn a resolved strategic battle into a readable realm notice (city-view toast).
+# Player-relevant fights always announce; AI-vs-AI only on a capture (no skirmish spam).
+func _announce_strategic_battle(cid: int, afid: int, dfid: int, captured: bool) -> void:
+	var pfid: int = CampaignMap.player_faction_id(world)
+	var city: String = _strategic_city_name(cid)
+	if afid == pfid:
+		# The player's own campaign resolved.
+		if captured:
+			EventBus.realm_notice.emit("⚔ Your host has taken %s!" % city, "good")
+		else:
+			EventBus.realm_notice.emit("Your assault on %s was thrown back." % city, "bad")
+	elif dfid == pfid:
+		# Someone struck one of the player's cities.
+		var attacker: String = _kingdom_name(afid)
+		if captured:
+			EventBus.realm_notice.emit("💥 %s has seized your city of %s!" % [attacker, city], "bad")
+		else:
+			EventBus.realm_notice.emit("🛡 Your garrison at %s held against %s." % [city, attacker], "good")
+	elif captured:
+		# Distant war news — only when a city actually changes hands.
+		EventBus.realm_notice.emit("⚑ %s has captured %s from %s." % [_kingdom_name(afid), city, _kingdom_name(dfid)], "neutral")
 
 # --- Command handlers ---
 
