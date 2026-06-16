@@ -681,6 +681,12 @@ func get_faction_display_name(faction_id: int) -> String:
 # siege morale penalty so a prepared ruler's people keep their nerve. Threshold 3 =
 # e.g. a short wall + a tower, or a few mustered soldiers.
 const SIEGE_READY_THRESHOLD: int = 3
+# Damage a single siege strike deals to the seat. Both are well below the Village Hall's
+# 500 HP, so ONE strike can never destroy the seat — the player always gets several
+# strikes' worth of days (with cooldowns + the pre-siege warning) to break the assault.
+# A prepared ruler (walls/garrison) takes barely half the damage of an undefended one.
+const SIEGE_DAMAGE_DEFENDED: int = 75
+const SIEGE_DAMAGE_UNDEFENDED: int = 150
 func is_siege_ready(player: Dictionary) -> bool:
 	var points: int = 0
 	for b in player.get("buildings", []):
@@ -1337,7 +1343,7 @@ func simulate_tick(tick: int) -> void:
 						# blunts the assault badly; an undefended seat is gutted — so the
 						# pre-siege warning is actionable and defending genuinely pays off.
 						var defended_seat: bool = is_siege_ready(tgt)
-						var siege_dmg: int = 75 if defended_seat else 150
+						var siege_dmg: int = SIEGE_DAMAGE_DEFENDED if defended_seat else SIEGE_DAMAGE_UNDEFENDED
 						EventBus.ai_siege_struck.emit(faction.get("id", -1), target_pid, defended_seat, siege_dmg)
 						for bld in tgt.get("buildings", []):
 							if not bld is Dictionary:

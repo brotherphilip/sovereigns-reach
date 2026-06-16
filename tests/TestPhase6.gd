@@ -14,6 +14,8 @@ const MerchantPrince = preload("res://simulation/ai/MerchantPrince.gd")
 const Ironhand      = preload("res://simulation/ai/Ironhand.gd")
 const AshenBarony   = preload("res://simulation/ai/AshenBarony.gd")
 const DiplomacySystem = preload("res://simulation/ai/DiplomacySystem.gd")
+const BuildingState   = preload("res://simulation/buildings/BuildingState.gd")
+const BuildingRegistry = preload("res://simulation/buildings/BuildingRegistry.gd")
 
 # CommandType integer constants (avoids compile-time autoload resolution)
 const CT_RECRUIT_UNIT      = 11
@@ -458,6 +460,25 @@ func _test_gamestate_integration() -> void:
 	var dead_garrison := {"buildings": [], "units": [
 		{"is_alive": false}, {"is_alive": false}, {"is_alive": false}]}
 	ok("a fallen garrison does not count", not _gs.is_siege_ready(dead_garrison))
+
+	# 2c-bis. Siege SURVIVABILITY (iter90) — the 20-min-goal guarantee that you can't lose
+	# your seat to a single strike, and that defending genuinely buys time.
+	var hall_hp: int = int(BuildingRegistry.lookup("village_hall").get("hp", 0))
+	var d_dmg: int = int(_gs.SIEGE_DAMAGE_DEFENDED)
+	var u_dmg: int = int(_gs.SIEGE_DAMAGE_UNDEFENDED)
+	ok("prepared siege damage < undefended", d_dmg < u_dmg)
+	ok("one undefended strike can't destroy the hall (dmg < HP)", u_dmg < hall_hp)
+	var hall_a: Dictionary = BuildingState.create("village_hall", 0, 10, 10, 1)
+	ok("hall survives the first undefended strike", not BuildingState.take_damage(hall_a, u_dmg) and int(hall_a["hp"]) > 0)
+	var strikes_u: int = 1
+	while int(hall_a.get("hp", 0)) > 0 and strikes_u < 99:
+		BuildingState.take_damage(hall_a, u_dmg); strikes_u += 1
+	ok("undefended seat takes 3+ strikes to fall (fair warning window)", strikes_u >= 3)
+	var hall_b: Dictionary = BuildingState.create("village_hall", 0, 10, 10, 1)
+	var strikes_d: int = 0
+	while int(hall_b.get("hp", 0)) > 0 and strikes_d < 99:
+		BuildingState.take_damage(hall_b, d_dmg); strikes_d += 1
+	ok("a prepared seat takes more strikes to fall than an undefended one", strikes_d > strikes_u)
 
 	# 2d. has_stalled_construction: a site pending + every villager locked in a job = stalled
 	var site_player := {"buildings": [

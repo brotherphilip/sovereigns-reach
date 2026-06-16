@@ -26,6 +26,47 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 90 — 2026-06-17  (Siege survivability proven by test — and a feasibility correction)
+
+### Source
+The flaky live siege run never reached a landing. Rather than grind it again, proved the siege-survival piece of
+the 20-min goal at the **logic level** (reliable, headless), and corrected a wrong assumption from iter84/88.
+
+### The decisive facts (from code)
+- Village Hall HP = **500**. A siege strike deals **150** (undefended) or **75** (prepared, via `is_siege_ready`).
+  So **one strike can NEVER destroy the seat** (150 < 500): undefended takes **4** strikes to fall, prepared **7** —
+  each separated by `SIEGE_COOLDOWN_DAYS` + a pre-siege warning. The seat is genuinely un-one-shottable and
+  defending roughly halves the threat. That's the survivability guarantee the 20-min goal needs.
+
+### Change made
+- **`simulation/core/GameState.gd`:** extracted the inline siege-strike magic numbers into named constants
+  `SIEGE_DAMAGE_DEFENDED = 75` / `SIEGE_DAMAGE_UNDEFENDED = 150` (with a comment noting both are < hall HP → no
+  one-shot). Self-documenting; single source of truth.
+- **`tests/TestPhase6.gd` → 103/0 (+5):** new siege-survivability regression — prepared dmg < undefended; one
+  undefended strike can't destroy the hall; the hall survives the first strike; an undefended seat takes 3+
+  strikes (fair warning window); a prepared seat takes strictly more. Guards the goal against a future balance
+  change that could make the seat one-shottable.
+
+### Correction (important for future iterations)
+- iter84/88 claimed a headless survival regression was blocked because "GameState can't load under `--script`".
+  **That was wrong.** SceneTree tests reach the live autoload via `root.get_node_or_null("GameState")` —
+  **`tests/TestPhase6.gd` already drives `_gs` this way** (`_gs.players`, `_gs.is_siege_ready`, now
+  `_gs.SIEGE_DAMAGE_*`). The bare identifier `EventBus` only fails at *compile* time in a test script; the live
+  GameState instance (and its internal `EventBus` calls) work fine at runtime. **So the full headless "managed
+  realm survives 100 days" regression IS feasible** via `_gs` — a strong candidate for a near-future iteration.
+
+### Verified
+- **Full suite: 0 FAIL across all 26 files.** Live boot clean (named-constant refactor intact).
+
+### Post-mortem
+- **Survival (the core goal):** the seat's siege survivability is now *guaranteed by a test*, not just observed —
+  more durable than any single playtest. Sim-layer; the refactor is behaviour-preserving (same 75/150 values).
+
+### Backlog / next
+1. **Headless 100-day survival regression** (now known-feasible via `_gs = get_node_or_null("GameState")`): drive
+   GameState's day tick with a scripted build order, assert hall stands + popularity ≥ 10 + not starved at day 100.
+2. (Carried) live siege-landing confirmation; ear-check narration; ear-tune SFX.
+
 ## Iteration 89 — 2026-06-17  (Food legibility: a breakdown tooltip + a corrected reading)
 
 ### Source
