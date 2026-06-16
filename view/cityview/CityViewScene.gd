@@ -414,7 +414,7 @@ func _connect_signals() -> void:
 
 	EventBus.weather_changed.connect(func(name, _d): _hud.show_notification("Weather: " + name, 4.0))
 	EventBus.building_placement_failed.connect(func(_p, _b, _gx, _gy, reason): _hud.show_notification(reason, 3.0))
-	EventBus.ai_siege_assembling.connect(func(fid, _tpid, eta): _hud.show_notification("⚠ AI faction %d assembling siege! ETA: %d ticks" % [fid, eta], 6.0))
+	EventBus.ai_siege_assembling.connect(_on_ai_siege_assembling)
 	EventBus.unit_killed.connect(_on_unit_killed)
 	EventBus.building_destroyed.connect(_on_building_destroyed)
 	EventBus.ai_faction_defeated.connect(_on_ai_faction_defeated)
@@ -492,6 +492,12 @@ func _on_return_to_world_map() -> void:
 	get_tree().change_scene_to_file("res://view/worldmap/WorldMapScene.tscn")
 
 # ── Combat / win-loss handlers ────────────────────────────────────────────────
+
+func _on_ai_siege_assembling(faction_id: int, _target_player_id: int, eta_ticks: int) -> void:
+	if _hud == null: return
+	var who: String = GameState.get_faction_display_name(faction_id)
+	var days: int = maxi(1, int(round(float(eta_ticks) / 240.0)))
+	_hud.show_notification("⚠ %s is marshalling a siege against your seat — ready in ~%d days. Raise walls, towers and a garrison!" % [who, days], 9.0, Color(1.0, 0.55, 0.2))
 
 func _on_unit_killed(unit_id: int, _killer_id: int, cause: String) -> void:
 	if GameState.players.size() == 0: return

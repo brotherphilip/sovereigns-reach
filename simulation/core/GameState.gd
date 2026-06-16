@@ -659,6 +659,16 @@ func _tick_player_unit_movement(player: Dictionary, tick: int) -> void:
 
 # ── Enemy resolution ─────────────────────────────────────────────────────────
 
+# Human-readable name for an AI faction id (e.g. "The Ashen Barony") for notifications.
+# Falls back to a generic title so the player is never shown a raw numeric id.
+func get_faction_display_name(faction_id: int) -> String:
+	for f in ai_factions:
+		if f is Dictionary and int(f.get("id", -1)) == faction_id:
+			var nm: String = String(f.get("name", ""))
+			if nm != "":
+				return nm
+	return "A rival lord"
+
 # All hostile deployable units a given player can fight (AI factions + rivals).
 func _enemies_of_player(pid: int) -> Array:
 	var out: Array = []

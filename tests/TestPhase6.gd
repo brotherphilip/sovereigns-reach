@@ -407,6 +407,13 @@ func _test_gamestate_integration() -> void:
 	_gs.add_ai_faction(AIFaction.ARCHETYPE_ASHEN_BARONY, 40, 40)
 	ok("four archetypes added", _gs.ai_factions.size() == 4)
 
+	# 2b. get_faction_display_name resolves id→name so notifications never show raw ids
+	_gs.ai_factions.clear()
+	_gs.ai_factions.append({"id": 7, "name": "The Ashen Barony", "is_alive": true})
+	ok("faction name resolves by id", _gs.get_faction_display_name(7) == "The Ashen Barony")
+	ok("unknown faction id falls back to a title (never a raw number)", _gs.get_faction_display_name(999) == "A rival lord")
+	_gs.ai_factions.clear()
+
 	# 3. RECRUIT_UNIT command (player has no barracks → should fail)
 	var p: Dictionary = _fresh_player()
 	_cq.enqueue(CT_RECRUIT_UNIT, {"unit_type": "armed_peasant"}, 0)

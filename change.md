@@ -26,6 +26,54 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 23 — 2026-06-16  (threat telegraph: the siege warning was unreadable gibberish)
+
+### Heuristic focus
+The directive's **UX feedback** + **threat telegraphing** axes (Phase 4.3/4.4). The single most
+important warning in a castle-defence game — "a siege is coming" — was shown to the player as raw
+engine internals. Survival is solved, but a warning the player *can't read* fails the engagement goal
+at the exact moment stakes spike.
+
+### Finding — [MAKES-NO-SENSE] the siege-assembling notification leaked internal ids and tick counts
+On `ai_siege_assembling`, both the live entry scene (`CityViewScene`) and `GameBootstrap` showed:
+**"⚠ AI faction 3 assembling siege! ETA: 11520 ticks"**. Two failures:
+1. **"AI faction 3"** — a raw numeric id. The player has met "The Ashen Barony", not "faction 3".
+2. **"ETA: 11520 ticks"** — `SIEGE_ASSEMBLY_TICKS = 240 × 48`, i.e. **48 days**. "11520 ticks" is
+   meaningless to a human; it hides the (actually generous and reassuring) ~48-day window to prepare.
+So the game's most critical telegraph named no enemy, gave no usable timeframe, and offered no advice.
+
+### Changes made
+- **GameState.get_faction_display_name(faction_id)** (new, unit-tested): resolves an AI-faction id to
+  its name ("The Ashen Barony"); falls back to **"A rival lord"** so a raw number is *never* shown.
+- **CityViewScene + GameBootstrap**: replaced the inline lambda with a named handler
+  `_on_ai_siege_assembling(faction_id, _tpid, eta_ticks)` (more robust than a multi-line lambda),
+  which now shows: **"⚠ <Kingdom> is marshalling a siege against your seat — ready in ~N days. Raise
+  walls, towers and a garrison!"** — named threat, ETA in **days**, and clear advice. Longer dwell
+  (9s) and an alarm-orange colour, fitting its importance.
+- **TestPhase6**: +2 assertions (id→name resolves; unknown id → "A rival lord", never a number). 83/0.
+
+### Verified
+- Headless: full suite green (24/24 suites); TestPhase6 83/0.
+- **Probe (real GameState helper + the exact handler format)** prints what the player now sees:
+  `⚠ The Ashen Barony is marshalling a siege against your seat — ready in ~48 days. Raise walls,
+  towers and a garrison!` and unknown-id → `A rival lord`.
+- **Live (Xvfb)**: clean boot, no script/parse errors — the refactored view files + the new signal
+  handler load and wire correctly.
+
+### Post-mortem (no failure — UX/telegraph iteration)
+- **Failure point:** n/a.
+- **Fun/UX:** the defining tension beat of the game (incoming siege) now reads as drama, not a debug
+  log: you know *who* is coming, *when* (~48 days — generous, so the warning empowers rather than
+  panics), and *what to do*. Consistent with the iter-21 "stop leaking internals to the player" theme.
+- **Content density:** unchanged; this sharpens an existing beat rather than adding one.
+
+### Backlog / next
+- Strategic/world-map actions as the human (develop city / raise army / campaign / diplomacy) — the
+  largest unexercised area; a future deep-dive.
+- Late-game popularity smoothing (measure the day-60→100 drift via a 100-day probe now that seasonal
+  +pop beats exist; smooth only if it still trends to revolt).
+- Audit other notifications for leaked internals (faction ids / tick counts / raw building ids).
+
 ## Iteration 22 — 2026-06-16  (content density: the realm's events now turn with the seasons)
 
 ### Heuristic focus
