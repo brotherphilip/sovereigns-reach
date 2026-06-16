@@ -77,19 +77,39 @@ func _draw() -> void:
 		var gx: int = int(b.get("grid_x", 0))
 		var gy: int = int(b.get("grid_y", 0))
 		var c: Vector2 = Vector2((gx - gy) * HALF_W, (gx + gy) * HALF_H) - Vector2(0, HALF_H * 0.5)
-		# Per-building flame flicker: a gentle pulse with a phase unique to each lamp so
-		# the lit town shimmers like real firelight rather than sitting flat.
+		# Each lamp gets a unique phase so the town's torches flicker out of sync.
 		var phase: float = float((gx * 7 + gy * 13) % 628) * 0.01
-		var flicker: float = 1.0 + 0.10 * sin(_t * 6.3 + phase) + 0.05 * sin(_t * 11.7 + phase * 1.7)
-		_draw_light(c, lit, flicker)
+		_draw_light(c, lit, phase)
 
-func _draw_light(c: Vector2, lit: float, flicker: float) -> void:
-	# Wide soft glow (reaches far) — additive, so it lifts the dark ground to warm light.
-	_blit(c, GLOW_RADIUS, Color(WARM.r, WARM.g, WARM.b, 0.45 * lit * flicker))
-	# Brighter inner core near the lamp.
-	_blit(c, CORE_RADIUS * flicker, Color(WARM.r, WARM.g, WARM.b, 0.55 * lit * flicker))
-	# The flame itself — a small near-white point that bobs a touch.
-	draw_circle(c, 3.5 * flicker, Color(1.0, 0.95, 0.7, 0.95 * lit))
+func _draw_light(c: Vector2, lit: float, phase: float) -> void:
+	# One wide, SOFT, STEADY glow pool (the level of glow the player liked). It only
+	# breathes very gently — no hard pulsing inner ring (that was the distracting part).
+	var breath: float = 1.0 + 0.04 * sin(_t * 1.6 + phase)
+	_blit(c, GLOW_RADIUS, Color(WARM.r, WARM.g, WARM.b, 0.50 * lit * breath))
+	# The actual torch flame: a small lick of fire that flickers in height + sways.
+	_draw_flame(c, lit, phase)
+
+func _draw_flame(c: Vector2, lit: float, phase: float) -> void:
+	# Irregular fire flicker (fast + a faster harmonic) and a lateral lick/sway.
+	var fl: float = 0.72 + 0.22 * sin(_t * 13.0 + phase) + 0.12 * sin(_t * 23.0 + phase * 2.1)
+	var h: float = 8.5 * maxf(fl, 0.4)
+	var sway: float = 1.5 * sin(_t * 9.0 + phase * 1.7) + 0.7 * sin(_t * 17.0 + phase)
+	var bw: float = 2.7
+	var tip: Vector2 = c + Vector2(sway, -h)
+	# Outer flame (orange).
+	draw_colored_polygon(PackedVector2Array([
+		c + Vector2(-bw, 0.6), c + Vector2(-bw * 0.7, -h * 0.45), tip,
+		c + Vector2(bw * 0.7, -h * 0.45), c + Vector2(bw, 0.6)]),
+		Color(1.0, 0.45, 0.12, 0.9 * lit))
+	# Inner flame (bright yellow), smaller and swaying a touch less.
+	var ih: float = h * 0.58
+	var itip: Vector2 = c + Vector2(sway * 0.6, -ih)
+	draw_colored_polygon(PackedVector2Array([
+		c + Vector2(-bw * 0.5, 0.4), c + Vector2(-bw * 0.32, -ih * 0.5), itip,
+		c + Vector2(bw * 0.32, -ih * 0.5), c + Vector2(bw * 0.5, 0.4)]),
+		Color(1.0, 0.85, 0.45, 0.95 * lit))
+	# Tiny hot core at the wick.
+	draw_circle(c + Vector2(0, -1.0), 1.3, Color(1.0, 0.95, 0.72, lit))
 
 func _blit(c: Vector2, r: float, col: Color) -> void:
 	draw_texture_rect(_grad, Rect2(c - Vector2(r, r), Vector2(r * 2.0, r * 2.0)), false, col)

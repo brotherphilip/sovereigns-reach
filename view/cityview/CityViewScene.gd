@@ -231,6 +231,11 @@ func _build_scene() -> void:
 		var s: int = int(OS.get_environment("SR_SEASON"))
 		var SeasonRef = preload("res://simulation/world/SeasonSystem.gd")
 		GameState.world["calendar_offset_ticks"] = s * SeasonRef.DAY_NIGHT_TICKS * SeasonRef.SKY_DAYS_PER_SEASON
+	# Dev hook: jump the time-of-day to deepest night (for lighting previews). 1.0 = midnight.
+	if OS.get_environment("SR_NIGHT") != "":
+		var SeasonRef2 = preload("res://simulation/world/SeasonSystem.gd")
+		var nf: float = clampf(float(OS.get_environment("SR_NIGHT")), 0.0, 1.0)
+		SimulationClock.current_tick = int(round(nf * 0.5 * SeasonRef2.DAY_NIGHT_TICKS))
 	# Dev hook: render for SR_SHOT_DELAY seconds then save a PNG to SR_SHOT and quit.
 	if OS.get_environment("SR_SHOT") != "":
 		_dev_screenshot(OS.get_environment("SR_SHOT"))
