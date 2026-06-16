@@ -26,6 +26,35 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 65 — 2026-06-16  (Content density: four new decision world-events)
+
+### Source
+Survival spine is solid + test-backed (iters 61–64). Per the Content-Density + Fun heuristics, enrich the
+20-min loop with more player decisions via the data-driven `WorldEventSystem` (the content-extension point).
+
+### Change made (simulation/world/WorldEventSystem.gd)
+Added four new **choice** events that tie into the systems we've built — each a bounded, on-vibe dilemma:
+- **A Master Mason** (min_day 8): −40 gold → +60 **stone** (fortify before sieges), or pass. Feeds the
+  defence loop directly.
+- **Deserters from the War** (min_day 12): take them in (+3 villagers, −22 food, +3 pop) or send them on
+  (+6 prestige). Ties to the strategic war.
+- **Relic of the Saint** (min_day 10): enshrine (−25 gold, +7 pop, +15 prestige) vs sell (+55 gold, −4 pop).
+- **Midwinter Want** (winter, min_day 36): open the granary (−28 food, +9 pop) vs hold the stores (−6 pop) —
+  a real seasonal dilemma.
+
+### Verified
+- **TestWorldEvents 38/0** — the new events pass the pool's structural validation (unique ids, allowed effect
+  keys, well-formed choices, bounded magnitudes). **Full suite 1091 assertions, 0 failed.** Choice events use
+  the exact format of the Traveling Scholar already verified rendering live (iter 62) through the queued modal.
+
+### Post-mortem
+- **Content density / fun:** more frequent, meaningful decisions across the session (and one that hands the
+  player stone to ready walls before the warlords march — reinforcing the survival loop). Low-risk, data-only.
+
+### Backlog / next
+1. (Carried) marching-army inspect + stance toggle; distance-scaled strategic travel.
+2. Reward-loop polish (milestone variety) and more seasonal/decision events as desired.
+
 ## Iteration 64 — 2026-06-16  (Validate "survivable when prepared" — end-to-end siege integration test)
 
 ### Plan

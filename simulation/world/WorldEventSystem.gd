@@ -149,6 +149,43 @@ const EVENTS: Array = [
 		],
 	},
 	{
+		"id": "master_mason", "tone": "neutral", "weight": 6, "min_day": 8,
+		"title": "A Master Mason",
+		"text": "A travelling master mason offers a wagon of dressed stone at a fair price — good for walls before the warlords march.",
+		"choices": [
+			{"label": "Commission the stone (−40 gold, +60 stone)", "effect": {"gold": -40, "stone": 60}},
+			{"label": "Not this season", "effect": {}},
+		],
+	},
+	{
+		"id": "war_deserters", "tone": "neutral", "weight": 6, "min_day": 12,
+		"title": "Deserters from the War",
+		"text": "Soldiers fleeing a rival lord's levy beg leave to settle and lay down their spears.",
+		"choices": [
+			{"label": "Take them in (+3 villagers, −22 food, +3 popularity)", "effect": {"spawn_citizens": 3, "food": -22, "popularity": 3}},
+			{"label": "Send them on — we want no quarrel (+6 prestige)", "effect": {"prestige": 6}},
+		],
+	},
+	{
+		"id": "saints_relic", "tone": "good", "weight": 5, "min_day": 10,
+		"title": "Relic of the Saint",
+		"text": "A wandering friar bears a saint's relic. Enshrine it for the people's devotion, or sell it for coin?",
+		"choices": [
+			{"label": "Enshrine it (−25 gold, +7 popularity, +15 prestige)", "effect": {"gold": -25, "popularity": 7, "prestige": 15}},
+			{"label": "Sell it to a collector (+55 gold, −4 popularity)", "effect": {"gold": 55, "popularity": -4}},
+		],
+	},
+	{
+		"id": "midwinter_want", "tone": "bad", "weight": 7, "min_day": 36,
+		"season": SeasonSystem.Season.WINTER,
+		"title": "Midwinter Want",
+		"text": "The cold bites hard and the poorest go hungry. Open the granary to them, or hold the stores against a longer winter?",
+		"choices": [
+			{"label": "Open the granary (−28 food, +9 popularity)", "effect": {"food": -28, "popularity": 9}},
+			{"label": "Hold the stores (−6 popularity)", "effect": {"popularity": -6}},
+		],
+	},
+	{
 		"id": "spring_lambs", "tone": "good", "weight": 8, "min_day": 2,
 		"season": SeasonSystem.Season.SPRING,
 		"title": "The Ewes Have Lambed",
