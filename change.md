@@ -26,6 +26,34 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 63 — 2026-06-16  (UX: queue blocking modals so they present one at a time)
+
+### Source
+Iter-62 playtest finding: a world-event choice popup and a tribute-demand popup could be **on screen at the
+same time**, overlapping and confusing which to answer.
+
+### Change made (view-only)
+- New **`view/hud/ModalGate.gd`** — a tiny coordinator: blocking panels join group `ui_modal`; before opening
+  they call `other_visible(self)` and, if another modal is up, queue themselves; the closing modal calls
+  `advance()` to hand off to the next.
+- **EventChoicePanel** + **DiplomacyPanel**: split their show logic into `_present()`, added a `_pending`
+  queue, `_after_close()` (drain own queue → else hand off), and `show_if_queued()`. Both join the group in
+  `_ready`. So a second decision now waits its turn and pops up the instant the first is resolved — never
+  stacked.
+
+### Verified
+- **Parse:** ModalGate / EventChoicePanel / DiplomacyPanel all load clean. **Boot:** city view instantiates
+  the panels with no runtime errors. **Tests:** full suite **1085 assertions, 0 failed** (view-only; sim
+  untouched).
+
+### Post-mortem
+- **UX:** decisions are now presented sequentially and legibly — one decree/demand at a time, each with full
+  attention (the event panel still pauses time while you decide). Cleaner than the iter-62 stack.
+
+### Backlog / next
+1. A full uninterrupted defended run to day 100 to confirm the siege pressure is survivable-when-prepared.
+2. (Carried) marching-army inspect + stance toggle; distance-scaled strategic travel.
+
 ## Iteration 62 — 2026-06-16  (Siege-landing notification + playtest of the new pressure)
 
 ### Source

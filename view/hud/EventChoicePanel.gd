@@ -5,6 +5,7 @@ extends Control
 # the CommandQueue (deterministic) as RESOLVE_EVENT_CHOICE.
 
 const CT_RESOLVE_EVENT_CHOICE := 31   # CommandQueue.CommandType.RESOLVE_EVENT_CHOICE
+const ModalGate = preload("res://view/hud/ModalGate.gd")
 
 var _panel: Panel = null
 var _title: Label = null
@@ -12,6 +13,7 @@ var _body: RichTextLabel = null
 var _btn_box: VBoxContainer = null
 var _current_id: String = ""
 var _prev_speed: int = 1   # speed to restore after the player decides
+var _pending: Array = []   # choice-events queued behind another open modal
 
 func _ready() -> void:
 	visible = false
@@ -51,12 +53,21 @@ func _ready() -> void:
 	_btn_box.add_theme_constant_override("separation", 4)
 	vb.add_child(_btn_box)
 
+	add_to_group(ModalGate.GROUP)
 	EventBus.world_event.connect(_on_world_event)
 
 func _on_world_event(ev: Dictionary) -> void:
 	var choices: Array = ev.get("choices", [])
 	if not (choices is Array) or choices.is_empty():
 		return   # plain events are handled by the notification feed, not this panel
+	# Only one blocking modal at a time — queue behind any open popup.
+	if visible or ModalGate.other_visible(self):
+		_pending.append(ev)
+		return
+	_present(ev)
+
+func _present(ev: Dictionary) -> void:
+	var choices: Array = ev.get("choices", [])
 	_current_id = ev.get("id", "")
 	_title.text = "⚜  " + String(ev.get("title", "A Decision"))
 	_body.text = "[i]%s[/i]" % String(ev.get("text", ""))
@@ -88,3 +99,18 @@ func _choose(index: int) -> void:
 	visible = false
 	# Resume the realm at whatever speed it was running before the decree.
 	SimulationClock.set_speed(_prev_speed if _prev_speed > 0 else SimulationClock.SPEED_NORMAL)
+	_after_close()
+
+# On close, present our own next queued event, else hand off to another modal type.
+func _after_close() -> void:
+	if not _pending.is_empty():
+		_present(_pending.pop_front())
+	else:
+		ModalGate.advance(self)
+
+# Called by ModalGate when a different modal closes and we have something waiting.
+func show_if_queued() -> bool:
+	if _pending.is_empty():
+		return false
+	_present(_pending.pop_front())
+	return true

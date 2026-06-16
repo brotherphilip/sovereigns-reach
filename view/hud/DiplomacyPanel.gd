@@ -4,6 +4,7 @@ extends PanelContainer
 # deterministic command pipeline (CommandQueue → GameState._cmd_diplomacy_response).
 
 const CT_DIPLOMACY_RESPONSE = 26  # CommandQueue.CommandType.DIPLOMACY_RESPONSE
+const ModalGate = preload("res://view/hud/ModalGate.gd")
 
 # Archetype-specific opening lines for tribute demands
 const ARCH_FLAVOR: Dictionary = {
@@ -35,9 +36,11 @@ var _threat_label:  Label
 var _history_label: RichTextLabel
 var _current:       Dictionary = {}
 var _history:       Array      = []  # last 3 interactions for display
+var _pending:       Array      = []  # demands queued behind another open modal
 
 func _ready() -> void:
 	visible = false
+	add_to_group(ModalGate.GROUP)
 	custom_minimum_size = Vector2(340, 0)
 	var vb := VBoxContainer.new()
 	add_child(vb)
@@ -88,6 +91,14 @@ func _ready() -> void:
 func _on_envoy(faction_id: int, demand: Dictionary) -> void:
 	if demand.get("player_id", -1) != 0:
 		return
+	# Only one blocking modal at a time — queue behind any open popup.
+	if visible or ModalGate.other_visible(self):
+		demand["__fid"] = faction_id
+		_pending.append(demand)
+		return
+	_present(faction_id, demand)
+
+func _present(faction_id: int, demand: Dictionary) -> void:
 	_current = demand
 	var _fid: int = int(demand.get("faction_id", faction_id))
 
@@ -160,6 +171,7 @@ func _on_accept() -> void:
 				"Tribute paid to %s — appeased, they hold the peace for ~14 days." % aname,
 				5.0, Color(0.6, 0.9, 0.5))
 	visible = false
+	_after_close()
 
 func _on_refuse() -> void:
 	if GameState.players.size() > 0:
@@ -175,6 +187,23 @@ func _on_refuse() -> void:
 				"%s refused — trade embargo imposed. Market prices rise. Expect retaliation." % fname,
 				5.0, Color(1.0, 0.55, 0.1))
 	visible = false
+	_after_close()
+
+# On close, present our own next queued demand, else hand off to another modal type.
+func _after_close() -> void:
+	if not _pending.is_empty():
+		var d: Dictionary = _pending.pop_front()
+		_present(int(d.get("__fid", d.get("faction_id", -1))), d)
+	else:
+		ModalGate.advance(self)
+
+# Called by ModalGate when a different modal closes and we have something waiting.
+func show_if_queued() -> bool:
+	if _pending.is_empty():
+		return false
+	var d: Dictionary = _pending.pop_front()
+	_present(int(d.get("__fid", d.get("faction_id", -1))), d)
+	return true
 
 func _record_history(outcome: String, demand: Dictionary) -> void:
 	var parts: Array = []
