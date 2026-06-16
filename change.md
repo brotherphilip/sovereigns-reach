@@ -26,6 +26,50 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 51 — 2026-06-16  (DESIGN OVERHAUL #5 — build menu: proper cards, active tab, clean costs)
+
+### Source
+Same multi-iteration directive. Roadmap step 4 (menus & panels), starting with the most-used: the bottom
+**build menu**.
+
+### Method
+Read `_show_build_category` / `_build_build_menu` in HUDNode.gd. The build items were **bare stacked labels**
+(name + cost + a plain Button) floating on the panel with no card framing, the **active category tab had no
+highlight**, and the cost text used ugly truncations ("10 woo. 4 sto"). Rebuilt them and live-verified on Xvfb.
+
+### Change made (view/hud/HUDNode.gd — view-only)
+- **Building cards:** each item is now a **bordered, padded PanelContainer card** with a state colour — gold
+  border + bright body when buildable, dim border + dark body when unaffordable/locked. Bigger name (12pt),
+  a spacer, and a proper **gold themed "Build" button** (`_make_card_button`) with hover/pressed/disabled
+  styleboxes (dark gold text on gold; greyed when disabled).
+- **Active category tab:** `_highlight_category_tab` marks the current tab (brighter bg + thick gold border +
+  brighter text) so the player always knows where they are.
+- **Cost text:** clean short units via a `_COST_ABBR` map ("12wd  4st" instead of "12 woo, 4 sto"); locked
+  items read "needs <tech>".
+- Card row gets 6px separation.
+
+### Verified
+- **Live (Xvfb, staffed town):** no script errors; the Food category shows styled cards with the **Food tab
+  highlighted gold**, affordable buildings (Apple Orchard/Mill/Bakery/Brewery/Inn/Granary) with bright gold
+  Build buttons, and locked ones (Pig/Dairy/Wheat/Hops Farm → "needs animal_husbandry"/"needs crop_tiers")
+  dimmed. Cohesive with the iter-50 top bar + right panel. Crops: /tmp/iter51_{buildmenu,civic3}.png.
+  (Note: a tribute-demand diplomacy modal was open and intercepted my tab-switch test clicks — a game-state
+  quirk, not a styling issue; the switch logic is pre-existing and unchanged.)
+- **Tests:** all suites green (1075 assertions, 0 failed).
+
+### Post-mortem
+- **UX (Human Experience):** the build menu — the panel the player touches most to grow the realm — now reads
+  as a clean shop of cards with obvious buildable/locked affordances and a clear active category, matching the
+  polished top bar / right panel. The HUD now feels of-a-piece and professional.
+- **Loop paused** by the user after this iteration. Remaining menu/panel polish (tech, edict, diplomacy,
+  selection, MainMenu) is queued for when the loop resumes.
+
+### Backlog / next (overhaul roadmap)
+1. ~~Hero detail~~ ✓ (49) · 2. ~~Wall texture~~ ✓ (48) · 3. ~~HUD pass~~ ✓ (50) · 4. build menu ✓ (51 — part of step 4)
+4b. **Remaining panels** — tech / edict / diplomacy / selection panels + MainMenu: same card/button/spacing
+    treatment.  ← next when the loop resumes
+- (Carried) Diplomacy depth; a fresh full human playthrough at the new pace.
+
 ## Iteration 50 — 2026-06-16  (DESIGN OVERHAUL #4 — HUD pass: top resource bar + popularity/rations panel)
 
 ### Source

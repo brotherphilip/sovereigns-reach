@@ -608,8 +608,10 @@ func _build_build_menu(vp: Vector2) -> void:
 
 func _show_build_category(cat: int) -> void:
 	_current_build_category = cat
+	_highlight_category_tab(cat)
 	for child in _build_item_container.get_children():
 		child.queue_free()
+	_build_item_container.add_theme_constant_override("separation", 6)
 
 	if GameState.players.size() == 0:
 		return
@@ -624,31 +626,46 @@ func _show_build_category(cat: int) -> void:
 		var can_afford: bool = _can_afford(cost, player)
 		var req_tech: Array  = defn.get("requires_tech", [])
 		var tech_ok: bool    = _tech_met(req_tech, player)
+		var enabled: bool    = can_afford and tech_ok
 
-		var card := VBoxContainer.new()
-		card.custom_minimum_size = Vector2(110, 120)
+		# Each building is a proper card: bordered, padded panel, with a state colour.
+		var card := PanelContainer.new()
+		card.custom_minimum_size = Vector2(120, 122)
+		var card_sty := StyleBoxFlat.new()
+		card_sty.bg_color = Color(0.17, 0.13, 0.08, 0.96) if enabled else Color(0.12, 0.10, 0.08, 0.92)
+		card_sty.set_corner_radius_all(5)
+		card_sty.set_border_width_all(1)
+		card_sty.border_color = Color(0.62, 0.49, 0.22, 0.95) if enabled else Color(0.34, 0.30, 0.26, 0.8)
+		card_sty.set_content_margin_all(6)
+		card.add_theme_stylebox_override("panel", card_sty)
 		_build_item_container.add_child(card)
+
+		var vb := VBoxContainer.new()
+		vb.add_theme_constant_override("separation", 4)
+		card.add_child(vb)
 
 		var name_lbl := Label.new()
 		name_lbl.text = name_str
-		name_lbl.add_theme_font_size_override("font_size", 10)
+		name_lbl.add_theme_font_size_override("font_size", 12)
 		name_lbl.add_theme_color_override("font_color",
-			Color.WHITE if (can_afford and tech_ok) else Color(0.5, 0.5, 0.5))
+			Color(0.97, 0.92, 0.78) if enabled else Color(0.55, 0.52, 0.48))
 		name_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		card.add_child(name_lbl)
+		name_lbl.custom_minimum_size = Vector2(108, 30)
+		vb.add_child(name_lbl)
 
 		var cost_lbl := Label.new()
-		cost_lbl.text = cost_str if tech_ok else "Needs: %s" % ", ".join(req_tech).left(18)
-		cost_lbl.add_theme_font_size_override("font_size", 9)
+		cost_lbl.text = cost_str if tech_ok else "needs %s" % ", ".join(req_tech).left(16)
+		cost_lbl.add_theme_font_size_override("font_size", 10)
 		cost_lbl.add_theme_color_override("font_color",
-			Color.LIGHT_GREEN if can_afford else Color.ORANGE_RED)
-		card.add_child(cost_lbl)
+			(Color(0.62, 0.86, 0.42) if can_afford else Color(0.9, 0.45, 0.35)) if tech_ok else Color(0.7, 0.66, 0.5))
+		vb.add_child(cost_lbl)
+
+		var spacer := Control.new()
+		spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		vb.add_child(spacer)
 
 		var bi: String = btype
-		var build_btn := Button.new()
-		build_btn.text = "Build"
-		build_btn.disabled = not (can_afford and tech_ok)
-		build_btn.add_theme_font_size_override("font_size", 10)
+		var build_btn := _make_card_button("Build", enabled)
 		var reason: String = ""
 		if not tech_ok:
 			reason = "\nRequires: %s" % ", ".join(req_tech)
@@ -656,18 +673,58 @@ func _show_build_category(cat: int) -> void:
 			reason = "\n(Cannot afford)"
 		build_btn.tooltip_text = "Place %s\n%s%s" % [name_str, cost_str, reason]
 		build_btn.pressed.connect(func(): build_requested.emit(bi))
-		card.add_child(build_btn)
+		vb.add_child(build_btn)
+
+# A compact themed button for build cards, with a clear enabled/disabled look.
+func _make_card_button(text: String, enabled: bool) -> Button:
+	var btn := Button.new()
+	btn.text = text
+	btn.disabled = not enabled
+	btn.custom_minimum_size = Vector2(0, 22)
+	btn.add_theme_font_size_override("font_size", 11)
+	btn.add_theme_color_override("font_color", Color(0.1, 0.08, 0.05))
+	btn.add_theme_color_override("font_disabled_color", Color(0.5, 0.47, 0.43))
+	var n := StyleBoxFlat.new()
+	n.bg_color = Color(0.80, 0.64, 0.26) if enabled else Color(0.20, 0.17, 0.13)
+	n.set_corner_radius_all(4)
+	n.set_content_margin_all(3)
+	btn.add_theme_stylebox_override("normal", n)
+	var h := n.duplicate(); h.bg_color = Color(0.92, 0.76, 0.34)
+	btn.add_theme_stylebox_override("hover", h)
+	var pr := n.duplicate(); pr.bg_color = Color(0.66, 0.52, 0.20)
+	btn.add_theme_stylebox_override("pressed", pr)
+	var d := n.duplicate(); d.bg_color = Color(0.18, 0.15, 0.12)
+	btn.add_theme_stylebox_override("disabled", d)
+	return btn
+
+# Mark the active build-category tab so the player knows where they are.
+func _highlight_category_tab(cat: int) -> void:
+	for i in _build_category_btns:
+		var btn: Button = _build_category_btns[i]
+		var active: bool = (i == cat)
+		var sty := StyleBoxFlat.new()
+		sty.bg_color = Color(0.42, 0.32, 0.14, 0.98) if active else Color(0.18, 0.14, 0.09, 0.95)
+		sty.set_corner_radius_all(5)
+		sty.set_border_width_all(2 if active else 1)
+		sty.border_color = Color(0.95, 0.78, 0.34, 1.0) if active else Color(0.55, 0.43, 0.20, 0.9)
+		sty.set_content_margin_all(4)
+		btn.add_theme_stylebox_override("normal", sty)
+		btn.add_theme_color_override("font_color",
+			Color(1.0, 0.95, 0.7) if active else Color(0.85, 0.80, 0.66))
 
 func _refresh_build_menu() -> void:
 	_show_build_category(_current_build_category)
+
+const _COST_ABBR := {
+	"gold": "g", "wood": "wd", "stone": "st", "iron": "ir", "food": "fd", "ale": "ale"}
 
 func _format_cost(cost: Dictionary) -> String:
 	if cost.is_empty():
 		return "Free"
 	var parts: Array = []
 	for k in cost:
-		parts.append("%d %s" % [int(cost[k]), k.left(3)])
-	return ", ".join(parts)
+		parts.append("%d%s" % [int(cost[k]), _COST_ABBR.get(k, str(k).left(2))])
+	return "  ".join(parts)
 
 func _can_afford(cost: Dictionary, player: Dictionary) -> bool:
 	var res: Dictionary = player.get("resources", {})
