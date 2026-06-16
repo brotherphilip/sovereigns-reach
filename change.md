@@ -26,6 +26,43 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Direct request — 2026-06-16  (night darkness + torch flames; bigger buildings, clear doors, villagers enter)
+
+User (loop paused): "twilight/night are way too light — outside the torches should be VERY VERY dark. The inner
+yellow ring is too distracting: keep the glow, but lose the fluxing inner circle and make it flicker like an
+actual torch flame. Also villagers should go inside the door, so the entry must be clearly known — and because
+of that, building footprints/sizes need amending (non-square OK, grid-snapped) and bigger vs the villagers."
+(User confirmed all four sub-changes: bigger footprints + enter doors + bigger scale + clear doorways.)
+
+### Changes (committed in slices, all tests green = 1075; live-verified on Xvfb)
+- **Night much darker** (NightLayer): MAX_DARK 0.62→0.92, near-black night tint. Away from torchlight the
+  world is now genuinely dark. (commit 773d0eb)
+- **Real torch flame** (NightLampLayer): removed the distracting pulsing inner core; kept ONE steady soft
+  glow pool (the liked level); added an animated flame — orange outer + yellow inner, height-flicker +
+  lateral sway + hot core. New `SR_NIGHT` dev hook jumps time-of-day to night for previews. (773d0eb)
+- **Clear doorways** (BuildingModels._door): stone frame + arched opening + warm-lit interior + threshold
+  step — every building's entrance is now unmistakable. (226c1ae)
+- **Realistic scale** (CitizenLayer): global PAWN_SCALE 0.82 so a person no longer rivals a house. (226c1ae)
+- **Bigger footprints** (registry): hovel, bakery, apothecary, woodcutter_camp, fletcher, poleturner,
+  tannery, crossbow_workshop 1×1→2×2, with model heights bumped so none look squat. TestPaths spacing test
+  updated to the 2×2 footprint (still proves the gap rule). Utility/defense (well, stockpile, walls, towers,
+  gatehouse, pitch_rig) kept small on purpose. (63cd22c, e55fd11)
+- **Villagers enter doors** (CitizenSystem + CitizenLayer): new STATE_INSIDE; at night idle/wandering
+  residents walk to their home's DOOR (front-face approach `home_dx/dy`) and step inside (not drawn),
+  emerging by day. Streets empty to torch-lit buildings at night; day-only tests unaffected. (328c7ed)
+
+### Verified
+- Live: deep-night streets are dark with flickering torch flames; day vs night shots confirm villagers leave
+  the streets (inside) at night and are out by day; bakery/hovel/workshops read well at 2×2 (not squat) with
+  clear arched lit doors; villagers are realistically small vs buildings. Screens: /tmp/{iter_night,iter_flame2c,
+  iter_door1c,iter_fp3c,day_out,night_in}.png.
+- Tests: 1075 assertions, 0 failed throughout.
+
+### Backlog / next
+- Optional: workers entering workplace doors during the day (currently they toil at stations); daytime
+  door-use for idle folk. Resume the design-overhaul loop (remaining: tech/edict/diplomacy/selection panels +
+  MainMenu) when the user restarts it.
+
 ## Iteration 51 — 2026-06-16  (DESIGN OVERHAUL #5 — build menu: proper cards, active tab, clean costs)
 
 ### Source

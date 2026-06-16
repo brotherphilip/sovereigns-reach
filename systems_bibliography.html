@@ -35,7 +35,7 @@
 <header>
   <h1>⚜ Sovereign's Reach — Systems Reference</h1>
   <p>A medieval city-builder &amp; strategy game in Godot 4.6.3. Living document — updated each dev iteration.</p>
-  <p class="muted">Last updated: iteration 51 (2026-06-16)</p>
+  <p class="muted">Last updated: 2026-06-16 (post-iter-51 direct request: night/torches + bigger buildings, doors, villagers enter)</p>
 </header>
 <nav>
   <a href="#overview">Overview</a>
@@ -241,10 +241,11 @@
       chimney + a lit door lantern over warm windows, and the windmill a wrap-around timber gallery + flour
       sacks. Next: the menus &amp; panels (HUD + build/tech/edict screens).</li>
     <li><b>Day/night lighting</b> (two layers): <span class="file">NightLayer.gd</span> draws the darkening
-      wash (warm dusk/dawn → cool moonlit-blue midnight); <span class="file">NightLampLayer.gd</span> draws
-      the building lamps with an <b>additive blend</b> + a <b>radial gradient</b>, so each lamp genuinely
-      brightens the ground around it (a wide ~130px soft pool of warm light, not a flat colour overlay).
-      Lamps <b>flicker</b> per-building (out of phase) like living firelight. The HUD stays readable.</li>
+      wash — now <b>very dark</b> away from light (MAX_DARK 0.92, near-black night tint), so torchlight reads;
+      <span class="file">NightLampLayer.gd</span> draws each building's light as one <b>steady soft warm pool</b>
+      (additive radial gradient) plus an <b>animated torch flame</b> (orange outer + yellow inner, height
+      flicker + lateral sway). At night idle villagers go indoors, leaving empty torch-lit streets.
+      (<span class="file">SR_NIGHT</span> dev hook jumps to night for previews.)</li>
     <li><b>HUD</b> (<span class="file">view/hud/HUDNode.gd</span>): top resource bar, day + time-of-day phase,
       season + weather, popularity/tax/ration sliders (with honest effect labels — e.g. ale shows "no inn"
       until an Inn serves it), a standing Objective tracker, and a stacking notification feed. Notifications
@@ -254,8 +255,11 @@
       popularity/rations panel (centred popularity readout, fixed-width non-overlapping value/delta columns,
       a tidy "Population: N" total). The <b>build menu (iter 51)</b> became a row of proper bordered, padded
       <b>cards</b> with buildable/locked state colours, clean cost abbreviations, gold themed Build buttons,
-      and an <b>active-category tab highlight</b>. Next overhaul step: the tech/edict/diplomacy/selection
-      panels &amp; MainMenu.</li>
+      and an <b>active-category tab highlight</b>. A later pass made every building's <b>door an unmistakable
+      arched, framed, warm-lit entrance</b> with a threshold; shrank villagers (PAWN_SCALE) so buildings read
+      at realistic scale; and <b>enlarged small footprints to 2×2</b> (hovel/bakery/workshops, heights raised
+      to match). Villagers now <b>walk to a building's door and step inside</b> (e.g. residents going home to
+      sleep at night). Next overhaul step: the tech/edict/diplomacy/selection panels &amp; MainMenu.</li>
     <li><b>Reign milestone:</b> reaching Day 100 alive ("a 20-minute reign") is celebrated with a dismissible
       gold overlay (+200 prestige).</li>
   </ul>
