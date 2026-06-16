@@ -26,6 +26,55 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 24 — 2026-06-16  (notification audit: stop leaking engine internals to the player)
+
+### Heuristic focus
+Followed iter-23's own backlog: a sweep of **every** `show_notification` call (the directive's UX
+**feedback legibility** axis). Two more places leaked raw internals — including the game's *victory*
+moment — plus a redundant double-notice. Same theme as iters 21 & 23: a player should never see an
+id, a tick count, or an internal string.
+
+### Findings (audit of all view-layer notifications)
+- **[MAKES-NO-SENSE] The VICTORY notice showed a raw faction id.** `_on_ai_faction_defeated` printed
+  **"Enemy faction 4 has been defeated!"** — the triumphant payoff of a whole war reduced to a debug
+  number. (In both `CityViewScene` and the legacy `GameBootstrap`.)
+- **[MAKES-NO-SENSE] Edict notices showed raw ids.** `EventBus.edict_activated`/`edict_expired`
+  surfaced **"Edict in effect: festival_decree"** / **"Edict expired: festival_decree"** — the snake-
+  case id, not "Festival Decree".
+- **[REDUNDANT] Double edict notice.** Clicking Activate fired an *optimistic* "📜 Edict proclaimed:
+  <name>" immediately (even if the command later failed for lack of edict points), and then the
+  authoritative `edict_activated` event fired the raw-id one too — two notices for one action.
+
+### Changes made
+- **Victory notice** → "⚔ <Kingdom> has been vanquished!" (gold), via iter-23's
+  `GameState.get_faction_display_name` (resolves the still-listed, is_alive=false faction). Both views.
+- **Edict notices** → readable via `EdictSystem.lookup(id).name`: "📜 Edict proclaimed: Festival
+  Decree" / "📜 Edict lapsed: Festival Decree". Converted `CityViewScene` to named handlers
+  `_on_edict_activated` / `_on_edict_expired`; added the `EdictSystemRef` preload to `GameBootstrap`.
+- **Killed the redundancy**: removed the optimistic click-time notice; the single source of truth is
+  now the authoritative `edict_activated` event (fires only on success), so exactly one accurate,
+  readable notice appears.
+
+### Verified
+- Headless: full suite green (24/24 suites; no new sim logic this round — `get_faction_display_name`
+  was already unit-tested in iter 23).
+- **Probe (real helpers)** prints what the player now sees: `⚔ The Ironhand Legion has been
+  vanquished!` and `📜 Edict proclaimed: Festival Decree` / `Village Feast`.
+- **Live (Xvfb)**: clean boot, no script/parse errors — refactored handlers in both view files wire up.
+
+### Post-mortem (no failure — UX/legibility iteration)
+- **Failure point:** n/a.
+- **Fun/UX:** the victory screen-beat finally *names the foe you beat*; edicts read like decrees, not
+  database rows; and a confusing double-toast is gone. With iters 21/23, the "no raw internals shown to
+  the player" pass over notifications is now essentially complete.
+
+### Backlog / next
+- Late-game popularity smoothing — still the headline balance item; needs a 100-day managed probe to
+  measure the day-60→100 drift now that seasonal +pop beats + morale levers exist (no reusable probe
+  scaffold yet — would need to build one).
+- Strategic/world-map actions as the human — largest unexercised area.
+- (Legacy `GameBootstrap` mirrors fixes for consistency, though `CityViewScene` is the runtime entry.)
+
 ## Iteration 23 — 2026-06-16  (threat telegraph: the siege warning was unreadable gibberish)
 
 ### Heuristic focus

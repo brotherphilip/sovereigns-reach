@@ -419,8 +419,8 @@ func _connect_signals() -> void:
 	EventBus.building_destroyed.connect(_on_building_destroyed)
 	EventBus.ai_faction_defeated.connect(_on_ai_faction_defeated)
 	EventBus.popularity_changed.connect(_on_popularity_changed)
-	EventBus.edict_activated.connect(func(_pid, eid, _d): _hud.show_notification("Edict in effect: " + eid, 3.0))
-	EventBus.edict_expired.connect(func(_pid, eid): _hud.show_notification("Edict expired: " + eid, 3.0))
+	EventBus.edict_activated.connect(_on_edict_activated)
+	EventBus.edict_expired.connect(_on_edict_expired)
 	EventBus.save_requested.connect(_do_save)
 	EventBus.load_requested.connect(_do_load)
 
@@ -473,9 +473,17 @@ func _on_research_tech(tech_id: String) -> void:
 	CommandQueue.enqueue(CT_RESEARCH_TECH, {"tech_id": tech_id}, 0)
 
 func _on_activate_edict(edict_id: String) -> void:
+	# Feedback comes from the authoritative EventBus.edict_activated (only fires on
+	# success), so no optimistic raw-id notice here — see _on_edict_activated.
 	CommandQueue.enqueue(CT_ACTIVATE_EDICT, {"edict_id": edict_id}, 0)
+
+func _on_edict_activated(_pid: int, edict_id: String, _dur) -> void:
 	var nm: String = EdictSystemRef.lookup(edict_id).get("name", edict_id)
-	_hud.show_notification("📜 Edict proclaimed: " + nm, 3.0)
+	_hud.show_notification("📜 Edict proclaimed: " + nm, 3.0, Color(1.0, 0.9, 0.5))
+
+func _on_edict_expired(_pid: int, edict_id: String) -> void:
+	var nm: String = EdictSystemRef.lookup(edict_id).get("name", edict_id)
+	_hud.show_notification("📜 Edict lapsed: " + nm, 3.0)
 
 func _on_trade_buy(resource: String, amount: int) -> void:
 	CommandQueue.enqueue(CT_BUY_RESOURCE, {"resource": resource, "amount": amount}, 0)
@@ -517,7 +525,8 @@ func _on_building_destroyed(player_id: int, building_id: int, _cause: String) ->
 			return
 
 func _on_ai_faction_defeated(faction_id: int) -> void:
-	_hud.show_notification("Enemy faction %d has been defeated!" % faction_id, 5.0)
+	var who: String = GameState.get_faction_display_name(faction_id)
+	_hud.show_notification("⚔ %s has been vanquished!" % who, 6.0, Color(1.0, 0.85, 0.2))
 	var all_dead: bool = true
 	for fac in GameState.ai_factions:
 		if fac is Dictionary and fac.get("is_alive", true):

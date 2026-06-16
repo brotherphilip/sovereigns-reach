@@ -3,6 +3,8 @@ extends Node
 # Builds the entire scene tree in code, initializes simulation, connects all signals.
 # Runs on Main.tscn node ready.
 
+const EdictSystemRef = preload("res://simulation/edicts/EdictSystem.gd")
+
 const PLAYER_NAME:   String = "Your Lord"
 const MAP_SEED:      int    = 42
 const SHIRE_COUNT:   int    = 4
@@ -226,8 +228,8 @@ func _connect_signals() -> void:
 	EventBus.building_destroyed.connect(_on_building_destroyed)
 	EventBus.ai_faction_defeated.connect(_on_ai_faction_defeated)
 	EventBus.popularity_changed.connect(_on_popularity_changed)
-	EventBus.edict_activated.connect(func(_pid, eid, _d): _hud.show_notification("Edict in effect: " + eid, 3.0))
-	EventBus.edict_expired.connect(func(_pid, eid): _hud.show_notification("Edict expired: " + eid, 3.0))
+	EventBus.edict_activated.connect(func(_pid, eid, _d): _hud.show_notification("📜 Edict proclaimed: " + EdictSystemRef.lookup(eid).get("name", eid), 3.0, Color(1.0, 0.9, 0.5)))
+	EventBus.edict_expired.connect(func(_pid, eid): _hud.show_notification("📜 Edict lapsed: " + EdictSystemRef.lookup(eid).get("name", eid), 3.0))
 
 	# Persistence
 	EventBus.save_requested.connect(_do_save)
@@ -296,7 +298,7 @@ func _on_building_destroyed(player_id: int, building_id: int, cause: String) -> 
 			return
 
 func _on_ai_faction_defeated(faction_id: int) -> void:
-	_hud.show_notification("Enemy faction %d has been defeated!" % faction_id, 5.0)
+	_hud.show_notification("⚔ %s has been vanquished!" % GameState.get_faction_display_name(faction_id), 6.0, Color(1.0, 0.85, 0.2))
 	# Check if all AI factions are defeated
 	var all_dead: bool = true
 	for fac in GameState.ai_factions:
