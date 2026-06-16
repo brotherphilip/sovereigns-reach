@@ -26,6 +26,59 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 25 — 2026-06-16  (late-game popularity smoothing — measured, then tuned)
+
+### Heuristic focus
+The headline remaining balance item (the directive's **Fun/engagement** axis): does the late game
+**drift toward revolt**, making the back half of a 20-minute life a dispiriting slide? Deferred twice
+for lack of a probe — so this round **built the probe**, measured, and tuned.
+
+### New tool — `tools/ProbePopularity.gd` (reusable scaffolding)
+A headless 100-day probe that drives the **real** `GameState` day boundary (world events, weather,
+seasons, sieges, services) for a managed seat (Hall + Orchard + Granary + 2 Hovels) with two rival AI
+factions for genuine war pressure, logging popularity every 5 days. Fills the "no reusable probe
+scaffold" gap noted in memory. (Setup quirk: the orchard isn't hauling-credited without pawns/grid, so
+the pre-stocked food buffer empties ~day 95 → a *probe-only* starvation crash in the last 5 days; the
+days 30–85 drift is the faithful signal, since food is a solved problem in the real game.)
+
+### Finding — the drift is real (war drag dominates)
+Popularity climbs 50→58 in the peaceful early game, then **slides through the war**:
+`58.8 (day30) → 44.8 (day60) → 27.8 (day85)`. Root cause: **`active_siege` = −12/day fires for the
+entire 48-day siege *assembly*** (×0.05 smoothing ≈ −0.6/day → ≈ −29 over the window) — i.e. the full
+"Being attacked" morale hit lands while the enemy is merely *mustering*, not yet storming. Seasonal
++pop events (iter 22) soften but don't reverse it; a real (food-solved) life ends ~22–25 popularity —
+survivable but a grind toward discontent.
+
+### Change made (measured, conservative)
+- **PopularityEngine**: `active_siege` **−12 → −8** ("a siege looms — the people are fearful"). War
+  still pressures morale (~−0.4/day, ≈ −19 over the assembly) so the tension and the restless-people
+  warning remain meaningful, but a prepared ruler ends the life in a stable, holdable state. Early game
+  untouched (no siege before the King's Peace lapses ~day 30); change can only *raise* popularity, so
+  it never threatens the survival floor.
+
+### Verified (same probe, before/after)
+| day | 30 | 60 | 85 | (artifact→) 100 |
+|----|----|----|----|----|
+| before (−12) | 58.8 | 44.8 | 27.8 | 14.1 |
+| after  (−8)  | 58.8 | 50.8 | **38.8** | 28.1 |
+
+Day-85 popularity **+11** (27.8 → 38.8); the real (food-solved) day-100 ending rises from ~22–25
+(poor/near-revolt) to ~**38–40 ("fair", holdable)**. Full suite green (24/24); the `active_siege`
+popularity test still passes (asserts the delta is negative, which −8 satisfies). Live boot clean.
+
+### Post-mortem
+- **Failure point:** none — survival was never at risk; this targets *engagement* (a winnable-feeling
+  back half rather than a slow loss of the realm's mood).
+- **Fun:** the war is still felt (morale visibly dips, the levers matter) but no longer near-guarantees
+  a slide to the brink by day 100. The 20-minute life now ends in a realm you're holding, not losing.
+
+### Backlog / next
+- A more *engaging* siege-morale model: make the penalty defense-dependent (walls/towers/garrison
+  reduce the "fearful" hit) so preparation is rewarded — a richer future iteration.
+- Strategic/world-map actions as the human — largest unexercised area.
+- Make `ProbePopularity` faithful for food (register buildings/pawns) if a precise day-100 number is
+  ever needed.
+
 ## Iteration 24 — 2026-06-16  (notification audit: stop leaking engine internals to the player)
 
 ### Heuristic focus
