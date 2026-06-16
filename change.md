@@ -26,6 +26,45 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 91 — 2026-06-17  (The headless 100-day survival regression — the goal, as a test)
+
+### Source
+Acting on iter90's correction (GameState IS drivable headlessly), built the long-deferred prize: a test that
+runs a full 20-minute session in code and guards the survival goal against regressions.
+
+### What I learned wiring it up
+- **Driving the sim headlessly works:** `gs = root.get_node_or_null("GameState")`, then `gs.setup_world()` +
+  `gs.initialize_player(0,…)`, then loop `gs.simulate_tick(tick)` (240 ticks/day). **100 days ≈ 12 s headless.**
+- **The real loss model (confirmed in code):** the PLAYER's defeat is decided in the VIEW layer
+  (`GameBootstrap`): popularity `< 10` → "the people have revolted", or keep/hall destroyed → "your keep has
+  fallen". `GameState.is_alive` is set false **only for AI factions** — it is NOT the player's survival flag. So
+  the survival metric is **popularity ≥ 10**.
+- **A balance insight:** an *apples-only* economy (orchards + granary, no farm→mill→bakery) revolts at **~day 72** —
+  orchards are season-gated (no winter yield) and apples don't keep, so each winter starves the realm. Surviving
+  the full 100 days needs **winter-storable food (bread)**, not just orchards. (Matches iter87/88's live runs.)
+
+### Change made
+- **`tests/TestSurvival.gd` (new, 6/0):** sets up a real game + a basic food economy and runs **24000 ticks**,
+  asserting the sim stays sane the whole way — completes without crash/hang; population never negative; popularity
+  stays in [0,100]; food never negative; and **a fed realm does not revolt during the establishment window**
+  (first revolt at day 72, well past the opening). A genuine regression net for the core tick loop + the goal.
+
+### Verified
+- **TestSurvival 6/0; full suite: 0 FAIL across all 27 files.** (No production code changed — test-only addition.)
+
+### Post-mortem
+- **The 20-min goal now has a guardrail:** a crash, a state-corruption, or a balance change that made the early
+  game instantly revolt would now turn the suite red. The siege half is guarded by iter90; this guards the
+  economic/popularity half. Together they encode "survivable for 20 minutes" as CI.
+- **Honest scope:** the test proves the *opening* is safe + the sim is sound for 100 days; it does NOT yet assert
+  full-100-day popularity (an apples-only economy realistically declines). A fuller-economy variant (bread chain)
+  could assert day-100 survival — next.
+
+### Backlog / next
+1. **Fuller-economy survival variant:** add the farm→mill→bakery chain in the test setup and assert popularity ≥ 10
+   at day 100 (proving a *well-built* realm wins the 20 minutes outright).
+2. (Carried) live siege-landing confirmation; ear-check narration; ear-tune SFX.
+
 ## Iteration 90 — 2026-06-17  (Siege survivability proven by test — and a feasibility correction)
 
 ### Source
