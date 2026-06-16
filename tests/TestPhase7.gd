@@ -119,6 +119,20 @@ func _test_hud_controller() -> void:
 	ok("ration label 4=Double", HUDController.get_ration_label(4) == "Double")
 	ok("ration label out-of-range=?", HUDController.get_ration_label(5) == "?")
 
+	# 10c. Food tooltip (iter89): breaks down stored food, daily need, and days-left so the
+	# food/starvation mechanic is legible (and warns when famine looms).
+	var fed: Dictionary = {"population": 10, "food_ration": 2, "food": {"apples": 50, "bread": 30}}
+	var ft_ok: String = HUDController.get_food_tooltip(fed)
+	ok("food tooltip lists stored types", "Apples 50" in ft_ok and "Bread 30" in ft_ok)
+	ok("food tooltip shows daily need (10 pop × 1.0)", "Daily need: 10" in ft_ok)
+	ok("food tooltip shows days left (80/10=8)", "8 days of food left" in ft_ok)
+	ok("food tooltip no famine warning when well-fed", not ("Famine" in ft_ok))
+	var starving: Dictionary = {"population": 50, "food_ration": 2, "food": {"apples": 9}}
+	var ft_bad: String = HUDController.get_food_tooltip(starving)
+	ok("food tooltip warns of famine when ~0 days left", "Famine" in ft_bad)
+	var empty_food: Dictionary = {"population": 0, "food_ration": 2, "food": {}}
+	ok("food tooltip handles no food / no people", "nothing" in HUDController.get_food_tooltip(empty_food))
+
 	# 10b. Ale-ration effect is honest about the Inn gate (fresh village = no inn = no effect)
 	ok("ale fx no inn -> 'no inn'", HUDController.get_ale_ration_effect(1, 0.0).get("text") == "no inn")
 	ok("ale fx no inn even at double -> 'no inn'", HUDController.get_ale_ration_effect(4, 0.0).get("text") == "no inn")

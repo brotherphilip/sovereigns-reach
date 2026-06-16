@@ -26,6 +26,41 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 89 — 2026-06-17  (Food legibility: a breakdown tooltip + a corrected reading)
+
+### Source
+Followed up the iter88 "grain frozen at 395/500" finding by reading `FoodSystem`.
+
+### What the code actually showed (correction)
+- **The "395/500" I flagged was the raw-goods STOCKPILE, not grain.** Edible food = `apples/bread/cheese/meat`
+  in `player.food` (the "X/200" readout, vs granary cap). **Grain is a raw resource** (like wood/stone): a wheat
+  farm produces it, then a mill→bakery turns it into *bread*. Without a bakery, grain is inert stock — never eaten.
+  So nothing was bugged; my iter88 read conflated two HUD gauges. The food model is coherent.
+- **But the underlying confusion is real for players too:** the food readout only said "Food stored vs. granary
+  capacity," giving no way to see *what* food you have, how fast it drains, or how close famine is — exactly why
+  the iter88 run's food state was hard to read at a glance.
+
+### Change made
+- **`view/hud/HUDController.gd`:** new `get_food_tooltip(player)` — lists each edible food in store, the **daily
+  need** (population × ration drain), **≈ days of food left**, and a famine warning (build orchards/farms, and a
+  bakery to turn grain into bread) when ≤2 days remain. Mirrors `FoodSystem`'s drain table.
+- **`view/hud/HUDNode.gd`:** the top-bar food readout now uses that rich tooltip instead of the one-liner.
+
+### Verified
+- **TestPhase7 → 111/0** (6 new: lists stored types; daily need = pop×ration; days-left math; no warning when
+  fed; famine warning at ~0 days; graceful with no food/no people). **Full suite: 0 FAIL across all 26 files.**
+  Live boot clean — the tooltip computes on every top-bar refresh with no errors.
+
+### Post-mortem
+- **UX / "makes sense to a human operator":** the food/starvation mechanic — central to the soft loss-condition —
+  is now self-explanatory on hover, and it teaches the grain→bread chain (the thing that confused even me reading
+  the HUD). View-side only; zero sim/balance/determinism impact.
+
+### Backlog / next
+1. **Targeted siege run** (carried): provoke + watch the feed/map for the marching host; confirm it strikes and a
+   prepared seat survives — the final 20-min-goal proof.
+2. (Carried) headless survival regression; ear-check narration; ear-tune SFX.
+
 ## Iteration 88 — 2026-06-17  (Day-100 attempt: food self-corrects; siege timing studied)
 
 ### Source

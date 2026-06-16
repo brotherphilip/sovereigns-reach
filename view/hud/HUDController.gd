@@ -118,6 +118,34 @@ static func get_total_food(player: Dictionary) -> int:
 		total += int(food.get(key, 0))
 	return total
 
+# Food consumed per peasant/day by ration level (mirrors FoodSystem.FOOD_DRAIN_PER_PEASANT).
+const _FOOD_DRAIN_PER_PEASANT: Dictionary = {0: 0.0, 1: 0.5, 2: 1.0, 3: 1.5, 4: 2.0}
+
+# Rich tooltip for the food readout: what edible food is in store, the daily need, and
+# how many days of food remain — so the player can read their food situation at a glance
+# (and isn't left guessing why a red number means starvation). Grain etc. are RAW goods in
+# the stockpile, not food, until a bakery turns them into bread — this makes that legible.
+static func get_food_tooltip(player: Dictionary) -> String:
+	var food: Dictionary = player.get("food", {})
+	var total: int = get_total_food(player)
+	var ration: int = int(player.get("food_ration", 2))
+	var pop: int = int(player.get("population", 0))
+	var daily_need: int = int(round(float(pop) * float(_FOOD_DRAIN_PER_PEASANT.get(ration, 1.0))))
+	var lines: Array = ["Edible food in your granary — your people eat it daily."]
+	var parts: Array = []
+	for ft in ["apples", "bread", "cheese", "meat"]:
+		var amt: int = int(food.get(ft, 0))
+		if amt > 0:
+			parts.append("%s %d" % [String(ft).capitalize(), amt])
+	lines.append("In store: " + (", ".join(parts) if not parts.is_empty() else "nothing"))
+	lines.append("Daily need: %d  (%d people, %s rations)" % [daily_need, pop, get_ration_label(ration)])
+	if daily_need > 0:
+		var days_left: int = int(floor(float(total) / float(daily_need)))
+		lines.append("≈ %d day%s of food left" % [days_left, "" if days_left == 1 else "s"])
+		if days_left <= 2:
+			lines.append("⚠ Famine looms — build orchards/farms (and a bakery to turn grain into bread).")
+	return "\n".join(lines)
+
 # Returns the resource summary dict for the HUD resource bar.
 static func get_resource_summary(player: Dictionary) -> Dictionary:
 	return player.get("resources", {}).duplicate()
