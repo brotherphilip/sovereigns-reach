@@ -26,6 +26,43 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 115 — 2026-06-17  (Harness input path SOLVED — mouse drives speed AND building, proven by telemetry)
+
+### Source
+iter114's "Required (harness)" blocker: keyboard input doesn't register under bare Xvfb, so the managed
+Day-100 capstone couldn't be driven. iter114 hypothesised mouse clicks bypass focus — this iteration tests it.
+
+### Change made
+None (game code). This is a harness-capability verification using the iter114 `SR_TELEMETRY` hook + real mouse
+clicks; the deliverable is *evidence* that resolves the blocker, plus the working click coordinates (documented
+to memory) for the future capstone run.
+
+### Playtest (REAL — Xvfb :99, live game, SR_TELEMETRY + screenshots)
+- **Mouse → time control WORKS:** clicked the on-screen "▶▶▶ 5×" speed button (screen ≈ 143,708). Telemetry:
+  the realm reached **day 16 in ~46 s = 5× speed** (1× would be ~3 days). The keyboard speed key never worked
+  (iter114); the *button* does.
+- **Mouse → building placement WORKS:** clicked the Village Hall "Build" card button (screen ≈ 127,674; it is
+  CIVIC card index 1, free) then a grass tile. Telemetry **buildings 0 → 1**; the post-place screenshot shows
+  the hall rendered on the map. Gold stayed 500 (hall is free) — consistent.
+- Both runs booted and ran cleanly, no script errors; HUD legible, render correct.
+
+### Post-mortem — failure class: NONE (capability confirmed)
+- **Root finding:** mouse/pointer events are delivered to the window under the cursor and DO drive Godot's UI
+  under bare Xvfb (no WM needed); only *keyboard* needs input focus (a WM), which is absent. So the entire
+  managed run can be scripted with the MOUSE: click "5×", build via the card buttons + map clicks, let
+  `SR_TELEMETRY` capture to day 100 (~4 min at 5×). **The Day-100 capstone is now fully unblocked.**
+
+### Resolved this iteration
+- **Harness input path (iter114 Required blocker) → RESOLVED.** Evidence: mouse click set 5× speed (day 16 in
+  46 s) and placed a Village Hall (buildings 0→1, hall visible in screenshot). Keyboard stays unusable (no WM);
+  drive everything by mouse. Working coords saved to the harness memory.
+
+### Backlog / next
+**Design (optional):** the managed Day-100 *win* run is now scriptable mouse-only — sequence hall → orchards →
+granary → walls/tower → recruit, click 5×, telemetry to day 100, capture the curve + screenshots (survival
+already test-proven; this is the live capstone demo). (Carried) user ear-check of narration; ear-tune SFX;
+minor spectator-battle edge cases.
+
 ## Iteration 114 — 2026-06-17  (Real telemetry + a live harness run — honest state-over-time, and a confirmed input limit)
 
 ### Source
