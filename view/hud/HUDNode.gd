@@ -775,7 +775,7 @@ func _build_bottom_bar(vp: Vector2) -> void:
 
 func _build_selection_panel() -> void:
 	_add_label(_selection_panel, "SELECTED", Vector2(6, 4), 11, Color.LIGHT_YELLOW)
-	_sel_title = _add_label(_selection_panel, "Nothing selected", Vector2(6, 22), 12)
+	_sel_title = _add_label(_selection_panel, "Nothing selected", Vector2(6, 20), 14, Color(0.97, 0.92, 0.78))
 	_sel_info  = _add_label(_selection_panel, "", Vector2(6, 42), 10, Color.LIGHT_GRAY)
 	_sel_info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_sel_info.size = Vector2(_selection_panel.size.x - 12, 60)
@@ -813,10 +813,11 @@ func show_selected_building(building: Dictionary) -> void:
 		_sel_actions.add_child(wlbl)
 		for i in range(0, max_w + 1):
 			var wc: int = i
-			var wb: Button = Button.new()
-			wb.text = str(i)
+			var wb: Button = _make_card_button(str(i), true)
 			wb.add_theme_font_size_override("font_size", 10)
 			wb.custom_minimum_size = Vector2(26, 24)
+			if i == workers:
+				wb.add_theme_color_override("font_color", Color(0.30, 0.16, 0.05))  # current — darker, reads 'set'
 			wb.pressed.connect(func(): _set_workers_on_building(building.get("id", -1), wc))
 			_sel_actions.add_child(wb)
 
@@ -827,11 +828,9 @@ func show_selected_building(building: Dictionary) -> void:
 		for utype in recruitable:
 			var udefn: Dictionary = UR.lookup(utype)
 			var check: Dictionary = UR.can_recruit(utype, player)
-			var rb: Button = Button.new()
-			rb.text = "Recruit %s" % udefn.get("name", utype)
+			var rb: Button = _make_card_button("Recruit %s" % udefn.get("name", utype), check.get("ok", false))
 			rb.add_theme_font_size_override("font_size", 9)
-			rb.custom_minimum_size = Vector2(90, 24)
-			rb.disabled = not check.get("ok", false)
+			rb.custom_minimum_size = Vector2(96, 24)
 			var gold_cost: int = udefn.get("cost_gold", 0)
 			var unit_hp: int = udefn.get("max_hp", 0)
 			var atk: int = udefn.get("attack", 0)
@@ -900,18 +899,16 @@ func _add_market_actions(_building: Dictionary) -> void:
 			"↓ below normal — good time to buy" if trend == "↓" else
 			"→ at normal price"
 		)
-		var buy_btn := Button.new()
 		# "Buy WD ↑" — explicit action + price-trend glyph (↑ pricey / ↓ cheap / → normal),
 		# so it's not a cryptic "→ WO" the player can't tell from the Sell button.
-		buy_btn.text = "Buy %s %s" % [r.left(2).to_upper(), trend]
+		var buy_btn := _make_card_button("Buy %s %s" % [r.left(2).to_upper(), trend], true)
 		buy_btn.add_theme_font_size_override("font_size", 9)
 		buy_btn.custom_minimum_size = Vector2(64, 22)
 		var hist_tip: String = HUDController.get_market_history_tooltip(r, world)
 		buy_btn.tooltip_text = "Buy 10 %s · Cost: %s each\n%s\n%s" % [r, mp["buy"], trend_note, hist_tip]
 		buy_btn.pressed.connect(func(): trade_buy_requested.emit(r, 10))
 		_sel_actions.add_child(buy_btn)
-		var sell_btn := Button.new()
-		sell_btn.text = "Sell %s" % r.left(2).to_upper()
+		var sell_btn := _make_card_button("Sell %s" % r.left(2).to_upper(), true)
 		sell_btn.add_theme_font_size_override("font_size", 9)
 		sell_btn.custom_minimum_size = Vector2(52, 22)
 		sell_btn.tooltip_text = "Sell 10 %s · Receive: %s each\n%s\n%s" % [r, mp["sell"], trend_note, hist_tip]
@@ -960,7 +957,7 @@ func _add_tech_item(parent: VBoxContainer, item: Dictionary, player: Dictionary)
 	parent.add_child(row)
 
 	var status: String = item.get("status", "locked")
-	var status_sym: String = {"researched": "✓", "available": "◯", "unaffordable": "⊘", "locked": "🔒"}.get(status, "?")
+	var status_sym: String = {"researched": "✓", "available": "◆", "unaffordable": "◇", "locked": "·"}.get(status, "?")
 	var lbl := Label.new()
 	lbl.text = "%s %s (%dP)" % [status_sym, item.get("name", "?"), int(item.get("cost_prestige", 0))]
 	lbl.add_theme_font_size_override("font_size", 10)
@@ -972,10 +969,9 @@ func _add_tech_item(parent: VBoxContainer, item: Dictionary, player: Dictionary)
 
 	if status == "available":
 		var tech_id: String = item.get("id", "")
-		var btn := Button.new()
-		btn.text = "Research"
+		var btn := _make_card_button("Research", true)
 		btn.add_theme_font_size_override("font_size", 10)
-		btn.custom_minimum_size = Vector2(80, 24)
+		btn.custom_minimum_size = Vector2(82, 24)
 		var hint: String = TechTreePanelController.get_tech_hint_text(item)
 		btn.tooltip_text = "Research %s for %d prestige\n%s" % [item.get("name", ""), int(item.get("cost_prestige", 0)), hint]
 		btn.pressed.connect(func(): tech_research_requested.emit(tech_id))
@@ -1054,15 +1050,15 @@ func _add_edict_section(parent: VBoxContainer, title: String, items: Array, kind
 			row.add_child(rem_lbl)
 		elif kind == "locked":
 			var why := Label.new()
-			why.text = "🔒 " + String(item.get("reason", "Locked")).left(34)
+			why.text = "(locked) " + String(item.get("reason", "Locked")).left(32)
 			why.add_theme_font_size_override("font_size", 9)
 			why.add_theme_color_override("font_color", Color(0.85, 0.6, 0.4))
 			row.add_child(why)
 		else:
 			var eid: String = item.get("id", "")
-			var btn := Button.new()
-			btn.text = "Activate (%dP)" % int(item.get("cost_points", 0))
+			var btn := _make_card_button("Activate (%dP)" % int(item.get("cost_points", 0)), true)
 			btn.add_theme_font_size_override("font_size", 9)
+			btn.custom_minimum_size = Vector2(96, 22)
 			btn.tooltip_text = "Activate '%s'\nCosts %d edict points" % [item.get("name", ""), int(item.get("cost_points", 0))]
 			btn.pressed.connect(func(): edict_activate_requested.emit(eid))
 			row.add_child(btn)

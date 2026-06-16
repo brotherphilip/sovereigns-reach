@@ -26,6 +26,39 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 52 — 2026-06-16  (DESIGN OVERHAUL #6 — panels pass: themed buttons across selection/tech/edict/market)
+
+### Source
+Resumed the design-overhaul loop (roadmap step 5: menus & panels). After the HUD (iter 50) and build menu
+(iter 51), the remaining panels still used **raw default-grey `Button.new()`** inline buttons — visually
+inconsistent with the gold-themed build menu.
+
+### Change made (view/hud/HUDNode.gd — view-only)
+- Routed every inline action button through the shared themed `_make_card_button` (gold, dark text,
+  hover/pressed/disabled styleboxes), so they match the build menu / HUD:
+  - **Tech panel:** "Research" buttons.
+  - **Edict panel:** "Activate (NP)" buttons.
+  - **Selection panel:** worker-count buttons (0..N; the current count's label darkened to read as 'set'),
+    "Recruit X" buttons (greyed when unaffordable), and the market **Buy/Sell** buttons.
+- Replaced glyphs that risk tofu in the default font: tech status `🔒→·` (and `◯/⊘→◆/◇`), edict locked
+  `🔒 → (locked)`.
+- Selection panel title bumped to 14pt warm for hierarchy.
+
+### Verified
+- **Live (Xvfb, staffed town):** opened the Tech panel — Research buttons now render as proper **gold themed
+  buttons**, status diamonds render cleanly (no tofu), themed close button. Selection/edict/market use the
+  same helper so they're consistent by construction. No script errors. Crop: /tmp/it52_techpanel.png.
+- **Tests:** all suites green (1075 assertions, 0 failed). View-only.
+
+### Post-mortem
+- **UX (Human Experience):** the whole HUD now reads as one cohesive, professional set — top bar, right
+  panel, build menu, and the action panels all share the gold-on-parchment button language. Roadmap step 5
+  is largely done (MainMenu remains as an optional follow-up).
+
+### Backlog / next
+- Optional: MainMenu styling pass; diplomacy panel review; daytime door-use for workers.
+- (Carried) Diplomacy depth; a fresh full human playthrough at the new pace.
+
 ## Direct request — 2026-06-16  (night darkness + torch flames; bigger buildings, clear doors, villagers enter)
 
 User (loop paused): "twilight/night are way too light — outside the torches should be VERY VERY dark. The inner
