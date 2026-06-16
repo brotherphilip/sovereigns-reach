@@ -203,6 +203,46 @@ const EVENTS: Array = [
 		"effect": {"food": -22},
 	},
 	{
+		"id": "harvest_moon", "tone": "good", "weight": 8, "min_day": 24,
+		"season": SeasonSystem.Season.AUTUMN,
+		"title": "A Harvest Moon",
+		"text": "A great amber moon hangs over the fields; folk linger late, hopeful for the reaping.",
+		"effect": {"popularity": 5},
+	},
+	{
+		"id": "first_snow", "tone": "neutral", "weight": 6, "min_day": 36,
+		"season": SeasonSystem.Season.WINTER,
+		"title": "The First Snow",
+		"text": "The year's first snow settles soft on the rooftops; the children are delighted.",
+		"effect": {"popularity": 3},
+	},
+
+	# ── More year-round happenings (content density) ────────────────────────────────
+	{
+		"id": "starlit_night", "tone": "neutral", "weight": 7, "min_day": 2,
+		"title": "A Starlit Night",
+		"text": "Clear skies and a sea of stars; the night watch keeps cheerful vigil.",
+		"effect": {"popularity": 3},
+	},
+	{
+		"id": "traveling_healer", "tone": "good", "weight": 6, "min_day": 4,
+		"title": "A Traveling Healer",
+		"text": "A kindly healer tends the sick and teaches the goodwives her remedies before moving on.",
+		"effect": {"popularity": 5},
+	},
+	{
+		"id": "river_bounty", "tone": "good", "weight": 8, "min_day": 3,
+		"title": "The River Runs Thick",
+		"text": "Shoals crowd the shallows; the village hauls in baskets of silver fish.",
+		"effect": {"food": 30},
+	},
+	{
+		"id": "chimney_fire", "tone": "bad", "weight": 5, "min_day": 7,
+		"title": "A Chimney Fire",
+		"text": "A careless hearth sets a roof ablaze; neighbours beat it out, but timber is lost.",
+		"effect": {"wood": -18},
+	},
+	{
 		"id": "master_craftsman", "tone": "good", "weight": 6, "min_day": 5,
 		"title": "A Master Craftsman",
 		"text": "A renowned craftsman settles in your town, drawing trade and quiet renown.",

@@ -26,6 +26,33 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 43 — 2026-06-16  (content density: +6 world events, incl. night/season flavour)
+
+### Heuristic focus
+The directive's **Content Density** axis, and cohesion with the new day/night + seasons: deepen the
+moment-to-moment life of the realm with more flavourful daily events. Safe, compounding work while the
+A/B calendar question is still open with the user.
+
+### Change made
+- **WorldEventSystem**: +6 events (pool 28 → 34), bounded & positive-leaning per the system's design:
+  - **Seasonal**: *A Harvest Moon* (autumn, +pop), *The First Snow* (winter, +pop) — tie into the
+    seasonal calendar.
+  - **Year-round**: *A Starlit Night* (+pop — resonates with the new night cycle), *A Traveling Healer*
+    (+pop), *The River Runs Thick* (+food), *A Chimney Fire* (−wood, a bounded setback).
+
+### Verified
+- Headless: TestWorldEvents 38/0 — ids unique, all required fields present, **effects bounded** (no
+  underflow / no instant-revolt), and **seasonal gating still holds** (harvest_moon only autumn, first_snow
+  only winter, year-round ones fire across seasons). Full suite green (24/24). Clean live boot.
+
+### Post-mortem
+- **Failure point:** none — pure additive content. The realm's days have more texture, and several new
+  beats nod to the day/night + seasons added this session (a starlit night, a harvest moon, first snow).
+
+### Backlog / next
+- **Awaiting user:** A (lively village + slow sky — shipped) vs B (slow economy for a literal 8-day year).
+- Diplomacy depth; building-specific / threat-telegraph events; a fresh full human playthrough.
+
 ## Iteration 42 — 2026-06-16  (seat-shield: your actively-ruled city can't fall to an off-screen battle)
 
 ### Heuristic focus
