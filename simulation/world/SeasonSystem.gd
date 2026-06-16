@@ -12,11 +12,31 @@ enum Season {
 	WINTER = 3,
 }
 
-const DAYS_PER_SEASON: int = 12
 const SEASON_COUNT: int = 4
-const DAYS_PER_YEAR: int = DAYS_PER_SEASON * SEASON_COUNT   # 48
 const TICKS_PER_DAY: int = 240
+# Legacy game-day calendar constants (kept for back-compat; the live season clock below
+# is now keyed to the 15-min day/night cycle, not the 240-tick game-day).
+const DAYS_PER_SEASON: int = 12
+const DAYS_PER_YEAR: int = DAYS_PER_SEASON * SEASON_COUNT   # 48
 const TICKS_PER_YEAR: int = DAYS_PER_YEAR * TICKS_PER_DAY
+
+# ── Seasonal calendar, keyed to the day/night cycle ─────────────────────────────
+# A "day" is one full day↔night (DAY_NIGHT_TICKS). Seasons turn on that timescale so
+# they MATCH the year (they no longer flicker within a single 15-min day). With 2 days
+# per season the year is 8 days (~2 real hours at Normal) — the requested calendar.
+const SKY_DAYS_PER_SEASON: int = 2
+const SKY_DAYS_PER_YEAR: int = SKY_DAYS_PER_SEASON * SEASON_COUNT   # 8
+
+# Calendar day index (0-based), keyed to the day/night cycle.
+static func sky_day_of(tick: int) -> int:
+	return int(tick) / DAY_NIGHT_TICKS
+
+# Day within the current year (0..SKY_DAYS_PER_YEAR-1) and the year number (0-based).
+static func sky_day_in_year(tick: int) -> int:
+	return sky_day_of(tick) % SKY_DAYS_PER_YEAR
+
+static func year_of(tick: int) -> int:
+	return sky_day_of(tick) / SKY_DAYS_PER_YEAR
 
 # Which seasons each producer actually HARVESTS in (full yield). Outside these
 # seasons the field is tended but yields ~nothing. Animal/industry buildings that
@@ -44,9 +64,10 @@ static func day_of(tick: int) -> int:
 static func current_season(day: int) -> int:
 	return (day / DAYS_PER_SEASON) % SEASON_COUNT
 
-# Season index directly from a tick counter.
+# Season index directly from a tick counter — keyed to the day/night calendar so
+# seasons advance at the same scale as the year (one season = SKY_DAYS_PER_SEASON days).
 static func season_at_tick(tick: int) -> int:
-	return current_season(day_of(tick))
+	return (int(tick) / (DAY_NIGHT_TICKS * SKY_DAYS_PER_SEASON)) % SEASON_COUNT
 
 # ── Day / night cycle ──────────────────────────────────────────────────────────
 # DECOUPLED from the game-day so the sky doesn't strobe: one full day↔night spans
@@ -105,7 +126,10 @@ static func is_harvest_time(building_type: String, season: int) -> bool:
 # NOTE: this used to return 0.0 off-season, which made the only no-tech food building
 # produce nothing for 3 of every 4 seasons → guaranteed early starvation. The trickle
 # is what the comment always promised; harvest seasons remain the bumper crop.
-const OFF_SEASON_YIELD_MULT: float = 0.6
+# Raised from 0.6 → 0.85 when seasons were lengthened to match the day/night year
+# (iter 44): a season now lasts ~30 real minutes, so a whole session can fall outside
+# autumn — the no-tech staple must feed the village year-round. Autumn is still a bumper.
+const OFF_SEASON_YIELD_MULT: float = 0.85
 static func harvest_yield_mult(building_type: String, season: int) -> float:
 	var windows: Array = HARVEST_SEASONS.get(building_type, [])
 	if windows.is_empty():

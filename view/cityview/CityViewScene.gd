@@ -225,7 +225,8 @@ func _build_scene() -> void:
 	# Dev hook: jump the calendar to a chosen season (0=spring..3=autumn..) for previews.
 	if OS.get_environment("SR_SEASON") != "":
 		var s: int = int(OS.get_environment("SR_SEASON"))
-		GameState.world["calendar_offset_days"] = s * 12   # DAYS_PER_SEASON
+		var SeasonRef = preload("res://simulation/world/SeasonSystem.gd")
+		GameState.world["calendar_offset_ticks"] = s * SeasonRef.DAY_NIGHT_TICKS * SeasonRef.SKY_DAYS_PER_SEASON
 	# Dev hook: render for SR_SHOT_DELAY seconds then save a PNG to SR_SHOT and quit.
 	if OS.get_environment("SR_SHOT") != "":
 		_dev_screenshot(OS.get_environment("SR_SHOT"))

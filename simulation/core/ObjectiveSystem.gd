@@ -12,7 +12,7 @@ const OBJECTIVES: Array = [
 	{"id": "found_hall",     "text": "Found your seat — build a Village Hall."},
 	{"id": "feed_people",    "text": "Feed your people — build an Orchard and a Granary."},
 	{"id": "grow_village",   "text": "Grow your village to 20 souls — build Hovels to house new families."},
-	{"id": "survive_winter", "text": "Weather your first winter — reach Day 48."},
+	{"id": "survive_winter", "text": "Establish your realm — endure to Day 48."},
 	{"id": "ready_for_war",  "text": "Ready your defences — build a Barracks, Wall or Tower."},
 	{"id": "rule_to_100",    "text": "Endure — rule your realm to Day 100 (20 minutes)."},
 ]

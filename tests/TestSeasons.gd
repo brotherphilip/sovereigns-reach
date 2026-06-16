@@ -33,9 +33,9 @@ func _building(btype: String, workers: int) -> Dictionary:
 # Production amount for one production tick of `btype` in a given season.
 func _yield_in_season(btype: String, season: int, res: String) -> int:
 	var interval: int = ResourceTick.PRODUCTION_INTERVALS.get(btype, 1)
-	# Pick a tick inside `season` that lands on a production boundary.
-	var day: int = season * SeasonSystem.DAYS_PER_SEASON + 1
-	var base_tick: int = day * SeasonSystem.TICKS_PER_DAY
+	# Pick a tick solidly inside `season` (seasons now key off the day/night calendar).
+	var season_ticks: int = SeasonSystem.DAY_NIGHT_TICKS * SeasonSystem.SKY_DAYS_PER_SEASON
+	var base_tick: int = season * season_ticks + season_ticks / 2  # mid-season
 	var t: int = base_tick - (base_tick % interval) + interval  # next boundary in-season
 	var changes: Dictionary = ResourceTick.tick_building(_building(btype, 1), _player(), t)
 	return int(changes.get(res, 0))
@@ -47,7 +47,11 @@ func _test_season_indexing() -> void:
 	ok("day 24 is Autumn", SeasonSystem.current_season(24) == SeasonSystem.Season.AUTUMN)
 	ok("day 36 is Winter", SeasonSystem.current_season(36) == SeasonSystem.Season.WINTER)
 	ok("year wraps back to Spring at day 48", SeasonSystem.current_season(48) == SeasonSystem.Season.SPRING)
-	ok("season_at_tick matches day math", SeasonSystem.season_at_tick(25 * 240) == SeasonSystem.Season.AUTUMN)
+	# season_at_tick keys off the day/night calendar (2 sky-days/season): season 2 = Autumn.
+	var _stk: int = SeasonSystem.DAY_NIGHT_TICKS * SeasonSystem.SKY_DAYS_PER_SEASON
+	ok("season_at_tick: mid season-2 is Autumn", SeasonSystem.season_at_tick(2 * _stk + _stk / 2) == SeasonSystem.Season.AUTUMN)
+	ok("season_at_tick: start is Spring", SeasonSystem.season_at_tick(0) == SeasonSystem.Season.SPRING)
+	ok("season_at_tick: year wraps (season 4 → Spring)", SeasonSystem.season_at_tick(4 * _stk) == SeasonSystem.Season.SPRING)
 	ok("progress 0 at season start", is_equal_approx(SeasonSystem.season_progress(12), 0.0))
 
 func _test_growth_stage() -> void:

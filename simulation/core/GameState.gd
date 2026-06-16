@@ -1103,11 +1103,13 @@ func simulate_tick(tick: int) -> void:
 	# Seasons advance with the calendar (240 ticks/day). Track the index and announce
 	# transitions so the view can re-tint terrain and the orchard art shifts stage.
 	# A dev calendar offset (set via the SR_SEASON hook) lets us preview any season.
-	var cal_day: int = SeasonSystem.day_of(tick) + int(world.get("calendar_offset_days", 0))
-	var season_now: int = SeasonSystem.current_season(cal_day)
+	# Seasons key off the day/night calendar now (see SeasonSystem). A dev offset (set via
+	# the SR_SEASON hook, in ticks) lets us preview any season.
+	var cal_tick: int = tick + int(world.get("calendar_offset_ticks", 0))
+	var season_now: int = SeasonSystem.season_at_tick(cal_tick)
 	if season_now != int(world.get("season", -1)):
 		world["season"] = season_now
-		world["season_day"] = cal_day
+		world["season_day"] = SeasonSystem.sky_day_of(cal_tick)
 		EventBus.season_changed.emit(season_now, SeasonSystem.season_name(season_now))
 
 	for player in players:

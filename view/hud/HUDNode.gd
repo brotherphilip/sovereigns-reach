@@ -311,9 +311,13 @@ func _refresh_top_bar() -> void:
 	_ale_label.text     = "Ale: %d" % total_ale
 	var _phase: Dictionary = HUDController.get_day_phase(SimulationClock.current_tick)
 	_day_label.text     = "Day %d · %s" % [SimulationClock.game_day(), _phase.get("phase", "Day")]
-	_day_label.tooltip_text = "Time of day: %s" % _phase.get("phase", "Day")
+	_day_label.tooltip_text = "Time of day: %s\nSeason: %s (Year %d, day %d/%d)" % [
+		_phase.get("phase", "Day"), _phase.get("season", ""), int(_phase.get("year", 1)),
+		int(_phase.get("day_in_year", 1)), int(_phase.get("days_per_year", 8))]
 	var _wicon: String = HUDController.get_weather_icon(GameState.weather)
-	_weather_label.text = "%s %s" % [_wicon, WeatherSystem.weather_name(GameState.weather.get("current", 0))]
+	# Season (sky-day calendar) shown with the weather — both are "what the world is doing".
+	_weather_label.text = "%s · %s %s" % [
+		_phase.get("season", ""), _wicon, WeatherSystem.weather_name(GameState.weather.get("current", 0))]
 	_weather_label.tooltip_text = HUDController.get_weather_tooltip(GameState.weather)
 	if _prestige_label != null:
 		_prestige_label.text = "Prestige: %d" % int(p.get("prestige", 0.0))

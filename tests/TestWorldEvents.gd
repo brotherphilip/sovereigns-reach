@@ -177,9 +177,11 @@ func _test_seasonal_gating() -> void:
 
 	# Drive whole seasons and confirm out-of-season events never surface.
 	# Days: spring 0-11, summer 12-23, autumn 24-35, winter 36-47.
-	var summer := _collect_ids_in_range(12, 24)
-	var autumn := _collect_ids_in_range(24, 36)
-	var winter := _collect_ids_in_range(36, 48)
+	# Seasons now key off the day/night calendar: ~150 game-days per season
+	# (DAY_NIGHT_TICKS * SKY_DAYS_PER_SEASON / TICKS_PER_DAY). Sample mid-season windows.
+	var summer := _collect_ids_in_range(170, 230)   # season 1 (150–300)
+	var autumn := _collect_ids_in_range(320, 380)   # season 2 (300–450)
+	var winter := _collect_ids_in_range(470, 530)   # season 3 (450–600)
 	ok("winter-only events never fire in summer", not summer.has("deep_frost") and not summer.has("hearth_tales"))
 	ok("summer-only events never fire in winter", not winter.has("long_summer_days") and not winter.has("summer_dry_spell"))
 	ok("spring lambs never fire in winter", not winter.has("spring_lambs"))

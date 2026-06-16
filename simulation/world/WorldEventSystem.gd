@@ -320,8 +320,9 @@ static func tick(player: Dictionary, world: Dictionary, rng: RandomNumberGenerat
 	if rng.randf() >= DAILY_CHANCE:
 		return {}
 
-	# Weighted pick among events eligible at this day AND this season.
-	var season: int = SeasonSystem.current_season(day)
+	# Weighted pick among events eligible at this day AND this season. Seasons key off the
+	# day/night calendar now, so convert this game-day to a tick for the lookup.
+	var season: int = SeasonSystem.season_at_tick(day * SeasonSystem.TICKS_PER_DAY)
 	var pool: Array = []
 	var total: int = 0
 	for e in EVENTS:
