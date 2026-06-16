@@ -26,6 +26,35 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 77 — 2026-06-16  (Audio, part 2: a click for every button)
+
+### Source
+iter 76 gave game *events* sound, but the player's most frequent interaction — pressing buttons — was still
+silent. A UI click is the highest-frequency audio feedback in any game; without it the new SFX feel incomplete.
+
+### Change made
+- **SfxGen `_click()`:** a crisp, tiny, quiet click (28 ms, sine + a touch of noise, fast decay).
+- **AudioManager:** new `UI_CLICK` SoundEvent (appended last so existing enum values stay stable), at −16 dB with
+  a 40 ms throttle. Rather than edit dozens of button call sites, the autoload watches `get_tree().node_added`
+  and wires **every** `BaseButton`'s `pressed` signal to the click (plus a one-time sweep of already-present
+  nodes). Autoloads ready before any scene, so the whole UI — HUD, build menu, menus, diplomacy/event panels,
+  the dock — is covered automatically, with a guard against double-connecting.
+
+### Verified
+- **TestAudio (36/0):** UI_CLICK synthesises a valid 16-bit mono WAV of sane length (0.03s); all prior audio
+  assertions still pass. **Full suite: 0 FAIL across all 25 test files.** Live boot clean — the global
+  `node_added` button hook wires with no errors. (Headless uses a dummy audio driver, so the click can't be
+  auditioned here; synthesis + wiring are verified and the timbre is paper-designed.)
+
+### Post-mortem
+- **UX / responsiveness:** every player action — build, demolish, edict, and now *every button press* — has an
+  audible response. The core feedback loop the UX heuristic asks for is complete. View-side only; no sim,
+  determinism, or balance impact.
+
+### Backlog / next
+1. Ear-tune all SFX timbres/volumes once auditioned; optional ambient day/night bed + light music.
+2. Unify military tracking → standing-army milestone; more seasonal/decision events.
+
 ## Iteration 76 — 2026-06-16  (The realm has a voice: procedural sound effects)
 
 ### Source

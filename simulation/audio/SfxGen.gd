@@ -19,6 +19,7 @@ static func for_event(name: String) -> AudioStreamWAV:
 		"POPULARITY_CRITICAL": return _alarm()
 		"PRESTIGE_GAINED":     return _chime()
 		"EDICT_ACTIVATED":     return _ding()
+		"UI_CLICK":            return _click()
 		_:                     return _ding()
 
 # ── sample plumbing ──────────────────────────────────────────────────────────────
@@ -131,6 +132,18 @@ static func _chime() -> AudioStreamWAV:
 			var env: float = exp(-t * 7.0)
 			var s: float = sin(TAU * float(f) * t) + 0.15 * sin(TAU * float(f) * 2.0 * t)
 			_push(buf, s * env * 0.4)
+	return _new_wav(buf)
+
+# A crisp, tiny click — a UI button press. Very short + quiet so it never fatigues.
+static func _click() -> AudioStreamWAV:
+	var buf := PackedByteArray()
+	var rng := RandomNumberGenerator.new(); rng.seed = 5
+	var n: int = int(0.028 * MIX)
+	for i in range(n):
+		var t: float = float(i) / MIX
+		var env: float = exp(-t * 120.0)
+		var s: float = sin(TAU * 1500.0 * t) + 0.5 * rng.randf_range(-1.0, 1.0)
+		_push(buf, s * env * 0.5)
 	return _new_wav(buf)
 
 # A short confirming ding — an edict is proclaimed.

@@ -10,7 +10,8 @@ enum SoundEvent {
 	WEATHER_CHANGED,
 	POPULARITY_CRITICAL,
 	PRESTIGE_GAINED,
-	EDICT_ACTIVATED
+	EDICT_ACTIVATED,
+	UI_CLICK         # appended last — keep existing values stable
 }
 
 const SfxGen = preload("res://simulation/audio/SfxGen.gd")
@@ -21,9 +22,9 @@ const _GAIN_DB: Dictionary = {
 	"UNIT_HIT": -10.0, "UNIT_DEATH": -7.0, "UNIT_KILLED": -7.0,
 	"BUILDING_PLACED": -5.0, "BUILDING_DEMOLISHED": -6.0, "WEATHER_CHANGED": -9.0,
 	"SIEGE_INCOMING": -3.0, "POPULARITY_CRITICAL": -4.0, "PRESTIGE_GAINED": -6.0,
-	"EDICT_ACTIVATED": -5.0,
+	"EDICT_ACTIVATED": -5.0, "UI_CLICK": -16.0,
 }
-const _MIN_GAP: Dictionary = {"UNIT_HIT": 0.12, "UNIT_DEATH": 0.10, "UNIT_KILLED": 0.10}
+const _MIN_GAP: Dictionary = {"UNIT_HIT": 0.12, "UNIT_DEATH": 0.10, "UNIT_KILLED": 0.10, "UI_CLICK": 0.04}
 var _last_play: Dictionary = {}
 
 func play(event: SoundEvent) -> void:
@@ -112,3 +113,17 @@ func _ready():
 	EventBus.connect("simulation_tick", func(_tick):
 		_check_combat_sounds()
 	)
+
+	# Give EVERY button a click, everywhere, without touching each call site: watch the
+	# tree for new BaseButtons and wire their `pressed` to a soft UI click. Autoloads
+	# ready before any scene, so node_added catches the whole UI as it's built.
+	get_tree().node_added.connect(_wire_button_click)
+	for n in get_tree().root.get_children():
+		_wire_button_click(n)   # catch anything already present
+
+func _wire_button_click(node: Node) -> void:
+	if node is BaseButton and not node.pressed.is_connected(_on_ui_button_pressed):
+		node.pressed.connect(_on_ui_button_pressed)
+
+func _on_ui_button_pressed() -> void:
+	play(SoundEvent.UI_CLICK)

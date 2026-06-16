@@ -9,6 +9,7 @@ const SfxGen = preload("res://simulation/audio/SfxGen.gd")
 const EVENT_NAMES: Array = [
 	"BUILDING_PLACED", "BUILDING_DEMOLISHED", "UNIT_KILLED", "UNIT_HIT", "UNIT_DEATH",
 	"SIEGE_INCOMING", "WEATHER_CHANGED", "POPULARITY_CRITICAL", "PRESTIGE_GAINED", "EDICT_ACTIVATED",
+	"UI_CLICK",
 ]
 
 var _pass := 0
