@@ -690,6 +690,29 @@ func is_siege_ready(player: Dictionary) -> bool:
 			return true
 	return points >= SIEGE_READY_THRESHOLD
 
+# True when the player has buildings under construction but NObody free to build them —
+# every working-age villager is locked into a job. Builders are only ever drawn from
+# idle/wandering villagers (job-workers are never pulled off), so a fully-employed
+# workforce leaves new works stalled. Used to warn the player (the iter-28 contention,
+# now player-facing). Returns false the moment a builder exists or one could be tasked.
+func has_stalled_construction(player: Dictionary) -> bool:
+	var has_sites: bool = false
+	for b in player.get("buildings", []):
+		if b is Dictionary and CitizenSystem.is_site(b):
+			has_sites = true
+			break
+	if not has_sites:
+		return false
+	for c in citizens:
+		if not (c is Dictionary and c.get("is_alive", false)):
+			continue
+		if c.get("role", "") == "builder":
+			return false  # someone is already building
+		var st: String = String(c.get("state", ""))
+		if (st == CitizenSystem.STATE_IDLE or st == CitizenSystem.STATE_WANDER) and CitizenSystem._is_working_age(c):
+			return false  # an idle villager can be tasked to build
+	return true
+
 # All hostile deployable units a given player can fight (AI factions + rivals).
 func _enemies_of_player(pid: int) -> Array:
 	var out: Array = []
@@ -1186,6 +1209,18 @@ func simulate_tick(tick: int) -> void:
 					"bad")
 			elif pop_now >= 45.0 and world.get("restless_warned", false):
 				world["restless_warned"] = false
+
+			# Construction-stall hint: works are pending but every villager is locked into
+			# a job, so there's nobody left to build (the iter-28 contention, player-facing
+			# — the player controls labour manually). Warn once; re-arm when it clears.
+			var stalled: bool = has_stalled_construction(players[0])
+			if stalled and not world.get("builders_warned", false):
+				world["builders_warned"] = true
+				EventBus.realm_notice.emit(
+					"⚠ No free hands to build — every villager is working a job, so your works are stalled. Free up labour: lower a building's workers, or raise a Hovel for more people.",
+					"bad")
+			elif not stalled and world.get("builders_warned", false):
+				world["builders_warned"] = false
 
 		# Realm events: a flavourful daily happening (merchant, foraging, wolves…) that
 		# keeps the kingdom alive between the big beats. Player's own seat only.

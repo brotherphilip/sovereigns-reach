@@ -428,6 +428,24 @@ func _test_gamestate_integration() -> void:
 		{"is_alive": false}, {"is_alive": false}, {"is_alive": false}]}
 	ok("a fallen garrison does not count", not _gs.is_siege_ready(dead_garrison))
 
+	# 2d. has_stalled_construction: a site pending + every villager locked in a job = stalled
+	var site_player := {"buildings": [
+		{"type": "church", "built": false, "build_required": 100.0}]}
+	_gs.citizens = [
+		{"is_alive": true, "role": "worker", "state": "work", "stage": "adult"},
+		{"is_alive": true, "role": "worker", "state": "work", "stage": "adult"}]
+	ok("pending site + all villagers working -> stalled", _gs.has_stalled_construction(site_player))
+	# An idle working-age villager could be tasked -> not stalled
+	_gs.citizens.append({"is_alive": true, "role": "", "state": "idle", "stage": "adult"})
+	ok("an idle villager clears the stall", not _gs.has_stalled_construction(site_player))
+	# A builder already on the job -> not stalled
+	_gs.citizens = [{"is_alive": true, "role": "builder", "state": "build", "stage": "adult"}]
+	ok("an active builder is not a stall", not _gs.has_stalled_construction(site_player))
+	# No sites at all -> never stalled, even with everyone working
+	_gs.citizens = [{"is_alive": true, "role": "worker", "state": "work", "stage": "adult"}]
+	ok("no construction -> not stalled", not _gs.has_stalled_construction({"buildings": [{"type": "church", "built": true}]}))
+	_gs.citizens = []
+
 	# 3. RECRUIT_UNIT command (player has no barracks → should fail)
 	var p: Dictionary = _fresh_player()
 	_cq.enqueue(CT_RECRUIT_UNIT, {"unit_type": "armed_peasant"}, 0)

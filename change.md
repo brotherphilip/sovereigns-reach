@@ -26,6 +26,39 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 29 — 2026-06-16  (the player-facing side of iter 28: warn when works stall for lack of builders)
+
+### Heuristic focus
+Iter 28's own backlog + the directive's **UX/feedback** axis. The AI town now auto-reserves builders,
+but the **player** can hit the same labour contention: builders are only drawn from idle/wandering
+villagers, and the auto-staff-on-completion fills each new building to max — so a player who has staffed
+every job has **no free hands**, and a freshly-placed building silently never builds. We don't auto-
+manage the player's labour (they control it), so the right fix is to **tell them what's wrong**.
+
+### Change made
+- **`GameState.has_stalled_construction(player)`** (new, unit-tested): true when a site is pending but
+  no villager is building and none is idle/working-age to be tasked (every villager locked in a job).
+- **Day-boundary hint** (player seat only): when stalled, fire a one-time `realm_notice` —
+  "⚠ No free hands to build — every villager is working a job, so your works are stalled. Free up
+  labour: lower a building's workers, or raise a Hovel for more people." Re-arms when the stall clears
+  (mirrors the iter-11 restless-people warning pattern via `world["builders_warned"]`).
+
+### Verified
+- Headless: `has_stalled_construction` cases all pass (TestPhase6 → 91): pending site + all working →
+  stalled; an idle villager clears it; an active builder is not a stall; no sites → never stalled.
+- Full suite green (24/24). Live boot clean.
+
+### Post-mortem
+- **Failure point:** none (survival fine) — this is a legibility fix for a confusing silent dead-end.
+- **Makes-sense/UX:** completes the iter-28 story for the human: instead of a building that never rises
+  with no explanation, the ruler is told exactly why and what to do. Consistent with the iters 21/23/24
+  "never leave the player guessing" theme.
+
+### Backlog / next
+- Strategic/world-map actions as the human (develop/raise army/campaign/diplomacy) — largest
+  unexercised area; a strong candidate for a deeper iteration.
+- Optional: a HUD idle-villagers / builders count so labour availability is glanceable.
+
 ## Iteration 28 — 2026-06-16  (BUG from a live observation: AI towns couldn't finish new buildings)
 
 ### Source
