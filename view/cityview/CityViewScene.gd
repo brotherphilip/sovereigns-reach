@@ -254,15 +254,17 @@ func _dev_spawn_workers() -> void:
 	var BState = preload("res://simulation/buildings/BuildingState.gd")
 	var BReg = preload("res://simulation/buildings/BuildingRegistry.gd")
 	GameState.prepare_starting_area(_keep_x, _keep_y, 16)
-	# A ring of staffed worker-buildings of varied trades around the keep.
+	# A ring of staffed worker-buildings of varied trades around the keep. Includes the
+	# civic "hero" types (hall/keep/inn/mill) so the design-overhaul pass can inspect them.
 	var types := ["apple_orchard", "wheat_farm", "woodcutter_camp", "blacksmith",
-		"brewery", "bakery", "church", "watchtower", "iron_mine", "market"]
+		"brewery", "bakery", "church", "watchtower", "iron_mine", "market",
+		"village_hall", "keep", "inn", "mill"]
 	var n := types.size()
 	for i in n:
 		var ang: float = TAU * float(i) / float(n)
 		var defn: Dictionary = BReg.lookup(types[i])
-		var gx: int = clampi(_keep_x + int(round(cos(ang) * 9.0)), 2, 196)
-		var gy: int = clampi(_keep_y + int(round(sin(ang) * 9.0)), 2, 196)
+		var gx: int = clampi(_keep_x + int(round(cos(ang) * 12.0)), 2, 196)
+		var gy: int = clampi(_keep_y + int(round(sin(ang) * 12.0)), 2, 196)
 		var b: Dictionary = BState.create(types[i], 0, gx, gy, GameState._next_building_id)
 		GameState._next_building_id += 1
 		b["built"] = true

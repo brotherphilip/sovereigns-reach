@@ -26,6 +26,57 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 49 — 2026-06-16  (DESIGN OVERHAUL #3 — per-building HERO detail on the high-traffic types)
+
+### Source
+Same multi-iteration directive. Roadmap step 1: now that base materials (iter 47 roofs/shadows) + wall
+textures (iter 48) read well, add bespoke flourishes to the buildings the player looks at most.
+
+### Method
+Extended the dev-only staffed-town preview (`SR_WORKERS`, CityViewScene `_dev_spawn_workers`) to also spawn
+village_hall / keep / inn / mill (radius 9→12) so the overhaul can actually inspect the civic "hero" types
+— previously only worker-trades were in the ring. Then launched on Xvfb and zoomed onto each.
+
+### Change made (view/micro/BuildingModels.gd — pure `_draw`, view-only)
+- **Village Hall:** a covered **entrance porch** (posts + tiled awning) over the door, a stone threshold
+  step, and a **heraldic shield** (blue field + gold charge) on the front gable.
+- **Keep:** **arrow-slit windows** with stone lintels on both faces, and a long **realm banner** (red with a
+  gold roundel) draped from the parapet — reads as a fortified castle now.
+- **Church / Cathedral:** **stepped stone buttresses** along the nave, an **arched main doorway** with a
+  pointed stone surround, taller mullioned **lancet windows**, and a **rose window on the front gable for
+  every church** (was cathedral-only).
+- **Market:** a central **stone market cross** (stepped plinth + shaft + ball finial) — the heart of the
+  square — plus produce on display (apples) and a grain sack.
+- **Inn:** a **stone chimney with drifting smoke**, a **warm flickering lantern** by the door, over the
+  already-warm windows — a cosy, lit-up tavern (threaded `time` into `_inn` for the animation).
+- **Mill:** a **timber gallery** (reefing stage) wrapping the tower with a railing, + **flour sacks** at
+  the base.
+- New shared helpers: `_shield`, `_rose`.
+
+### Verified
+- **Parse:** LOAD_OK. **Tests:** all suites green (1075 assertions, 0 failed) — view-only + a dev-hook
+  change, core logic untouched.
+- **Live (Xvfb, expanded staffed town):** inspected all six up close — hall (porch + shield + timber +
+  tile), keep (masonry + crenellations + arrow slits + draped banner + flagged turret), inn (warm windows +
+  lantern, dusk-lit), market (market cross + produce), church (buttresses + arched door + rose window),
+  mill (gallery + sacks). Cohesive, detailed, medieval vibe intact; stable through ~day 18, no crashes.
+  A tribute-demand diplomacy event fired live (system working). Screens: /tmp/iter49_{hall,keep,keep2,keepinn,mill}.png.
+
+### Post-mortem
+- **UX (Human Experience):** the buildings the player interacts with most now have real character and tell
+  their function at a glance (a market cross says "market"; arrow slits + banner say "stronghold"; a lit
+  lantern says "inn"). With iters 47–49 the settlement no longer reads as papercraft. **3 of 4 overhaul
+  steps done.**
+- **Content density:** the lit inn + smoking chimney + market produce add the "lived-in" micro-detail the
+  20-min loop wanted.
+
+### Backlog / next (overhaul roadmap)
+1. ~~Per-building hero detail~~ ✓ done (iter 49).
+2. ~~Wall surface texture~~ ✓ done (iter 48).
+3. **HUD pass** — top resource bar, popularity/objective panels: spacing, type hierarchy, iconography.  ← next (iter 50)
+4. **Menus & panels** — MainMenu, build menu, tech/edict/diplomacy panels.
+- (Carried) Diplomacy depth; a fresh full human playthrough at the new pace.
+
 ## Iteration 48 — 2026-06-16  (DESIGN OVERHAUL #2 — wall surface texture: masonry / timber / plank)
 
 ### Source

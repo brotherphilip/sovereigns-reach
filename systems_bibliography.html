@@ -35,7 +35,7 @@
 <header>
   <h1>⚜ Sovereign's Reach — Systems Reference</h1>
   <p>A medieval city-builder &amp; strategy game in Godot 4.6.3. Living document — updated each dev iteration.</p>
-  <p class="muted">Last updated: iteration 48 (2026-06-16)</p>
+  <p class="muted">Last updated: iteration 49 (2026-06-16)</p>
 </header>
 <nav>
   <a href="#overview">Overview</a>
@@ -234,8 +234,12 @@
       material-aware skin on its front faces — <b>ashlar masonry</b> (courses + staggered brick-bonded
       joints) on stone (keep/tower/wall/gatehouse/church/forge/armory/guildhall), <b>half-timber framing</b>
       on halls &amp; inns, and <b>vertical plank cladding</b> on wooden barns (brewery/dairy/trading post/
-      barracks); plaster buildings stay smooth so the materials read distinctly. Further iterations add
-      per-building "hero" detail, then the menus &amp; panels.</li>
+      barracks); plaster buildings stay smooth so the materials read distinctly. <b>Per-building hero detail
+      (iter 49):</b> the high-traffic types got bespoke flourishes — the village hall gains a porch + a
+      heraldic shield, the keep arrow-slits + a draped realm banner, the church stepped buttresses + an
+      arched doorway + a rose window, the market a central stone market cross + produce, the inn a smoking
+      chimney + a lit door lantern over warm windows, and the windmill a wrap-around timber gallery + flour
+      sacks. Next: the menus &amp; panels (HUD + build/tech/edict screens).</li>
     <li><b>Day/night lighting</b> (two layers): <span class="file">NightLayer.gd</span> draws the darkening
       wash (warm dusk/dawn → cool moonlit-blue midnight); <span class="file">NightLampLayer.gd</span> draws
       the building lamps with an <b>additive blend</b> + a <b>radial gradient</b>, so each lamp genuinely

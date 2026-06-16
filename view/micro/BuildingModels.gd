@@ -261,6 +261,26 @@ static func _door(ci: CanvasItem, l: Vector2, b: Vector2, ht: float, col: Color 
 static func _win(ci: CanvasItem, p: Vector2, col: Color = GLASS) -> void:
 	ci.draw_rect(Rect2(p.x - 1.8, p.y - 2.0, 3.6, 4.0), col)
 
+# A heater shield (heraldic) centred on c, half-width hw, in field colour with a charge dot.
+static func _shield(ci: CanvasItem, c: Vector2, hw: float, field: Color, charge: Color) -> void:
+	var h := hw * 1.3
+	var pts := PackedVector2Array([
+		c + Vector2(-hw, -h), c + Vector2(hw, -h), c + Vector2(hw, h * 0.2),
+		c + Vector2(0, h), c + Vector2(-hw, h * 0.2)])
+	ci.draw_colored_polygon(pts, field)
+	ci.draw_polyline(pts, field.darkened(0.4), 0.7)
+	ci.draw_line(c + Vector2(0, -h), c + Vector2(0, h * 0.6), field.lightened(0.25), 0.7)  # pale
+	ci.draw_circle(c + Vector2(0, -h * 0.25), hw * 0.42, charge)
+
+# A rose window: stone ring, blue glass, radial tracery spokes.
+static func _rose(ci: CanvasItem, c: Vector2, rad: float) -> void:
+	ci.draw_circle(c, rad + 1.2, STONE_L)
+	ci.draw_circle(c, rad, Color(0.34, 0.46, 0.74))
+	for k in range(6):
+		var a := TAU * float(k) / 6.0
+		ci.draw_line(c, c + Vector2(cos(a), sin(a)) * rad, Color(0.78, 0.82, 0.92), 0.6)
+	ci.draw_circle(c, rad * 0.3, Color(0.62, 0.72, 0.90))
+
 # ── Dispatcher ──────────────────────────────────────────────────────────────────
 
 static func draw_finished(ci: CanvasItem, btype: String, cat: int, w: int, h: int,
@@ -290,7 +310,7 @@ static func draw_finished(ci: CanvasItem, btype: String, cat: int, w: int, h: in
 		"mill":              _windmill(ci, t, r, b, l, ctr, time)
 		"bakery":            _bakery(ci, t, r, b, l, ctr, time)
 		"brewery":           _brewery(ci, t, r, b, l, ctr)
-		"inn":               _inn(ci, t, r, b, l, ctr)
+		"inn":               _inn(ci, t, r, b, l, ctr, time)
 		"granary":           _granary(ci, t, r, b, l, ctr)
 		"church":            _church(ci, t, r, b, l, ctr, false)
 		"cathedral":         _church(ci, t, r, b, l, ctr, true)
@@ -313,10 +333,25 @@ static func draw_finished(ci: CanvasItem, btype: String, cat: int, w: int, h: in
 
 static func _village_hall(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vector2, ctr: Vector2) -> void:
 	var c := _box(ci, t, r, b, l, 26.0, WOOD_L, TEX_TIMBER)
-	_door(ci, l, b, 26.0)
-	_win(ci, l.lerp(b, 0.25) + Vector2(0, -16))
-	_win(ci, b.lerp(r, 0.75) + Vector2(0, -16))
 	_gable(ci, c, 16.0, TILE)
+	# Hero detail: a covered entrance porch over the front door.
+	var dbase := l.lerp(b, 0.5)
+	var e := (b - l).normalized()
+	var fwd := Vector2(-2, 5)
+	_ellipse(ci, dbase + fwd + Vector2(0, 2), 7.0, 2.6, STONE_L)   # stone step / threshold
+	_door(ci, l, b, 26.0)
+	var pL := dbase - e * 4.0 + fwd
+	var pR := dbase + e * 4.0 + fwd
+	var pLt := _post(ci, pL, 13.0, WOOD_D, 1.6)
+	var pRt := _post(ci, pR, 13.0, WOOD_D, 1.6)
+	var wL := dbase - e * 4.0 + Vector2(0, -16)
+	var wR := dbase + e * 4.0 + Vector2(0, -16)
+	ci.draw_colored_polygon(PackedVector2Array([wL, wR, pRt, pLt]), TILE.darkened(0.06))  # awning
+	ci.draw_polyline(PackedVector2Array([pLt, pRt]), TILE.lightened(0.2), 0.8)             # eave
+	_win(ci, l.lerp(b, 0.22) + Vector2(0, -17))
+	_win(ci, b.lerp(r, 0.78) + Vector2(0, -17))
+	# Heraldic shield on the front gable.
+	_shield(ci, c[2] + Vector2(0, -9), 4.0, Color(0.22, 0.34, 0.6), GOLD)
 	# banner pole on the ridge
 	var apex := (c[0] + c[2]) * 0.5 + Vector2(0, -16.0)
 	var tp := _post(ci, apex, 12.0, WOOD_D, 1.5)
@@ -325,6 +360,20 @@ static func _village_hall(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l:
 static func _keep(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vector2, ctr: Vector2, time: float) -> void:
 	var c := _box(ci, t, r, b, l, 40.0, STONE, TEX_STONE)
 	_door(ci, l, b, 40.0, Color(0.20, 0.14, 0.10))
+	# Hero detail: arrow-slit windows on both front faces.
+	for f in [0.28, 0.72]:
+		for hy in [20.0, 31.0]:
+			var sl := l.lerp(b, f) + Vector2(0, -hy)
+			ci.draw_rect(Rect2(sl.x - 0.8, sl.y - 3.0, 1.6, 6.0), Color(0.05, 0.05, 0.07))
+			ci.draw_line(sl + Vector2(-1.6, -3.2), sl + Vector2(1.6, -3.2), STONE_L, 0.6)  # lintel
+			var sr := b.lerp(r, f) + Vector2(0, -hy)
+			ci.draw_rect(Rect2(sr.x - 0.8, sr.y - 3.0, 1.6, 6.0), Color(0.05, 0.05, 0.07))
+			ci.draw_line(sr + Vector2(-1.6, -3.2), sr + Vector2(1.6, -3.2), STONE_L, 0.6)
+	# A long realm banner draped from the parapet on the lit face.
+	var bx := b.lerp(r, 0.5) + Vector2(0, -38)
+	ci.draw_colored_polygon(PackedVector2Array([bx + Vector2(-3.5, 0), bx + Vector2(3.5, 0),
+		bx + Vector2(3.5, 18), bx + Vector2(0, 21), bx + Vector2(-3.5, 18)]), RED)
+	ci.draw_circle(bx + Vector2(0, 9), 2.2, GOLD)
 	# crenellated parapet around the top diamond
 	_merlons(ci, c[3], c[2], STONE_L, 4)
 	_merlons(ci, c[2], c[1], STONE_L, 4)
@@ -357,7 +406,20 @@ static func _market(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vecto
 		ci.draw_colored_polygon(PackedVector2Array([p1, p2, p2 + Vector2(0, 4), p1 + Vector2(0, 4)]), s[1])
 		ci.draw_colored_polygon(PackedVector2Array([p1, p2, (p1 + p2) * 0.5 + Vector2(0, 5)]), (s[1] as Color).darkened(0.15))
 		ci.draw_rect(Rect2(g.x - 5, g.y - 4, 10, 4), WOOD)  # crate counter
-	_crate(ci, ctr + Vector2(0, 6), 4.0)
+	# Hero detail: a stone market cross — the heart of the marketplace.
+	var mc := ctr + Vector2(0, -1)
+	for i in range(3):                                  # stepped plinth
+		var sw := 8.0 - float(i) * 2.2
+		_ellipse(ci, mc + Vector2(0, 2 - float(i) * 2.0), sw, sw * 0.42, STONE_L.darkened(0.05 * float(i)))
+	var shaft := _post(ci, mc + Vector2(0, -2), 19.0, STONE, 2.4)
+	ci.draw_circle(shaft + Vector2(0, 1), 1.6, STONE_D)
+	ci.draw_circle(shaft + Vector2(0, -3), 3.0, STONE_L)   # ball finial
+	# produce on display + a sack of grain
+	var disp := r.lerp(ctr, 0.55) + Vector2(0, 6)
+	for fp in [Vector2(-2, 0), Vector2(2, 0), Vector2(0, -2)]:
+		ci.draw_circle(disp + fp, 1.3, Color(0.82, 0.30, 0.22))
+	_sack(ci, l.lerp(ctr, 0.55) + Vector2(2, 7))
+	_crate(ci, b.lerp(ctr, 0.45) + Vector2(6, 6), 3.5)
 
 static func _trading_post(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vector2, ctr: Vector2) -> void:
 	var c := _box(ci, t, r, b, l, 18.0, WOOD, TEX_PLANK)
@@ -562,6 +624,19 @@ static func _windmill(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vec
 	var cap := g + Vector2(0, -26)
 	_cone(ci, cap, 8.0, 3.6, 9.0, WOOD_D)
 	_door(ci, l.lerp(ctr, 0.55), b.lerp(ctr, 0.55), 12.0)
+	# Hero detail: a timber gallery (reefing stage) wrapping the tower + railing.
+	var gy := g + Vector2(0, -14)
+	_ellipse(ci, gy, 11.0, 4.6, WOOD_D)
+	_ellipse(ci, gy, 9.2, 3.8, Color(0.80, 0.76, 0.66))
+	for k in range(7):
+		var ra := TAU * float(k) / 7.0
+		if sin(ra) < -0.1:
+			continue   # skip railing posts on the hidden back arc
+		var rp := gy + Vector2(cos(ra) * 10.0, sin(ra) * 4.2)
+		ci.draw_line(rp, rp + Vector2(0, -4), WOOD_D, 1.0)
+	# sacks of flour stacked at the base
+	_sack(ci, b.lerp(ctr, 0.5) + Vector2(-4, 4))
+	_sack(ci, b.lerp(ctr, 0.5) + Vector2(3, 6))
 	# four turning sails on the cap front
 	var hub := cap + Vector2(0, -2)
 	var spin := time * 1.4
@@ -593,12 +668,25 @@ static func _brewery(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vect
 	_barrel(ci, b.lerp(r, 0.5) + Vector2(0, 5), 5.0)
 	_barrel(ci, b + Vector2(0, 8), 5.0)
 
-static func _inn(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vector2, ctr: Vector2) -> void:
+static func _inn(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vector2, ctr: Vector2, time: float) -> void:
 	var c := _box(ci, t, r, b, l, 24.0, WOOD_L, TEX_TIMBER)   # two storeys
 	_door(ci, l, b, 24.0)
 	for p in [l.lerp(b, 0.3), b.lerp(r, 0.7)]:
 		_win(ci, (p as Vector2) + Vector2(0, -7)); _win(ci, (p as Vector2) + Vector2(0, -18))
 	_gable(ci, c, 12.0, THATCH)
+	# Hero detail: a stone chimney through the roof with drifting smoke.
+	var ch := c[1].lerp(c[2], 0.4) + Vector2(0, -12)
+	ci.draw_rect(Rect2(ch.x - 2.5, ch.y - 8, 5, 13), STONE_D)
+	ci.draw_rect(Rect2(ch.x - 3.0, ch.y - 9, 6, 2.4), STONE)
+	for k in range(3):
+		var sy := fmod(time * 7.0 + float(k) * 5.0, 15.0)
+		ci.draw_circle(ch + Vector2(sin(time * 2.0 + float(k)) * 2.0, -10 - sy), 1.6 + sy * 0.12, Color(0.85, 0.85, 0.85, 0.30 * (1.0 - sy / 15.0)))
+	# warm flickering lantern hung by the door
+	var lp := b.lerp(r, 0.2) + Vector2(0, -16)
+	ci.draw_line(lp, lp + Vector2(0, 3), WOOD_D, 1.0)
+	var fl := 0.8 + 0.2 * sin(time * 7.0)
+	ci.draw_circle(lp + Vector2(0, 5), 3.4 * fl, Color(1.0, 0.7, 0.3, 0.32))
+	ci.draw_circle(lp + Vector2(0, 5), 1.5, Color(1.0, 0.86, 0.52))
 	# hanging mug sign
 	var sp := b.lerp(r, 0.5) + Vector2(0, -20)
 	ci.draw_line(sp, sp + Vector2(7, 0), WOOD_D, 1.2)
@@ -618,12 +706,29 @@ static func _church(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vecto
 	var wallc := STONE_L if grand else STONE
 	var nave_h := 26.0 if grand else 18.0
 	var c := _box(ci, t, r, b, l, nave_h, wallc, TEX_STONE)
+	var rh := 18.0 if grand else 13.0
+	# Hero detail: stepped stone buttresses along the nave wall.
+	var bh := nave_h * 0.62
+	for f in [0.12, 0.42, 0.75]:
+		var bs := l.lerp(b, f)
+		var fo := bs + Vector2(-3, 3)
+		ci.draw_colored_polygon(PackedVector2Array([bs, fo, fo + Vector2(0, -bh * 0.82), bs + Vector2(0, -bh)]), wallc.darkened(0.05))
+		ci.draw_colored_polygon(PackedVector2Array([bs + Vector2(0, -bh), fo + Vector2(0, -bh * 0.82), bs + Vector2(0, -bh - 4)]), STONE_L)
+		ci.draw_polyline(PackedVector2Array([fo, fo + Vector2(0, -bh * 0.82)]), EDGE, 0.5)
 	# tall steep roof
-	_gable(ci, c, 18.0 if grand else 13.0, SLATE)
-	# arched windows on front-left
-	for f in [0.3, 0.6]:
-		var p: Vector2 = l.lerp(b, f) + Vector2(0, -nave_h * 0.55)
-		ci.draw_colored_polygon(PackedVector2Array([p + Vector2(-1.6, 2), p + Vector2(1.6, 2), p + Vector2(1.6, -2), p + Vector2(0, -4), p + Vector2(-1.6, -2)]), Color(0.45, 0.62, 0.86))
+	_gable(ci, c, rh, SLATE)
+	# arched main doorway with a stone surround
+	var dbase := l.lerp(b, 0.5)
+	var e := (b - l).normalized()
+	var dh := minf(nave_h * 0.7, 13.0)
+	var aw := 3.2
+	ci.draw_colored_polygon(PackedVector2Array([dbase - e * aw, dbase + e * aw, dbase + e * aw + Vector2(0, -dh), dbase + Vector2(0, -dh - 5), dbase - e * aw + Vector2(0, -dh)]), Color(0.16, 0.10, 0.06))
+	ci.draw_polyline(PackedVector2Array([dbase - e * aw + Vector2(0, -dh), dbase - e * aw + Vector2(0, -dh - 2), dbase + Vector2(0, -dh - 7), dbase + e * aw + Vector2(0, -dh - 2), dbase + e * aw + Vector2(0, -dh)]), STONE_L, 1.2)
+	# tall arched windows on front-left
+	for f in [0.28, 0.62]:
+		var p: Vector2 = l.lerp(b, f) + Vector2(0, -nave_h * 0.58)
+		ci.draw_colored_polygon(PackedVector2Array([p + Vector2(-1.6, 3), p + Vector2(1.6, 3), p + Vector2(1.6, -2), p + Vector2(0, -4.5), p + Vector2(-1.6, -2)]), Color(0.45, 0.62, 0.86))
+		ci.draw_line(p + Vector2(0, 3), p + Vector2(0, -4), Color(0.30, 0.42, 0.62), 0.5)  # mullion
 	# bell tower at the back with spire + cross
 	var tg := t.lerp(ctr, 0.35)
 	var tc := _box(ci, tg + Vector2(0, -6), tg + Vector2(6, -3), tg + Vector2(0, 0), tg + Vector2(-6, -3), nave_h + 14.0, wallc, TEX_STONE)
@@ -631,8 +736,8 @@ static func _church(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vecto
 	var cr := apx + Vector2(0, -2)
 	ci.draw_line(cr, cr + Vector2(0, -12), GOLD, 2.0)
 	ci.draw_line(cr + Vector2(-4, -8), cr + Vector2(4, -8), GOLD, 2.0)
-	if grand:
-		ci.draw_circle((c[0] + c[2]) * 0.5 + Vector2(0, -nave_h * 0.0 - 4), 4.0, Color(0.50, 0.66, 0.90))  # rose window
+	# rose window on the front gable
+	_rose(ci, c[2] + Vector2(0, -rh * 0.5), 4.0 if grand else 3.0)
 
 # ── MILITARY ───────────────────────────────────────────────────────────────────
 
