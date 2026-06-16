@@ -136,13 +136,15 @@ func _test_hud_controller() -> void:
 	ok("phase at noon icon = sun", HUDController.get_day_phase(0).get("icon") == "☀")
 	ok("phase at midnight = Night", HUDController.get_day_phase(_mid).get("phase") == "Night")
 	ok("phase at midnight icon = moon", HUDController.get_day_phase(_mid).get("icon") == "🌙")
-	# Night is the SHORTER part of the cycle: more daytime ticks than night ticks.
+	# Night ≈ 1/3 of the cycle (target: ~10 min day, ~5 min night → day ≈ 2× night).
 	var _day_ticks: int = 0
 	var _night_ticks: int = 0
 	for _t in range(SeasonSystem.DAY_NIGHT_TICKS):
 		if SeasonSystem.is_night(_t): _night_ticks += 1
 		else: _day_ticks += 1
 	ok("daytime is longer than night", _day_ticks > _night_ticks)
+	var _ratio: float = float(_day_ticks) / maxf(1.0, float(_night_ticks))
+	ok("day:night ≈ 2:1 (between 1.6 and 2.6)", _ratio >= 1.6 and _ratio <= 2.6)
 
 	# 12. is_revolt_risk true below 20
 	ok("revolt risk at pop 10", HUDController.is_revolt_risk({"popularity": 10.0}))

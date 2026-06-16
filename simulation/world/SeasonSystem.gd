@@ -55,8 +55,8 @@ static func season_at_tick(tick: int) -> int:
 # toward daylight). Drives the city-view lighting overlay, building lamps, and citizens
 # returning home to sleep at night. (The numeric Day counter still advances per
 # game-day; this is purely the felt time-of-day.)
-const DAY_NIGHT_TICKS: int = 1200          # ~5 game-days; ~60s/cycle at NORMAL speed
-const NIGHT_SKEW: float = 2.2              # >1 → daytime dominates, night is shorter
+const DAY_NIGHT_TICKS: int = 18000         # 15 real min/cycle at NORMAL (20 ticks/s); ~3 min at Fastest
+const NIGHT_SKEW: float = 1.8              # tuned so night ≈ 1/3 of the cycle (≈10 min day, 5 min night)
 const NIGHT_HOME_THRESHOLD: float = 0.6    # darkness past which folk head home to sleep
 
 # 0.0 = full daylight … 1.0 = deepest midnight.

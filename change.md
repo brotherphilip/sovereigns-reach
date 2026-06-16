@@ -26,6 +26,43 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 40 — 2026-06-16  (day/night to 15-min days: 10 day / 5 night; user request)
+
+### Source
+User: "days should be like 15 minutes each. 10 for day, 5 for night… maybe 8 days as a year."
+
+### Decision (engine reality → decoupled slow sky)
+A truly *unified* 15-min day (1 game-day = 15 min) would mean either a **glacial/choppy village** (lowering
+the tick rate stretches every villager step) or a **full rebalance** (rescaling every tick-interval +
+per-day amount). The right feel — a lively village under a long, beautiful sky — is the **decoupled** model
+already in place (iter 39): the lighting cycle is independent of the economy clock. So I lengthened the
+sky cycle to the requested 15 min; the village/economy keep their smooth, balanced pace underneath.
+
+### Change made
+- **SeasonSystem**: `DAY_NIGHT_TICKS 1200 → 18000` → **one full day↔night = 15 real minutes at Normal**
+  (~3 min at Fastest). `NIGHT_SKEW 2.2 → 1.8` tunes it to **~10 min day, ~5 min night** (night ≈ ⅓).
+- TestPhase7: asserts the day:night ratio is ≈ 2:1 (1.6–2.6). 105/0.
+
+### Verified
+- Headless: TestPhase7 105/0 (noon=Day, midnight=Night, day ≈ 2× night); full suite green (24/24).
+- **Live (Xvfb, staffed town)**: boot read "Day 1 · Day"; **55 real seconds later it was still "Day"**
+  (the old 60s cycle would have reached night by then) — confirming the ~15-min sky. The economy day
+  counter ticked 1→6 underneath in those 55s, confirming the decoupling (lively village, slow sky).
+
+### Note on "~8 days a year" (deferred, with reason)
+This is the *economic calendar*, not the sky. Two honest paths: (a) keep the lively village + slow sky
+(current — the day **counter** still advances on the fast economy clock, so it isn't literally "8 days/
+year"), or (b) slow the whole economy so 1 economic day = 15 min → a Banished-glacial village + a big
+rebalance (production intervals, day-boundary amounts, siege/grace/objective/reign day-constants). Aging is
+safely decoupled (PeopleSystem has its own 48-game-day "year"), so the seasonal year *could* be retied to
+sky-days, but resource-planning ("food/day") would desync from the shown day unless the economy is slowed
+too. Flagged for the user to choose — the 15-min **day length** they asked for is delivered now.
+
+### Backlog / next
+- Per user choice: either retie the displayed calendar/seasons to sky-days (8-day year) **and** slow the
+  economy to match (big rebalance), or leave the lively-village + slow-sky as-is.
+- (Carried) warm dawn/dusk colour grade; diplomacy depth; seat-shield from strategic capture.
+
 ## Iteration 39 — 2026-06-16  (day/night was strobing — slowed the cycle + a phase clock; user request)
 
 ### Source
