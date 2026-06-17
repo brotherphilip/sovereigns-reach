@@ -18,7 +18,7 @@ const FR = preload("res://simulation/strategic/FeudalRank.gd")
 const CMS = preload("res://simulation/strategic/CampaignSystem.gd")
 const WorldMapData = preload("res://simulation/world/WorldMapData.gd")
 const GOLD_PER: int = 5
-const DEADLINE_DAYS: int = 250   # both verified seeds reach King well inside this (124, 170)
+const DEADLINE_DAYS: int = 200   # all 5 verified seeds reach King inside this (≤113 days, iter154)
 
 func _init() -> void:
 	await process_frame

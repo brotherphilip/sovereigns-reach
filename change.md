@@ -43,23 +43,59 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 - **DURABLE conquest: SUBSTANTIALLY MET (iter145).** Player-only garrison regen → the player now climbs to
   **Earl and HOLDS 8 villages** at day 120 (was: collapsed 11→1). Conquests stick without throttling expansion.
   Feudal title now shows the PEAK earned (never demotes on land loss).
-- **TOP-TITLE climb (Duke→King): MET & MULTI-SEED CONFIRMED (iter153).** A competent player (public command
-  surface only) climbs from ONE village to **King** on **3 isolated-process seeds**: 12345 (day 124), 4242
-  (day 170), 999 (day 95). Key insight: `MAX_ARMY_SIZE=40` caps a single levy *batch*, but `raise_army` MERGES
-  repeated levies into one host (verified 5×40→200), so stacking cracks defended cities — the earlier "stuck at
-  Earl/Reeve" was a grader that only ever fielded 40 (harness-competence artifact, NOT a balance bug; no balance
-  changed). Encoded as committed `tests/TestKingClimb.gd` (SR_SEED-parameterized, one godot per seed → no
-  in-process leak; asserts King within 250 days).
-- **NEXT BAR (raised iter153): broaden + tighten the King climb, then prove it on-screen.** (a) King reachable on
-  **≥5 isolated seeds** (add 7777, 31337); (b) tighten the deadline — King by **day 200** on every seed (slowest
-  so far is 170); (c) the full loop is still proven only via the headless strategic harness — a real in-city +
-  world-map run (Xvfb input) capturing a neighbour and seeing the title promote on-screen would harden it.
+- **TOP-TITLE climb (Duke→King): MET on 5 SEEDS, ≤113 days (iter153 found it; iter154 broadened+hardened).**
+  A competent player (public command surface only) climbs from ONE village to **King** on **all 5 isolated-process
+  seeds**: 12345 (day 84), 4242 (101), 999 (80), 7777 (113), 31337 (99) — every seed inside the day-200 bar.
+  Insight (iter153): `MAX_ARMY_SIZE=40` caps a single levy *batch*, but `raise_army` MERGES repeated levies into
+  one host (verified 5×40→200); the path to King is DEVELOPMENT-heavy (score 88 ≈ ~14 holdings × dev), so the
+  grader is develop-first + capped expansion. The earlier "stuck at Earl/Bailiff" was harness-incompetence +
+  one REAL game wart (below) — no *balance* lever was changed. Encoded in `tests/TestKingClimb.gd` (SR_SEED,
+  one godot per seed → no in-process leak; asserts King within 200 days).
+- **NEXT BAR (raised iter154): prove the climb ON-SCREEN, and stress it.** (a) The full loop is still proven only
+  via the headless strategic harness — a real in-city + world-map run (Xvfb input) capturing a neighbour and
+  seeing the title promote on-screen would harden it (TOP open item). (b) Optionally widen to ≥8 seeds and/or add
+  a "hold under late-game AI pressure" constraint (survive past King, not just reach it).
 - **Robustness:** keep multi-seed survival (≥5 seeds) green; ALWAYS run seeds in ISOLATED processes (one godot
   per seed) — the in-process multi-seed runner leaks GameState between seeds (iter141, partially fixed iter142).
 - **ARCHIVED (old model, real evidence):** Day-100 ×3 live wins (iter118-119); Day-150 ×3 (iter121-122);
   Day-225 ×3 (iter123-125); Day-300 reached 1×/3 (iter125). Kept for history; not the current bar.
 
 ---
+
+## Iteration 154 — 2026-06-18  (DEV-LOOP — REAL game fix: retreat stranded armies; King on all 5 seeds)
+
+### Plan
+Per the iter153 raised bar, broaden the King climb to the last 2 seeds (7777, 31337) and enforce a day-200
+deadline. Expected: confirm ≥5 seeds; diagnose any failure as game-vs-harness before any balance change.
+
+### Playtest (REAL — isolated-process climbs, public command surface only)
+- First grade of the 2 new seeds FAILED: 7777 stuck at **Bailiff** (score 1 → never expanded), 31337 stuck at
+  **Earl** (score 28). DIAGNOSIS (honest): the grader only conquered and barely developed (its develop branch was
+  gated on `total_army==0 && treasury>800`, rarely true during border churn). King's score (88) is DEVELOPMENT-
+  driven, so a conquest-churn bot can't reach it → made the grader develop-first + capped expansion (≤16 holdings).
+- Re-grade: 4/5 reached King (12345 d84, 4242 d121, 999 d77, 31337 d100) but **7777 still failed at score 11**.
+  Traced it: player expands to 4 holdings, **loses them all by ~day 100**, then is frozen — `army=7` from day 75
+  on, NEVER returns to 0. Root cause (REAL game wart, cited): a defeated assault leaves the host idle on the
+  *enemy* tile (verified: army 9900006 size 7 on city 22, owner=faction 0, path=[]); the recycle loop only
+  absorbs armies on OWNED tiles, so it strands forever paying upkeep — a human would have to micro it home too.
+
+### Implement (game change — CampaignSystem.tick_armies, SYMMETRIC for AI + player)
+- An idle army (path empty, size>0) on a non-owned city now **retreats to its nearest owned city** (BFS via new
+  `_nearest_owned_city`) instead of stranding. Falls back to staying put only if no owned city is reachable.
+
+### Post-Mortem (TARGET REACHED)
+- After the fix, **all 5 seeds reach King ≤ day 113** (12345 d84, 4242 d101, 999 d80, 7777 d113, 31337 d99).
+  The retreat fix is the sole new variable (grader was already develop-first in the failing 7777 run) → attributable.
+- Regression: TestStrategicAI 83/0, TestSiege 9/0, TestFeudalRank 19/0, TestSaveLoad 13/0, TestPhase9 67/0 — the
+  symmetric retreat did not disturb AI campaign behavior or determinism. Tightened TestKingClimb deadline 250→200.
+
+### Active Backlog
+- **Design Iteration (deferred):** coerce world int fields on load (cleanliness); independents deplete late-game
+  (mechanic); spatial index ~15k+ units.
+- ~~stranded armies never retreat (upkeep drain + frozen expansion)~~ → RESOLVED iter154 (tick_armies retreat).
+
+### Confidence: HIGH — all 5 isolated climbs reach King ≤day 113 through the public command surface; a real game
+wart fixed with a cited trace; full regression green. Iterations since last command/compact: 2 (last compact iter152).
 
 ## Iteration 153 — 2026-06-18  (DEV-LOOP — MILESTONE: King reachable across seeds via a stable grader)
 
