@@ -51,6 +51,29 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 137 — 2026-06-17  (MAP-OVERHAUL LOOP #10 — on-screen zoom indicator + controls hint + COMPACT)
+
+### Source
+Map-overhaul loop. Iter7 added zoom/pan but nothing on-screen told the player it exists or the current level.
+
+### Change made (`WorldMapView.gd`, view-only)
+- **Zoom indicator + controls hint:** top-left readout "⊕ 1.7× · wheel: zoom · middle-drag: pan" (outlined),
+  so the zoom/pan mechanic is discoverable and the current zoom is visible.
+
+### Playtest (REAL — Xvfb render, top-strip crop)
+- After-render: the hint sits cleanly below the title bar, legible on terrain. **TestPhase9 67/0, TestStrategicAI 83/0.**
+  Failure class: NONE (view-only).
+
+### COMPACT (5-loop checkpoint; last compact iter132)
+Reviewed map-loop Run-History entries iter128–137: all DISTINCT changes (terrain texture+borders, coastline,
+palette+snow, labels, relief, roads, zoom+icons, biome-smoothing, legend-highlight, zoom-indicator) — no
+duplication, nothing in both Active & Resolved. Run History left intact (append-only). The single live backlog
+is the line below.
+
+### Backlog (current, deduped): per-faction city-icon styling (distinct silhouettes); chrome polish (bottom
+Develop/Raise/March/Diplomacy bar + top bar); battle/army marker clarity (needs an army/battle present to verify);
+day/season tint. (Map looks/usability are now strongly overhauled across 10 passes.)
+
 ## Iteration 136 — 2026-06-17  (MAP-OVERHAUL LOOP #9 — highlight the player's kingdom in the legend)
 
 ### Source
