@@ -75,7 +75,30 @@ func _ready() -> void:
 func _connect_tutorial() -> void:
 	var ts = get_node_or_null("/root/TutorialSystem")
 	if ts != null and ts.has_signal("tutorial_hint"):
-		ts.tutorial_hint.connect(func(_msg): say("tutorial_hint"))
+		ts.tutorial_hint.connect(_on_tutorial_hint)
+
+# Tutorial pop-ups carry dynamic text, so play the clip that actually READS this hint
+# (matched by a stable keyword) rather than a generic sting. Falls back to the generic
+# tutorial_hint clip if a hint isn't recognised.
+const _TUTORIAL_VO: Array = [
+	["Welcome, commander",        "tut_welcome"],
+	["Village Hall established",   "tut_farm"],
+	["Build a Granary",           "tut_granary"],
+	["Food supply secured",       "tut_market"],
+	["issue an Edict",            "tut_edict"],
+	["Tutorial complete",         "tut_done"],
+	["demanding tribute",         "tut_tribute"],
+	["ceasefire ends",            "tut_defense"],
+	["Approval is critically low", "tut_low_pop"],
+	["outbreak is spreading",     "tut_disease"],
+]
+
+func _on_tutorial_hint(msg: String) -> void:
+	for pair in _TUTORIAL_VO:
+		if String(msg).find(String(pair[0])) != -1:
+			say(String(pair[1]))
+			return
+	say("tutorial_hint")  # fallback for any unrecognised hint
 
 # The player's seat (Village Hall / Keep) was razed — that's the run-ending defeat. Only the
 # human player's seat speaks (not an AI's), and only the seat (not every lost building).
