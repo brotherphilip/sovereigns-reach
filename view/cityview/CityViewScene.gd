@@ -340,8 +340,18 @@ func _dev_autoplay() -> void:
 				if GameState._grid != null:
 					GameState._grid.set_building_at(gx + dx, gy + dy, b["id"])
 					GameState._grid.set_field_at(gx + dx, gy + dy, field)
+	# A standing garrison so the realm can survive the post-grace sieges (a food-only,
+	# defenceless seat loses its keep ~day 72 — verified iter158; defenders are needed).
+	var US = preload("res://simulation/units/UnitState.gd")
+	var garrison := ["swordsman", "swordsman", "archer", "archer", "pikeman", "militia",
+		"swordsman", "archer", "pikeman", "militia", "crossbowman", "captain"]
+	for i in garrison.size():
+		var gx: int = clampi(_keep_x - 3 + (i % 4) * 2, 2, 196)
+		var gy: int = clampi(_keep_y - 3 + (i / 4) * 2, 2, 196)
+		GameState.players[0]["units"].append(US.create(garrison[i], 0, gx, gy, GameState._next_unit_id))
+		GameState._next_unit_id += 1
 	SimulationClock.set_speed(SimulationClock.SPEED_FASTEST)
-	print("[CityView] SR_AUTOPLAY: seeded economy, running at top speed")
+	print("[CityView] SR_AUTOPLAY: seeded economy + %d-unit garrison, running at top speed" % garrison.size())
 
 func _dev_spawn_workers() -> void:
 	var BState = preload("res://simulation/buildings/BuildingState.gd")
