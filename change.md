@@ -33,14 +33,42 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
   Case C) + a headless repro.
 - **30 min = Day 150: MET & CONFIRMED (3 clean live runs, iter121–122)** — Day 162 / 161 / 161, hall healthy
   (hp ~478–484, siege_ready, popularity 69–73). Enabled by iter120 keep-repair + iter121 fire-hardened seat.
-- **CURRENT BAR (raised iter122): 45 min = Day 225** single-life survival, live mouse play. *Why:* survival is
-  now mechanically robust (a prepared realm out-lasts siege+fire), so Day-225 tests whether the late-game stays
-  engaging over a longer haul or just COASTS. If it coasts trivially, the next work is late-game THREAT/ENGAGEMENT
-  escalation (the loop's "harder to satisfy, not coasting" mandate) — decide from the Day-225 probe's evidence.
-- **Next escalation candidates (after 45 min):** late-game threat scaling; content/variety; engagement/no-dead-time;
-  multi-seed robustness.
+- **CURRENT BAR: 45 min = Day 225** single-life survival, live mouse play. **REACHED with ACTIVE play (1/3, iter123):**
+  a run that kept building orchards reached **Day 235** healthy (popularity 73, food 157). A STATIC 3-orchard build
+  does NOT make it — it starves late (pop eroded 72→29 by day 223). So the late-game does NOT coast: it demands
+  ongoing FOOD development (good engagement). Need 2 more clean Day-225 runs (with active food expansion).
+- **Next escalation candidates (after 45 min ×3):** late-game population decline (pop_count drifts ~16→9 — investigate
+  for longer survival); content/variety; engagement/no-dead-time; multi-seed robustness; tighter/stress input.
 
 ---
+
+## Iteration 123 — 2026-06-17  (Day-225 probe: the late-game demands FOOD development, not coasting)
+
+### Source
+Current bar Day 225. Probe whether the late-game coasts (mechanically robust) or has a real challenge.
+
+### Change made
+- **`CityViewScene.gd`: SR_TELEMETRY now logs `population`** (12th column) — to test the food/population hypothesis.
+
+### Playtest (REAL — two live runs, Xvfb :99, SR_TELEMETRY + screenshots)
+- **Probe 1 — STATIC build (3 orchards, no expansion):** reached Day 223 but **STARVING** — food collapsed to ~0
+  from ~day 120; **popularity eroded 72.6 → 29.3** (heading to the <10 revolt floor). Hall FULL (hp 500, siege/fire
+  solved). So a static build does NOT reach Day 225 — death-by-starvation, not siege.
+- **Probe 2 — ACTIVE food expansion (kept building orchards mid-run):** reached **Day 235** HEALTHY — popularity
+  73.3, food 157, 12 buildings, hall 466. The bar IS reachable with engaged play.
+
+### Post-mortem — TARGET REACHED with active play (Day 235); the late-game does NOT coast
+- **Corrected two hypotheses with the population telemetry:** population is **stable→DECLINING** (pop_count
+  50→~16→9), NOT growing. So the food collapse isn't "outgrowing population" and isn't "coasting" — it's that **3
+  orchards are MARGINAL and seasonal winter troughs deepen over a long horizon until they hit 0**; more orchards
+  give the buffer to ride out winters. The late-game genuinely demands ongoing food development (good engagement).
+- **New watch-item:** population drifts down (~16→9) late-game — investigate for even-longer survival (births vs
+  deaths/aging); not blocking Day-225 (popularity stayed healthy in probe 2).
+
+### Active Backlog
+**Design (toward Day 225):** 2 more clean Day-225 confirmations using active food expansion (the realistic
+playthrough). **Design (investigate):** late-game population decline (~16→9). **Optional:** spectator edge cases.
+**User-only:** ear-check narration; ear-tune SFX.
 
 ## Iteration 122 — 2026-06-17  ★ MILESTONE: 30 min / Day 150 CONFIRMED ×3 — bar raised to 45 min / Day 225 ★
 
