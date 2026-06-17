@@ -90,6 +90,36 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 165 — 2026-06-18  (DEV-LOOP — visuals/sound #2: duck music under herald narration)
+
+### Plan
+Keep the music from masking the spoken VO: while the herald narration plays, fade the music bed down, then
+restore it. Smooth (no abrupt jump). Expected: VO always reads clearly over the bed.
+
+### Implement
+- `NarrationPlayer.is_speaking()` — true while the voice player is playing.
+- `MusicPlayer._process` polls it each frame and glides the Music bus toward DUCK_DB (−11 dB under the bed) while
+  speaking, back to the resting level after. Logic split into a deterministic `_tick_duck(speaking, delta)` so it
+  is testable without real audio. Resting level tracked as `_base_db` so `set_music_volume_db()` and ducking
+  compose cleanly. Pause-proof (process_mode ALWAYS).
+
+### Playtest (REAL — headless test + Xvfb boot)
+- **`tests/TestMusic.gd` 13/0** (+3): driving `_tick_duck(true,…)` ~2s converges to ~−11 dB below the bed; driving
+  it `false` ~2s restores to the resting bed (|offset| < 0.5 dB).
+- Real Xvfb boot with the per-frame ducking active: clean screenshot, no audio/script errors.
+- HONEST LIMIT: convergence + wiring verified; the *audible* duck feel is not headless-capturable — user ear-check.
+
+### Docs
+- Updated `systems_bibliography.html` (Audio section ducking note + header).
+
+### Active Backlog
+- **Visuals/Sound focus (iter164-168):** user ear-check music level/effect strength + duck depth; ambient/weather
+  audio + a volume options slider (set_music_volume_db ready); then visual polish passes.
+- **Design Iteration (deferred):** independents deplete late-game; spatial index ~15k+ units; coalition tuning.
+
+### Confidence: HIGH on glide logic (TestMusic 13/0 + clean boot); LOW on audible feel (user ear-check).
+Iterations since last command/compact: 3 (last compact iter162).
+
 ## Iteration 164 — 2026-06-18  (DEV-LOOP — USER-DIRECTED visuals/sound #1: background-music playlist)
 
 ### Plan
