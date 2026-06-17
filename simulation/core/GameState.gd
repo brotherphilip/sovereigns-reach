@@ -684,8 +684,13 @@ const SIEGE_READY_THRESHOLD: int = 3
 # Damage a single siege strike deals to the seat. Both are well below the Village Hall's
 # 500 HP, so ONE strike can never destroy the seat — the player always gets several
 # strikes' worth of days (with cooldowns + the pre-siege warning) to break the assault.
-# A prepared ruler (walls/garrison) takes barely half the damage of an undefended one.
-const SIEGE_DAMAGE_DEFENDED: int = 75
+# A prepared ruler (walls/garrison) takes a third of the damage of an undefended one.
+# Tuned from a live capstone playtest (iter118): the real game spawns TWO besiegers
+# (bandit_king + ashen_barony), so a defended seat takes ~8 strikes over 100 days. At 75 that
+# was 600 > 500 HP — a fully siege-ready seat still fell ~day 91 (the taught "build defences"
+# strategy couldn't reach the 20-min goal). At 50, two factions deal ~400 < 500, so a prepared
+# ruler survives Day 100 with margin, while an undefended seat (150) still falls ~day 91.
+const SIEGE_DAMAGE_DEFENDED: int = 50
 const SIEGE_DAMAGE_UNDEFENDED: int = 150
 func is_siege_ready(player: Dictionary) -> bool:
 	var points: int = 0

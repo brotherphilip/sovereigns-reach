@@ -69,7 +69,7 @@ func _land_siege(faction: Dictionary) -> void:
 func _test_siege_survival() -> void:
 	print("\n--- Siege survival: prepared vs unprepared ---")
 	_siege_test_day = 0
-	# Defended: hall + 3 watchtowers → siege-ready → ~75 damage/siege, weathers many.
+	# Defended: hall + 3 watchtowers → siege-ready → reduced (defended) damage/siege, weathers many.
 	var p := _fresh_player(60)
 	_gs.citizens = []
 	var hall := BuildingState.create("village_hall", 0, 50, 50, 1)
@@ -85,7 +85,7 @@ func _test_siege_survival() -> void:
 	_land_siege(faction)
 	var drop_d: int = hp0 - int(hall.get("hp", 0))
 	ok("a siege landed on the defended seat", drop_d > 0)
-	ok("defended seat is blunted to ~75 damage", drop_d == 75)
+	ok("defended seat is blunted to the defended rate", drop_d == _gs.SIEGE_DAMAGE_DEFENDED)
 	var sieges := 1
 	while int(hall.get("hp", 0)) > 0 and sieges < 8:
 		_land_siege(faction)
@@ -103,7 +103,7 @@ func _test_siege_survival() -> void:
 	var u0: int = int(hall2.get("hp", 0))
 	_land_siege(faction2)
 	var drop_u: int = u0 - int(hall2.get("hp", 0))
-	ok("undefended seat takes the full 150 damage", drop_u == 150)
+	ok("undefended seat takes the full undefended damage", drop_u == _gs.SIEGE_DAMAGE_UNDEFENDED)
 
 func ok(label: String, cond: bool) -> void:
 	if cond:

@@ -54,7 +54,7 @@ func _add(p: Dictionary, t: String, x: int, y: int, id: int) -> void:
 		p["buildings"].append(b)
 
 # Build a fresh game with a hostile bandit faction; `defended` adds siege-ready defences.
-func _setup(defended: bool) -> Dictionary:
+func _setup(defended: bool, two_factions: bool = false) -> Dictionary:
 	_gs.players.clear()
 	_gs.ai_factions.clear()
 	_gs._grid = null
@@ -76,6 +76,10 @@ func _setup(defended: bool) -> Dictionary:
 		_add(p, "lookout_tower", 53, 50, id); id += 1
 		_add(p, "gatehouse", 48, 50, id); id += 1
 	_gs.add_ai_faction(AIFaction.ARCHETYPE_BANDIT, 70, 70)
+	if two_factions:
+		# Mirror the LIVE world (CityViewScene spawns bandit_king + ashen_barony): TWO besiegers
+		# deal ~8 strikes over 100 days, which a defended seat must still survive (iter118).
+		_gs.add_ai_faction(AIFaction.ARCHETYPE_ASHEN_BARONY, 30, 70)
 	return p
 
 func _run_days(days: int) -> void:
@@ -105,3 +109,15 @@ func _run_all() -> void:
 	_run_days(100)
 	ok("the prepared seat is still attacked (strikes land)", _struck > 0)
 	ok("the prepared seat SURVIVES to Day 100 (hall stands)", not _hall_destroyed and _hall_hp() > 0)
+
+	# Case C — the LIVE world has TWO besiegers (bandit_king + ashen_barony). A live capstone
+	# playtest (iter118) showed a fully siege-ready seat still fell ~day 91 because two siege
+	# chains dealt ~8 strikes (8×75=600 > 500 HP) — the taught "build defences" strategy couldn't
+	# reach the 20-min goal. With SIEGE_DAMAGE_DEFENDED tuned to 50, a prepared seat must now
+	# weather BOTH factions to Day 100. (TestSiege previously only covered one faction.)
+	print("\n[Defended seat vs TWO factions — the real live world must be survivable]")
+	var p2 := _setup(true, true)
+	ok("siege-ready vs two factions", _gs.is_siege_ready(p2))
+	_run_days(100)
+	ok("two siege chains both strike", _struck > 0)
+	ok("a PREPARED seat survives TWO besiegers to Day 100", not _hall_destroyed and _hall_hp() > 0)
