@@ -53,18 +53,33 @@ static func decide(world: Dictionary, kingdom: Dictionary, players: Array, tick:
 		var target_id: int = plan["target_id"]
 		# Aggressive factions accept worse odds; cautious ones want a clear margin.
 		var needed: int = maxi(3, int(float(target_def) * (1.25 - p.get("aggression", 0.6) * 0.45)))
-		# Coalition: when marching on the runaway leader, commit harder (accept ~even odds) so the
-		# gang-up actually wears the crown down rather than waiting for a comfortable margin.
-		if plan.get("vs_leader", false):
-			needed = maxi(3, int(float(target_def) * 0.9))
-		needed = mini(needed, CampaignSystem.MAX_ARMY_SIZE)
+		var vs_leader: bool = plan.get("vs_leader", false)
+		if vs_leader:
+			# Coalition: field a host big enough to actually CRACK the runaway's developed city
+			# (its capitals out-defend a lone 40-army, so a naive gang-up just bounced off — the
+			# crown was never curbed). Stack a real siege host via repeated levies (raise_army
+			# merges batches), uncapped by the single-levy MAX_ARMY_SIZE.
+			needed = maxi(CampaignSystem.MAX_ARMY_SIZE, int(float(target_def) * 1.2))
+		else:
+			needed = mini(needed, CampaignSystem.MAX_ARMY_SIZE)
 
 		# How big a force can we already field from a stationed army at from_id?
 		var existing: int = _idle_army_size_at(kingdom, from_id)
 		var shortfall: int = maxi(0, needed - existing)
-		if shortfall > 0 and CampaignSystem.can_raise_army(world, kingdom, from_id, shortfall):
-			CampaignSystem.raise_army(world, kingdom, from_id, shortfall)
-			events.append("army_raised")
+		if shortfall > 0:
+			if vs_leader:
+				# Only commit once we can fund the WHOLE siege host in one day — an idle partial
+				# host would just be re-absorbed into the staging garrison next tick (wasted gold),
+				# so save up instead and strike when ready. Then stack it in MAX_ARMY_SIZE batches.
+				if kingdom.get("treasury", 0) >= shortfall * CampaignSystem.GOLD_PER_SOLDIER:
+					while _idle_army_size_at(kingdom, from_id) < needed:
+						var batch: int = mini(CampaignSystem.MAX_ARMY_SIZE, needed - _idle_army_size_at(kingdom, from_id))
+						if batch <= 0 or CampaignSystem.raise_army(world, kingdom, from_id, batch) < 0:
+							break
+					events.append("army_raised")
+			elif CampaignSystem.can_raise_army(world, kingdom, from_id, shortfall):
+				CampaignSystem.raise_army(world, kingdom, from_id, shortfall)
+				events.append("army_raised")
 
 		# Launch if we now have the strength staged adjacent to the target.
 		var army_id: int = _idle_army_id_at(kingdom, from_id)
