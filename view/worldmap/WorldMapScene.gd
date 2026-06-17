@@ -66,6 +66,12 @@ func _init_and_build() -> void:
 				GameState.world["selected_city_id"] = c.get("id", -1)
 				break
 
+	# Dev/headless hook: drive a competent climb for SR_CLIMB game-days BEFORE building the
+	# scene, so a screenshot shows a climbed realm (higher title + several gold holdings).
+	# Dev-only; uses the same public player command surface the real game uses.
+	if OS.get_environment("SR_CLIMB") != "":
+		_dev_autoclimb(int(OS.get_environment("SR_CLIMB")))
+
 	_build_scene()
 	SimulationClock.set_speed(SimulationClock.SPEED_PAUSED)
 
@@ -98,6 +104,44 @@ func _dev_screenshot(path: String) -> void:
 	get_viewport().get_texture().get_image().save_png(path)
 	print("[WorldMap] screenshot saved: %s" % path)
 	get_tree().quit()
+
+# Dev-only: advance the strategic layer `days` days while playing a competent climb
+# (develop-first + capped expansion) through GameState's public player commands — mirrors
+# tests/TestKingClimb.gd so the on-screen render matches the verified headless climb.
+func _dev_autoclimb(days: int) -> void:
+	var CampaignSystem = preload("res://simulation/strategic/CampaignSystem.gd")
+	var pfid: int = _CampaignMap.player_faction_id(GameState.world)
+	var ids: Array = _CampaignMap.faction_city_ids(GameState.world, pfid)
+	if ids.is_empty():
+		return
+	var home: int = ids[0]
+	GameState.world["player_seat_city_id"] = home
+	var k: Dictionary = _CampaignMap.kingdom_by_id(GameState.world, pfid)
+	for _d in range(days):
+		GameState.advance_strategic_day()
+		var low: int = GameState.player_lowest_dev_city()
+		if low >= 0 and GameState.can_player_develop_city(low) and int(k.get("treasury", 0)) > 250:
+			GameState.player_develop_city(low)
+		if CampaignSystem.total_army_size(k) == 0 and _CampaignMap.faction_city_ids(GameState.world, pfid).size() < 16:
+			var best: int = -1
+			var bd: int = 1 << 30
+			for t in _CampaignMap.frontier_targets(GameState.world, pfid):
+				var tc: Dictionary = _CampaignMap.city_by_id(GameState.world, t)
+				if _CampaignMap.owner_of(tc) == pfid:
+					continue
+				var dd: int = _CampaignMap.city_defense(tc)
+				if dd < bd:
+					bd = dd; best = t
+			if best >= 0:
+				var host: int = mini(maxi(40, int(ceil(float(bd) * 1.7))), int(k.get("treasury", 0)) / 5)
+				if host >= int(ceil(float(bd) * 1.1)):
+					while CampaignSystem.total_army_size(k) < host and int(k.get("treasury", 0)) >= 200:
+						GameState.player_raise_army(home, mini(40, host - CampaignSystem.total_army_size(k)))
+					var aid: int = GameState.player_army_at_city(home)
+					if aid >= 0:
+						GameState.player_launch_campaign(aid, best)
+	# Re-center selection on the (still-owned) seat so the HUD reads the climbed realm.
+	GameState.world["selected_city_id"] = home
 
 func _dev_jump_to_spectator() -> void:
 	var cs: Array = GameState.world.get("world_map", {}).get("cities", [])
