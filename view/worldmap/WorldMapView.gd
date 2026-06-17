@@ -230,6 +230,23 @@ func _draw_background() -> void:
 				c = _SNOW
 			else:
 				c = Color(clampf(c.r * shade, 0.0, 1.0), clampf(c.g * shade, 0.0, 1.0), clampf(c.b * shade, 0.0, 1.0))
+				# Soften biome borders (overhaul iter8): a land cell touching a DIFFERENT land
+				# biome blends toward that neighbour, so boundaries read as gradients rather than
+				# hard grid lines. Coast/sea handled separately; snow peaks kept crisp.
+				var bl_r: float = 0.0; var bl_g: float = 0.0; var bl_b: float = 0.0
+				var bl_n: int = 0
+				for d in [[1, 0], [-1, 0], [0, 1], [0, -1]]:
+					var nx: int = gx + d[0]
+					var ny: int = gy + d[1]
+					if nx < 0 or ny < 0 or nx >= cols or ny >= rows:
+						continue
+					var nb: int = tiles[ny * cols + nx]
+					if nb != WorldMapData.B_SEA and nb != b:
+						var ncol: Color = _biome_color(nb)
+						bl_r += ncol.r; bl_g += ncol.g; bl_b += ncol.b; bl_n += 1
+				if bl_n > 0:
+					var inv: float = 1.0 / float(bl_n)
+					c = c.lerp(Color(bl_r * inv, bl_g * inv, bl_b * inv), 0.32)
 			draw_rect(Rect2(gx * cw, gy * ch, cw + 1.0, ch + 1.0), c)
 			# Decorative relief (overhaul iter5): sparse conifers on forest + peak glyphs on
 			# mountains, so the land reads as actual woods/ranges rather than flat colour cells.
