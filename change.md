@@ -38,12 +38,50 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 - **CURRENT BAR (raised iter125): 60 min = Day 300** single-life survival, live mouse play, WITH genuine event
   interaction. **REACHED 1×/3 (iter125):** a blind-interactive run hit **Day 316** healthy (pop 81.7). A
   perception-driven run reached Day 278 alive. Need 2 more clean Day-300 confirmations.
-- **BLOCKER emerging:** late-game **population collapse** — pop_count drifts 16→3 over a long run (food troughs +
-  aging/few births), leaving a near-empty "surviving" realm. Investigate before Day-300 is trustworthy.
+- **Population collapse FIXED (iter126):** founding settlers were one age-cohort that died together mid-game;
+  staggered their starting ages → population now SUSTAINS (probe ~12-16 at cap16; live run GREW 14→23 with hovels).
+- **USER FEEDBACK (iter126, watching live):** the realm looked static — "no growth, troops frozen, nothing
+  happening." Real: my harness built a minimal set then idled (no hovels→no growth; 0 troops recruited; night made
+  villagers-indoors look frozen). Pivoted to a growing-town run (hovels+variety) → town GREW but then STARVED
+  (food not scaled to the bigger pop → popularity crashed to 9). OPEN: (a) growth needs food scaled to population;
+  (b) recruiting/commanding TROOPS via blind screen-clicks is unreliable (barracks selection missed) — needs
+  careful coord calibration or a dev-hook garrison demo (awaiting user's choice).
 - **Next escalation candidates (after 45 min ×3):** late-game population decline (pop_count drifts ~16→9 — investigate
   for longer survival); content/variety; engagement/no-dead-time; multi-seed robustness; tighter/stress input.
 
 ---
+
+## Iteration 126 — 2026-06-17  (FIX population collapse; user feedback → growing-town play; troops via clicks unreliable)
+
+### Source
+iter125 blocker (population collapse) + user watching live: "no growth, troops frozen, nothing happening."
+
+### Change made
+- **`CitizenSystem.gd` (committed `05f0905`):** initial settlers get a SPREAD of ages (150–510 days, an age
+  pyramid) instead of one 288–432 cohort — staggers old-age deaths so the realm doesn't wither mid-game.
+- **`TestPeople.gd`:** new long-run population-sustain regression (start 14 → final 28 with housing; lowest ≥ 8).
+
+### Playtest (REAL — headless probe + visible live runs)
+- **Headless probe:** pre-fix pop 16→2 by day 320; post-fix sustains ~12–16 (cap 16) and grows with hovels.
+- **Live verification run:** population held 16→17→14 through day 200 (was collapsing) — fix confirmed in-game.
+- **Living-town run (user-requested richness):** built hall+orchards+granary+5 hovels+market+well+woodcutter+
+  walls+barracks; **population GREW 14 → 23**. But I grew housing without scaling FOOD → food hit 0 ~day 120 →
+  **popularity crashed to 9** (near-revolt). Troops stayed 0 (barracks selection-click missed → "Nothing selected").
+
+### Post-mortem
+- **Population collapse: RESOLVED** (sustains + grows). Failure class for the town run: LEGITIMATE near-death by
+  STARVATION — a growing town needs FOOD scaled to population (my script grew hovels but not orchards).
+- **Harness limitation surfaced:** recruiting/commanding TROOPS via blind screen-clicks is unreliable (precise
+  building/unit selection misses). Needs careful coord calibration or a dev-hook garrison demo. **Awaiting user.**
+
+### Active Backlog
+**Required (harness/play):** when growing the town, scale orchards with hovels (else starvation). Troops:
+calibrate recruit/select/move coords OR add a dev-hook garrison demo (user to choose). **Design:** continue
+Day-300 confirmations. **Optional:** spectator edge cases. **User-only:** ear-check narration; ear-tune SFX.
+
+### Resolved (with evidence)
+- **Late-game population collapse** → staggered founding-settler ages (CitizenSystem) — probe: 16→2 became
+  sustain ~12–16; live: held to day 200; TestPeople long-run regression (start 14 → final 28).
 
 ## Iteration 125 — 2026-06-17  (Day-225 confirmed ×3 → bar 60min; PERCEPTION added; population-collapse found)
 
