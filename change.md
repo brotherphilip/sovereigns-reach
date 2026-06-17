@@ -36,15 +36,57 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 - **FLOOR — Day-100 (20-min) single-life survival: MET & MULTI-SEED CONFIRMED (iter140–142).** Headless managed
   runs through the REAL placement path survive Day 100 on **5 distinct seeds** (12345, 4242, 999, 7777, 31337),
   min popularity 45–49, hall intact. Food trough solved by the iter140 granary buffer (200→300) + stacking.
-- **NEW BAR (raised iter142): exercise the NEW core loop.** Survival alone no longer proves the game — a run must
-  also demonstrate **expansion + the feudal-title climb**: capture ≥1 neighbouring village and rise at least one
-  title (Reeve→Bailiff+). This path is currently UNTESTED by the survival harness — top priority to instrument.
+- **NEW CORE LOOP — expansion + title climb: MET (iter144).** Headless campaign harness: the player captures
+  independents and climbs **Reeve → Knight (day 40) → Baron → Earl (day 80, 11 holdings)**. Enabled by iter143
+  (stop AI tribute-draining the player) + iter144 (player strategic income ×4 + start war-chest 150). First
+  capture verified at day 12 (army 40 vs def-25 independent → holdings 1→2).
+- **NEXT BAR (raised iter144): DURABLE conquest + reach the top.** Conquests currently aren't held — the AI
+  reconquers (harness: 11 holdings day 80 → 1 by day 120). A run must HOLD gained territory against AI
+  counter-attack and climb toward King. Top priority: conquest durability vs AI counter-attack.
 - **Robustness:** keep multi-seed survival (≥5 seeds) green; ALWAYS run seeds in ISOLATED processes (one godot
   per seed) — the in-process multi-seed runner leaks GameState between seeds (iter141, partially fixed iter142).
 - **ARCHIVED (old model, real evidence):** Day-100 ×3 live wins (iter118-119); Day-150 ×3 (iter121-122);
   Day-225 ×3 (iter123-125); Day-300 reached 1×/3 (iter125). Kept for history; not the current bar.
 
 ---
+
+## Iteration 144 — 2026-06-17  (DEV-LOOP — MILESTONE: make the expansion + title climb achievable)
+
+### Plan
+Fix the iter143 blocker: player strategic income (+2/day) out-paced by AI conquest of independents. Make a
+first capture + title rise achievable; verify end-to-end via the campaign harness.
+
+### Change
+- **Player strategic income ×4** (`KingdomEconomy.PLAYER_INCOME_MULT=4`, is_player only — AI balance untouched):
+  the player actively develops their seat, so their holdings out-earn a passive AI province.
+- **Player start war-chest 80 → 150** (CampaignMap) — enough to mount a first conquest in the early window.
+
+### Playtest (REAL — headless campaign harness on the player strategic command API)
+- **First capture: WORKS.** Day 12, treasury funded army 40 vs the weakest frontier independent (def 25) →
+  **holdings 1 → 2** (was: stuck at 1 forever).
+- **Full loop: WORKS — title CLIMBS.** Campaign loop (develop seat + take weakest independent when affordable):
+  **Reeve → Knight (day 40, 5 holdings) → Baron → Earl (day 80, 11 holdings).** The new core loop is achievable.
+- Tests green: TestStrategicAI 83/0, TestFeudalRank 19/0.
+
+### MILESTONE MET: expansion + feudal-title climb is now achievable (was impossible pre-iter143/144).
+
+### Post-Mortem (loop reachable — next bottleneck)
+- **Conquests aren't DURABLE:** after ~day 80 AI great houses reconquer the player's holdings (11 → 6 → 1 by
+  day 120). Holding territory against AI counter-attack is the next challenge (new bar). The player also hoarded
+  gold while losing land (harness AI is naive, but the AI roll-back is real).
+- **Minor inconsistency:** `GameState.player_title_name()` uses `FeudalRank.current_index` (live, demotes with
+  holdings) while `check_promotion` stores a never-demote max — the HUD title can drop while the win uses the peak.
+  Reconcile (pick one: display peak title, or allow demotion consistently).
+
+### Active Backlog
+- **Design Iteration (TOP):** conquest durability — AI reconquers the player's gains (iter144 evidence). Make held
+  territory defensible / the climb to King reachable.
+- **Required (small):** reconcile title display (current_index vs stored peak) — iter144.
+- **Required (test):** in-process multi-seed runner leaks state → one process per seed (iter141).
+- **Unverified:** `health` frozen at 50 with no sanitation (iter141).
+
+### Confidence: HIGH — first capture + full title climb captured end-to-end (Reeve→Earl, 1→11 holdings); green tests.
+Iterations since last command/compact: 2 (last compact iter142).
 
 ## Iteration 143 — 2026-06-17  (DEV-LOOP — exercise the NEW core loop: expansion + feudal title)
 
