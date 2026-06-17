@@ -267,8 +267,8 @@ const BUILDINGS: Dictionary = {
 		"terrain_req": TERRAIN_ANY, "fire_risk": 0.02, "hp": 100,
 		"requires_tech": [], "produces": {}, "consumes": {},
 		"coverage_radius": 10,
-		"storage_capacity": 200,
-		"expandable": true,
+		"storage_capacity": 300,   # >no-granary default (200); deeper buffer smooths the
+		"expandable": true,        # harvest-cycle trough that bottomed food to 0 (iter140 evidence)
 		"description": "Stores all food. Controls rationing. Vital to protect.",
 	},
 	"church": {
