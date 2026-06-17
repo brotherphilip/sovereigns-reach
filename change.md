@@ -58,16 +58,57 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
   extended `tests/TestKingClimb.gd` (climb + 100-day post-King durability assertion). NOTE: this also reads as a
   late-game RUNAWAY (a ~16-holding developed realm is near-unstoppable) — a difficulty design judgment, not a bug;
   not patched without direction.
-- **NEXT BAR (raised iter154; on-screen still open): prove the climb ON-SCREEN.** The full loop is proven only via
-  the headless strategic harness — a real in-city + world-map run (Xvfb input) capturing a neighbour and seeing
-  the title promote on-screen would harden it (TOP open item; deferred — needs a small dev hook to inject a
-  climbed state, low marginal value over the iter146 visual pass). Optional: widen to ≥8 seeds.
+- **ON-SCREEN climb proof: MET (iter157).** Real Xvfb screenshots of `WorldMapScene` (default seed): the title
+  HUD reads **"Reeve · 1 village"** at day 0 and **"King · 16 villages"** at Campaign day 130, with a cluster of
+  gold player holdings rendered across the map. The climb is now proven BOTH headlessly (TestKingClimb, 5 seeds)
+  AND on-screen via the new dev-only `SR_CLIMB` hook (drives the same public-command climb before the scene builds).
+- **NEXT BAR (raised iter157): the strategic climb is comprehensively proven — push breadth or new challenge.**
+  Open options (need a pick): (a) widen the King climb to ≥8 seeds; (b) address the late-game RUNAWAY (a ~16-holding
+  developed realm is near-unstoppable) IF harder late-game is wanted — a balance design call awaiting user direction;
+  (c) on-screen in-CITY 20-min survival run (the city-view tactical layer, distinct from the strategic map).
 - **Robustness:** keep multi-seed survival (≥5 seeds) green; ALWAYS run seeds in ISOLATED processes (one godot
   per seed) — the in-process multi-seed runner leaks GameState between seeds (iter141, partially fixed iter142).
 - **ARCHIVED (old model, real evidence):** Day-100 ×3 live wins (iter118-119); Day-150 ×3 (iter121-122);
   Day-225 ×3 (iter123-125); Day-300 reached 1×/3 (iter125). Kept for history; not the current bar.
 
 ---
+
+## Iteration 157 — 2026-06-18  (DEV-LOOP — ON-SCREEN climb proof (Reeve→King) via SR_CLIMB; COMPACT)
+
+### Plan
+Close the long-deferred on-screen dimension: capture real Xvfb screenshots showing the climb on the actual
+world-map view, not just headless. Compact change.md (due, 5 loops since iter152).
+
+### Implement (dev-only hook, no gameplay change)
+- Added `SR_CLIMB=<days>` to `WorldMapScene._init_and_build`: drives a competent climb (develop-first + capped
+  expansion) through GameState's PUBLIC player commands before the scene builds, mirroring TestKingClimb. Only
+  runs when the env var is set; the normal New-Game path is untouched.
+
+### Playtest (REAL — Xvfb 1280×720 render, opengl3 software, screenshot + crop)
+- Feasibility gate first: baseline `WorldMapScene` render works (284 KB PNG, real map — biome relief, gold player
+  village, grey independents, colored great houses, roads, legend).
+- Title HUD at day 0: **"Reeve · 1 village"** (start-as-one-village confirmed on-screen).
+- After `SR_CLIMB=130` (default seed): title HUD **"King · 16 villages"** at Campaign day 130, with a cluster of
+  GOLD player holdings rendered across the map. The Reeve→King climb is now proven ON-SCREEN.
+- Regression: TestPhase9 (WorldMapController) 67/0 — the added dev hook didn't disturb the view.
+
+### Post-Mortem (TARGET REACHED — on-screen dimension closed)
+- The climb is now proven both headlessly (TestKingClimb, 5 seeds) and on-screen. Raised the bar (Current Targets):
+  remaining options are breadth (≥8 seeds), the late-game runaway (design call), or an on-screen in-CITY survival run.
+
+### COMPACT (5-loop checkpoint; last compact iter152)
+- Current Targets refreshed: floor Day-100 multi-seed (MET); expansion+title (MET iter144); durable conquest (MET
+  iter145); King on 5 seeds ≤d113 (iter153-154); post-King durability (MET iter156); on-screen climb (MET iter157).
+- Latest Active Backlog tight + deduped (below). Resolved items across iters cite real evidence (save/load iter151;
+  stranded-armies iter154; etc.); nothing sits in both Active and Resolved. Run History (older entries) untouched.
+
+### Active Backlog
+- **Design Iteration (deferred / awaits user direction):** late-game runaway difficulty (balance design call);
+  coerce world int fields on load (cleanliness); independents deplete late-game (mechanic); spatial index ~15k+ units.
+- ~~on-screen Xvfb player-climb capture~~ → RESOLVED iter157 (SR_CLIMB hook + screenshots).
+
+### Confidence: HIGH — real Xvfb screenshots show Reeve·1→King·16 on the actual view; TestPhase9 green.
+Iterations since last command/compact: 0 (COMPACTED this iteration, iter157).
 
 ## Iteration 156 — 2026-06-18  (DEV-LOOP — post-King endgame durability: hold under pressure, 5 seeds)
 
