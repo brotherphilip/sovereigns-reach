@@ -78,6 +78,42 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 160 — 2026-06-18  (DEV-LOOP — int-coerce item is a NON-ISSUE; full-suite health check 32/32 green)
+
+### Plan
+Tackle the long-deferred "coerce world int fields on load" item. First verify (don't assume) whether the JSON
+int→float coercion actually causes a functional bug — the iter151 crash was a float in a bitwise op, so check the
+remaining float-sensitive paths: array-indexing by id, and the `str(id)`-keyed diplomacy relations.
+
+### Investigation (REAL — 3 isolated round-trip harnesses)
+- city ids DO come back as float after load (typeof=3, e.g. 5.0) BUT `CampaignMap.city_by_id(world, 5.0)` does
+  NOT crash — Godot 4 truncates float array indices and the scan fallback also matches; returned the right city.
+- `KingdomAI._at_truce` reads `relations[str(fid)]`; relations keys survive load as "1".."3","99". Verified it
+  returns the correct truce/neutral with BOTH an int AND a float fid (`_at_truce(lk0, 1.0)` → true) after load.
+- `owner_of` returns INT across all 69 cities post-load. No path (index / str-key / compare) misbehaves.
+- CONCLUSION: the int→float situation is genuinely COSMETIC — every read site already int()-casts or is float-safe.
+  Implementing a blanket coercion would be risky churn for zero functional benefit, so it is NOT done (ground rule:
+  don't patch a non-bug).
+
+### Playtest (REAL — full headless test suite as a comprehensive health check)
+- **All 32 suites GREEN, 0 failures** (Audio 36, CityGen 25, Economy 13, FeudalRank 19, KingClimb 2, Narration 77,
+  Objectives 30, Pathfinding 17, Paths 16, People 21, Phase1-14 + 9, SaveLoad 13, Seasons 25, Siege 9, Spectator 10,
+  StrategicAI 83, Survival 6, Tutorial 15, UnitAI 23, Workers 21, WorldEvents 46). Confirms the whole game is sound
+  after the recent strategic + view-hook changes (iter153-159).
+
+### No game code change (verification + honest dedup of a non-issue).
+
+### Active Backlog
+- **Design Iteration (deferred / awaits user direction):** late-game runaway difficulty (balance call);
+  independents deplete late-game (mechanic); spatial index ~15k+ units (perf, only at scales the game won't hit yet).
+- ~~coerce world int fields on load~~ → NON-ISSUE iter160 (no functional bug; city_by_id/_at_truce/owner_of all
+  correct post-load; verified by 3 round-trip harnesses). Removed.
+
+### Confidence: HIGH — full suite 32/32 green; the int-coerce item disproven as a bug by real round-trip evidence.
+Iterations since last command/compact: 3 (last compact iter157; next ~iter162).
+NOTE: the autonomous backlog is now exhausted of real defects — remaining items are a design call (runaway) or
+scale-only perf. High-value progress needs USER DIRECTION (new mechanic/content or the difficulty decision).
+
 ## Iteration 159 — 2026-06-18  (DEV-LOOP — DEDUP: the iter158 "siege-loss gap" is already covered)
 
 ### Plan
