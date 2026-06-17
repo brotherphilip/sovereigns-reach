@@ -15,6 +15,14 @@ const CampaignSystem = preload("res://simulation/strategic/CampaignSystem.gd")
 const TICKS_PER_DAY: int = 240
 const TRIBUTE_COOLDOWN_DAYS: int = 12
 
+# Coalition-vs-leader (iter161, user-directed): once a single faction runs away with the
+# campaign, every faction bordering it biases its attacks onto that leader and commits
+# harder — so dominating the map (incl. the PLAYER dominating) means defending the crown
+# against a gang-up, instead of an effortless snowball. Tuned to bite at/after the top of
+# the ladder (Duke≈62) so the climb to King stays reachable but holding it is a fight.
+const COALITION_MIN_SCORE: int = 62      # leader must be at least this dominant (Duke) to draw a coalition
+const COALITION_LEAD_RATIO: float = 1.4  # ...and this far ahead of the 2nd-place faction
+
 # Decide and enact this kingdom's strategic actions for the day. Returns events.
 static func decide(world: Dictionary, kingdom: Dictionary, players: Array, tick: int) -> Array:
 	var events: Array = []
@@ -45,6 +53,10 @@ static func decide(world: Dictionary, kingdom: Dictionary, players: Array, tick:
 		var target_id: int = plan["target_id"]
 		# Aggressive factions accept worse odds; cautious ones want a clear margin.
 		var needed: int = maxi(3, int(float(target_def) * (1.25 - p.get("aggression", 0.6) * 0.45)))
+		# Coalition: when marching on the runaway leader, commit harder (accept ~even odds) so the
+		# gang-up actually wears the crown down rather than waiting for a comfortable margin.
+		if plan.get("vs_leader", false):
+			needed = maxi(3, int(float(target_def) * 0.9))
 		needed = mini(needed, CampaignSystem.MAX_ARMY_SIZE)
 
 		# How big a force can we already field from a stationed army at from_id?
@@ -83,10 +95,16 @@ static func _at_truce(kingdom: Dictionary, other_fid: int) -> bool:
 
 # Weakest enemy city adjacent to one we own, plus the owned city to stage from.
 # Skips cities held by kingdoms we're at truce with. Returns {} if no valid frontier.
+# Coalition: if a runaway leader exists and we border it, we prefer the weakest of THEIR
+# frontier cities over a marginally-softer neutral one — every neighbour ganging onto the
+# crown (the leader itself is exempt and targets normally).
 static func _best_target(world: Dictionary, kingdom: Dictionary) -> Dictionary:
 	var fid: int = kingdom.get("id", -1)
+	var coalition_fid: int = _coalition_target(world)
 	var best: Dictionary = {}
 	var best_def: int = 1 << 30
+	var best_leader: Dictionary = {}
+	var best_leader_def: int = 1 << 30
 	for cid in CampaignMap.faction_city_ids(world, fid):
 		var c: Dictionary = CampaignMap.city_by_id(world, cid)
 		if c.is_empty():
@@ -95,13 +113,44 @@ static func _best_target(world: Dictionary, kingdom: Dictionary) -> Dictionary:
 			var n: Dictionary = CampaignMap.city_by_id(world, nid)
 			if n.is_empty() or CampaignMap.owner_of(n) == fid:
 				continue
-			if _at_truce(kingdom, CampaignMap.owner_of(n)):
+			var on: int = CampaignMap.owner_of(n)
+			if _at_truce(kingdom, on):
 				continue  # honour the truce — don't march on their cities
 			var d: int = CampaignMap.city_defense(n)
 			if d < best_def:
 				best_def = d
 				best = {"target_id": nid, "from_id": cid, "defense": d}
+			if coalition_fid >= 0 and on == coalition_fid and d < best_leader_def:
+				best_leader_def = d
+				best_leader = {"target_id": nid, "from_id": cid, "defense": d, "vs_leader": true}
+	# Gang up on the runaway leader when we border them (we are not the leader ourselves).
+	if not best_leader.is_empty() and fid != coalition_fid:
+		return best_leader
 	return best
+
+# The runaway leader's faction id, or -1 if no one is dominant enough to draw a coalition.
+# Dominance = domain score (Σ 1+development over holdings), the same measure as the feudal
+# title — so the coalition forms exactly when someone is winning the campaign. Symmetric:
+# the player can BE the leader and become the coalition's target.
+static func _coalition_target(world: Dictionary) -> int:
+	var lead_fid: int = -1
+	var lead: int = -1
+	var second: int = -1
+	for k in CampaignMap.kingdoms(world):
+		if not (k is Dictionary and k.get("is_alive", false)):
+			continue
+		var fid: int = k.get("id", -1)
+		var s: int = 0
+		for cid in CampaignMap.faction_city_ids(world, fid):
+			var c: Dictionary = CampaignMap.city_by_id(world, cid)
+			s += 1 + int(c.get("development", c.get("tier", 0)))
+		if s > lead:
+			second = lead; lead = s; lead_fid = fid
+		elif s > second:
+			second = s
+	if lead >= COALITION_MIN_SCORE and float(lead) >= COALITION_LEAD_RATIO * float(maxi(1, second)):
+		return lead_fid
+	return -1
 
 static func _idle_army_id_at(kingdom: Dictionary, city_id: int) -> int:
 	for a in kingdom.get("armies", []):
