@@ -51,6 +51,22 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 135 — 2026-06-17  (MAP-OVERHAUL LOOP #8 — smoother biome transitions)
+
+### Source
+Map-overhaul loop. At the new 1.7× zoom the hard blocky biome edges (sharp colour jumps between cells) stood out.
+
+### Change made (`WorldMapView.gd` `_draw_background`, view-only)
+- **Border blending:** a land cell touching a DIFFERENT land biome blends 0.32 toward the neighbour-average
+  colour, so boundaries read as gradients. Biome INTERIORS keep their vibrant iter3 palette (no re-muddying).
+
+### Playtest (REAL — Xvfb before/after, same zoomed crop)
+- After-render: hills↔plains↔forest edges read as gradients vs. the prior hard blocks; interiors still distinct.
+  **TestPhase9 67/0, TestStrategicAI 83/0.** Failure class: NONE (view-only).
+
+### Backlog (next): map info readout (region/territory, day/season tint); per-faction city-icon styling;
+chrome polish (bottom action bar + Kingdoms legend + top bar); battle/army marker clarity; zoom indicator.
+
 ## Iteration 134 — 2026-06-17  (MAP-OVERHAUL LOOP #7 — ZOOM + pan + zoomed-in default + bigger icons) [USER-DIRECTED]
 
 ### Source
