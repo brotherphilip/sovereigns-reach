@@ -183,9 +183,42 @@ static func tick_armies(world: Dictionary, kingdom: Dictionary, _players: Array,
 				var cap: int = CampaignMap.garrison_cap(here)
 				here["garrison"] = mini(cap, here.get("garrison", 0) + army.get("size", 0))
 				continue  # army absorbed into garrison
+			# Idle on a non-owned (enemy/neutral) tile — a defeated host that halted at the
+			# contested city. Order it to retreat to the nearest owned city instead of
+			# stranding there forever (it would pay upkeep, never regroup, and a human would
+			# have to micro it home). Symmetric for AI and player. If nothing is reachable,
+			# the army simply remains (it has nowhere to fall back to).
+			var retreat_to: int = _nearest_owned_city(world, fid, army.get("location_city_id", -1))
+			if retreat_to >= 0:
+				var path: Array = CampaignMap.bfs_path(world, army.get("location_city_id", -1), retreat_to)
+				if not path.is_empty():
+					army["path"] = path
+					army["dest_city_id"] = retreat_to
+					_begin_hop(world, army)
 		survivors.append(army)
 	kingdom["armies"] = survivors
 	return events
+
+# Nearest city (by road hops) owned by `fid`, searched outward from `from_id`. Returns the
+# city id, or -1 if the faction owns no reachable city. Used to retreat stranded armies.
+static func _nearest_owned_city(world: Dictionary, fid: int, from_id: int) -> int:
+	var start: Dictionary = CampaignMap.city_by_id(world, from_id)
+	if start.is_empty():
+		return -1
+	var visited: Dictionary = {from_id: true}
+	var queue: Array = [from_id]
+	var head: int = 0
+	while head < queue.size():
+		var cur: int = queue[head]
+		head += 1
+		var c: Dictionary = CampaignMap.city_by_id(world, cur)
+		if cur != from_id and CampaignMap.owner_of(c) == fid:
+			return cur
+		for nid in CampaignMap.neighbor_ids(c):
+			if not visited.has(nid):
+				visited[nid] = true
+				queue.append(nid)
+	return -1
 
 # Resolve one assault. Returns a result dict describing the outcome (and mutates
 # state: ownership, garrisons, army size).

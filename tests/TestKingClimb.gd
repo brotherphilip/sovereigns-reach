@@ -57,10 +57,21 @@ func _init() -> void:
 	print("\n=== KingClimb (seed %d): %d passed, %d failed ===" % [seed, pass_count, fail_count])
 	quit(0 if fail_count == 0 else 1)
 
-# Competent player turn: field a host sized to the weakest reachable target, then develop
-# surplus gold into dev-score (King needs both breadth and development).
+# Competent player turn. King's score (88) is driven mostly by DEVELOPMENT, not raw
+# holding count (≈14 holdings × several dev levels), so a player who only conquers and
+# never builds churns at the border forever. So: develop whenever affordable (keeping a
+# gold reserve for one host), and expand only while the realm is still small enough to be
+# worth widening — past a defensible size, pour everything into development.
+const KEEP_RESERVE: int = 250          # gold kept back for raising a defensive host
+const EXPAND_UNTIL_HOLDINGS: int = 16  # beyond this, develop rather than over-extend
+
 func _play_turn(gs, k: Dictionary, pfid: int, home: int) -> void:
-	if CMS.total_army_size(k) == 0:
+	# DEVELOP (does not need the field army home) — the primary engine of title score.
+	var low: int = gs.player_lowest_dev_city()
+	if low >= 0 and gs.can_player_develop_city(low) and int(k.treasury) > KEEP_RESERVE:
+		gs.player_develop_city(low)
+	# EXPAND opportunistically while small; field a host sized to the weakest target.
+	if CMS.total_army_size(k) == 0 and CM.faction_city_ids(gs.world, pfid).size() < EXPAND_UNTIL_HOLDINGS:
 		var best: int = -1
 		var bd: int = 1 << 30
 		for t in CM.frontier_targets(gs.world, pfid):
@@ -79,7 +90,3 @@ func _play_turn(gs, k: Dictionary, pfid: int, home: int) -> void:
 				var aid: int = gs.player_army_at_city(home)
 				if aid >= 0:
 					gs.player_launch_campaign(aid, best)
-	if CMS.total_army_size(k) == 0 and int(k.treasury) > 800:
-		var low: int = gs.player_lowest_dev_city()
-		if low >= 0 and gs.can_player_develop_city(low):
-			gs.player_develop_city(low)
