@@ -31,6 +31,48 @@ var _legend:       Array = []
 var _army_frac:    float = 0.4   # sub-hop march progress, driven each frame by the scene
 var _current_day:  int = 0       # campaign day, for fading battle markers
 
+# ── Zoom & pan (overhaul iter7) ───────────────────────────────────────────────
+# The map layers draw under a zoom/pan transform; the legend stays in screen space.
+# Mouse-wheel zooms toward the cursor; middle-drag pans. Starts zoomed IN, not the
+# whole-continent fit, so cities/armies read large by default.
+const ZOOM_MIN: float = 1.0
+const ZOOM_MAX: float = 4.0
+const ZOOM_DEFAULT: float = 1.7
+var _zoom: float = ZOOM_DEFAULT
+var _pan: Vector2 = Vector2.ZERO
+var _view_inited: bool = false
+var _panning: bool = false
+
+# Clamp the pan so the map always covers the panel (no voids off the edges).
+func _clamp_pan() -> void:
+	var minx: float = minf(0.0, size.x - size.x * _zoom)
+	var miny: float = minf(0.0, size.y - size.y * _zoom)
+	_pan.x = clampf(_pan.x, minx, 0.0)
+	_pan.y = clampf(_pan.y, miny, 0.0)
+
+# Centre the starting view at the default zoom (once size is known).
+func _ensure_view_inited() -> void:
+	if _view_inited or size.x <= 0.0:
+		return
+	_view_inited = true
+	_pan = size * 0.5 * (1.0 - _zoom)
+	_clamp_pan()
+
+# Screen point -> map (world) coordinates, inverting the zoom/pan transform.
+func _to_world(p: Vector2) -> Vector2:
+	return (p - _pan) / _zoom
+
+# Re-zoom keeping the world point under `focus` (screen) fixed (zoom toward cursor).
+func _apply_zoom(new_zoom: float, focus: Vector2) -> void:
+	new_zoom = clampf(new_zoom, ZOOM_MIN, ZOOM_MAX)
+	if is_equal_approx(new_zoom, _zoom):
+		return
+	var world: Vector2 = _to_world(focus)
+	_zoom = new_zoom
+	_pan = focus - world * _zoom
+	_clamp_pan()
+	queue_redraw()
+
 func apply_data(world_map_data: Dictionary) -> void:
 	_data         = world_map_data
 	_road_list    = WorldMapController.get_road_render_list(_data)
@@ -67,6 +109,11 @@ func _draw() -> void:
 	if _data.is_empty():
 		draw_rect(Rect2(Vector2.ZERO, size), Color(0.13, 0.19, 0.10))
 		return
+	_ensure_view_inited()
+	# Ocean base fills the whole panel in SCREEN space so zoom/pan never reveals a void.
+	draw_rect(Rect2(Vector2.ZERO, size), _SEA_DEEP)
+	# Map layers render under the zoom/pan transform.
+	draw_set_transform(_pan, 0.0, Vector2(_zoom, _zoom))
 	_draw_background()
 	_draw_faction_territories()
 	_draw_roads()
@@ -74,35 +121,53 @@ func _draw() -> void:
 	_draw_battles()
 	_draw_cities()
 	_draw_armies()
+	# Reset to screen space for the fixed UI overlay (Kingdoms legend).
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 	_draw_legend()
 
 func _input(event: InputEvent) -> void:
-	if event is InputEventMouseButton and event.pressed \
-			and event.button_index == MOUSE_BUTTON_LEFT:
-		var city_id: int = WorldMapController.find_city_near(_data, event.position, 24.0)
-		if city_id >= 0:
-			city_clicked.emit(city_id)
-		else:
-			# No city under the cursor — see if the player clicked a marching host.
-			var army: Dictionary = WorldMapController.find_army_near(_data, event.position, 16.0, _army_frac)
-			if not army.is_empty():
-				army_inspected.emit(army)
-	elif event is InputEventMouseButton and event.pressed \
-			and event.button_index == MOUSE_BUTTON_RIGHT:
-		# Right-click selects a city for strategic orders (no scene change).
-		var sel: int = WorldMapController.find_city_near(_data, event.position, 24.0)
-		if sel >= 0:
-			city_selected.emit(sel)
+	# Hit-testing happens in MAP (world) space — invert the zoom/pan transform. The pick radius
+	# is divided by zoom so the on-screen grab distance stays constant as you zoom.
+	if event is InputEventMouseButton and event.pressed:
+		match event.button_index:
+			MOUSE_BUTTON_WHEEL_UP:
+				_apply_zoom(_zoom * 1.15, event.position)
+				return
+			MOUSE_BUTTON_WHEEL_DOWN:
+				_apply_zoom(_zoom / 1.15, event.position)
+				return
+			MOUSE_BUTTON_MIDDLE:
+				_panning = true
+				return
+			MOUSE_BUTTON_LEFT:
+				var wp: Vector2 = _to_world(event.position)
+				var city_id: int = WorldMapController.find_city_near(_data, wp, 24.0 / _zoom)
+				if city_id >= 0:
+					city_clicked.emit(city_id)
+				else:
+					var army: Dictionary = WorldMapController.find_army_near(_data, wp, 16.0 / _zoom, _army_frac)
+					if not army.is_empty():
+						army_inspected.emit(army)
+			MOUSE_BUTTON_RIGHT:
+				var sel: int = WorldMapController.find_city_near(_data, _to_world(event.position), 24.0 / _zoom)
+				if sel >= 0:
+					city_selected.emit(sel)
+	elif event is InputEventMouseButton and not event.pressed and event.button_index == MOUSE_BUTTON_MIDDLE:
+		_panning = false
 	elif event is InputEventMouseMotion:
-		var hov: int = WorldMapController.find_city_near(_data, event.position, 24.0)
+		if _panning:
+			_pan += event.relative
+			_clamp_pan()
+			queue_redraw()
+			return
+		var wp: Vector2 = _to_world(event.position)
+		var hov: int = WorldMapController.find_city_near(_data, wp, 24.0 / _zoom)
 		if hov != _hovered_city_id:
 			_hovered_city_id = hov
 			city_hovered.emit(hov)
 			queue_redraw()
-		# No city under the cursor → if a marching host is, read it into the panel too
-		# (hover-to-inspect, the lighter sibling of click-to-inspect).
 		if hov < 0:
-			var army: Dictionary = WorldMapController.find_army_near(_data, event.position, 16.0, _army_frac)
+			var army: Dictionary = WorldMapController.find_army_near(_data, wp, 16.0 / _zoom, _army_frac)
 			if not army.is_empty():
 				army_inspected.emit(army)
 
@@ -127,9 +192,8 @@ func _biome_color(b: int) -> Color:
 	return _SEA_DEEP
 
 func _draw_background() -> void:
-	# Ocean fills the whole panel; the continent sits in the 0..MAP_WIDTH×MAP_HEIGHT
-	# region (the same coordinate space the cities are placed in).
-	draw_rect(Rect2(Vector2.ZERO, size), _SEA_DEEP)
+	# (Ocean base is filled in screen space by _draw before the zoom transform.) The continent
+	# sits in the 0..MAP_WIDTH×MAP_HEIGHT region — the same space the cities are placed in.
 	var biome: Dictionary = _data.get("biome", {})
 	if biome.is_empty():
 		return
@@ -411,9 +475,10 @@ func _draw_armies() -> void:
 # so a lone raiding party and a great army read differently at a glance.
 # Band 0:1-10, 1:11-30, 2:31-60, 3:61-100, 4:100+.
 func _draw_army_marker(p: Vector2, col: Color, band: int, size_count: int) -> void:
-	var pole_h: float = 12.0 + float(band) * 4.0
-	var flag_w: float = 8.0 + float(band) * 2.0
-	var flag_h: float = 5.0 + float(band) * 1.2
+	# Overhaul iter7: bigger so troop hosts read clearly on the map.
+	var pole_h: float = 17.0 + float(band) * 5.0
+	var flag_w: float = 12.0 + float(band) * 3.0
+	var flag_h: float = 7.0 + float(band) * 1.7
 	var pennants: int = band + 1                 # 1..5 flags by band
 	var top := p + Vector2(0, -pole_h)
 	# Shadow + pole.
@@ -430,13 +495,13 @@ func _draw_army_marker(p: Vector2, col: Color, band: int, size_count: int) -> vo
 			base, base + Vector2(flag_w, flag_h * 0.5), base + Vector2(0, flag_h),
 		]), col.darkened(0.45), 1.0)
 	# Foot disc + troop count.
-	draw_circle(p, 3.0 + float(band) * 0.6, Color(0.10, 0.08, 0.06, 0.9))
-	draw_circle(p, 2.0 + float(band) * 0.6, col)
+	draw_circle(p, 4.5 + float(band) * 0.9, Color(0.10, 0.08, 0.06, 0.9))
+	draw_circle(p, 3.0 + float(band) * 0.9, col)
 	var label := Vector2(top.x + flag_w + 2.0, top.y - 1.0)
 	draw_string(ThemeDB.fallback_font, label + Vector2(1, 1), str(size_count),
-		HORIZONTAL_ALIGNMENT_LEFT, -1, 9, Color(0.05, 0.04, 0.03, 0.9))
+		HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(0.05, 0.04, 0.03, 0.9))
 	draw_string(ThemeDB.fallback_font, label, str(size_count),
-		HORIZONTAL_ALIGNMENT_LEFT, -1, 9, Color(0.98, 0.96, 0.90))
+		HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(0.98, 0.96, 0.90))
 
 # ── Kingdom legend ──────────────────────────────────────────────────────────────
 
@@ -471,7 +536,7 @@ func _draw_legend() -> void:
 		y += row_h
 
 func _draw_castle_icon(p: Vector2, faction_col: Color, tier: int, is_player: bool) -> void:
-	var scale: float = 8.0 + tier * 4.0  # tier 0=8, 1=12, 2=16, 3=20
+	var scale: float = 11.0 + tier * 5.0  # bigger castles (overhaul iter7): tier 0=11..3=26
 	var body_col: Color = faction_col if not is_player else Color(0.91, 0.76, 0.26)
 	var dark_col: Color = body_col.darkened(0.35)
 
