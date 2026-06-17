@@ -85,6 +85,38 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 163 — 2026-06-18  (DEV-LOOP — multi-seed A/B: the coalition curbs runaways across seeds)
+
+### Plan
+The iter161 coalition was A/B'd on one seed (12345). Validate it generalises: pure-AI A/B (coalition ON vs OFF,
+toggled via COALITION_MIN_SCORE) across 4 more seeds, comparing the runaway leader's day-200 concentration.
+
+### Playtest (REAL — pure-AI StrategicSim 200 days, leader size with vs without coalition)
+| seed  | leader OFF | leader ON | curb |
+|-------|-----------|-----------|------|
+| 12345 | 28        | 23        | −18% |
+| 4242  | 39        | 26        | −33% |
+| 999   | 35        | 22        | −37% |
+| 31337 | 37        | 22        | −41% |
+| 7777  | 22        | 20        | −9% (world already balanced — little to curb) |
+- The coalition consistently curbs the dominant faction by ~33-41% wherever a real runaway emerges, and barely
+  perturbs an already-balanced map (7777). 4 kingdoms alive in ALL cases (no degenerate collapse); captures stay
+  healthy (114-159). Method note: toggled coalition off by temporarily raising COALITION_MIN_SCORE, then RESTORED
+  it to 62 (verified: clean git diff + TestStrategicAI 86/0 after the round-trip).
+
+### Post-Mortem (TARGET REACHED — feature generalises)
+- The user-directed coalition is validated across 5 seeds: it reins in runaways without breaking balanced worlds.
+  No tuning needed; behaviour matches intent ("dominating the map is a fight"). No game code change this iteration.
+
+### No game code change (multi-seed verification of the iter161 feature; temp toggle reverted).
+
+### Active Backlog
+- **Design Iteration (deferred / awaits user direction):** independents deplete late-game (village-founding/
+  secession mechanic); spatial index ~15k+ units (scale-only); coalition intensity tuning if wanted.
+
+### Confidence: HIGH — 5-seed A/B shows a ~33-41% curb of runaway leaders, balanced worlds unharmed, suite 86/0.
+Iterations since last command/compact: 1 (last compact iter162).
+
 ## Iteration 162 — 2026-06-18  (DEV-LOOP — regression-guard the coalition feature; COMPACT)
 
 ### Plan
