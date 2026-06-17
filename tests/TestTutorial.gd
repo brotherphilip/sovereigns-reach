@@ -20,6 +20,7 @@ func _init() -> void:
 	if _ts == null or _gs == null:
 		print("FATAL: autoloads not found"); quit(1); return
 	_ts.tutorial_hint.connect(func(msg): _hints.append(msg))
+	_run_steps()
 	_run()
 	print("\n=== Tutorial Results: %d passed, %d failed ===" % [_pass, _fail])
 	quit(0 if _fail == 0 else 1)
@@ -36,12 +37,44 @@ func _last_is_defense_hint() -> bool:
 func _bare_player() -> Dictionary:
 	return {"id": 0, "is_alive": true, "buildings": [], "units": []}
 
+# The fleshed-out, data-driven curriculum: start → guided steps → completion, plus the
+# enemy-AI pause flag that holds the world still while the player learns.
+func _run_steps() -> void:
+	print("\n[Data-driven tutorial: start, step progression, AI pause]")
+	_gs.world = {}
+	_gs.players = [_bare_player()]
+	_ts._skipped = false
+	_ts.index = -1
+	_hints.clear()
+	_ts.start()
+	ok("start() begins at step 0", _ts.index == 0)
+	ok("start() pauses enemy AI (tutorial_active)", bool(_gs.world.get("tutorial_active", false)))
+	ok("start() emits the first hint", _hints.size() >= 1 and "Village Hall" in String(_hints[-1]))
+	ok("GameState._ai_paused() true during tutorial", _gs._ai_paused())
+	var tgt: Dictionary = _ts.current_target()
+	ok("first target is to build the village_hall", tgt.get("kind") == "build" and tgt.get("build") == "village_hall")
+
+	# Placing the Village Hall advances to the food step.
+	_ts._on_building_placed(0, "village_hall", 0, 0, 1)
+	ok("placing the hall advances to step 1", _ts.index == 1)
+	ok("step 1 target is a farm", _ts.current_target().get("build") == "apple_orchard")
+
+	# A wrong building does NOT advance.
+	var before: int = _ts.index
+	_ts._on_building_placed(0, "well", 0, 0, 2)
+	ok("a non-target building does not advance", _ts.index == before)
+
+	# Skipping ends the tutorial and resumes enemy AI.
+	_ts.skip_tutorial()
+	ok("skip ends the tutorial", _ts.index == _ts.STEP_DONE and not _ts.is_active())
+	ok("skip resumes enemy AI", not bool(_gs.world.get("tutorial_active", true)))
+
 func _run() -> void:
 	print("\n[Defence hint fires for an undefended realm near the grace cutoff]")
 	# Undefended player, tutorial done, defence hint not yet given.
 	_gs.players = [_bare_player()]
 	_ts._skipped = false
-	_ts.step = _ts.STEP_DONE
+	_ts.index = _ts.STEP_DONE
 	_ts._defense_hint_given = false
 	_hints.clear()
 	_ts._on_tick(15 * 240)   # day 15 — too early

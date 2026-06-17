@@ -1231,7 +1231,7 @@ func simulate_tick(tick: int) -> void:
 	# MARCH on the player's seat once they've assembled a siege against them — so
 	# the early game isn't swarmed by raiders that wipe freshly-recruited units.
 	# (They still defend themselves via auto-aggro if the player attacks.)
-	if not spectator_mode and not ai_factions.is_empty():
+	if not spectator_mode and not ai_factions.is_empty() and not _ai_paused():
 		var keep := Vector2i(-1, -1)
 		if not players.is_empty():
 			keep = Vector2i(players[0].get("keep_x", 100), players[0].get("keep_y", 100))
@@ -1360,6 +1360,8 @@ func simulate_tick(tick: int) -> void:
 		for faction in ai_factions:
 			if not (faction is Dictionary and faction.get("is_alive", false)):
 				continue
+			if _ai_paused():
+				continue  # tutorial: enemy lords take no daily actions
 			var arch: String = faction.get("archetype", "")
 			var ai_events: Array = []
 			match arch:
@@ -1450,8 +1452,10 @@ func simulate_tick(tick: int) -> void:
 				EventBus.ai_faction_defeated.emit(faction.get("id", -1))
 
 		# Strategic / campaign layer: the world-map kingdoms grow, build, raise
-		# armies, wage campaigns and conduct diplomacy each game-day.
-		_tick_strategic_layer()
+		# armies, wage campaigns and conduct diplomacy each game-day. Paused during
+		# the tutorial so the great houses don't expand while the player learns.
+		if not _ai_paused():
+			_tick_strategic_layer()
 
 		# City generation feedback: a spectated town gains buildings as its strategic
 		# development rises; the player's own seat feeds its built-up state back to
@@ -1710,6 +1714,11 @@ func _update_seat_development() -> void:
 		return
 	if implied > int(city.get("development", 0)):
 		city["development"] = implied
+
+# While the tutorial is active the player chose to learn first — freeze ALL enemy action
+# (local raiders + strategic great houses) so the computer can't get ahead during it.
+func _ai_paused() -> bool:
+	return bool(world.get("tutorial_active", false))
 
 func _tick_strategic_layer() -> void:
 	if not world.has("world_map") or world["world_map"].is_empty():

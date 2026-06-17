@@ -98,8 +98,11 @@ func _ready():
 			play(SoundEvent.POPULARITY_CRITICAL)
 	)
 
-	EventBus.connect("prestige_changed", func(_player_id, _old_value, _new_value):
-		play(SoundEvent.PRESTIGE_GAINED)
+	# Prestige drips in every game-day, which made the cue beep once per day (annoying).
+	# Only sound a real, earned jump (milestones/edicts/events ≈ +10 or more), not the drip.
+	EventBus.connect("prestige_changed", func(_player_id, old_value, new_value):
+		if new_value - old_value >= 10.0:
+			play(SoundEvent.PRESTIGE_GAINED)
 	)
 
 	EventBus.connect("unit_killed", func(_unit_id, _killer_id, _cause):

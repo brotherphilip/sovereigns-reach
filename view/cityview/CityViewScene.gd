@@ -45,9 +45,8 @@ func _ready() -> void:
 	SimulationClock.set_speed(SimulationClock.SPEED_NORMAL)
 	# Onboarding + King's Peace intro (only on your own seat, not when spectating a rival).
 	if not _spectator:
-		GameState.world["tutorial_step"] = -1   # fresh game: let the tutorial start from step 0
-		TutorialSystem.start()
-		_hud.show_notification("⚜ The King's Peace shields your realm for %d days — raise farms and defenses before the warlords march." % AIFactionRef.PLAYER_GRACE_DAYS, 10.0)
+		_hud.show_notification("⚜ A ceasefire shields your realm for %d days — raise farms and defenses before rival factions march." % AIFactionRef.PLAYER_GRACE_DAYS, 10.0)
+		_show_tutorial_choice()
 	print("[CityView] Game initialized. Player: %s at (%d,%d)" % [PLAYER_NAME, _keep_x, _keep_y])
 
 # ── City resolution ───────────────────────────────────────────────────────────
@@ -660,6 +659,60 @@ func _on_title_promoted(_title_index: int, title_name: String) -> void:
 var _game_over_shown: bool = false
 
 var _reign_celebrated_shown: bool = false
+
+# On entering your seat, offer a choice: take the guided tutorial (enemy AI paused) or
+# skip straight to free play. Honours a decision already made in a prior session.
+func _show_tutorial_choice() -> void:
+	var saved: int = GameState.world.get("tutorial_index", -999)
+	if saved != -999 and saved != -1:
+		TutorialSystem.start()   # resume an in-progress/finished tutorial silently
+		return
+	SimulationClock.set_speed(SimulationClock.SPEED_PAUSED)
+	var overlay := CanvasLayer.new()
+	overlay.name = "TutorialChoice"
+	overlay.layer = 40
+	add_child(overlay)
+	var panel := Panel.new()
+	panel.position = Vector2(440, 250)
+	panel.size = Vector2(400, 178)
+	var sty := StyleBoxFlat.new()
+	sty.bg_color = Color(0.08, 0.10, 0.07, 0.97)
+	sty.set_border_width_all(2)
+	sty.border_color = Color(0.62, 0.49, 0.22, 0.95)
+	sty.set_corner_radius_all(6)
+	panel.add_theme_stylebox_override("panel", sty)
+	overlay.add_child(panel)
+	var title := Label.new()
+	title.text = "Begin the Tutorial?"
+	title.position = Vector2(0, 18); title.size = Vector2(400, 28)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 18)
+	title.add_theme_color_override("font_color", Color(0.97, 0.85, 0.42))
+	panel.add_child(title)
+	var sub := Label.new()
+	sub.text = "A guided walkthrough of building, growth, defense and expansion.\nEnemy forces stay paused while you learn."
+	sub.position = Vector2(16, 54); sub.size = Vector2(368, 48)
+	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	sub.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	sub.add_theme_font_size_override("font_size", 12)
+	sub.add_theme_color_override("font_color", Color.LIGHT_GRAY)
+	panel.add_child(sub)
+	var yes := Button.new()
+	yes.text = "Begin Tutorial"
+	yes.position = Vector2(40, 122); yes.size = Vector2(150, 40)
+	panel.add_child(yes)
+	var no := Button.new()
+	no.text = "Skip Tutorial"
+	no.position = Vector2(210, 122); no.size = Vector2(150, 40)
+	panel.add_child(no)
+	yes.pressed.connect(func():
+		overlay.queue_free()
+		TutorialSystem.start()
+		SimulationClock.set_speed(SimulationClock.SPEED_NORMAL))
+	no.pressed.connect(func():
+		overlay.queue_free()
+		TutorialSystem.skip_tutorial()
+		SimulationClock.set_speed(SimulationClock.SPEED_NORMAL))
 
 # Reaching Day 100 (20 minutes) is the goal of a life — recognise it with a triumphant
 # moment that HOLDS time, then lets the sovereign keep ruling (it is NOT game over).

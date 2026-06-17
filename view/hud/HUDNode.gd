@@ -12,6 +12,7 @@ const ObjectiveSystem = preload("res://simulation/core/ObjectiveSystem.gd")
 const TechTree = preload("res://simulation/tech/TechTree.gd")
 const StorageSystem = preload("res://simulation/economy/StorageSystem.gd")
 const FoodSystem = preload("res://simulation/economy/FoodSystem.gd")
+const SunMoonClock = preload("res://view/hud/SunMoonClock.gd")
 const EdictSystem = preload("res://simulation/edicts/EdictSystem.gd")
 const NotificationFeed = preload("res://view/hud/NotificationFeed.gd")
 const WeatherSystem = preload("res://simulation/world/WeatherSystem.gd")
@@ -54,6 +55,7 @@ var _storage_label: Label = null
 var _food_label: Label = null
 var _ale_label: Label = null
 var _day_label: Label = null
+var _time_clock: Control = null   # SunMoonClock — day-cycle clock
 var _weather_label: Label = null
 var _prestige_label: Label = null
 var _faith_label: Label = null
@@ -101,9 +103,20 @@ func _ready() -> void:
 	EventBus.gold_changed.connect(_on_gold_changed)
 	EventBus.milestone_earned.connect(_on_milestone_earned)
 	EventBus.objective_updated.connect(_on_objective_updated)
+	if TutorialSystem.has_signal("tutorial_step_changed"):
+		TutorialSystem.tutorial_step_changed.connect(_on_tutorial_step)
 	EventBus.blessing_bestowed.connect(func(_pid, _spent): show_notification(
 		"A Blessing is bestowed upon your realm — popularity rises and your buildings are warded against fire.",
 		5.0, Color(0.85, 0.9, 1.0)))
+
+# Tutorial advanced: point the build menu at the step's category (pulsing the tab) so the
+# highlighted target building is on screen, ready to press.
+func _on_tutorial_step(_idx: int) -> void:
+	var t: Dictionary = TutorialSystem.current_target()
+	if String(t.get("kind", "")) == "build":
+		_show_build_category(int(t.get("cat", _current_build_category)), true)
+	else:
+		_refresh_build_menu()
 
 func _on_tick(tick: int) -> void:
 	_refresh_top_bar()
@@ -365,8 +378,12 @@ func _build_top_bar(vp: Vector2) -> void:
 	_make_res_icon(_top_bar, Vector2(x, 12), "ale");   x += 20
 	_ale_label     = _top_value("0", x, 42); x += 46
 	_top_divider(x); x += 14
-	# ── World: day/time + season/weather ──
-	_day_label     = _top_value("Day 0", x, 146, 14, Color.LIGHT_YELLOW); x += 150
+	# ── World: day-cycle clock + season/weather ──
+	_time_clock = SunMoonClock.new()
+	_time_clock.position = Vector2(x, 6)
+	_time_clock.size = Vector2(150, 40)
+	_top_bar.add_child(_time_clock)
+	x += 158
 	_weather_label = _top_value("Clear", x, 176, 13, Color.LIGHT_CYAN); x += 180
 	_top_divider(x); x += 14
 	# ── Realm: prestige / faith / health ──
@@ -399,10 +416,11 @@ func _refresh_top_bar() -> void:
 	_food_label.tooltip_text = HUDController.get_food_tooltip(p)
 	_ale_label.text     = "%d" % total_ale
 	var _phase: Dictionary = HUDController.get_day_phase(SimulationClock.current_tick)
-	_day_label.text     = "Day %d · %s" % [SimulationClock.game_day(), _phase.get("phase", "Day")]
-	_day_label.tooltip_text = "Time of day: %s\nSeason: %s (Year %d, day %d/%d)" % [
-		_phase.get("phase", "Day"), _phase.get("season", ""), int(_phase.get("year", 1)),
-		int(_phase.get("day_in_year", 1)), int(_phase.get("days_per_year", 8))]
+	if _time_clock != null:
+		var day_frac: float = float(SimulationClock.current_tick % SimulationClock.TICKS_PER_GAME_DAY) \
+			/ float(SimulationClock.TICKS_PER_GAME_DAY)
+		_time_clock.set_time(day_frac, String(_phase.get("phase", "Day")),
+			String(_phase.get("season", "")), SimulationClock.game_day())
 	var _wicon: String = HUDController.get_weather_icon(GameState.weather)
 	# Season (sky-day calendar) shown with the weather — both are "what the world is doing".
 	_weather_label.text = "%s · %s %s" % [
@@ -634,6 +652,12 @@ func _show_build_category(cat: int, pulse: bool = false) -> void:
 	var player: Dictionary = GameState.players[0]
 	var buildings: Array = BuildingRegistry.get_by_category(cat)
 
+	# Tutorial gating: during a build step, only the target building is buildable and it
+	# is highlighted; everything else is greyed so the player can't get lost.
+	var _tut: Dictionary = TutorialSystem.current_target()
+	var _tut_build: bool = String(_tut.get("kind", "")) == "build"
+	var _tut_target: String = String(_tut.get("build", ""))
+
 	for btype in buildings:
 		var defn: Dictionary = BuildingRegistry.lookup(btype)
 		var name_str: String = defn.get("name", btype)
@@ -643,15 +667,20 @@ func _show_build_category(cat: int, pulse: bool = false) -> void:
 		var req_tech: Array  = defn.get("requires_tech", [])
 		var tech_ok: bool    = _tech_met(req_tech, player)
 		var enabled: bool    = can_afford and tech_ok
+		var is_tut_target: bool = _tut_build and btype == _tut_target
+		if _tut_build and not is_tut_target:
+			enabled = false   # tutorial: only the highlighted target may be built
 
 		# Each building is a proper card: bordered, padded panel, with a state colour.
 		var card := PanelContainer.new()
 		card.custom_minimum_size = Vector2(120, 122)
 		var card_sty := StyleBoxFlat.new()
-		card_sty.bg_color = Color(0.17, 0.13, 0.08, 0.96) if enabled else Color(0.12, 0.10, 0.08, 0.92)
+		card_sty.bg_color = (Color(0.22, 0.17, 0.09, 0.99) if is_tut_target
+			else (Color(0.17, 0.13, 0.08, 0.96) if enabled else Color(0.12, 0.10, 0.08, 0.92)))
 		card_sty.set_corner_radius_all(5)
-		card_sty.set_border_width_all(1)
-		card_sty.border_color = Color(0.62, 0.49, 0.22, 0.95) if enabled else Color(0.34, 0.30, 0.26, 0.8)
+		card_sty.set_border_width_all(3 if is_tut_target else 1)
+		card_sty.border_color = (Color(1.0, 0.85, 0.25) if is_tut_target
+			else (Color(0.62, 0.49, 0.22, 0.95) if enabled else Color(0.34, 0.30, 0.26, 0.8)))
 		card_sty.set_content_margin_all(6)
 		card.add_theme_stylebox_override("panel", card_sty)
 		_build_item_container.add_child(card)
@@ -661,7 +690,7 @@ func _show_build_category(cat: int, pulse: bool = false) -> void:
 		card.add_child(vb)
 
 		var name_lbl := Label.new()
-		name_lbl.text = name_str
+		name_lbl.text = ("▶ " + name_str) if is_tut_target else name_str
 		name_lbl.add_theme_font_size_override("font_size", 12)
 		name_lbl.add_theme_color_override("font_color",
 			Color(0.97, 0.92, 0.78) if enabled else Color(0.55, 0.52, 0.48))
