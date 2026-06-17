@@ -54,7 +54,32 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
-## Iteration 148 — 2026-06-18  (DEV-LOOP — verify the strategic world is alive/contested)
+## Iteration 149 — 2026-06-18  (DEV-LOOP — runaway-leader check across seeds; resolved as healthy)
+
+### Plan
+Resolve the iter148 "runaway AI leader" watch-item with multi-seed evidence before acting (no blind balance patch).
+
+### Playtest (REAL — pure-AI StrategicSim, fresh world per seed, 200 days, 3 seeds)
+- seed 12345: house cities [5,10,14,40], top share 58%, 4/4 houses alive, independents 0.
+- seed 4242: [3,9,20,31], top share 49%, 4/4 alive, independents 8.
+- seed 7777: [9,15,17,18], top share 31%, 4/4 alive, independents 10.
+
+### Post-Mortem — NOT a problem (healthy variety)
+- No house is ever eliminated (4/4 alive every seed); top share varies 31–58% (balanced → dominant). That's good
+  per-game variety, not a one-sided snowball. Watch-item DROPPED — no change warranted.
+
+### No game code change (honest verification — concern disproven across seeds).
+
+### Active Backlog
+- **Design Iteration (watch):** independents deplete late-game (no neutral fodder) — would need a new mechanic
+  (new-village founding / secession); defer until clearly needed (risk vs value).
+- **Required (test/INFRA):** stable harness to grade King-across-seeds (iter146); one process per seed (iter141).
+- **NEXT CANDIDATE (genuine, measurable):** PERFORMANCE benchmark — sim-tick timing at high unit counts (the
+  "tens of thousands of units" goal). A real headless-measurable dimension not checked since the iter127 opt pass.
+- ~~runaway AI leader~~ → RESOLVED iter149 (not a problem across 3 seeds).
+
+### Confidence: HIGH — 3-seed pure-AI evidence shows a varied, non-degenerate power distribution.
+Iterations since last command/compact: 2 (last compact iter147).
 
 ### Plan
 Engagement/content check for the new model: is the world a living, contested map (AI houses growing,
