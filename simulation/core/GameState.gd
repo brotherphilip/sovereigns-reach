@@ -47,6 +47,7 @@ const CampaignMap      = preload("res://simulation/strategic/CampaignMap.gd")
 const KingdomEconomy   = preload("res://simulation/strategic/KingdomEconomy.gd")
 const CampaignSystem   = preload("res://simulation/strategic/CampaignSystem.gd")
 const FeudalRank       = preload("res://simulation/strategic/FeudalRank.gd")
+const WorldMapData     = preload("res://simulation/world/WorldMapData.gd")
 const CityGenerator    = preload("res://simulation/world/CityGenerator.gd")
 const SeasonSystem     = preload("res://simulation/world/SeasonSystem.gd")
 # All fields are plain Dictionary/Array/int/float/bool — JSON-serializable.
@@ -2834,6 +2835,15 @@ func serialize() -> Dictionary:
 
 func deserialize(data: Dictionary) -> void:
 	world = data.get("world", {})
+	# JSON encodes PackedByteArray/PackedFloat32Array as base64 Strings, which corrupts the
+	# world_map biome (tiles/elev/territory) on load. The biome is deterministic static terrain,
+	# so regenerate it from the saved seed while keeping the mutated cities/factions/kingdoms
+	# (ownership/development) intact. (iter151: save/load round-trip was broken.)
+	if world.has("world_map") and world["world_map"] is Dictionary and world["world_map"].has("seed"):
+		var _wm: Dictionary = world["world_map"]
+		var _fresh: Dictionary = WorldMapData.generate(int(_wm["seed"]))
+		_wm["biome"] = _fresh["biome"]
+		world["world_map"] = _wm
 	players = data.get("players", [])
 	ai_factions = data.get("ai_factions", [])
 	weather = data.get("weather", {})
@@ -2848,7 +2858,7 @@ func deserialize(data: Dictionary) -> void:
 	_next_citizen_id = data.get("next_citizen_id", 1)
 	campfire = data.get("campfire", {"active": false})
 	# Re-seed RNGs from the loaded map_seed so random events use the correct seed
-	var loaded_seed: int = server_config.get("map_seed", 12345)
+	var loaded_seed: int = int(server_config.get("map_seed", 12345))   # JSON loads ints as floats; XOR needs int
 	_weather_rng.seed = loaded_seed
 	_disease_rng.seed = loaded_seed ^ 0xDEADBEEF
 	_fire_rng.seed = loaded_seed ^ 0xCAFEBABE
