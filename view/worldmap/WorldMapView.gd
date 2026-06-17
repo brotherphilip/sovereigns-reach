@@ -133,13 +133,19 @@ func _draw_background() -> void:
 	var cw: float = biome["cell_w"]
 	var ch: float = biome["cell_h"]
 	var tiles: PackedByteArray = biome["tiles"]
-	# Slight overlap (+1px) avoids hairline seams between cells.
+	# Slight overlap (+1px) avoids hairline seams between cells. A subtle deterministic
+	# per-tile shade (hash of gx,gy) breaks the flat single-colour blocks so the land reads
+	# textured/undulating rather than a chunky grid (overhaul iter1).
 	for gy in range(rows):
 		for gx in range(cols):
 			var b: int = tiles[gy * cols + gx]
 			if b == WorldMapData.B_SEA:
 				continue   # already the ocean base
-			draw_rect(Rect2(gx * cw, gy * ch, cw + 1.0, ch + 1.0), _biome_color(b))
+			var c: Color = _biome_color(b)
+			var h: int = ((gx * 73856093) ^ (gy * 19349663)) & 1023
+			var shade: float = 1.0 + (float(h) / 1023.0 - 0.5) * 0.16   # ±8% brightness
+			c = Color(clampf(c.r * shade, 0.0, 1.0), clampf(c.g * shade, 0.0, 1.0), clampf(c.b * shade, 0.0, 1.0))
+			draw_rect(Rect2(gx * cw, gy * ch, cw + 1.0, ch + 1.0), c)
 
 # ── Faction territories (tint the land each kingdom holds) ─────────────────────
 
@@ -151,13 +157,23 @@ func _draw_faction_territories() -> void:
 		var cw: float = biome["cell_w"]
 		var ch: float = biome["cell_h"]
 		var terr: PackedByteArray = biome["territory"]
+		# Overhaul iter1: render territory as crisp BORDERS — a strong colour band where a
+		# kingdom meets a different owner (or the wilds), with only a faint interior wash.
+		# The old uniform 0.22 fill over every owned cell muddied the whole map.
 		for gy in range(rows):
 			for gx in range(cols):
 				var owner: int = terr[gy * cols + gx]
 				if owner == 0:
 					continue   # neutral / sea / mountain
+				var is_border: bool = false
+				for d in [[1, 0], [-1, 0], [0, 1], [0, -1]]:
+					var nx: int = gx + d[0]
+					var ny: int = gy + d[1]
+					if nx < 0 or ny < 0 or nx >= cols or ny >= rows or terr[ny * cols + nx] != owner:
+						is_border = true
+						break
 				var col: Color = _faction_color(owner - 1)
-				col.a = 0.22
+				col.a = 0.50 if is_border else 0.08
 				draw_rect(Rect2(gx * cw, gy * ch, cw + 1.0, ch + 1.0), col)
 	# Faction name labels near each capital.
 	for f in _faction_list:
