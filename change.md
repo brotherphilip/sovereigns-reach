@@ -28,6 +28,11 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ## Current Targets  (the bar the game is held to — Phase 1 reads this; Loop Control raises it)
 
+> **USER-DIRECTED FOCUS (iter164-168): VISUALS & SOUND.** Next 5 loops focus on presentation. First deliverable
+> (iter164): a music system — auto-updating playlist from `audio/Music/` (drop songs in, no reimport), kept subtle
+> with a "slightly distant / lower-fidelity / older" bus treatment. Then continue with visual/audio polish.
+
+
 > **MODEL REFRESH (iter142):** the game was reworked to a Stronghold-Kingdoms-style **start-as-one-village,
 > climb-to-King** model (see memory `start-as-village-progression`), with a lean start economy + builder material-
 > hauling + slower events/sieges. The old medieval Day-150/225/300 survival ladder below is ARCHIVED context;
@@ -84,6 +89,42 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
   Day-225 ×3 (iter123-125); Day-300 reached 1×/3 (iter125). Kept for history; not the current bar.
 
 ---
+
+## Iteration 164 — 2026-06-18  (DEV-LOOP — USER-DIRECTED visuals/sound #1: background-music playlist)
+
+### Plan
+User: "focus on visuals and sound... i have a music folder now. make it play the playlist + update if I add
+songs later. music not overwhelming, effects that make it sound slightly distant, lower fidelity and older."
+Build a MusicPlayer autoload that scans audio/Music/, plays on loop, auto-picks-up new songs, on a subtle
+old/distant/lo-fi bus.
+
+### Implement
+- New `simulation/audio/MusicPlayer.gd` autoload (registered in project.godot after NarrationPlayer):
+  - Scans `audio/Music/` for .mp3/.ogg/.wav; plays in sorted order on loop; **re-scans on each wrap** so songs
+    added mid-session join next loop.
+  - Loads each track from **raw bytes at runtime** (AudioStreamMP3.data / OggVorbis.load_from_file / WavLoad) —
+    no editor reimport needed, so dropping a new file just works (same idiom as the narration WAVs).
+  - Routes through a runtime-built **"Music" bus** at **−13 dB** (gentle) with the requested treatment:
+    high-pass 220 Hz + low-pass 3000 Hz (muffled/distant/small-speaker) + LoFi bitcrush (old-record grain) +
+    light reverb (space). `set_music_volume_db()` exposed for a future options slider.
+
+### Playtest (REAL — headless test + Xvfb boot)
+- **`tests/TestMusic.gd` 10/0**: Music bus exists below master; carries exactly the 4 effects (HP+LP+LoFi+reverb);
+  playlist scanned the real folder (2 songs ship today); runtime mp3 byte-load yields an AudioStreamMP3 with data;
+  playlist wraps without stalling.
+- Real Xvfb WorldMapScene boot with the new autoload: clean screenshot, **no audio/script errors** in stderr.
+- HONEST LIMIT: headless uses a dummy audio driver, so AUDIBLE output / the exact effect timbre is NOT captured —
+  only the bus/effect config + scan + byte-load path are verified. The user will ear-check the actual sound.
+
+### Docs
+- Updated `systems_bibliography.html` (new Audio & Music section + header) per the standing rule.
+
+### Active Backlog
+- **Visuals/Sound focus (iter164-168):** ear-check music levels/effect strength (user); then visual polish passes.
+- **Design Iteration (deferred):** independents deplete late-game; spatial index ~15k+ units; coalition tuning.
+
+### Confidence: HIGH on config/scan/load (TestMusic 10/0 + clean boot); LOW on timbre (not headless-audible — user ear-check).
+Iterations since last command/compact: 2 (last compact iter162).
 
 ## Iteration 163 — 2026-06-18  (DEV-LOOP — multi-seed A/B: the coalition curbs runaways across seeds)
 
