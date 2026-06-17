@@ -51,6 +51,43 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 140 — 2026-06-17  (DEV-LOOP — instrument + smooth the late-game food trough)
+
+### Plan
+Top backlog item (iter139): late-game food → 0. Instrument food PER DAY over a 150-day managed run to
+determine whether the drift is systemic and what drives it, then make a bounded fix if warranted.
+
+### Playtest (REAL — headless, daily food/popularity/season sampling, seed 12345, real placement path)
+- Food **oscillates on a ~30-day harvest cycle**: orchards burst-deliver → food banks to the granary cap →
+  then drains (~14-21/day, no delivery) to **0 for ~9-12 days each cycle**, dipping popularity 60→**48**, then
+  recovers at the next harvest. Realm **SURVIVED 150 days** (final popularity 52.6, never near revolt).
+- NOT seasonal: the run was "Spring" for 144 days (seasons are ~150 game-days), so this is the orchard HARVEST
+  cadence, not a seasonal trough.
+- Found a side oddity: a granary's buffer (200) equalled the no-granary default (200) — building one added nothing.
+
+### Fix (committed before re-test): granary `storage_capacity` 200 → 300
+A deeper banked reserve to cover the off-harvest window; also makes a granary meaningfully better than none.
+
+### Re-test (REAL — same run, after fix): MEASURABLE IMPROVEMENT
+- Trough popularity floor **48 → 56**; food-at-0 stretch shrank **~12d → ~6d/cycle**; final popularity
+  **52.6 → 61.4**; survived 150 days. Partial: still touches 0 briefly because the underlying ~21-day orchard
+  off-production GAP outlasts even a 300 buffer at times.
+- Tests green: TestSurvival 6/0, TestEconomy 13/0, TestSeasons 25/0, TestPhase3 88/0, TestPhase4 60/0.
+
+### Post-Mortem (TARGET REACHED — survived; analysing next bottleneck)
+- Root cause of remaining 0-touches = orchard production CADENCE (a ~21-day idle gap between harvests), not buffer
+  size. Next: investigate the orchard harvest/regrow cycle — stagger or shorten the gap, or add a small continuous
+  baseline yield — so food supply is steady, not bursty. Buffer alone can't fully fix a long zero-production window.
+
+### Active Backlog (Design Iterations, evidence-cited)
+- **Orchard harvest GAP** (~21d off-production window → periodic food-0 touches; iter140 curve). ROOT of the food
+  oscillation; investigate production cadence next (top priority).
+- Harness: multi-seed tile-finder too weak (seed 999 placed 3/6, iter139) — improve so multi-seed robustness is measurable.
+- Current Targets stale vs the start-as-village / reach-King model — refresh at next compact (~iter142).
+
+### Confidence: HIGH — real before/after curves show the granary buffer measurably raised the food floor + final
+popularity, survival held; remaining 0-touches root-caused to orchard cadence. Iterations since last command/compact: 2 (last compact iter137).
+
 ## Iteration 139 — 2026-06-17  (DEV-LOOP — verify stability after the lean-economy / hauling / cadence overhaul)
 
 ### Source
