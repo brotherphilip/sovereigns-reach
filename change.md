@@ -78,6 +78,37 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 159 — 2026-06-18  (DEV-LOOP — DEDUP: the iter158 "siege-loss gap" is already covered)
+
+### Plan
+Phase-1 dedup target: the iter158 backlog item "no headless guard for the view-layer keep-destroyed loss". Before
+building a (potentially redundant) scene-level test, verify whether the loss is already guarded.
+
+### Finding (REAL — code trace + green test runs, no new code)
+- The view-layer loss is just signal handlers reacting to SIM events: `building_destroyed`(hall/keep)→DEFEAT and
+  `popularity_changed`<10→revolt (CityViewScene 740-762). The thing that DRIVES the loss is the simulation, and:
+- **`TestSiege` already guards it (9/0):** Case A asserts "an undefended seat is razed by the siege"
+  (`_hall_destroyed and _hall_hp()<=0`); Cases B/C assert a prepared seat survives to Day 100 (1 and 2 besiegers).
+- **Player guidance is also covered (`TestTutorial` 15/0):** tutorial Step 7 builds a Barracks ("train a garrison")
+  and Step 8 a Watchtower with the explicit warning "Rival factions will march on you once the ceasefire ends."
+- So the iter158 food-only day-72 fall was the SR_AUTOPLAY harness skipping the tutorial + defenses — NOT an
+  uncovered game gap. Only the trivial view wiring (handler→_show_game_over) is untested; not worth a scene test.
+
+### Post-Mortem (TARGET REACHED — dedup; nothing to build)
+- Honest dedup outcome: the "gap" is already covered on both the sim-test side (TestSiege Case A) and the
+  player-guidance side (tutorial). Removed the redundant backlog item rather than build a duplicate guard.
+
+### No game code change (dedup + verification).
+
+### Active Backlog
+- **Design Iteration (deferred / awaits user direction):** late-game runaway difficulty (balance call);
+  coerce world int fields on load (cleanliness); independents deplete late-game; spatial index ~15k+ units.
+- ~~no headless guard for the VIEW-layer keep-destroyed loss~~ → NON-GAP iter159 (already covered: TestSiege
+  Case A razes an undefended hall; tutorial steps 7-8 teach barracks + watchtower).
+
+### Confidence: HIGH — TestSiege 9/0 (incl. undefended-hall-razed) + TestTutorial 15/0 confirm the coverage.
+Iterations since last command/compact: 2 (last compact iter157).
+
 ## Iteration 158 — 2026-06-18  (DEV-LOOP — ON-SCREEN in-city 20-min survival proof + real siege-loss finding)
 
 ### Plan
