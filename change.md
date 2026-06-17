@@ -54,6 +54,39 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 147 — 2026-06-18  (DEV-LOOP — visual-verification pass + COMPACT)
+
+### Plan
+Pivot dimension (headless-only for ~7 iters): real Xvfb screenshots of city-view + world-map to catch UI
+regressions from the reworks (lean economy, tutorial, clock, start-as-village). Compact change.md (due).
+
+### Playtest (REAL — Xvfb renders, screenshot inspection)
+- **WorldMapScene:** renders clean — scene title + **"Reeve · 1 village"** title HUD (gold) + "Click a city" hint;
+  gold player village among neutral independents + colored great-house regions; kingdoms legend. No regression.
+- **CityViewScene:** renders clean — top-bar HUD with the **sun/moon day-cycle clock** + resources, the bottom
+  build bar, and the **"Begin the Tutorial?" Begin/Skip prompt**. No regression.
+- No script/compile errors on either boot.
+- Honesty note: a tight crop initially seemed to MISS the world-map title; verified via a wider crop + code/data
+  check (title_label present, player_title_name→"Reeve") that it IS rendering — avoided logging a false regression.
+
+### COMPACT (5-loop checkpoint; last compact iter142)
+- Current Targets are current (refreshed iter142/144/145: floor=Day-100 multi-seed; core loop expansion+title MET
+  iter144; durable conquest MET iter145; next bar = Duke/King across seeds + real-play verification).
+- Active Backlog deduped + tight (harness measurement limit for King grading; multi-seed process isolation).
+- `health frozen at 50` confirmed in Resolved only (iter146), not in Active. Resolved entries cite real evidence.
+- Run History untouched (append-only). Nothing in both Active and Resolved.
+
+### No game code change (visual pass clean; honest verification iteration).
+
+### Active Backlog
+- **Required (test/INFRA):** scripted headless strategy can't grade "King across seeds" (iter146); needs a stable
+  harness or a real Xvfb in-city+world-map run. Multi-seed runner: one process per seed (iter141).
+- **Design Iteration:** once measurable, confirm King on ≥2 seeds; then pivot to content/variety + UX depth (the
+  strategic loop is achievable + durable; visuals are clean).
+
+### Confidence: HIGH — both scenes render cleanly (real screenshots), title/clock/tutorial HUD all present.
+Iterations since last command/compact: 0 (COMPACTED this iteration, iter147).
+
 ## Iteration 146 — 2026-06-17  (DEV-LOOP — King reachability + resolve health flag; honest verification)
 
 ### Plan
