@@ -350,6 +350,17 @@ func _convert_finished_paths(player: Dictionary) -> void:
 		player["buildings"] = remaining
 
 func _tick_player_economy(player: Dictionary, tick: int) -> void:
+	# Seat repair (once per game-day): a PREPARED realm (siege-ready — walls + a garrison) shores up its
+	# hall/keep between strikes, so a well-defended realm out-lasts a relentless siege (see
+	# KEEP_REPAIR_PER_DAY). Gated on is_siege_ready so an UNDEFENDED seat gets NO repair and still falls —
+	# defending remains the thing that decides the endgame. A razed seat (hp 0) is NOT repaired.
+	if tick % SimulationClock.TICKS_PER_GAME_DAY == 0 and int(player.get("population", 0)) > 0 and is_siege_ready(player):
+		for _b in player.get("buildings", []):
+			if _b is Dictionary and _b.get("built", false) and String(_b.get("type", "")) in ["village_hall", "keep"]:
+				if int(_b.get("hp", 0)) > 0 and int(_b.get("hp", 0)) < int(_b.get("max_hp", 0)):
+					BuildingState.repair(_b, KEEP_REPAIR_PER_DAY)
+				break
+
 	# Resolve shire biome production bonuses once per player per tick (GDD §1.2.1).
 	var _biome_farm_bonus: float = 0.0
 	var _biome_mine_bonus: float = 0.0
@@ -692,6 +703,12 @@ const SIEGE_READY_THRESHOLD: int = 3
 # ruler survives Day 100 with margin, while an undefended seat (150) still falls ~day 91.
 const SIEGE_DAMAGE_DEFENDED: int = 50
 const SIEGE_DAMAGE_UNDEFENDED: int = 150
+# A living realm patches its seat between assaults (builders shore up the keep). Tuned (iter120)
+# so a DEFENDED seat under the live two-faction siege (≈5.3 dmg/day at 50/strike) RECOVERS and can
+# hold indefinitely with good play, while an UNDEFENDED seat (≈15.8/day at 150) still falls — so
+# late-game survival is about MAINTAINING defences+economy, not an inevitable death clock. A razed
+# seat (hp 0) stays razed (game over preserved). Headless repro: lifts the defended ceiling past Day 150.
+const KEEP_REPAIR_PER_DAY: int = 6
 func is_siege_ready(player: Dictionary) -> bool:
 	var points: int = 0
 	for b in player.get("buildings", []):
