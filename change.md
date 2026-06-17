@@ -26,6 +26,60 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Current Targets  (the bar the game is held to — Phase 1 reads this; Loop Control raises it)
+
+- **FLOOR (MET & locked, iter118–119):** a real mouse-driven single-life playthrough survives **20 min = Day 100**
+  on seed 42, ending on the "A Sovereign's Reign" victory — confirmed by 3 live Day-100 wins + CI (`TestSiege`
+  Case C) + a headless repro.
+- **CURRENT BAR (raised iter120): 30 min = Day 150** single-life survival, live mouse play. *Why this bar:* the
+  passive defend-and-wait strategy that wins Day 100 leaves the hall at ~100 HP and losing ~50/strike — it likely
+  cannot reach Day 150 without a player counter to the relentless two-faction siege (garrison that repels, or
+  defeating/appeasing a faction). This bar probes whether the late-game has that answer.
+- **Next escalation candidates (after 30 min is reliable):** multi-seed robustness; a content/variety target;
+  an engagement/no-dead-time target.
+
+---
+
+## Iteration 120 — 2026-06-17  (Endless loop begins — raise the bar to 30 min / Day 150, probe the ceiling)
+
+### Source
+Loop upgraded to endless/bar-raising. The 20-min floor is reliably met (3 clean runs), so per Loop Control step 2
+the bar rises to **30 min / Day 150**. This iteration probes how the current game fares against the higher bar.
+
+### Change made
+- **`GameState.gd`: `KEEP_REPAIR_PER_DAY = 6`** + a daily hall/keep repair in `_tick_player_economy`, **gated on
+  `is_siege_ready`** (a prepared realm with walls+garrison shores up its seat between strikes). An undefended
+  seat gets no repair; a razed seat (hp 0) stays razed.
+
+### Playtest (REAL — headless faithful repro of the live 2-faction setup; siege math is deterministic)
+- **Live xdotool Day-150 run was INCONCLUSIVE (harness):** the day-100 "A Sovereign's Reign" popup auto-pauses
+  the sim and my dismissal clicks missed its "Continue Ruling" button (screen ≈427,305) → stalled at day 100. A
+  re-run with that click then hit "Play Again" on a defeat screen, reloading the scene and TRUNCATING the
+  telemetry CSV. So the live harness could not cleanly capture past day 100 this loop — logged honestly, not
+  analysed as a death.
+- **Headless repro (clean, deterministic):** BEFORE the fix, a defended seat (siege_ready) falls **day 110**
+  (8 strikes×50 + ... cumulative, no repair). AFTER the fix, the hall **oscillates 400↔500 through day 100+** —
+  the siege is fully offset — and death now comes from **FIRE@day110**, not the siege. Suite **1308/0**
+  (TestSiege 9/0 incl. undefended-still-razed; TestPhase10 80/0).
+
+### Post-mortem — TARGET NOT YET MET (Day 150); failure class for the repro = LEGITIMATE DEATH (fire)
+- **Keep-repair is a real, verified gain:** the relentless two-faction siege is no longer the survival ceiling
+  for a *prepared* realm — it would now hold indefinitely vs the siege.
+- **New bottleneck = FIRE.** The Village Hall is TIMBER (flammable); fire ignition scales by per-building
+  flammability and stone buildings are immune. A fire razed the (siege-proof) hall ~day 110. Open question for
+  next iteration: is seat fire-death fair at this rate? Options — let the gated keep-repair out-pace fire too,
+  reduce hall flammability / fire base-rate, surface well/apothecary or Blessing fire-suppression, or make a
+  stone Keep reachable earlier. Needs analysis before patching.
+- **Harness fix needed:** the live capstone script must (a) click "Continue Ruling" (≈427,305) at day 100 and
+  (b) NEVER blind-click defeat-screen buttons (it reloads the scene + truncates telemetry).
+
+### Active Backlog
+**Required (balance, toward Day 150):** fire can raze a siege-proof seat ~day 110 (repro evidence) — decide &
+implement fair fire mitigation for a well-managed realm.
+**Required (harness):** capstone run script — dismiss the reign popup at (427,305); avoid defeat-screen buttons;
+telemetry should not truncate on scene reload.
+**Design (optional):** spectator-battle edge cases. **User-only:** ear-check narration; ear-tune SFX.
+
 ## Iteration 119 — 2026-06-17  ✅ PHASE COMPLETE ✅  (Two confirmation runs — the 20-min milestone is locked in)
 
 ### Source
