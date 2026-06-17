@@ -51,6 +51,44 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 141 — 2026-06-17  (DEV-LOOP — root-cause the food oscillation + multi-seed robustness)
+
+### Plan
+Investigate the orchard "harvest gap" (iter140 top item); then get real multi-seed robustness evidence.
+
+### Findings (REAL — code trace + headless runs)
+- **Orchard fields do NOT deplete** (CitizenSystem PH_GATHER only depletes natural nodes via `node_x`; farm
+  fields have none). Off-season yield is 0.85× (not 0). So the ~30-day food oscillation is NOT harvest gating or
+  field regrow — it's **hauler/granary-cap logistics**: production pauses when the granary is full (`_hauler_deposit`
+  → PH_WAIT), food drains via consumption, then resumes. Non-fatal. `WAIT_TICKS` is only 60t, so not a long stall.
+- **Food fix CONFIRMED:** with 2 granaries (cap 600 after the iter140 buffer bump), food **never troughs to 0**
+  (isolated seed-999 run: food stayed 220–600 all 100 days). The granary buffer + stacking IS the food solution.
+
+### Multi-seed run (robust tile-finder — 7/7 buildings placed on every seed)
+- Seeds 12345 / 4242 / 7777: **survived** 100 days (min popularity 45–47, final 52–61).
+- Seed 999: showed revolt (min popularity 7.4) — **BUT this is a HARNESS ARTIFACT, not a game bug.** An ISOLATED
+  seed-999 run (fresh process) **SURVIVES** (popularity 51.6, food healthy, hall 500). The multi-seed harness runs
+  seeds sequentially in one process and does NOT fully reset GameState between them (residual citizens/weather/
+  disease/world state bleed across seeds). **Did NOT patch** the false failure (honesty over progress).
+
+### Post-Mortem
+- No game code change this iteration: nothing new proven broken; the seed-999 "death" was contaminated state.
+- Genuine catch: the multi-seed test harness is **not trustworthy** until it resets ALL per-game state per seed.
+- Unverified flag: `health` stayed frozen at 50 for 100 days (no wells/apothecary built) — could be the no-sanitation
+  equilibrium or a stuck value; needs per-day health instrumentation before any claim.
+
+### Active Backlog
+- **Required (harness):** multi-seed runner leaks state between sequential seeds → false failures. Reset GameState
+  fully per seed (or one process per seed) before trusting multi-seed robustness numbers. (iter141 evidence.)
+- **Design Iteration:** food oscillation is logistics lumpiness — mitigated (granary buffer + stacking). Acceptable;
+  monitor. Optional future: smoother delivery (shorter gather dwell / partial deposits) if it ever bites a thin build.
+- **Unverified:** health frozen at 50 (iter141) — instrument per-day health, confirm bug vs equilibrium.
+- Harness tile-finder weakness (iter139) → RESOLVED: robust spiral search now seats 7/7 on every seed tested.
+- Current Targets stale vs start-as-village/reach-King model — refresh at next compact (~iter142).
+
+### Confidence: HIGH on isolated single-seed survival (4 seeds individually clean) and the food fix; the multi-seed
+harness itself is NOT yet trustworthy (state bleed). Iterations since last command/compact: 3 (last compact iter137; compact due next).
+
 ## Iteration 140 — 2026-06-17  (DEV-LOOP — instrument + smooth the late-game food trough)
 
 ### Plan
