@@ -54,6 +54,37 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 146 — 2026-06-17  (DEV-LOOP — King reachability + resolve health flag; honest verification)
+
+### Plan
+New bar (iter145): reach Duke/King under AI pressure across seeds. Also resolve the iter141 health flag.
+
+### Findings (REAL — headless harness + code trace)
+- **King IS reachable.** Long campaign harness (develop + conquer), isolated seeds: **seed 12345 reaches KING by
+  day 100** (13 holdings, total_dev 80, domain_score 143) and HOLDS it through day 300.
+- **But "King across seeds" can't be cleanly measured by a hand-scripted headless strategy.** Seed 4242 first read
+  as "stuck at Bailiff (1 holding) for 300 days" — but that was a HARNESS-STRATEGY artifact: the greedy develop
+  step (fired at treasury>200) starved the conquest budget. A direct diagnostic on seed 4242 CAPTURES neighbour 59
+  with one army-40 attack (holdings 1→2). Swapping to conquest-first swung results the other way (over-extend,
+  lose holdings). The scripted player heuristic dominates the outcome → not a reliable multi-seed pass/fail.
+  **Won't patch balance on this noisy signal** (honesty). A stable harness or a real Xvfb in-city+world-map run is
+  needed to grade the King-across-seeds bar.
+- **health "frozen at 50" — RESOLVED, not a bug.** `DiseaseSystem.HEALTH_BASE=50` is the intended no-sanitation
+  baseline; `compute_health = 50 + 60×coverage`, coverage = sanitation buildings per hovel. Verified: 2 hovels +
+  well → health 80; + apothecary → 100. Earlier 50 readings simply had no wells/apothecary.
+
+### No game code change this iteration (honest verification — nothing newly broken; non-bugs / harness limits).
+
+### Active Backlog
+- **Required (test/INFRA):** the scripted headless strategy harness is too sensitive to grade the King bar; build a
+  stable measurement (or use a real Xvfb run). Also: in-process multi-seed runner leaks state → one process per seed.
+- **Design Iteration:** confirm the King climb on ≥2 seeds once a stable harness exists; then likely pivot dimensions
+  (content/variety, UX, real-play visual verification) — the strategic loop is now achievable + durable.
+- ~~health frozen at 50~~ → RESOLVED (iter146: intended baseline, rises with sanitation).
+
+### Confidence: HIGH that King is reachable (seed 12345, real) and health is correct; LOW that a scripted headless
+harness can grade King-across-seeds (strategy-dependent). Iterations since last command/compact: 4 (compact due next, ~iter147).
+
 ## Iteration 145 — 2026-06-17  (DEV-LOOP — conquest durability + peak feudal title)
 
 ### Plan
