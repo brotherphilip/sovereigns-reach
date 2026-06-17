@@ -287,6 +287,7 @@ func _build_scene() -> void:
 	_develop_btn.size     = Vector2(280, 28)
 	_develop_btn.add_theme_font_size_override("font_size", 12)
 	_develop_btn.pressed.connect(_on_develop_realm)
+	_style_action_button(_develop_btn)
 	canvas.add_child(_develop_btn)
 	_refresh_develop_btn()
 
@@ -297,6 +298,7 @@ func _build_scene() -> void:
 	_raise_btn.size     = Vector2(250, 28)
 	_raise_btn.add_theme_font_size_override("font_size", 12)
 	_raise_btn.pressed.connect(_on_raise_army)
+	_style_action_button(_raise_btn)
 	canvas.add_child(_raise_btn)
 	_refresh_raise_btn()
 
@@ -307,6 +309,7 @@ func _build_scene() -> void:
 	_march_btn.size     = Vector2(250, 28)
 	_march_btn.add_theme_font_size_override("font_size", 12)
 	_march_btn.pressed.connect(_on_march)
+	_style_action_button(_march_btn)
 	canvas.add_child(_march_btn)
 	_refresh_march_btn()
 
@@ -317,6 +320,7 @@ func _build_scene() -> void:
 	_diplo_btn.size     = Vector2(280, 28)
 	_diplo_btn.add_theme_font_size_override("font_size", 12)
 	_diplo_btn.pressed.connect(_on_diplomacy)
+	_style_action_button(_diplo_btn)
 	canvas.add_child(_diplo_btn)
 	_refresh_diplo_btn()
 
@@ -325,6 +329,33 @@ func _build_scene() -> void:
 	_world_view.city_hovered.connect(_on_city_hovered)
 	_world_view.city_selected.connect(_on_city_selected)
 	_world_view.army_inspected.connect(_on_army_inspected)
+
+# Gold-bordered parchment styling for the bottom action buttons. The default theme
+# rendered them near-transparent over the busy map terrain (Raise/March/Diplomacy
+# labels floated illegibly); this gives each a solid dark backing + gold edge with
+# clear hover/pressed/disabled states.
+func _style_action_button(btn: Button) -> void:
+	var mk := func(bg: Color, border: Color) -> StyleBoxFlat:
+		var s := StyleBoxFlat.new()
+		s.bg_color = bg
+		s.border_color = border
+		s.set_border_width_all(1)
+		s.set_corner_radius_all(4)
+		s.content_margin_left = 8.0
+		s.content_margin_right = 8.0
+		s.content_margin_top = 4.0
+		s.content_margin_bottom = 4.0
+		return s
+	var gold := Color(0.62, 0.49, 0.22)
+	var bright := Color(0.85, 0.69, 0.34)
+	btn.add_theme_stylebox_override("normal",   mk.call(Color(0.13, 0.10, 0.06, 0.94), gold))
+	btn.add_theme_stylebox_override("hover",    mk.call(Color(0.22, 0.17, 0.09, 0.97), bright))
+	btn.add_theme_stylebox_override("pressed",  mk.call(Color(0.09, 0.07, 0.04, 0.97), bright))
+	btn.add_theme_stylebox_override("disabled", mk.call(Color(0.10, 0.09, 0.08, 0.82), Color(0.34, 0.30, 0.24)))
+	btn.add_theme_color_override("font_color",           Color(0.96, 0.90, 0.74))
+	btn.add_theme_color_override("font_hover_color",      Color(1.0, 0.95, 0.80))
+	btn.add_theme_color_override("font_pressed_color",    Color(0.90, 0.82, 0.62))
+	btn.add_theme_color_override("font_disabled_color",   Color(0.58, 0.53, 0.47))
 
 func _on_city_clicked(city_id: int) -> void:
 	GameState.world["selected_city_id"] = city_id

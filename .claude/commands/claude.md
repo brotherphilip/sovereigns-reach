@@ -1,12 +1,19 @@
 ---
-description: Delegate a task to the Claude CLI (headless print mode, skips permission prompts)
+description: Delegate a task to an autonomous Claude CLI in an isolated worktree
 argument-hint: <task description>
-allowed-tools: Bash(claude:*)
+allowed-tools: Bash(claude:*), Bash(git:*)
 ---
-Ran the Claude CLI headless on this task: "$ARGUMENTS"
+Delegated autonomously on: "$ARGUMENTS"
 
-Claude's output:
+!`set -e
+BRANCH="auto/$(date +%s)"
+git stash -u 2>/dev/null || true
+git worktree add -b "$BRANCH" "../wt-$BRANCH" HEAD
+cd "../wt-$BRANCH"
+claude -p "Complete this task: $ARGUMENTS. When done, run the project's tests and linter, and fix anything that fails before finishing. Make atomic commits as you go." \
+  --dangerously-skip-permissions 2>&1 | tee "../wt-$BRANCH-log.txt"
+echo "---"
+echo "Branch: $BRANCH"
+git log --oneline HEAD..$BRANCH 2>/dev/null || git -C "../wt-$BRANCH" log --oneline -10`
 
-!`claude -p "$ARGUMENTS" --dangerously-skip-permissions`
-
-Briefly relay what was done (and which files changed, if any). Flag anything that looks wrong or needs my attention.
+Summarize what was done, which files changed, whether tests passed, and flag anything that needs my attention. The work is on branch $BRANCH in its own worktree — review and merge when ready.

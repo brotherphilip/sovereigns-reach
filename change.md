@@ -51,6 +51,30 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 138 — 2026-06-17  (MAP-OVERHAUL LOOP #11 — chrome polish: bottom action buttons)
+
+### Source
+Map-overhaul loop (chrome/usability). Before-render of the bottom bar showed the 4 action buttons
+(Develop / Raise Army / March / Diplomacy) had NO real background — the default theme rendered them
+near-transparent over the busy map terrain, so the Raise/March/Diplomacy labels floated illegibly and only
+"Develop" had a faint dark box.
+
+### Change made (`WorldMapScene.gd`, view-only UI)
+- **`_style_action_button(btn)` helper** applied to all 4 bottom buttons: a gold-bordered dark-parchment
+  StyleBoxFlat for normal/hover/pressed/disabled states + matching font colors (cream enabled, dimmed disabled),
+  4px corners + content margins. Each button now reads as a distinct bounded control.
+- (Bug caught & fixed during the pass: the helper was first inserted mid-`_build_scene`, swallowing the
+  signal-connect block → "already connected" errors on render; moved the connects back into `_build_scene`
+  and the helper out as a standalone func. Re-render clean.)
+
+### Playtest (REAL — Xvfb before/after, bottom-bar crop)
+- Before: Raise/March/Diplomacy text floated over terrain with no box. After: all 4 are solid dark
+  gold-edged buttons — "Develop Duskholm" bright/enabled, the other three dimmed/disabled. Render confirms.
+  **TestPhase9 67/0, TestStrategicAI 83/0.** Failure class: NONE (view-only).
+
+### Backlog (next): per-faction city-icon styling (distinct silhouettes); top-bar styling; battle/army marker
+clarity (needs an army/battle present to verify); day/season tint. (Compact next ~iter142.)
+
 ## Iteration 137 — 2026-06-17  (MAP-OVERHAUL LOOP #10 — on-screen zoom indicator + controls hint + COMPACT)
 
 ### Source
