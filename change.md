@@ -62,6 +62,36 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 155 — 2026-06-18  (DEV-LOOP — validate iter154 retreat fix's blast radius under long pure-AI sims)
+
+### Plan
+The iter154 retreat change touches `tick_armies`, which ALL factions run, so unit tests passing isn't enough.
+Validate with a real long pure-AI sim that the world stays dynamic and — the key risk — that retreating armies
+do NOT pile up unbounded. (Also scoped the on-screen Xvfb climb: not cleanly scriptable without new view↔strategic
+coupling, and strategic-HUD rendering was already verified iter146 — deferred rather than fake a run.)
+
+### Playtest (REAL — pure-AI StrategicSim, fresh world per seed, 200 days, ownership+army tracking)
+- **seed 12345:** 153 captures over 200 days (~0.77/day); ownership stays spread (factions 0/1/2/3 hold 12–28
+  each, no snowball); **max armies in field = 6** (retreating hosts get reabsorbed at owned cities — NO pile-up);
+  independents 20→2 (known deplete item). 4 kingdoms alive at day 200.
+- **seed 4242:** 94 captures; max armies in field = 5; 4 kingdoms alive; ownership spread (faction 1 leads 39 but
+  others survive). No army pile-up.
+- Baseline for comparison: iter148 logged ~132 captures over a similar window — capture rate is intact/healthy.
+
+### Post-Mortem (TARGET REACHED — verification, nothing newly broken)
+- The symmetric retreat fix is SAFE under real long sims: world stays contested, armies bounded (≤6), no degenerate
+  one-faction collapse. Confirms the iter154 change did not destabilise AI campaign dynamics.
+
+### No game code change (honest verification — the iter154 fix is validated, not re-patched).
+
+### Active Backlog
+- **Design Iteration (deferred):** coerce world int fields on load (cleanliness); independents deplete late-game
+  (mechanic; re-confirmed here 20→2); spatial index ~15k+ units; on-screen Xvfb player-climb capture (needs a
+  small dev hook to inject a climbed state — deferred, low marginal value over iter146 visual pass).
+
+### Confidence: HIGH — two real 200-day pure-AI sims show a dynamic world with bounded armies after the retreat fix.
+Iterations since last command/compact: 3 (last compact iter152; next compact ~iter157).
+
 ## Iteration 154 — 2026-06-18  (DEV-LOOP — REAL game fix: retreat stranded armies; King on all 5 seeds)
 
 ### Plan
