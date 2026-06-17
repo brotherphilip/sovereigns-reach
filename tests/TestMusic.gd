@@ -69,3 +69,16 @@ func _run(mp) -> void:
 	mp._pos = 100000
 	mp._play_next(false)
 	ok("playlist wraps without stalling (pos reset within range)", mp.track_count() == 0 or mp._pos <= mp.track_count())
+
+	# Ducking: the music bed glides DOWN under narration and back UP afterwards (deterministic
+	# glide, no real audio needed). Drive the helper directly with speaking on, then off.
+	mp._base_db = MusicPlayer.MUSIC_BUS_DB
+	mp._duck_cur = 0.0
+	for _i in range(120):
+		mp._tick_duck(true, 1.0 / 60.0)   # ~2s of "herald speaking"
+	var ducked: float = mp._base_db + mp._duck_cur
+	ok("music ducks under narration (>= ~10 dB drop)", mp._duck_cur <= MusicPlayer.DUCK_DB + 0.5)
+	ok("ducked level is below the resting bed", ducked < mp._base_db - 8.0)
+	for _i in range(120):
+		mp._tick_duck(false, 1.0 / 60.0)  # ~2s after the herald stops
+	ok("music restores to the resting bed after narration", absf(mp._duck_cur) < 0.5)

@@ -21,9 +21,16 @@ const MUSIC_BUS: String = "Music"
 const MUSIC_BUS_DB: float = -13.0          # the whole music bed sits here — gentle, not overwhelming
 const EXTS: PackedStringArray = [".mp3", ".ogg", ".wav"]
 
+# Ducking: while the herald narration speaks, fade the music down so the voice stays clear,
+# then fade it back up. Smooth (no abrupt jump) via a per-frame dB glide.
+const DUCK_DB: float = -11.0               # how far below the bed to drop under narration
+const DUCK_RATE_DB: float = 36.0           # glide speed (dB/sec) — ~0.3s for the full duck
+
 var _player: AudioStreamPlayer = null
 var _playlist: PackedStringArray = []
 var _pos: int = 0
+var _base_db: float = MUSIC_BUS_DB          # the (user-settable) resting level
+var _duck_cur: float = 0.0                  # current duck offset (0 = not ducked)
 
 func _ready() -> void:
 	_setup_bus()
@@ -33,8 +40,24 @@ func _ready() -> void:
 	_player.process_mode = Node.PROCESS_MODE_ALWAYS   # keep playing while the game is paused
 	_player.finished.connect(_on_finished)
 	add_child(_player)
+	process_mode = Node.PROCESS_MODE_ALWAYS           # keep ducking even when the tree is paused
 	_rescan()
 	_play_next(true)
+
+func _process(delta: float) -> void:
+	var nar = get_node_or_null("/root/NarrationPlayer")
+	var speaking: bool = nar != null and nar.has_method("is_speaking") and nar.is_speaking()
+	_tick_duck(speaking, delta)
+
+# Glide the music bus toward (ducked while speaking, resting otherwise). Returns the bus dB
+# it set — split out from _process so it is deterministically testable without real audio.
+func _tick_duck(speaking: bool, delta: float) -> float:
+	_duck_cur = move_toward(_duck_cur, (DUCK_DB if speaking else 0.0), DUCK_RATE_DB * delta)
+	var db: float = _base_db + _duck_cur
+	var idx: int = AudioServer.get_bus_index(MUSIC_BUS)
+	if idx >= 0:
+		AudioServer.set_bus_volume_db(idx, db)
+	return db
 
 # ── The "old / distant / low-fi" bus ────────────────────────────────────────────
 func _setup_bus() -> void:
@@ -47,7 +70,7 @@ func _setup_bus() -> void:
 	# Idempotent: clear any effects we may have added on a previous run.
 	while AudioServer.get_bus_effect_count(idx) > 0:
 		AudioServer.remove_bus_effect(idx, 0)
-	AudioServer.set_bus_volume_db(idx, MUSIC_BUS_DB)
+	AudioServer.set_bus_volume_db(idx, _base_db)
 
 	# 1) High-pass — thin out the bass like a small, old speaker / distant source.
 	var hp := AudioEffectHighPassFilter.new()
@@ -137,9 +160,10 @@ func _load_stream(path: String) -> AudioStream:
 
 # ── Public controls (for an options menu later) ──────────────────────────────────
 func set_music_volume_db(db: float) -> void:
+	_base_db = db
 	var idx: int = AudioServer.get_bus_index(MUSIC_BUS)
 	if idx >= 0:
-		AudioServer.set_bus_volume_db(idx, db)
+		AudioServer.set_bus_volume_db(idx, _base_db + _duck_cur)
 
 func track_count() -> int:
 	return _playlist.size()

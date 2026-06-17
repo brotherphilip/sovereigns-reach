@@ -152,6 +152,11 @@ func say(key: String) -> void:
 	_player.stream = stream
 	_player.play()
 
+# True while the herald is actively speaking — MusicPlayer polls this to duck the music bed
+# under narration so the voice stays clear.
+func is_speaking() -> bool:
+	return _player != null and _player.playing
+
 func _stream_for(key: String) -> AudioStream:
 	if _cache.has(key):
 		return _cache[key]
