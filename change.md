@@ -51,6 +51,23 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 131 — 2026-06-17  (MAP-OVERHAUL LOOP #4 — legible city labels)
+
+### Source
+Map-overhaul loop (usability). Zoomed render: city names were tiny dark text on terrain → illegible (vanished
+into the green); garrison counts likewise.
+
+### Change made (`WorldMapView.gd`, view-only)
+- **`_draw_map_label` helper:** 4-direction dark halo + light centred text. Applied to city names (size 10, gold
+  for player-owned, cream otherwise) and garrison counts — they now pop on ANY biome.
+
+### Playtest (REAL — Xvfb before/after, same city-cluster crop)
+- After-render: "Umbridge / Valewatch / Amberveil / Maxfall / Ironwall" + garrison counts clearly readable
+  (were near-invisible). Map systems green: **TestPhase9 67/0, TestStrategicAI 83/0.** Failure class: NONE.
+
+### Backlog (next): selection/hover feedback & tooltips; clearer action affordances; smoother biome transitions;
+resource-deposit legibility; map info (region/territory, fog/explored, day/season tint); decorative detail.
+
 ## Iteration 130 — 2026-06-17  (MAP-OVERHAUL LOOP #3 — richer biome palette + snow-capped peaks)
 
 ### Source
