@@ -51,6 +51,33 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 127 — 2026-06-17  (ONE-SHOT optimization pass — ~7–8× faster unit sim, toward tens of thousands of units)
+
+### Source
+User: a one-shot pass on code optimization across the board for a smoother engine — eventually 10,000s of units.
+
+### Method (evidence-first)
+Built a headless perf benchmark (engaged armies, time `simulate_tick` over many ticks at increasing N). Found
+the tick cost was ~linear in unit count but with a huge constant in COMBAT: each attacking/patrolling unit ran a
+full **A\* `find_path` EVERY tick**, while `_advance_step` only lets it move once per move-cooldown (~1 in 80
+ticks) — so ~98% of pathfinds were computed and thrown away. Also a per-tick linear `_find_in` target scan
+(latent O(units × enemies)). (`_tick_unit_move` was already efficient — it caches `move_path`.)
+
+### Change made (`GameState.gd`, all behaviour-preserving)
+- Gate the A* in `_tick_unit_attack` + `_tick_unit_patrol` behind the **step cooldown** — only pathfind on the
+  tick a unit actually steps (same cadence, same path direction).
+- Build an **enemy id→unit index once per force-tick** → O(1) attacker target lookup (was O(enemies)).
+
+### Playtest / measurement (REAL — headless benchmark + full suite)
+- **Engaged-armies tick time:** 1k units 122→**15 ms**, 2k 248→**32 ms**, 4k 508→**76 ms** (~7–8×). Isolated
+  combat path: 261→25 ms/1k attackers (~10×). Idle baseline ~6.8 µs/unit unchanged.
+- **Behaviour preserved:** TestUnitAI 23/0; **full suite 1310 / 0**.
+
+### Post-mortem — failure class: NONE (perf win, no regression)
+- 4k units now 76 ms/tick (was 508) → ~10k units extrapolates to ~190 ms (was ~1.3 s). Big, safe step toward the
+  10k-unit goal. **Next lever (deferred, riskier):** a spatial index for `_nearest_enemy` (the remaining O(U×E)
+  at aggro-acquisition) and caching the per-tick `_enemies_of_*` list builds.
+
 ## Iteration 126 — 2026-06-17  (FIX population collapse; user feedback → growing-town play; troops via clicks unreliable)
 
 ### Source
