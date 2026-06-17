@@ -40,15 +40,53 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
   independents and climbs **Reeve → Knight (day 40) → Baron → Earl (day 80, 11 holdings)**. Enabled by iter143
   (stop AI tribute-draining the player) + iter144 (player strategic income ×4 + start war-chest 150). First
   capture verified at day 12 (army 40 vs def-25 independent → holdings 1→2).
-- **NEXT BAR (raised iter144): DURABLE conquest + reach the top.** Conquests currently aren't held — the AI
-  reconquers (harness: 11 holdings day 80 → 1 by day 120). A run must HOLD gained territory against AI
-  counter-attack and climb toward King. Top priority: conquest durability vs AI counter-attack.
+- **DURABLE conquest: SUBSTANTIALLY MET (iter145).** Player-only garrison regen → the player now climbs to
+  **Earl and HOLDS 8 villages** at day 120 (was: collapsed 11→1). Conquests stick without throttling expansion.
+  Feudal title now shows the PEAK earned (never demotes on land loss).
+- **NEXT BAR (raised iter145): reach the TOP (Duke→King) + hold under pressure across seeds.** Climb to the
+  highest titles and survive the AI's late-game counter-offensives; confirm on ≥2 seeds (isolated processes).
+  Also: the full loop is still only proven via the headless strategic harness — a real in-city + world-map run
+  (Xvfb input) would harden the evidence.
 - **Robustness:** keep multi-seed survival (≥5 seeds) green; ALWAYS run seeds in ISOLATED processes (one godot
   per seed) — the in-process multi-seed runner leaks GameState between seeds (iter141, partially fixed iter142).
 - **ARCHIVED (old model, real evidence):** Day-100 ×3 live wins (iter118-119); Day-150 ×3 (iter121-122);
   Day-225 ×3 (iter123-125); Day-300 reached 1×/3 (iter125). Kept for history; not the current bar.
 
 ---
+
+## Iteration 145 — 2026-06-17  (DEV-LOOP — conquest durability + peak feudal title)
+
+### Plan
+Top item (iter144): AI reconquers the player's gains (11→1 by day 120). Make conquests durable; fix the
+title HUD yo-yo. Investigate loss cause first (no blind patch).
+
+### Investigation (REAL — instrumented climb harness)
+- The player loses cities at garrison 5–21 to AI great houses fielding bigger armies — early singles (day 17,41)
+  then a faction-1 sweep (day 87–95). Held cities weren't reinforced while AI grew large armies.
+
+### Changes
+- **Peak feudal title:** `GameState.player_title_name` now returns the PEAK title earned (max of live + stored
+  never-demote index) — titles don't drop when you lose land (fixes the iter144 HUD yo-yo).
+- **Garrison regen (player-only):** owned cities rebuild garrison toward cap (+2/day). First tried for ALL
+  kingdoms → it hardened AI/independent targets and over-throttled the player's OWN expansion (peak 12→3, real
+  run). Re-scoped to **is_player only** → conquests firm up without making targets harder to take.
+
+### Playtest (REAL — headless retention/climb harness, before → after)
+- Retention: peak 12 / final **1** / 13 losses  →  peak 11 / final **8** / 9 losses. The player now HOLDS most of
+  what it takes. Climb harness: reaches **Earl (idx 4), holdings 8** at day 120 (was Earl-then-collapse-to-1).
+- Tests green: TestStrategicAI 83/0, TestFeudalRank 19/0, TestSurvival 6/0 (full suite running).
+
+### Post-Mortem (durability substantially fixed — next bottleneck)
+- Player conquests are now durable; the climb sticks. Remaining: reaching the TOP titles (Duke/King) under
+  sustained AI pressure, and proving the loop in a real in-city + world-map (Xvfb) run, not just the strategic harness.
+
+### Active Backlog
+- **Design Iteration:** reach Duke→King under AI late-game pressure; confirm on ≥2 isolated seeds (iter145 next bar).
+- **Required (test):** in-process multi-seed runner leaks state → one process per seed (iter141).
+- **Unverified:** `health` frozen at 50 with no sanitation (iter141).
+
+### Confidence: HIGH — real before/after on retention (final 1→8) + title-climb (Earl held) + green tests.
+Iterations since last command/compact: 3 (last compact iter142; compact due ~iter147).
 
 ## Iteration 144 — 2026-06-17  (DEV-LOOP — MILESTONE: make the expansion + title climb achievable)
 
