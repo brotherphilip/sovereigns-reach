@@ -51,6 +51,28 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 134 — 2026-06-17  (MAP-OVERHAUL LOOP #7 — ZOOM + pan + zoomed-in default + bigger icons) [USER-DIRECTED]
+
+### Source
+User: "add zoom on the map, start more zoomed-in, and make all the troop/etc icons bigger."
+
+### Change made (`WorldMapView.gd`)
+- **Zoom/pan transform:** map layers draw under `draw_set_transform(_pan, _zoom)`; ocean base fills SCREEN space
+  so zoom never reveals a void; the Kingdoms legend stays screen-space (reset before it).
+- **Mouse-wheel zoom toward the cursor** (clamped 1.0–4.0) + **middle-drag pan**, pan clamped to keep the map
+  covering the panel. Hit-testing inverts the transform (`_to_world`; pick radius ÷ zoom = constant grab distance).
+- **Default zoomed-IN at 1.7×, centred** (was the full-continent fit).
+- **Bigger icons:** city castles tier 8+t*4 → 11+t*5; army banner pole/flags/foot-disc + troop-count font enlarged.
+
+### Playtest (REAL — Xvfb render + zoomed crop)
+- After-render: the map starts zoomed-in/centred (continent no longer fits, ocean fills edges → the zoom transform
+  renders correctly) and castles are clearly bigger + still labelled legibly. **TestPhase9 67/0, TestStrategicAI 83/0.**
+- HONEST: wheel-zoom + middle-drag pan are implemented and logic-reviewed but NOT exercisable in a headless static
+  render (no mouse-wheel events); the underlying zoom transform IS verified (the 1.7× default renders correctly).
+
+### Backlog (next): verify/feel-tune zoom live (or keyboard +/- zoom); resource-deposit legibility; biome-edge
+smoothing; map info readout; per-faction city-icon styling; chrome polish.
+
 ## Iteration 133 — 2026-06-17  (MAP-OVERHAUL LOOP #6 — legible road network)
 
 ### Source
