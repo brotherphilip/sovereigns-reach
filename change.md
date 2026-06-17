@@ -51,6 +51,25 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 130 — 2026-06-17  (MAP-OVERHAUL LOOP #3 — richer biome palette + snow-capped peaks)
+
+### Source
+Map-overhaul loop. Assessed (zoomed render): terrain read green-dominant — plains & forest both green, muted
+palette, little variety.
+
+### Change made (`WorldMapView.gd`, view-only)
+- **Distinct palette:** bright meadow plains / deep forest / golden dry hills / slate mountains — biomes now
+  read clearly apart (was a samey green).
+- **Snow-capped peaks:** the brightest-shaded mountain tiles cap with `_SNOW` — variety + a focal feature.
+
+### Playtest (REAL — Xvfb before/after, full + zoomed crops)
+- Renders show distinct biome bands (plains/forest/golden hills/slate mountains) and scattered snow peaks +
+  a river; the map is visibly more varied/vibrant. Map systems green: **TestPhase9 67/0, TestStrategicAI 83/0.**
+  Failure class: NONE (view-only).
+
+### Backlog (next): city icon + label clarity & per-faction styling; selection/hover feedback; action affordances;
+smoother biome transitions; resource-deposit legibility; decorative detail (forest clusters, mountain ridges).
+
 ## Iteration 129 — 2026-06-17  (MAP-OVERHAUL LOOP #2 — shallow-water coastline shelf)
 
 ### Source
