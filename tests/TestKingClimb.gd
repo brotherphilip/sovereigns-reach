@@ -19,6 +19,7 @@ const CMS = preload("res://simulation/strategic/CampaignSystem.gd")
 const WorldMapData = preload("res://simulation/world/WorldMapData.gd")
 const GOLD_PER: int = 5
 const DEADLINE_DAYS: int = 200   # all 5 verified seeds reach King inside this (≤113 days, iter154)
+const HOLD_DAYS: int = 100        # days to keep playing after King to prove the endgame is durable (iter156)
 
 func _init() -> void:
 	await process_frame
@@ -53,6 +54,19 @@ func _init() -> void:
 	var reached: bool = peak_title >= FR.king_index()
 	if reached: pass_count += 1; print("  PASS: seed %d reached King (day %d, holdings %d)" % [seed, king_day, CM.faction_city_ids(gs.world, pfid).size()])
 	else: fail_count += 1; print("  FAIL: seed %d stuck at %s (score %d) after %d days" % [seed, FR.title_name(peak_title), FR.domain_score(gs.world, pfid, 0.0), DEADLINE_DAYS])
+
+	# Post-King DURABILITY (iter156): keep playing HOLD_DAYS after coronation and confirm the
+	# LIVE realm (not the never-demoting peak title) holds King-tier standing under continued AI
+	# pressure — i.e. the endgame doesn't collapse. Verified ≥88 across seeds; assert ≥ Duke (62).
+	if reached:
+		var min_live: int = FR.domain_score(gs.world, pfid, 0.0)
+		for _d in range(HOLD_DAYS):
+			gs.advance_strategic_day()
+			min_live = mini(min_live, FR.domain_score(gs.world, pfid, 0.0))
+			_play_turn(gs, k, pfid, home)
+		var duke: int = int(FR.TITLES[FR.king_index() - 1]["min_score"])
+		if min_live >= duke: pass_count += 1; print("  PASS: seed %d held >= Duke for %d days post-King (min live score %d)" % [seed, HOLD_DAYS, min_live])
+		else: fail_count += 1; print("  FAIL: seed %d realm collapsed post-King (min live score %d < Duke %d)" % [seed, min_live, duke])
 
 	print("\n=== KingClimb (seed %d): %d passed, %d failed ===" % [seed, pass_count, fail_count])
 	quit(0 if fail_count == 0 else 1)
