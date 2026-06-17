@@ -26,6 +26,43 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 118 — 2026-06-17  ★ MILESTONE MET ★  (Live managed run survives the full 20 minutes to Day 100)
+
+### Source
+Backlog: finish the capstone — get the managed live run from day 91 to day 100. iter117 died to the siege
+despite building defence; this iteration diagnoses why and fixes it, then confirms a live Day-100 run.
+
+### Change made
+1. **Telemetry (committed `4cf8284`):** `SR_TELEMETRY` now also logs `siege_ready`, `hall_hp`, `defense_built`
+   — exact capstone diagnostics.
+2. **BALANCE FIX (committed `b8a2742`):** `SIEGE_DAMAGE_DEFENDED` 75 → 50 in `GameState.gd`.
+3. **Regression test:** `TestSiege` Case C — a defended seat vs the LIVE **two** factions survives to Day 100;
+   `TestPhase10` now asserts against the `SIEGE_DAMAGE_*` constants (not hardcoded 75/150).
+
+### Diagnosis (the real root cause, via telemetry + a headless repro — corrects iter117's guess)
+- A first run with defence placed on PROVEN tiles was fully siege-ready (`siege_ready=1`, `defense_built=6`) yet
+  still fell **~day 91**. Telemetry's coarse "−150 steps" were misleading.
+- **Headless repro of the live 2-faction setup proved:** the defended reduction WORKS (every strike
+  `defended=true, dmg=75`) — but the live world spawns **TWO** besiegers (`bandit_king` + `ashen_barony`), so the
+  seat takes **8 strikes × 75 = 600 > 500 HP** and dies. A **single**-faction repro survives (4×75=300, hall=200
+  at Day 100 — matching the old `TestSiege`, which only ever tested ONE faction). So a walls-only defence (the
+  taught strategy) could NOT reach the goal in the real two-faction world. (Diplomacy only buys 14-day peace
+  windows and a bandit offers no terms, so it can't forestall the 2nd siege for 100 days.)
+
+### Playtest — REAL live run (Xvfb :99, ~290 s, SR_TELEMETRY + 15 screenshots): ★ DAY 100 REACHED ★
+- With the fix: defence on proven tiles → `siege_ready=1` by day 2, `defense_built=6`. The hall took 8 defended
+  strikes (`hall_hp` 500→400→300→200→100, −50 each in 2-faction pairs) and **HELD at 100 HP**.
+- **Reached Day 100 alive:** popularity rose **50 → 72.6**, food at cap, 9 buildings. Final screenshot is the
+  **"A Sovereign's Reign — one hundred days of unbroken rule… Long may you reign (+200 prestige)"** victory
+  milestone — NOT a defeat. A real human-style mouse playthrough survived & stayed engaged the full 20 minutes.
+- **Failure class: NONE — GOAL REACHED.** Independently confirmed three ways: live run (Day 100), headless repro
+  (hall_hp=100 at Day 100), and CI `TestSiege` Case C. Full suite **1308 / 0**.
+
+### Backlog / next
+**Confirm before declaring the phase DONE (loop rule — never trust a single green run):** run 2 more live
+Day-100 confirmation playtests (vary build tiles to test robustness). Then the build-phase goal is complete.
+(Carried) user ear-check of narration; ear-tune SFX; minor spectator-battle edge cases.
+
 ## Iteration 117 — 2026-06-17  (Managed capstone run reaches day 91/100 — dies to the siege, economy fully solved)
 
 ### Source
