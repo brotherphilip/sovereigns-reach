@@ -157,6 +157,10 @@ func _on_objective_updated(index: int, total: int, text: String) -> void:
 	# Auto-point the build menu at the category the new objective needs, so the player
 	# always opens the bar onto the right tab (generalises the iter81 Civic default).
 	# Only fires when an objective advances (or day 1); objectives with no build leave it be.
+	# While the tutorial is active it OWNS the build tab + highlight, so the objective
+	# auto-point must stand down (it was overwriting the current tutorial step).
+	if TutorialSystem.is_active():
+		return
 	if _build_item_container != null and index >= 0 and index < ObjectiveSystem.OBJECTIVES.size():
 		var oid: String = String(ObjectiveSystem.OBJECTIVES[index].get("id", ""))
 		var cat: int = ObjectiveSystem.build_category_for(oid)
@@ -655,7 +659,9 @@ func _show_build_category(cat: int, pulse: bool = false) -> void:
 	# Tutorial gating: during a build step, only the target building is buildable and it
 	# is highlighted; everything else is greyed so the player can't get lost.
 	var _tut: Dictionary = TutorialSystem.current_target()
-	var _tut_build: bool = String(_tut.get("kind", "")) == "build"
+	# Only gate/highlight on the target's OWN tab — otherwise switching tabs would grey
+	# everything with no visible target.
+	var _tut_build: bool = String(_tut.get("kind", "")) == "build" and int(_tut.get("cat", -1)) == cat
 	var _tut_target: String = String(_tut.get("build", ""))
 
 	for btype in buildings:
