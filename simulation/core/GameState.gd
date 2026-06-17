@@ -2288,11 +2288,15 @@ func _player_kingdom() -> Dictionary:
 func _cmd_develop_city(cmd: Dictionary) -> bool:
 	return player_develop_city(cmd["payload"].get("city_id", -1))
 
-# The player's current feudal title (derived from holdings + development + prestige).
+# The player's feudal title — the PEAK earned (titles don't demote when you lose land, like
+# a real peerage). check_promotion stores the never-demote max in world.player_title_index;
+# fall back to the live index if it hasn't been computed yet.
 func player_title_name() -> String:
 	if not world.has("world_map") or world["world_map"].is_empty():
 		return FeudalRank.title_name(0)
-	return FeudalRank.title_name(FeudalRank.current_index(world, players))
+	var live: int = FeudalRank.current_index(world, players)
+	var peak: int = int(world.get("player_title_index", 0))
+	return FeudalRank.title_name(maxi(live, peak))
 
 # How many villages the player currently holds.
 func player_holdings_count() -> int:

@@ -12,6 +12,10 @@ const CampaignMap = preload("res://simulation/strategic/CampaignMap.gd")
 # player who develops their seat can fund an early conquest (see tick_day note).
 const PLAYER_INCOME_MULT: float = 4.0
 
+# Settled holdings rebuild their garrison toward the cap by this much per day, so conquered
+# land becomes defensible over time instead of being trivially retaken the next day (iter145).
+const GARRISON_REGEN_PER_DAY: int = 2
+
 # ── Daily tick ─────────────────────────────────────────────────────────────────
 
 # Collect income from every owned city, pay army upkeep, and decay occupation
@@ -45,6 +49,12 @@ static func tick_day(world: Dictionary, kingdom: Dictionary, _tick: int) -> Arra
 		# Decay unrest toward 0.
 		if unrest > 0.0:
 			c["unrest"] = maxf(0.0, unrest - 0.1)
+		# Garrison slowly rebuilds toward the cap (a settled holding raises militia), so held
+		# territory firms up rather than staying at the thin capture-remnant level.
+		var gcap: int = CampaignMap.garrison_cap(c)
+		var gnow: int = c.get("garrison", 0)
+		if gnow < gcap:
+			c["garrison"] = mini(gcap, gnow + GARRISON_REGEN_PER_DAY)
 
 	# The PLAYER actively develops their seat (the city-view economy), so their holdings
 	# yield more strategic gold than a passive AI province. Without this the lone-village
