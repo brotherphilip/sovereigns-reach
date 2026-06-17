@@ -54,7 +54,36 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
-## Iteration 147 — 2026-06-18  (DEV-LOOP — visual-verification pass + COMPACT)
+## Iteration 148 — 2026-06-18  (DEV-LOOP — verify the strategic world is alive/contested)
+
+### Plan
+Engagement/content check for the new model: is the world a living, contested map (AI houses growing,
+taking independents, fighting) or static? Measure via a pure-AI strategic sim (no player), 200 days.
+
+### Playtest (REAL — headless pure-AI StrategicSim, seed 12345, ownership tracked every 40 days)
+- **The world is ALIVE and contested.** Great-house city counts evolve: [7,7,7,7] → day80 [11,20,12,9] →
+  day200 **[10,40,14,5]**. Independents conquered down 40 → 24 → 16 → 9 → 2 → **0** by day 200. Total house
+  development 57 → **690**. **132 AI captures** over 200 days. A clear power struggle: house #2 snowballs to 40
+  cities; house #4 declines to 5 (beaten by rivals). No crash; state sane throughout.
+
+### Post-Mortem (positive — living world; two watch-items, NOT patched on one run)
+- Independents fully deplete by ~day 200 → late-game loses the neutral expansion fodder (all conflict becomes
+  kingdom-vs-kingdom). Reinforces: the player must claim independents EARLY (the iter144 income buff enables this).
+- One AI house can run away (40/66 cities). Could be a compelling late threat OR a balance concern — single run,
+  not enough to act on. Watch.
+
+### No game code change (honest verification — the world dynamism is a positive result, nothing newly broken).
+
+### Active Backlog
+- **Design Iteration (watch):** independents deplete late-game (no neutral fodder); consider occasional new-village
+  founding for perpetual expansion + long-game variety (new mechanic — defer until clearly needed).
+- **Design Iteration (watch):** runaway AI leader — confirm across seeds before any balancing.
+- **Required (test/INFRA):** stable harness to grade King-across-seeds (iter146); one process per seed (iter141).
+- **NOTE:** the reworked game's measurable dimensions are now solid (survival multi-seed; expansion+title achievable
+  & durable; world alive; visuals clean). Highest-value next steps likely need real-play/Xvfb or new-content direction.
+
+### Confidence: HIGH — pure-AI sim shows a dynamic, contested world (132 captures, ownership shifts, dev growth).
+Iterations since last command/compact: 1 (last compact iter147).
 
 ### Plan
 Pivot dimension (headless-only for ~7 iters): real Xvfb screenshots of city-view + world-map to catch UI
