@@ -51,6 +51,13 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
   grader is develop-first + capped expansion. The earlier "stuck at Earl/Bailiff" was harness-incompetence +
   one REAL game wart (below) — no *balance* lever was changed. Encoded in `tests/TestKingClimb.gd` (SR_SEED,
   one godot per seed → no in-process leak; asserts King within 200 days).
+- **LATE-GAME COALITION vs the leader: ADDED & VERIFIED (iter161, USER-DIRECTED).** The runaway was unchecked
+  (iter156). Now once a faction's domain score runs away (Duke+, 1.4× the 2nd place), every bordering faction
+  biases its attacks onto that leader AND stacks a real siege host (saving up, then raising past the 40-cap) able
+  to actually crack the crown's developed cities. Symmetric — the PLAYER as leader draws the coalition too. REAL
+  A/B (pure-AI seed 12345, day 200): the leader curbed **28→23** cities, the world more balanced (rivals 13-17 vs
+  lopsided), **5 kingdoms alive** (vs 4; even the passive player survived). King still reachable on all 5 seeds
+  and post-King hold ≥ Duke preserved (the seat stays protected, so it's contested expansion, not a lost capital).
 - **HOLD UNDER PRESSURE (survive PAST King): MET on 5 seeds (iter156).** After coronation the player keeps
   playing 100 more days and the LIVE realm (not the never-demoting peak title) holds King-tier standing — min
   live score post-King = 87/91/94/81/88 across seeds 12345/4242/999/7777/31337, all ≥ Duke (62); the realm in
@@ -77,6 +84,40 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
   Day-225 ×3 (iter123-125); Day-300 reached 1×/3 (iter125). Kept for history; not the current bar.
 
 ---
+
+## Iteration 161 — 2026-06-18  (DEV-LOOP — USER-DIRECTED: late-game coalition vs the runaway leader)
+
+### Plan (user picked "Coalition vs leader" via AskUserQuestion)
+Make dominating the map a fight: when one faction runs away (incl. the player), bordering factions gang up on it.
+Expected: curb the leader's concentration; keep King reachable; preserve the protected-seat core.
+
+### Implement — KingdomAI
+- `_coalition_target(world)`: the dominant faction by domain score (Σ 1+dev), if ≥ Duke (62) and ≥1.4× the 2nd.
+- `_best_target`: if we border the coalition leader (and aren't it), prefer the weakest of THEIR cities.
+- `decide`: vs-leader attackers SAVE UP then STACK a siege host (~1.2× city defense, past the 40 single-levy cap)
+  — the first naive version bounced off the leader's capitals (AI 40-army cap) and curbed nothing; this fixes it.
+
+### Playtest (REAL — pure-AI A/B + 5-seed King climb + integration regression)
+- HONEST iteration: the naive coalition (commit-harder only) was a NO-OP — pure-AI leader 28→30 (grew), and it never
+  even targeted the capped player. Diagnosed: AI armies hard-capped at 40 can't take def-~99 capitals. Fixed by
+  stacking. After the fix: pure-AI seed 12345 day 200 leader **28→23**, world balanced (2:17 0:13 3:14 1:23),
+  **5 kingdoms alive** (passive player survived; was eliminated in the baseline). captures 159 (healthy), armies ≤6.
+- King still reachable on all 5 seeds (12345 d89 [was 84 — a touch more friction], 4242 d101, 999 d76, 7777 d113,
+  31337 d99); post-King hold ≥ Duke on all 5. Symmetric: an uncapped player who dominates draws the coalition
+  (seed 31337 measured coalition-on-player days>0).
+- Regression: TestStrategicAI 83/0, TestSiege 9/0, TestFeudalRank 19/0, TestSaveLoad 13/0, TestPhase9 67/0.
+
+### Post-Mortem (TARGET REACHED — runaway curbed, reachability preserved)
+- The coalition meaningfully checks the dominant power without breaking the climb or collapsing the seat-protected
+  core. "Holding the top is a fight" = contested expansion + a curbed map, not a lost capital. Tunable via
+  COALITION_MIN_SCORE / _LEAD_RATIO if the user wants it sharper.
+
+### Active Backlog
+- **Design Iteration (deferred):** independents deplete late-game (mechanic); spatial index ~15k+ units (scale-only).
+- ~~late-game runaway difficulty~~ → ADDRESSED iter161 (coalition vs leader; user-directed, verified).
+
+### Confidence: HIGH — real pure-AI A/B shows the leader curbed (28→23) + a more balanced world; climb + regression green.
+Iterations since last command/compact: 4 (last compact iter157; COMPACT due next iteration ~iter162).
 
 ## Iteration 160 — 2026-06-18  (DEV-LOOP — int-coerce item is a NON-ISSUE; full-suite health check 32/32 green)
 
