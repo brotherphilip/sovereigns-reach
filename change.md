@@ -28,28 +28,57 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ## Current Targets  (the bar the game is held to — Phase 1 reads this; Loop Control raises it)
 
-- **FLOOR (MET & locked, iter118–119):** a real mouse-driven single-life playthrough survives **20 min = Day 100**
-  on seed 42, ending on the "A Sovereign's Reign" victory — confirmed by 3 live Day-100 wins + CI (`TestSiege`
-  Case C) + a headless repro.
-- **30 min = Day 150: MET & CONFIRMED (3 clean live runs, iter121–122)** — Day 162 / 161 / 161, hall healthy
-  (hp ~478–484, siege_ready, popularity 69–73). Enabled by iter120 keep-repair + iter121 fire-hardened seat.
-- **45 min = Day 225: MET & CONFIRMED ×3 (iter123–125)** — active-food-expansion runs reached Day 235/235/235.
-  The late-game does NOT coast: a STATIC build starves (pop 72→29 by day 223); you must keep building food.
-- **CURRENT BAR (raised iter125): 60 min = Day 300** single-life survival, live mouse play, WITH genuine event
-  interaction. **REACHED 1×/3 (iter125):** a blind-interactive run hit **Day 316** healthy (pop 81.7). A
-  perception-driven run reached Day 278 alive. Need 2 more clean Day-300 confirmations.
-- **Population collapse FIXED (iter126):** founding settlers were one age-cohort that died together mid-game;
-  staggered their starting ages → population now SUSTAINS (probe ~12-16 at cap16; live run GREW 14→23 with hovels).
-- **USER FEEDBACK (iter126, watching live):** the realm looked static — "no growth, troops frozen, nothing
-  happening." Real: my harness built a minimal set then idled (no hovels→no growth; 0 troops recruited; night made
-  villagers-indoors look frozen). Pivoted to a growing-town run (hovels+variety) → town GREW but then STARVED
-  (food not scaled to the bigger pop → popularity crashed to 9). OPEN: (a) growth needs food scaled to population;
-  (b) recruiting/commanding TROOPS via blind screen-clicks is unreliable (barracks selection missed) — needs
-  careful coord calibration or a dev-hook garrison demo (awaiting user's choice).
-- **Next escalation candidates (after 45 min ×3):** late-game population decline (pop_count drifts ~16→9 — investigate
-  for longer survival); content/variety; engagement/no-dead-time; multi-seed robustness; tighter/stress input.
+> **MODEL REFRESH (iter142):** the game was reworked to a Stronghold-Kingdoms-style **start-as-one-village,
+> climb-to-King** model (see memory `start-as-village-progression`), with a lean start economy + builder material-
+> hauling + slower events/sieges. The old medieval Day-150/225/300 survival ladder below is ARCHIVED context;
+> the live targets are these:
+
+- **FLOOR — Day-100 (20-min) single-life survival: MET & MULTI-SEED CONFIRMED (iter140–142).** Headless managed
+  runs through the REAL placement path survive Day 100 on **5 distinct seeds** (12345, 4242, 999, 7777, 31337),
+  min popularity 45–49, hall intact. Food trough solved by the iter140 granary buffer (200→300) + stacking.
+- **NEW BAR (raised iter142): exercise the NEW core loop.** Survival alone no longer proves the game — a run must
+  also demonstrate **expansion + the feudal-title climb**: capture ≥1 neighbouring village and rise at least one
+  title (Reeve→Bailiff+). This path is currently UNTESTED by the survival harness — top priority to instrument.
+- **Robustness:** keep multi-seed survival (≥5 seeds) green; ALWAYS run seeds in ISOLATED processes (one godot
+  per seed) — the in-process multi-seed runner leaks GameState between seeds (iter141, partially fixed iter142).
+- **ARCHIVED (old model, real evidence):** Day-100 ×3 live wins (iter118-119); Day-150 ×3 (iter121-122);
+  Day-225 ×3 (iter123-125); Day-300 reached 1×/3 (iter125). Kept for history; not the current bar.
 
 ---
+
+## Iteration 142 — 2026-06-17  (DEV-LOOP — fix AI-faction stacking; confirm multi-seed; COMPACT)
+
+### Plan
+Treat the iter141 harness state-bleed as a possible REAL GameState reset gap; verify; fix if real. Compact change.md.
+
+### Found + fixed a REAL bug (REGRESSION-class correctness, evidence-backed)
+- `setup_world` reseeds RNGs/grid/shires but did NOT clear `ai_factions`. CityViewScene calls `setup_world` THEN
+  `add_ai_faction` on every entry → **raider factions accumulated 2 → 4 → 6** across city re-entries (headless
+  evidence), stacking besiegers unfairly. **Fix:** clear `ai_factions = []` at the start of `setup_world`. Verified:
+  re-entry now holds at 2 (was 2/4/6).
+
+### Multi-seed robustness — CONFIRMED (isolated, one process per seed)
+- Day-100 survival on **5 distinct seeds** (12345, 4242, 999, 7777, 31337): all SURVIVE, min popularity 45.8–49.4,
+  hall 500. The iter141 seed-999 "revolt" is now definitively a HARNESS state-bleed artifact (isolated 999 survives),
+  partly mitigated by this iteration's ai_factions fix. **Rule learned: always run seeds in separate processes.**
+- Full regression suite GREEN (0 failures) after the setup_world change.
+
+### MILESTONE (Day-100 / 20-min floor): MET & MULTI-SEED CONFIRMED (5 seeds, real placement path, isolated runs).
+Bar raised (see Current Targets): the NEW model's expansion + feudal-title climb is now the target to exercise.
+
+### COMPACT (this iteration)
+- Refreshed **Current Targets** to the start-as-village/reach-King model; archived the old Day-150/225/300 ladder
+  as history (kept, not deleted). Live backlog consolidated below. Run History untouched (append-only).
+
+### Active Backlog
+- **Required (test):** in-process multi-seed runner leaks GameState between seeds → use one process per seed (workaround
+  in place; a `reset_for_new_game()` that clears transient world flags would let New-Game-after-play be clean too).
+- **Design Iteration (top):** instrument + exercise the NEW core loop — capture a village + climb a feudal title — it's
+  untested by the survival harness (iter142 new bar).
+- **Unverified:** `health` frozen at 50 with no sanitation (iter141) — instrument per-day, confirm bug vs equilibrium.
+
+### Confidence: HIGH — real before/after on the faction-stacking fix; 5-seed isolated survival all green; full suite green.
+Iterations since last command/compact: 0 (COMPACTED this iteration, iter142).
 
 ## Iteration 141 — 2026-06-17  (DEV-LOOP — root-cause the food oscillation + multi-seed robustness)
 
