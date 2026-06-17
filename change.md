@@ -33,14 +33,41 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
   Case C) + a headless repro.
 - **30 min = Day 150: MET & CONFIRMED (3 clean live runs, iter121–122)** — Day 162 / 161 / 161, hall healthy
   (hp ~478–484, siege_ready, popularity 69–73). Enabled by iter120 keep-repair + iter121 fire-hardened seat.
-- **CURRENT BAR: 45 min = Day 225** single-life survival, live mouse play. **REACHED with ACTIVE play (1/3, iter123):**
-  a run that kept building orchards reached **Day 235** healthy (popularity 73, food 157). A STATIC 3-orchard build
-  does NOT make it — it starves late (pop eroded 72→29 by day 223). So the late-game does NOT coast: it demands
-  ongoing FOOD development (good engagement). Need 2 more clean Day-225 runs (with active food expansion).
+- **CURRENT BAR: 45 min = Day 225** single-life survival, live mouse play. **CONFIRMED 2/3 (iter123–124):** two
+  clean ACTIVE-food-expansion runs both reached **Day 235** healthy (popularity 73–74, food ~160). Need 1 more to
+  lock it. NOTE: the late-game does NOT coast — a STATIC 3-orchard build starves (pop eroded 72→29 by day 223); you
+  must keep building food. *(iter124 was mirrored live to the user's screen via ffplay :99→:0 — Wayland blocks
+  driving :0 directly; see harness memory.)*
 - **Next escalation candidates (after 45 min ×3):** late-game population decline (pop_count drifts ~16→9 — investigate
   for longer survival); content/variety; engagement/no-dead-time; multi-seed robustness; tighter/stress input.
 
 ---
+
+## Iteration 124 — 2026-06-17  (Day-225 confirmation #2, mirrored LIVE to the user's screen)
+
+### Source
+User asked to watch the playtest live; current bar Day 225 (1/3 confirmations). Run a confirmation, visible.
+
+### Change made
+None (game code). Harness capability: live-watch on a Wayland desktop.
+
+### Harness finding (real, from calibration)
+- **xdotool cannot drive the game on the user's display :0** — it's Wayland (XWayland), which blocks synthetic
+  input. Calibration on :0: clicks didn't register (stayed 1× speed, built nothing). So driving must stay on the
+  pure-X **:99**. To let the user WATCH, mirror :99 → :0 with **ffplay** (`DISPLAY=:0 ffplay -f x11grab
+  -video_size 1280x720 -framerate 15 -i :99`). User's cursor stays free (no injection to :0). Saved to memory.
+
+### Playtest (REAL — driven on :99, live-mirrored to :0; SR_TELEMETRY + screenshots)
+- **Day-225 confirmation #2 (active food expansion):** reached **Day 235** healthy — popularity 74.4, food 166,
+  12 buildings, hall 466, siege_ready. Matches iter123's Day-235 result (reproducible). Failure class: TARGET REACHED.
+
+### Outcome
+- **Day-225 now CONFIRMED 2/3.** 1 more clean confirmation, then raise the bar (toward 60 min, or a non-duration
+  dimension). The live-mirror approach makes future runs watchable on demand without losing harness control.
+
+### Active Backlog
+**Design (toward Day 225):** 1 more clean Day-225 confirmation (active food expansion). **Investigate:** late-game
+population decline (~16→9). **Optional:** spectator edge cases. **User-only:** ear-check narration; ear-tune SFX.
 
 ## Iteration 123 — 2026-06-17  (Day-225 probe: the late-game demands FOOD development, not coasting)
 
