@@ -51,6 +51,28 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 132 — 2026-06-17  (MAP-OVERHAUL LOOP #5 — terrain relief: forests & mountain ranges + COMPACT)
+
+### Source
+Map-overhaul loop (looks/variety). Forest & mountain were flat colour cells — no sense of woods or ranges.
+
+### Change made (`WorldMapView.gd`, view-only)
+- **Terrain relief:** sparse deterministic conifer triangles on ~half of forest cells (`_draw_tree`) and slate,
+  snow-tipped peak glyphs on non-snow mountain cells (`_draw_peak`), with slight per-tile jitter — the land now
+  reads as actual woods and mountain ranges. City labels stay legible on top.
+
+### Playtest (REAL — Xvfb full + zoomed renders)
+- After-render: forests show tree clusters, the central mountains show a peaked range; map reads rich but not
+  noisy. Map systems green: **TestPhase9 67/0, TestStrategicAI 83/0.** Failure class: NONE (view-only).
+
+### COMPACT (every ~5 loops)
+Reviewed the map-loop Run-History entries (iter128 terrain+borders, 129 coastline, 130 palette+snow, 131 labels,
+132 relief): each is a DISTINCT change, no duplication; left intact (Run History is append-only). The single
+live "Current Targets / backlog" lives in the latest entry's Backlog line — consistent, no Active/Resolved clash.
+
+### Backlog (next): selection/hover feedback & tooltips; clearer action affordances (bottom buttons + top/legend
+bars); smoother biome transitions; resource-deposit legibility; map info (region/territory readout, day/season tint).
+
 ## Iteration 131 — 2026-06-17  (MAP-OVERHAUL LOOP #4 — legible city labels)
 
 ### Source
