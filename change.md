@@ -51,16 +51,51 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
   grader is develop-first + capped expansion. The earlier "stuck at Earl/Bailiff" was harness-incompetence +
   one REAL game wart (below) — no *balance* lever was changed. Encoded in `tests/TestKingClimb.gd` (SR_SEED,
   one godot per seed → no in-process leak; asserts King within 200 days).
-- **NEXT BAR (raised iter154): prove the climb ON-SCREEN, and stress it.** (a) The full loop is still proven only
-  via the headless strategic harness — a real in-city + world-map run (Xvfb input) capturing a neighbour and
-  seeing the title promote on-screen would harden it (TOP open item). (b) Optionally widen to ≥8 seeds and/or add
-  a "hold under late-game AI pressure" constraint (survive past King, not just reach it).
+- **HOLD UNDER PRESSURE (survive PAST King): MET on 5 seeds (iter156).** After coronation the player keeps
+  playing 100 more days and the LIVE realm (not the never-demoting peak title) holds King-tier standing — min
+  live score post-King = 87/91/94/81/88 across seeds 12345/4242/999/7777/31337, all ≥ Duke (62); the realm in
+  fact grows to ~16 developed holdings (live score ~176). Endgame is durable, not a collapse. Guarded by the
+  extended `tests/TestKingClimb.gd` (climb + 100-day post-King durability assertion). NOTE: this also reads as a
+  late-game RUNAWAY (a ~16-holding developed realm is near-unstoppable) — a difficulty design judgment, not a bug;
+  not patched without direction.
+- **NEXT BAR (raised iter154; on-screen still open): prove the climb ON-SCREEN.** The full loop is proven only via
+  the headless strategic harness — a real in-city + world-map run (Xvfb input) capturing a neighbour and seeing
+  the title promote on-screen would harden it (TOP open item; deferred — needs a small dev hook to inject a
+  climbed state, low marginal value over the iter146 visual pass). Optional: widen to ≥8 seeds.
 - **Robustness:** keep multi-seed survival (≥5 seeds) green; ALWAYS run seeds in ISOLATED processes (one godot
   per seed) — the in-process multi-seed runner leaks GameState between seeds (iter141, partially fixed iter142).
 - **ARCHIVED (old model, real evidence):** Day-100 ×3 live wins (iter118-119); Day-150 ×3 (iter121-122);
   Day-225 ×3 (iter123-125); Day-300 reached 1×/3 (iter125). Kept for history; not the current bar.
 
 ---
+
+## Iteration 156 — 2026-06-18  (DEV-LOOP — post-King endgame durability: hold under pressure, 5 seeds)
+
+### Plan
+Address the deferred "hold under late-game AI pressure" stretch: reach King, then keep playing 100 more days and
+measure the LIVE realm (not the never-demoting peak title) — does it hold or get whittled down? Fully headless.
+
+### Playtest (REAL — competent grader, reach King then continue 100 days, track min live score)
+- All 5 seeds hold King-tier standing for 100 days AFTER coronation: min live score post-King =
+  **87/91/94/81/88** (seeds 12345/4242/999/7777/31337), all ≥ Duke (62) with margin; realm grows to ~16 developed
+  holdings (live score ~176). The brief sub-88 dips are real transient capture-moment fluctuations.
+
+### Post-Mortem (TARGET REACHED — endgame is durable)
+- "Hold under pressure" is MET: no post-King collapse on any seed. Observation (not a bug): the endgame reads as a
+  RUNAWAY — a ~16-holding developed realm is near-unstoppable. That's a difficulty design judgment; NOT patched
+  without user direction on desired late-game challenge.
+
+### Implement (test artifact, no game code change)
+- Extended `tests/TestKingClimb.gd`: after King, play HOLD_DAYS=100 more and assert min live score ≥ Duke. Now
+  guards both reaching King AND endgame durability. Verified 2/0 PASS on all 5 seeds (isolated processes).
+
+### Active Backlog
+- **Design Iteration (deferred):** coerce world int fields on load (cleanliness); independents deplete late-game
+  (mechanic); spatial index ~15k+ units; on-screen Xvfb player-climb capture (needs a small dev hook; low value);
+  late-game runaway difficulty (design judgment — awaits user direction on whether the endgame should be harder).
+
+### Confidence: HIGH — 5 isolated-process climbs hold ≥ Duke for 100 days post-King; permanently guarded.
+Iterations since last command/compact: 4 (last compact iter152; COMPACT due next iteration, ~iter157).
 
 ## Iteration 155 — 2026-06-18  (DEV-LOOP — validate iter154 retreat fix's blast radius under long pure-AI sims)
 
