@@ -121,9 +121,18 @@ func _draw() -> void:
 	_draw_battles()
 	_draw_cities()
 	_draw_armies()
-	# Reset to screen space for the fixed UI overlay (Kingdoms legend).
+	# Reset to screen space for the fixed UI overlay (Kingdoms legend + zoom indicator).
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 	_draw_legend()
+	_draw_zoom_indicator()
+
+# Small screen-space readout of the current zoom + the controls (so the iter7 zoom/pan is
+# discoverable). Bottom-left of the map, outlined for legibility (overhaul iter10).
+func _draw_zoom_indicator() -> void:
+	var txt: String = "⊕ %.1f×   ·   wheel: zoom   ·   middle-drag: pan" % _zoom
+	var pos: Vector2 = Vector2(12.0, 40.0)   # top-left, below the scene title bar (clear of UI)
+	draw_string(ThemeDB.fallback_font, pos + Vector2(1, 1), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(0, 0, 0, 0.8))
+	draw_string(ThemeDB.fallback_font, pos, txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(0.93, 0.88, 0.70))
 
 func _input(event: InputEvent) -> void:
 	# Hit-testing happens in MAP (world) space — invert the zoom/pan transform. The pick radius
