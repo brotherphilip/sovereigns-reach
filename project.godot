@@ -24,6 +24,7 @@ GameState="*res://simulation/core/GameState.gd"
 InputSetup="*res://simulation/core/InputSetup.gd"
 AudioManager="*res://simulation/audio/AudioManager.gd"
 NarrationPlayer="*res://simulation/audio/NarrationPlayer.gd"
+MusicPlayer="*res://simulation/audio/MusicPlayer.gd"
 TutorialSystem="*res://simulation/core/TutorialSystem.gd"
 
 [debug]
