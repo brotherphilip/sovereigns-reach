@@ -111,15 +111,19 @@ func _input(event: InputEvent) -> void:
 const _SEA_DEEP: Color = Color(0.13, 0.27, 0.45)
 const _SEA_SHALLOW: Color = Color(0.20, 0.45, 0.60)   # lighter shelf hugging the coast
 
+const _SNOW: Color = Color(0.87, 0.89, 0.93)   # snow-dusted high peaks
+
+# Overhaul iter3: a more distinct, vibrant palette so biomes read apart (plains/forest were both
+# a samey green) — bright meadow plains, deep forest, golden dry hills, slate mountains.
 func _biome_color(b: int) -> Color:
 	match b:
 		WorldMapData.B_SEA:      return _SEA_DEEP
-		WorldMapData.B_COAST:    return Color(0.78, 0.72, 0.48)   # sandy shore
-		WorldMapData.B_PLAINS:   return Color(0.52, 0.66, 0.34)
-		WorldMapData.B_FOREST:   return Color(0.24, 0.45, 0.24)
-		WorldMapData.B_HILLS:    return Color(0.56, 0.54, 0.36)
-		WorldMapData.B_MOUNTAIN: return Color(0.52, 0.50, 0.53)
-		WorldMapData.B_RIVER:    return Color(0.28, 0.52, 0.78)
+		WorldMapData.B_COAST:    return Color(0.81, 0.74, 0.49)   # sandy shore
+		WorldMapData.B_PLAINS:   return Color(0.56, 0.69, 0.33)   # bright meadow green
+		WorldMapData.B_FOREST:   return Color(0.19, 0.41, 0.22)   # deep forest green (clearly darker)
+		WorldMapData.B_HILLS:    return Color(0.65, 0.57, 0.32)   # golden dry hills (reads as elevation)
+		WorldMapData.B_MOUNTAIN: return Color(0.47, 0.44, 0.46)   # slate rock
+		WorldMapData.B_RIVER:    return Color(0.26, 0.50, 0.77)
 	return _SEA_DEEP
 
 func _draw_background() -> void:
@@ -157,7 +161,11 @@ func _draw_background() -> void:
 			var c: Color = _biome_color(b)
 			var h: int = ((gx * 73856093) ^ (gy * 19349663)) & 1023
 			var shade: float = 1.0 + (float(h) / 1023.0 - 0.5) * 0.16   # ±8% brightness
-			c = Color(clampf(c.r * shade, 0.0, 1.0), clampf(c.g * shade, 0.0, 1.0), clampf(c.b * shade, 0.0, 1.0))
+			# Snow-dusted peaks: the brightest-shaded mountain tiles cap with snow (variety).
+			if b == WorldMapData.B_MOUNTAIN and shade > 1.05:
+				c = _SNOW
+			else:
+				c = Color(clampf(c.r * shade, 0.0, 1.0), clampf(c.g * shade, 0.0, 1.0), clampf(c.b * shade, 0.0, 1.0))
 			draw_rect(Rect2(gx * cw, gy * ch, cw + 1.0, ch + 1.0), c)
 
 # ── Faction territories (tint the land each kingdom holds) ─────────────────────
