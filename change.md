@@ -54,7 +54,43 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
-## Iteration 150 — 2026-06-18  (DEV-LOOP — performance benchmark at high unit counts)
+## Iteration 151 — 2026-06-18  (DEV-LOOP — found + fixed broken save/load; added regression test)
+
+### Plan
+Test an UNVERIFIED dimension after the reworks: save/load round-trip (the reworks added new serialized state —
+world_map ownership, player_title_index, tutorial_index, the PLAYER faction). Real risk: world_map biome holds
+PackedByteArrays + JSON int→float.
+
+### REAL BUG FOUND (CRASH/CORRUPTION class — was completely untested)
+- A save→load round-trip (serialize → SaveManager JSON file → load → deserialize) **threw**
+  `Invalid operands 'int' and 'float' in operator '^'` (JSON loads ints as floats; the RNG-reseed XOR in
+  deserialize broke), AND the world_map biome `PackedByteArray` (tiles/elev/territory) came back as a base64
+  **String** → corrupt world map. Loading a saved game (reachable via Main Menu → Load) was broken.
+
+### Fix (committed before re-test)
+- `deserialize`: `int()`-cast the loaded seed (XOR needs int); regenerate the deterministic biome from the saved
+  seed on load (keeping the mutated cities/factions/kingdoms) so PackedByteArrays never round-trip through JSON.
+  Preloaded `WorldMapData` in GameState.
+
+### Playtest (REAL — round-trip, before→after) + new regression test
+- After fix: round-trip succeeds, NO exceptions. Preserved: player faction (99), holdings ownership (2→2),
+  player_title_index (3), tutorial_index (5); biome restored as a PackedByteArray (3600 cells, full size).
+- Added **`tests/TestSaveLoad.gd` (8/0)** — full JSON-file round-trip asserting the new state + a usable biome
+  survive. Would have caught this bug. **Full suite green** after the deserialize change.
+
+### Post-Mortem
+- Save/load had ZERO test coverage → a crash-class regression hid through the whole rework. Now guarded.
+- Minor (non-blocking): some restored world ints are floats (title/tutorial); consumers int()-cast them, so
+  functionally fine — could coerce on load for cleanliness later.
+
+### Active Backlog
+- **Required (small, deferred):** coerce world int fields on load for cleanliness (functionally fine now).
+- **Design Iteration (deferred):** independents deplete late-game (iter148, needs a mechanic); spatial index at
+  ~15k+ units (iter150, no current pressure). King-across-seeds needs a stable harness (iter146).
+- ~~save/load untested~~ → RESOLVED iter151 (bug fixed + TestSaveLoad regression added).
+
+### Confidence: HIGH — real round-trip before/after (crash → clean), new regression test 8/0, full suite green.
+Iterations since last command/compact: 4 (last compact iter147; compact due ~iter152).
 
 ### Plan
 Re-measure sim-tick performance at scale (the "tens of thousands of units" goal; last checked iter127) to
