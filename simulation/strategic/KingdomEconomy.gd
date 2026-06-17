@@ -50,11 +50,14 @@ static func tick_day(world: Dictionary, kingdom: Dictionary, _tick: int) -> Arra
 		if unrest > 0.0:
 			c["unrest"] = maxf(0.0, unrest - 0.1)
 		# Garrison slowly rebuilds toward the cap (a settled holding raises militia), so held
-		# territory firms up rather than staying at the thin capture-remnant level.
-		var gcap: int = CampaignMap.garrison_cap(c)
-		var gnow: int = c.get("garrison", 0)
-		if gnow < gcap:
-			c["garrison"] = mini(gcap, gnow + GARRISON_REGEN_PER_DAY)
+		# territory firms up rather than staying at the thin capture-remnant level. PLAYER-only:
+		# this makes the player's conquests durable WITHOUT hardening AI/independent targets
+		# (which over-throttled the player's own expansion when applied to everyone — iter145).
+		if kingdom.get("is_player", false):
+			var gcap: int = CampaignMap.garrison_cap(c)
+			var gnow: int = c.get("garrison", 0)
+			if gnow < gcap:
+				c["garrison"] = mini(gcap, gnow + GARRISON_REGEN_PER_DAY)
 
 	# The PLAYER actively develops their seat (the city-view economy), so their holdings
 	# yield more strategic gold than a passive AI province. Without this the lone-village
