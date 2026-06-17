@@ -167,6 +167,33 @@ func _draw_background() -> void:
 			else:
 				c = Color(clampf(c.r * shade, 0.0, 1.0), clampf(c.g * shade, 0.0, 1.0), clampf(c.b * shade, 0.0, 1.0))
 			draw_rect(Rect2(gx * cw, gy * ch, cw + 1.0, ch + 1.0), c)
+			# Decorative relief (overhaul iter5): sparse conifers on forest + peak glyphs on
+			# mountains, so the land reads as actual woods/ranges rather than flat colour cells.
+			var ddx: float = (float((h >> 3) & 3) - 1.5) * cw * 0.12
+			if b == WorldMapData.B_FOREST and (h & 1) == 0:
+				_draw_tree(gx * cw + cw * 0.5 + ddx, gy * ch + ch * 0.58, minf(cw, ch))
+			elif b == WorldMapData.B_MOUNTAIN and c != _SNOW:
+				_draw_peak(gx * cw + cw * 0.5 + ddx, gy * ch + ch * 0.58, minf(cw, ch))
+
+# Tiny conifer (forest relief) — a dark-green canopy triangle.
+func _draw_tree(cx: float, cy: float, s: float) -> void:
+	var hh: float = s * 0.38
+	var w: float = s * 0.24
+	draw_colored_polygon(PackedVector2Array([
+		Vector2(cx, cy - hh), Vector2(cx - w, cy + hh * 0.35), Vector2(cx + w, cy + hh * 0.35)]),
+		Color(0.11, 0.27, 0.13, 0.85))
+
+# Tiny mountain peak (range relief) — a slate triangle with a snow tip.
+func _draw_peak(cx: float, cy: float, s: float) -> void:
+	var hh: float = s * 0.42
+	var w: float = s * 0.34
+	var top: Vector2 = Vector2(cx, cy - hh)
+	draw_colored_polygon(PackedVector2Array([
+		top, Vector2(cx - w, cy + hh * 0.30), Vector2(cx + w, cy + hh * 0.30)]),
+		Color(0.32, 0.30, 0.33, 0.80))
+	draw_colored_polygon(PackedVector2Array([
+		top, top + Vector2(-w * 0.34, hh * 0.36), top + Vector2(w * 0.34, hh * 0.36)]),
+		Color(0.86, 0.88, 0.92, 0.92))
 
 # ── Faction territories (tint the land each kingdom holds) ─────────────────────
 
