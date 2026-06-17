@@ -51,6 +51,22 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 136 — 2026-06-17  (MAP-OVERHAUL LOOP #9 — highlight the player's kingdom in the legend)
+
+### Source
+Map-overhaul loop (usability). The player's row in the Kingdoms legend blended in with the rival rows.
+
+### Change made (`WorldMapView.gd` `_draw_legend`, view-only)
+- **Player-row highlight:** the "(You)" kingdom gets a gold-tinted row background + brighter gold text + a ♔
+  crown marker — found at a glance.
+
+### Playtest (REAL — Xvfb before/after, legend crop)
+- After-render: "Emerald March (You)" clearly stands out (gold highlight + crown) vs. uniform rival rows.
+  **TestPhase9 67/0, TestStrategicAI 83/0.** Failure class: NONE (view-only).
+
+### Backlog (next): per-faction city-icon styling; chrome polish (bottom action bar + top bar); battle/army
+marker clarity; day/season tint; zoom indicator. (COMPACT change.md next iteration — iter137.)
+
 ## Iteration 135 — 2026-06-17  (MAP-OVERHAUL LOOP #8 — smoother biome transitions)
 
 ### Source
