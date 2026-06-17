@@ -45,8 +45,14 @@ func _ready() -> void:
 	SimulationClock.set_speed(SimulationClock.SPEED_NORMAL)
 	# Onboarding + King's Peace intro (only on your own seat, not when spectating a rival).
 	if not _spectator:
-		_hud.show_notification("⚜ A ceasefire shields your realm for %d days — raise farms and defenses before rival factions march." % AIFactionRef.PLAYER_GRACE_DAYS, 10.0)
-		_show_tutorial_choice()
+		# Dev/headless hook: skip onboarding and lay down a basic food economy, then run at
+		# top speed — an unattended on-screen survival run with real telemetry (pairs with
+		# SR_TELEMETRY/SR_SHOT). Mirrors the headless TestSurvival economy on the real scene.
+		if OS.get_environment("SR_AUTOPLAY") != "":
+			_dev_autoplay()
+		else:
+			_hud.show_notification("⚜ A ceasefire shields your realm for %d days — raise farms and defenses before rival factions march." % AIFactionRef.PLAYER_GRACE_DAYS, 10.0)
+			_show_tutorial_choice()
 	print("[CityView] Game initialized. Player: %s at (%d,%d)" % [PLAYER_NAME, _keep_x, _keep_y])
 
 # ── City resolution ───────────────────────────────────────────────────────────
@@ -302,6 +308,40 @@ func _dev_screenshot(path: String) -> void:
 	img.save_png(path)
 	print("[CityView] screenshot saved: %s" % path)
 	get_tree().quit()
+
+# Dev-only: lay down a hall + basic food economy (built, grid-registered, staffed) around
+# the keep and run at top speed, so the real CityViewScene survives unattended on-screen
+# (verify the view/HUD/sim loop, not just the headless logic in TestSurvival).
+func _dev_autoplay() -> void:
+	var BState = preload("res://simulation/buildings/BuildingState.gd")
+	var BReg = preload("res://simulation/buildings/BuildingRegistry.gd")
+	GameState.prepare_starting_area(_keep_x, _keep_y, 16)
+	# Hall (the seat) + a food economy that the headless 100-day test proved sustains a realm.
+	var plan := [
+		["village_hall", 0, 0], ["granary", -3, 0],
+		["apple_orchard", 3, 0], ["apple_orchard", 3, 2], ["apple_orchard", 3, -2],
+		["wheat_farm", -3, 3], ["woodcutter_camp", 0, 4],
+	]
+	for item in plan:
+		var defn: Dictionary = BReg.lookup(item[0])
+		var gx: int = clampi(_keep_x + int(item[1]), 2, 196)
+		var gy: int = clampi(_keep_y + int(item[2]), 2, 196)
+		var b: Dictionary = BState.create(item[0], 0, gx, gy, GameState._next_building_id)
+		if b.is_empty():
+			continue
+		GameState._next_building_id += 1
+		b["built"] = true
+		b["workers"] = defn.get("max_workers", 1)
+		GameState.players[0]["buildings"].append(b)
+		var w: int = defn.get("width", 1); var h: int = defn.get("height", 1)
+		var field: bool = defn.get("field", false)
+		for dy in range(h):
+			for dx in range(w):
+				if GameState._grid != null:
+					GameState._grid.set_building_at(gx + dx, gy + dy, b["id"])
+					GameState._grid.set_field_at(gx + dx, gy + dy, field)
+	SimulationClock.set_speed(SimulationClock.SPEED_FASTEST)
+	print("[CityView] SR_AUTOPLAY: seeded economy, running at top speed")
 
 func _dev_spawn_workers() -> void:
 	var BState = preload("res://simulation/buildings/BuildingState.gd")
