@@ -51,6 +51,42 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 139 — 2026-06-17  (DEV-LOOP — verify stability after the lean-economy / hauling / cadence overhaul)
+
+### Source
+After major out-of-loop changes (start-as-one-village model; much lower start resources; builders now
+HAUL materials from a depot to build; events/sieges slowed), run a REAL managed headless playtest through
+the player-facing placement path (`GameState._cmd_place_building`) to confirm survival still holds.
+
+### Playtest (REAL — headless `simulate_tick`, real placement commands, state curve every 10 days)
+- **Seed 12345:** placed 7/8 buildings via the real path; **all 6 sites BUILT by day 10** (sites→0) — confirms
+  the new material-hauling construction completes end-to-end in a live run. **Survived 100 days.** Curve:
+  popularity 50→46.4 (day10 build-up dip)→56.8; pop 14→21; hall 500hp throughout. Food dipped to 25 (day1),
+  recovered to ~200, then **cratered to 0 by day 100** (late-game drift) — non-fatal within 100d (popularity 56.8).
+- **Seed 4242:** placed 6/6, built 6, **survived** (popularity 64.9, hall 500).
+- **Seed 999: INCONCLUSIVE — not a game failure.** My test's naive tile-finder placed only 3/6 (keep ringed by
+  non-buildable terrain), so NO food economy was seated → starved (popularity 0). This is a HARNESS placement
+  weakness, not proven game balance. Cannot claim the game fails on seed 999.
+
+### Post-Mortem (TARGET REACHED ×2 seeds)
+- The lean-economy + material-hauling + slower-cadence changes are **stable**; survival holds on every seed where
+  the food economy actually got built (12345, 4242). No crash/exception.
+- Next bottleneck (real evidence, seed 12345): **late-game food drift** — food→0 by day 100 with 3 orchards / 21 pop
+  (winter trough + growth). Non-fatal at 100d but the clearest curve weakness. Needs per-day late-game food
+  instrumentation before any rebalance (HONESTY: one curve is too weak to patch food blind).
+
+### No code change this iteration (honesty over progress)
+Nothing proven broken; declined to blind-patch food on a single curve. Verification + watch-items only.
+
+### Active Backlog (Design Iterations, evidence-cited)
+- Late-game food drift → food 0 by day 100 (seed 12345 curve, iter139). Instrument per-day late food, then rebalance.
+- Harness: tile-finder too weak for multi-seed runs (seed 999 placed 3/6). Improve buildable-tile search so
+  multi-seed survival robustness can actually be measured.
+- Targets are stale vs the new start-as-village / reach-King model — refresh "Current Targets" to the new model next compact.
+
+### Confidence: HIGH that the recent overhaul is stable + survival holds where the economy is built (real runs ×2 seeds);
+LOW on any balance claim from the single food curve. Iterations since last command/compact: 1 (last compact iter137).
+
 ## Iteration 138 — 2026-06-17  (MAP-OVERHAUL LOOP #11 — chrome polish: bottom action buttons)
 
 ### Source
