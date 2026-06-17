@@ -51,6 +51,23 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 133 — 2026-06-17  (MAP-OVERHAUL LOOP #6 — legible road network)
+
+### Source
+Map-overhaul loop. Render showed roads as a near-invisible faint 1.5px line — yet roads ARE the march/trade
+network the player plans with.
+
+### Change made (`WorldMapView.gd` `_draw_roads`, view-only)
+- **Road casing + fill:** a dark casing (3.4px) under a lighter packed-earth line (1.7px), so roads read as a
+  clear network between cities (usability + mechanics legibility + looks).
+
+### Playtest (REAL — Xvfb before/after, zoomed road region)
+- After-render: the road network is clearly traced between castles (was barely visible). Map systems green:
+  **TestPhase9 67/0, TestStrategicAI 83/0.** Failure class: NONE (view-only).
+
+### Backlog (next): resource-deposit icon legibility; smoother biome transitions; map info readout
+(region/territory, day/season tint); per-faction city-icon styling; bottom action-bar / legend polish.
+
 ## Iteration 132 — 2026-06-17  (MAP-OVERHAUL LOOP #5 — terrain relief: forests & mountain ranges + COMPACT)
 
 ### Source
