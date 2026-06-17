@@ -58,6 +58,11 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
   extended `tests/TestKingClimb.gd` (climb + 100-day post-King durability assertion). NOTE: this also reads as a
   late-game RUNAWAY (a ~16-holding developed realm is near-unstoppable) — a difficulty design judgment, not a bug;
   not patched without direction.
+- **ON-SCREEN in-city FLOOR survival: MET (iter158).** Real Xvfb run of `CityViewScene` (SR_AUTOPLAY + garrison):
+  authoritative 1/s telemetry shows **day 100 reached, min popularity 50.0 (→61.5), min hall HP 400 (intact)**, no
+  exceptions — the 20-min single-life survival proven on the real scene, not just headless. Contrast: a food-only
+  (defenceless) seat legitimately falls to a siege ~day 72 (DEFEAT screen screenshot) — a gap headless TestSurvival
+  cannot see (it doesn't model the view-layer keep-destroyed loss).
 - **ON-SCREEN climb proof: MET (iter157).** Real Xvfb screenshots of `WorldMapScene` (default seed): the title
   HUD reads **"Reeve · 1 village"** at day 0 and **"King · 16 villages"** at Campaign day 130, with a cluster of
   gold player holdings rendered across the map. The climb is now proven BOTH headlessly (TestKingClimb, 5 seeds)
@@ -72,6 +77,44 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
   Day-225 ×3 (iter123-125); Day-300 reached 1×/3 (iter125). Kept for history; not the current bar.
 
 ---
+
+## Iteration 158 — 2026-06-18  (DEV-LOOP — ON-SCREEN in-city 20-min survival proof + real siege-loss finding)
+
+### Plan
+Prove the FLOOR (Day-100 / 20-min single-life survival) on the REAL CityViewScene, not just headless
+(TestSurvival is logic-only and — per its own comment — does NOT model the view-layer keep-destroyed loss).
+Added `SR_AUTOPLAY` (skip tutorial, seed an economy, run at 5×) so the scene can run unattended with telemetry.
+
+### Playtest #1 (REAL — Xvfb CityViewScene, SR_AUTOPLAY food-only economy, SR_TELEMETRY 1 row/s)
+- **LEGITIMATE DEATH at day 72:** hall HP 500 (held full through the 30-day King's Peace) → besieged after grace
+  → 0 by day 72 → on-screen "DEFEAT — Your keep has fallen" screen (real screenshot). def_built=0, units=0.
+  Popularity was fine (57); the realm fell because a food-only seat builds NO defenders. Clean exit, no exceptions.
+- FINDING: headless TestSurvival passing does NOT prove on-screen survival — it never exercises the view-layer
+  siege/keep-destroyed loss. The on-screen siege→DEFEAT path itself works correctly.
+
+### Playtest #2 (REAL — same, with a 12-unit garrison added to SR_AUTOPLAY)
+- **SURVIVED to day 100 on-screen.** Telemetry (authoritative, flushed 1/s): game_day reached 100; min popularity
+  50.0 (rose to 61.5, never near the 10 revolt floor); min hall HP 400 (dipped during post-grace sieges, recovered
+  to 500 — keep never destroyed); units 12→5 (held the line); food sustained; population ~15; FPS ~10-12 (software
+  Xvfb, perf-bound but functional); NO exceptions. (Day-100 screenshot didn't save — the perf-bound run hit day 100
+  at ~311s and `timeout 320` reaped it before the 300s SR_SHOT save/quit finished; telemetry is the real evidence.)
+
+### Post-Mortem (TARGET REACHED on-screen + a real gap found)
+- FLOOR proven ON-SCREEN: a defended realm survives 100 game-days in one life on the real scene (render + HUD + sim
+  + combat + siege defense), popularity healthy, keep intact. Pairs with the iter157 on-screen strategic climb.
+- Gap logged: a view-layer siege-loss regression guard would need scene-level testing (TestSurvival can't cover it).
+
+### Implement (dev-only hooks, no gameplay change)
+- `SR_AUTOPLAY` in CityViewScene: skips onboarding, lays a hall + food economy + a standing garrison, runs at 5×.
+
+### Active Backlog
+- **Design Iteration (deferred / awaits user direction):** late-game runaway difficulty (balance call);
+  coerce world int fields on load (cleanliness); independents deplete late-game; spatial index ~15k+ units.
+- **New (low pri):** no headless guard for the VIEW-layer keep-destroyed loss (food-only seat falls ~day72) —
+  would need scene-level harness; logged, not built.
+
+### Confidence: HIGH — authoritative 1/s telemetry shows on-screen day-100 survival (min pop 50, min hall 400);
+the undefended contrast death (day 72) is screenshot-confirmed. Iterations since last command/compact: 1 (compact iter157).
 
 ## Iteration 157 — 2026-06-18  (DEV-LOOP — ON-SCREEN climb proof (Reeve→King) via SR_CLIMB; COMPACT)
 
