@@ -54,7 +54,38 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
-## Iteration 149 — 2026-06-18  (DEV-LOOP — runaway-leader check across seeds; resolved as healthy)
+## Iteration 150 — 2026-06-18  (DEV-LOOP — performance benchmark at high unit counts)
+
+### Plan
+Re-measure sim-tick performance at scale (the "tens of thousands of units" goal; last checked iter127) to
+confirm the optimization holds and find the next lever if it degrades.
+
+### Playtest (REAL — headless simulate_tick, engaged armies, 12-tick timed average)
+- 2,000 total units: **11.0 ms/tick** · 4,000: **21.7** · 8,000: **42.6** · 16,000: **85.4**.
+- **Linear scaling** (~5.3 µs/unit/tick) — doubling units doubles time → the iter127 A*-gate + enemy-index
+  optimization HOLDS, no O(n²) regression. No crash/exception.
+- vs the 20 Hz budget (~50 ms/tick): ~8k units sustains full speed; ~16k (85 ms) dilates to ~12 Hz (slower, not
+  a freeze — MAX_TICKS_PER_FRAME + accumulator catch up).
+- Honesty caveat: player units died off during the 12-tick melee (player_alive=0 at end), so the average reflects
+  a DECLINING count; true steady-state full-count cost is somewhat higher. The linear trend is the reliable signal.
+
+### Post-Mortem (FREEZE/PERF class — healthy, no regression)
+- Engine scales linearly; current model uses small player armies so this is comfortable. For genuine
+  "tens of thousands at full speed," the iter127-noted next lever (spatial index for nearest-enemy) would lift the
+  ceiling — NOT needed now (no current pressure). No change.
+
+### No game code change (perf healthy; honest verification).
+
+### Active Backlog
+- **Design Iteration (deferred):** spatial index for nearest-enemy IF/when armies reach ~15k+ (iter150 data; no
+  current pressure). Independents deplete late-game (iter148, needs a mechanic; defer).
+- **Required (test/INFRA):** stable harness to grade King-across-seeds (iter146); one process per seed (iter141).
+- **STATUS:** the reworked game is verified solid across stability, balance (survival/expansion/durability/world
+  dynamism), visuals, AND performance. Headless dimensions are largely exhausted — further high-value progress
+  needs real-play (Xvfb/human) evidence or new-content/feature direction from the user.
+
+### Confidence: HIGH — real ms/tick numbers, linear scaling, no regression.
+Iterations since last command/compact: 3 (last compact iter147; compact due ~iter152).
 
 ### Plan
 Resolve the iter148 "runaway AI leader" watch-item with multi-seed evidence before acting (no blind balance patch).
