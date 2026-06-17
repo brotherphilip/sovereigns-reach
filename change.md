@@ -51,6 +51,27 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 128 — 2026-06-17  (MAP-OVERHAUL LOOP #1 — de-mud the world map: textured terrain + kingdom borders)
+
+### Source
+New recurring loop, user-directed: each iteration focuses ONLY on the world-map screen — overhaul its looks,
+mechanics, usability, variety. (Assessed live: terrain was flat blocky single-colour cells under a uniform
+muddy faction wash; low variety; minimal selection feedback.)
+
+### Change made (`WorldMapView.gd` `_draw`, view-only)
+- **Textured terrain:** subtle deterministic per-tile shade (hash of gx,gy, ±8% brightness) so land reads
+  undulating, not a chunky flat grid.
+- **Kingdom borders, not washes:** territory now draws a strong colour band only where an owner meets a
+  different owner/wilds (a=0.50), with a faint interior (a=0.08) — was a=0.22 over every owned cell (muddy).
+
+### Playtest (REAL — Xvfb render before/after via SR_SHOT)
+- Before/after screenshots: the muddy region washes are gone; kingdoms read as crisp bordered territories and
+  the biomes show through; terrain has texture. Clean render, no errors. Failure class: NONE (view-only).
+
+### Backlog (map-overhaul loop — next iterations)
+Richer biome variety/palette (rivers, hills, snow, coastline emphasis); city-icon + label clarity & selection/
+hover feedback; legible action affordances; map mechanics (region info, resource readability). One focus per loop.
+
 ## Iteration 127 — 2026-06-17  (ONE-SHOT optimization pass — ~7–8× faster unit sim, toward tens of thousands of units)
 
 ### Source
