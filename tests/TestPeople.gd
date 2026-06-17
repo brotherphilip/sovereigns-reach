@@ -19,6 +19,7 @@ func _init() -> void:
 	_test_pairing()
 	_test_birth_and_genetics_links()
 	_test_housing_cap()
+	_test_population_sustains()
 	_test_inherit_skin()
 	print("\n=== People Results: %d passed, %d failed ===" % [_pass, _fail])
 	quit(0 if _fail == 0 else 1)
@@ -99,6 +100,26 @@ func _test_housing_cap() -> void:
 	for day in range(120):
 		nid = PeopleSystem.tick_day(citizens, p2, _rng, day, nid)
 	ok("births never exceed housing capacity", PeopleSystem.living_count(citizens) <= PeopleSystem.housing_capacity(p2))
+
+# A fed, housed realm must SUSTAIN its population over a long run — not collapse mid-game when the
+# founding settlers age out. Pre-iter126 the initial settlers were one working-age cohort that died
+# together (~a death-wave), collapsing the realm to near-empty by ~day 320. The staggered-age fix
+# (CitizenSystem age pyramid) keeps a younger generation always maturing. Guards that regression.
+func _test_population_sustains() -> void:
+	print("\n[Population sustains over a long run — no founding-cohort collapse (iter126)]")
+	var citizens: Array = []
+	var rng := RandomNumberGenerator.new(); rng.seed = 7
+	var nid: int = CitizenSystem.spawn(citizens, 14, 100.0, 100.0, rng, 1)
+	var start: int = PeopleSystem.living_count(citizens)
+	var player := _player([_hovel(), _hovel(), _hovel(), _hovel()])  # housed realm (headroom)
+	var lowest: int = start
+	for day in range(1, 320 + 1):
+		nid = PeopleSystem.tick_day(citizens, player, rng, day, nid)
+		lowest = mini(lowest, PeopleSystem.living_count(citizens))
+	var final_n: int = PeopleSystem.living_count(citizens)
+	print("  start=%d  lowest=%d  final=%d" % [start, lowest, final_n])
+	ok("population never collapses over 320 days (lowest >= 8)", lowest >= 8)
+	ok("population still healthy at day 320 (>= 9)", final_n >= 9)
 
 func _test_inherit_skin() -> void:
 	print("\n[Skin inheritance]")

@@ -75,8 +75,13 @@ const HAIR_COLORS: Array = [
 static func make_citizen(id: int, hx: float, hy: float, rng: RandomNumberGenerator,
 		day: int = 0, profile: Dictionary = {}) -> Dictionary:
 	var sex: String = profile.get("sex", "m" if rng.randf() < 0.5 else "f")
-	# Born so they're working-age (6–9 game-yr) at the given day, unless told otherwise.
-	var born_day: int = profile.get("born_day", day - rng.randi_range(288, 432))
+	# Initial settlers get a SPREAD of ages (an age pyramid), not one monolithic working-age cohort.
+	# Else the whole founding generation reaches old-age death together (~a single death-wave) and
+	# the realm collapses to near-empty mid-game with no younger cohort to replace it (iter126 finding:
+	# pop drifted 16→2 by day 320). A wide spread staggers deaths and keeps a younger generation always
+	# maturing into fertility/work, so a fed, housed realm sustains its population. Births pass
+	# born_day=day explicitly, so only initial settler spawns use this default.
+	var born_day: int = profile.get("born_day", day - rng.randi_range(150, 510))
 	return {
 		"id": id, "role": "peasant", "job": -1, "build_slot": 0,
 		"job_type": "", "work_anim": "", "work_slot": 0,
