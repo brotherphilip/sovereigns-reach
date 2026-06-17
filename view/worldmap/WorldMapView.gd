@@ -538,12 +538,20 @@ func _draw_legend() -> void:
 	for k in _legend:
 		var col: Color = Color.from_string(k["color_hex"], Color.GRAY)
 		var alive: bool = k.get("is_alive", true)
+		var is_you: bool = k.get("is_player", false)
+		# Highlight the player's own kingdom row so the realm is found at a glance (overhaul iter9).
+		if is_you:
+			draw_rect(Rect2(origin.x + 3.0, y - 10.0, panel_w - 6.0, row_h), Color(0.95, 0.78, 0.10, 0.16))
+			draw_string(ThemeDB.fallback_font, Vector2(origin.x + pad - 7.0, y + 2.0), "♔",
+				HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color(1.0, 0.85, 0.30))
 		# Colour swatch.
 		draw_rect(Rect2(origin.x + pad, y - 8.0, 10.0, 10.0), col if alive else col.darkened(0.5))
 		var nm: String = k.get("name", "")
-		if k.get("is_player", false):
+		if is_you:
 			nm += " (You)"
 		var txt_col: Color = Color(0.88, 0.82, 0.64) if alive else Color(0.5, 0.45, 0.4)
+		if is_you:
+			txt_col = Color(1.0, 0.90, 0.55)
 		var line: String = nm if alive else nm + " ✝"
 		draw_string(ThemeDB.fallback_font, Vector2(origin.x + pad + 16.0, y + 2.0), line,
 			HORIZONTAL_ALIGNMENT_LEFT, -1, 10, txt_col)
