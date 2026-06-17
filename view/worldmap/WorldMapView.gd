@@ -292,18 +292,25 @@ func _draw_cities() -> void:
 		# Development pips (filled = developed) beneath the castle.
 		_draw_development_pips(p, c.get("development", 0), col)
 
-		# City name
-		var name_col: Color = Color(0.15, 0.10, 0.05) if not is_player_owned else Color(0.60, 0.45, 0.10)
+		# City name — outlined (dark halo + light text) and centred under the icon so it stays
+		# legible on ANY terrain (overhaul iter4); was tiny dark text that vanished into the land.
+		var name_col: Color = Color(1.0, 0.90, 0.45) if is_player_owned else Color(0.97, 0.95, 0.90)
 		var label: String = c.get("name", "")
 		if is_start:
 			label += " ★"
-		draw_string(ThemeDB.fallback_font, p + Vector2(-30, 20), label,
-			HORIZONTAL_ALIGNMENT_LEFT, -1, 9, name_col)
+		_draw_map_label(p + Vector2(-40, 24), label, 80.0, 10, name_col)
 
 		# Garrison strength on every city (the defenders that campaigns fight).
 		var ginfo: String = "⚔ %d" % c.get("garrison", 0)
-		draw_string(ThemeDB.fallback_font, p + Vector2(-30, 30), ginfo,
-			HORIZONTAL_ALIGNMENT_LEFT, -1, 8, Color(0.30, 0.22, 0.12, 0.85))
+		_draw_map_label(p + Vector2(-40, 35), ginfo, 80.0, 9, Color(0.95, 0.88, 0.72))
+
+# Centred map label with a dark 4-direction halo so text stays legible over any terrain/biome.
+func _draw_map_label(pos: Vector2, text: String, width: float, fsize: int, col: Color) -> void:
+	var f: Font = ThemeDB.fallback_font
+	const _HALO: Color = Color(0.0, 0.0, 0.0, 0.85)
+	for o in [Vector2(1, 1), Vector2(-1, 1), Vector2(1, -1), Vector2(-1, -1)]:
+		draw_string(f, pos + o, text, HORIZONTAL_ALIGNMENT_CENTER, width, fsize, _HALO)
+	draw_string(f, pos, text, HORIZONTAL_ALIGNMENT_CENTER, width, fsize, col)
 
 func _draw_development_pips(p: Vector2, development: int, col: Color) -> void:
 	var n: int = clampi(development, 0, 10)
