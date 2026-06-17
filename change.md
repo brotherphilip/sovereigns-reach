@@ -85,6 +85,36 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 162 — 2026-06-18  (DEV-LOOP — regression-guard the coalition feature; COMPACT)
+
+### Plan
+The iter161 coalition was verified only via a /tmp A/B harness. Add a committed regression guard so a future
+change can't silently break the user-directed feature. Compact change.md (due, 5 loops since iter157).
+
+### Implement (test only, no game code change)
+- Added `_test_coalition()` to `tests/TestStrategicAI.gd`: a controlled 2-faction world where faction 0 is a
+  runaway (8 cities × dev 8 = score 72 ≥ Duke). Asserts: (a) `_coalition_target` detects fid 0; (b) a bordering
+  faction's `_best_target` redirects onto a leader city with `vs_leader=true`; (c) the coalition stands down when
+  the leader is dropped below the dominance floor (score 16 < 62).
+
+### Playtest (REAL — headless)
+- **TestStrategicAI 86/0** (was 83/0; +3 coalition assertions, all green).
+
+### COMPACT (5-loop checkpoint; last compact iter157)
+- Current Targets current: floor Day-100 multi-seed; expansion+title (iter144); durable (iter145); King 5-seed
+  ≤d113 (iter153-154); post-King durability (iter156); on-screen climb (iter157) + on-screen city survival
+  (iter158); coalition-vs-leader (iter161). Latest Active Backlog tight + deduped (below).
+- Resolved across iters cite real evidence (save/load iter151; stranded-armies iter154; int-coerce non-issue
+  iter160; coalition iter161). Nothing in both Active and Resolved. Run History (older entries) untouched.
+
+### Active Backlog
+- **Design Iteration (deferred / awaits user direction):** independents deplete late-game (would need a
+  village-founding/secession mechanic); spatial index ~15k+ units (scale-only perf, not hit yet); coalition
+  intensity tuning (COALITION_MIN_SCORE / _LEAD_RATIO) if the user wants it sharper.
+
+### Confidence: HIGH — coalition feature now guarded (TestStrategicAI 86/0).
+Iterations since last command/compact: 0 (COMPACTED this iteration, iter162).
+
 ## Iteration 161 — 2026-06-18  (DEV-LOOP — USER-DIRECTED: late-game coalition vs the runaway leader)
 
 ### Plan (user picked "Coalition vs leader" via AskUserQuestion)

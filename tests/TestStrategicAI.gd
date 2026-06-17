@@ -42,6 +42,7 @@ func _init() -> void:
 	_test_seat_shield()
 	_test_ai_building_economy()
 	_test_distance_scaled_travel()
+	_test_coalition()
 	print("\n=== Strategic AI Results: %d passed, %d failed ===" % [_pass, _fail])
 	quit(0 if _fail == 0 else 1)
 
@@ -129,6 +130,37 @@ func _test_distance_scaled_travel() -> void:
 		and int(world["world_map"]["cities"][1].get("garrison", 0)) > garr_before)
 
 # ── helpers ──────────────────────────────────────────────────────────────────
+
+# Coalition vs the runaway leader (iter161, user-directed). A faction that dominates the
+# campaign (Duke+ domain score, far ahead) draws a coalition: bordering factions redirect
+# their attacks onto it. Guards that the leader is detected, that a neighbour targets it
+# (vs_leader), and that the coalition stands down when nobody is dominant.
+func _test_coalition() -> void:
+	print("\n[Coalition vs the runaway leader]")
+	var world: Dictionary = {"world_map": {
+		"strategic_init": true, "player_faction_id": 99,
+		"kingdoms": [
+			{"id": 0, "is_alive": true, "relations": {}, "treasury": 5000, "resources": {}, "armies": [], "next_army_id": 1, "personality": CampaignMap.DEFAULT_PERSONALITY.duplicate()},
+			{"id": 1, "is_alive": true, "relations": {}, "treasury": 5000, "resources": {}, "armies": [], "next_army_id": 100001, "personality": CampaignMap.DEFAULT_PERSONALITY.duplicate()},
+		],
+		"cities": [],
+	}}
+	var cities: Array = world["world_map"]["cities"]
+	# Faction 0 = the runaway: 8 cities at development 8 → score 8×(1+8)=72 (≥ Duke 62).
+	for i in range(8):
+		cities.append({"id": i, "owner_faction_id": 0, "development": 8, "garrison": 10, "tier": 2, "connected_to": []})
+	# Faction 1 = small (score 2), bordering leader city 0.
+	cities.append({"id": 8, "owner_faction_id": 1, "development": 1, "garrison": 10, "tier": 1, "connected_to": [0]})
+	cities[0]["connected_to"] = [8]
+
+	ok("coalition detects the runaway leader (fid 0)", KingdomAI._coalition_target(world) == 0)
+	var plan: Dictionary = KingdomAI._best_target(world, world["world_map"]["kingdoms"][1])
+	ok("a bordering faction redirects onto the leader (vs_leader)",
+		plan.get("vs_leader", false) and CampaignMap.owner_of(CampaignMap.city_by_id(world, int(plan.get("target_id", -1)))) == 0)
+	# Drop the leader below the dominance floor → no coalition.
+	for i in range(8):
+		cities[i]["development"] = 1   # score now 8×2 = 16 < 62
+	ok("coalition stands down when nobody is dominant", KingdomAI._coalition_target(world) == -1)
 
 func ok(label: String, cond: bool) -> void:
 	if cond:
