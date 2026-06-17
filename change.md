@@ -31,14 +31,45 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 - **FLOOR (MET & locked, iter118–119):** a real mouse-driven single-life playthrough survives **20 min = Day 100**
   on seed 42, ending on the "A Sovereign's Reign" victory — confirmed by 3 live Day-100 wins + CI (`TestSiege`
   Case C) + a headless repro.
-- **CURRENT BAR: 30 min = Day 150** single-life survival, live mouse play. **REACHED (1/3 confirmations, iter121):**
-  a live run hit **Day 162** with the hall HEALTHY and recovering (hp 442→484, popularity 72.7), enabled by
-  iter120's siege-ready-gated keep-repair + iter121's fire-hardened seat. Need **2 more clean Day-150 live runs**
-  before raising the bar (loop "reliably met" rule).
-- **Next escalation candidates (after 30 min is confirmed ×3):** raise duration to 45 min / Day 225; multi-seed
-  robustness; a content/variety target; an engagement/no-dead-time target.
+- **30 min = Day 150: MET & CONFIRMED (3 clean live runs, iter121–122)** — Day 162 / 161 / 161, hall healthy
+  (hp ~478–484, siege_ready, popularity 69–73). Enabled by iter120 keep-repair + iter121 fire-hardened seat.
+- **CURRENT BAR (raised iter122): 45 min = Day 225** single-life survival, live mouse play. *Why:* survival is
+  now mechanically robust (a prepared realm out-lasts siege+fire), so Day-225 tests whether the late-game stays
+  engaging over a longer haul or just COASTS. If it coasts trivially, the next work is late-game THREAT/ENGAGEMENT
+  escalation (the loop's "harder to satisfy, not coasting" mandate) — decide from the Day-225 probe's evidence.
+- **Next escalation candidates (after 45 min):** late-game threat scaling; content/variety; engagement/no-dead-time;
+  multi-seed robustness.
 
 ---
+
+## Iteration 122 — 2026-06-17  ★ MILESTONE: 30 min / Day 150 CONFIRMED ×3 — bar raised to 45 min / Day 225 ★
+
+### Source
+Loop "reliably met" rule: Day 150 was reached once (iter121); run the 2 remaining confirmations before raising.
+
+### Change made
+None (game code). Two confirmation playtests + bar escalation bookkeeping.
+
+### Playtest (REAL — Xvfb :99, two full live runs ~410 s each, SR_TELEMETRY + screenshots)
+- **Confirmation #2 (reproduce winning layout):** reached **Day 161**, hall_hp=478, siege_ready, popularity 72.6.
+- **Confirmation #3 (VARIED build tiles — robustness):** reached **Day 161**, hall_hp=478, siege_ready,
+  popularity 69.3 (food dipped to 79 but well clear of danger) — also healthy. Not coordinate-fragile.
+
+### Outcome — failure class: NONE. ★ Day-150 / 30-min bar CONFIRMED across 3 clean live runs (Day 162/161/161) ★
+- The hall holds at ~478 HP across all three (keep-repair tops it up; seat unburnable) — survival is mechanically
+  robust for a prepared realm. **Bar raised to 45 min / Day 225.**
+- **Observation for next iteration:** because a prepared realm is now siege/fire-robust, a Day-225 run may COAST
+  (stable numbers, little late-game pressure). The Day-225 probe should check for that — if confirmed, the next
+  improvement is late-game THREAT/ENGAGEMENT escalation, not just more duration.
+
+### Active Backlog
+**Design (toward Day 225):** probe a live Day-225 run; if it coasts, design late-game threat/engagement escalation.
+**Design (optional):** spectator-battle edge cases. **User-only:** ear-check narration; ear-tune SFX.
+
+### COMPACT (loop step 6, ~5 loops)
+Verified Current Targets / Active Backlog / Resolved are tight and non-duplicative: the siege-grind and seat-fire
+items are in Resolved (iter121) and not in Active; the Day-150 target moved from Active to a confirmed line under
+Current Targets. No same-root-cause Resolved duplicates. Run History untouched.
 
 ## Iteration 121 — 2026-06-17  (Fire-harden the seat → Day-150 bar REACHED live, hall healthy at Day 162)
 
