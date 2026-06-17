@@ -649,6 +649,13 @@ const LEASH_RADIUS: int = 13
 # where idle units should advance to (AI raiders) or Vector2i(-1,-1) to hold.
 func _tick_force_units(owner: Dictionary, units: Array, enemies: Array, tick: int, rally: Vector2i) -> void:
 	const TPD: int = SimulationClock.TICKS_PER_GAME_DAY
+	# PERF (opt pass): index live enemies by id ONCE per force-tick so each attacker's target
+	# lookup is O(1). Was a linear _find_in scan per attacker per tick → O(units×enemies) across
+	# an engaged army (a hidden O(n²) that bites at tens of thousands of units).
+	var by_id: Dictionary = {}
+	for e in enemies:
+		if e is Dictionary:
+			by_id[int(e.get("id", -1))] = e
 	for unit in units:
 		if not (unit is Dictionary and unit.get("is_alive", false)):
 			continue
@@ -662,7 +669,7 @@ func _tick_force_units(owner: Dictionary, units: Array, enemies: Array, tick: in
 			UnitState.ORDER_MOVE:
 				_tick_unit_move(owner, unit, tick, TPD)
 			UnitState.ORDER_ATTACK:
-				_tick_unit_attack(owner, unit, tick, TPD, enemies)
+				_tick_unit_attack(owner, unit, tick, TPD, enemies, by_id)
 			UnitState.ORDER_PATROL:
 				_tick_unit_patrol(owner, unit, tick, TPD, enemies)
 			UnitState.ORDER_TRAINING:
@@ -864,6 +871,11 @@ func _tick_unit_patrol(owner: Dictionary, unit: Dictionary, tick: int, tpd: int,
 		return
 	unit["target_x"] = wx
 	unit["target_y"] = wy
+	# PERF (opt pass): only A* on the step tick — patrol re-pathed every tick before, discarding
+	# it while on the move cooldown (same waste as the attack path).
+	if int(unit.get("step_cd", 0)) > 0:
+		unit["step_cd"] = int(unit["step_cd"]) - 1
+		return
 	var path: Array = Pathfinder.find_path(_grid, unit.get("pos_x", 0), unit.get("pos_y", 0), wx, wy)
 	if not path.is_empty():
 		_advance_step(owner, unit, path[0][0], path[0][1], tpd)
@@ -1016,8 +1028,11 @@ func _return_to_guard(owner: Dictionary, unit: Dictionary) -> void:
 # S1: ORDER_ATTACK execution. The unit chases its target_id; once within weapon
 # range it strikes on a fixed cadence, and the target retaliates. Resolves to
 # IDLE when the target dies or can no longer be found.
-func _tick_unit_attack(owner: Dictionary, unit: Dictionary, tick: int, ticks_per_day: int, enemies: Array) -> void:
-	var target: Dictionary = _find_in(enemies, unit.get("target_id", -1))
+func _tick_unit_attack(owner: Dictionary, unit: Dictionary, tick: int, ticks_per_day: int, enemies: Array, by_id: Dictionary = {}) -> void:
+	# O(1) target lookup via the per-tick id index (falls back to a scan if not provided).
+	var target: Dictionary = by_id.get(int(unit.get("target_id", -1)), {})
+	if not (target is Dictionary and target.get("is_alive", false)):
+		target = _find_in(enemies, unit.get("target_id", -1))
 	# Auto-acquired (leashed) defenders return to their post when the fight ends or
 	# the chase strays too far — player-issued attacks (auto_aggro=false) pursue freely.
 	var auto: bool = unit.get("auto_aggro", false) and unit.has("guard_x")
@@ -1054,9 +1069,15 @@ func _tick_unit_attack(owner: Dictionary, unit: Dictionary, tick: int, ticks_per
 			if _advance_step(owner, unit, rx, ry, ticks_per_day):
 				dist = maxi(absi(tx - rx), absi(ty - ry))
 	elif dist > engage_dist:
-		# Out of range: pathfind one step toward the target's live position
-		# (terrain-aware cooldown stepping).
+		# Out of range: step toward the target's live position on the move cooldown.
+		# PERF (opt pass): a unit can only move once per step-cooldown, so only run the
+		# (expensive) A* on the tick it actually steps — otherwise we'd recompute a full
+		# path every tick and discard it ~98% of the time (this was the #1 combat hotspot:
+		# thousands of attackers each A*-ing per tick). Same cadence/behaviour, far less work.
 		if _grid == null:
+			return
+		if int(unit.get("step_cd", 0)) > 0:
+			unit["step_cd"] = int(unit["step_cd"]) - 1
 			return
 		var path: Array = Pathfinder.find_path(_grid, ux, uy, tx, ty)
 		if not path.is_empty():
