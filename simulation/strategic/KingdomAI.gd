@@ -140,6 +140,11 @@ static func _diplomacy(world: Dictionary, kingdom: Dictionary, tick: int, p: Dic
 		var nk: Dictionary = CampaignMap.kingdom_by_id(world, nfid)
 		if nk.is_empty() or not nk.get("is_alive", false):
 			continue
+		# Never silently loot the PLAYER's strategic treasury — the player faces tribute
+		# through the player-facing envoy event (accept/refuse), not an automatic drain that
+		# kept the lone-village player permanently broke and unable to ever expand (iter143).
+		if nk.get("is_player", false):
+			continue
 		var s: int = _kingdom_strength(world, nk)
 		if s < weakest_strength:
 			weakest_strength = s
