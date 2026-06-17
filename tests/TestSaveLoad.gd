@@ -17,9 +17,11 @@ var _fail := 0
 func _init() -> void:
 	await process_frame
 	var gs = root.get_node_or_null("GameState")
+	var sc = root.get_node_or_null("SimulationClock")
 	if gs == null:
 		print("FATAL: GameState autoload not found"); quit(1); return
 	_run(gs)
+	_run_cityview(gs, sc)
 	print("\n=== SaveLoad Results: %d passed, %d failed ===" % [_pass, _fail])
 	quit(0 if _fail == 0 else 1)
 
@@ -65,3 +67,38 @@ func _run(gs) -> void:
 	var tiles = biome.get("tiles", null)
 	ok("biome tiles is a PackedByteArray", tiles is PackedByteArray)
 	ok("biome tiles full size (%d)" % tiles_before, tiles is PackedByteArray and tiles.size() == tiles_before)
+
+# City-view round-trip: WorldGrid (base64-marshalled terrain) + buildings + citizens + gold.
+func _run_cityview(gs, sc) -> void:
+	print("\n[Save/load round-trip with a city (grid + buildings + citizens)]")
+	gs.world = {}; gs.players = []; gs.ai_factions = []; gs._grid = null; gs._next_building_id = 1; gs.citizens = []
+	gs.setup_world(12345, 8)
+	gs.initialize_player(0, "P", 100, 100)
+	var p = gs.players[0]
+	for it in [["village_hall", 0, 0], ["apple_orchard", 4, 0]]:
+		for rad in range(2, 20):
+			var done := false
+			for a in range(0, 360, 30):
+				var gx: int = clampi(100 + int(round(cos(deg_to_rad(a)) * rad)), 5, 195)
+				var gy: int = clampi(100 + int(round(sin(deg_to_rad(a)) * rad)), 5, 195)
+				if gs._cmd_place_building({"player_id": 0, "payload": {"building_type": it[0], "grid_x": gx, "grid_y": gy}}):
+					done = true; break
+			if done: break
+	for t in range(1, 60):
+		sc.current_tick = t
+		gs.simulate_tick(t)
+	var bld_before: int = p.buildings.size()
+	var cit_before: int = gs.citizens.size()
+	var gold_before: int = int(p.gold)
+	var terr_before: int = gs._grid.get_terrain(100, 100)
+
+	gs.save_state_to(SAVE_PATH) if gs.has_method("save_state_to") else SM.save(gs.serialize(), SAVE_PATH)
+	gs.world = {}; gs.players = []; gs._grid = null; gs.citizens = []
+	gs.deserialize(SM.load_save(SAVE_PATH))
+
+	var p2: Dictionary = gs.players[0] if gs.players.size() > 0 else {}
+	ok("grid reconstructed", gs._grid != null)
+	ok("grid terrain preserved", gs._grid != null and gs._grid.get_terrain(100, 100) == terr_before)
+	ok("buildings preserved (%d)" % bld_before, p2 is Dictionary and p2.get("buildings", []).size() == bld_before and bld_before >= 2)
+	ok("citizens preserved (%d)" % cit_before, gs.citizens.size() == cit_before and cit_before > 0)
+	ok("gold preserved", p2 is Dictionary and int(p2.get("gold", -1)) == gold_before)

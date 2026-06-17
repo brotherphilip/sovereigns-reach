@@ -54,6 +54,38 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 152 — 2026-06-18  (DEV-LOOP — verify city-view save/load; extend regression; COMPACT)
+
+### Plan
+Probe the city-view save/load path (WorldGrid + buildings + units + citizens through JSON — same family as the
+iter151 world-map bug). Compact change.md (due).
+
+### Playtest (REAL — city-view round-trip: setup_world + buildings + 60 ticks → save → load → deserialize)
+- **City-view save/load WORKS** (no bug): WorldGrid serializes its terrain via `Marshalls.raw_to_base64` (JSON-safe),
+  and the iter151 deserialize fix covers the rest. Verified: grid reconstructed + terrain(100,100) preserved,
+  buildings 2→2, citizens 14→14, gold 200→200, no exceptions.
+- Extended **`tests/TestSaveLoad.gd` → 13/0** (added the city-view scenario alongside the world-map one), so both
+  save/load paths are permanently guarded.
+
+### COMPACT (5-loop checkpoint; last compact iter147)
+- Current Targets current (floor Day-100 multi-seed; expansion+title MET iter144; durable MET iter145; King
+  reachable iter146; next = Duke/King across seeds via a stable harness / real play).
+- Active Backlog tight + deduped (small world-int coerce [deferred]; independents-deplete [deferred, mechanic];
+  spatial index at ~15k units [deferred]; King-grading harness [infra]).
+- Resolved cites real evidence (health iter146; runaway-leader iter149; save/load iter151). Nothing in both
+  Active and Resolved. Run History untouched (append-only).
+
+### No game code change (verification + added test coverage).
+
+### Active Backlog
+- **Required (small, deferred):** coerce world int fields on load (functionally fine; cleanliness).
+- **Design Iteration (deferred):** independents deplete late-game (mechanic); spatial index ~15k+ units; King
+  across-seeds needs a stable harness.
+- ~~city-view save/load untested~~ → RESOLVED iter152 (verified works + guarded by TestSaveLoad).
+
+### Confidence: HIGH — real city-view round-trip clean; TestSaveLoad 13/0 covers both paths.
+Iterations since last command/compact: 0 (COMPACTED this iteration, iter152).
+
 ## Iteration 151 — 2026-06-18  (DEV-LOOP — found + fixed broken save/load; added regression test)
 
 ### Plan
