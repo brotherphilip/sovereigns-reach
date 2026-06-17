@@ -33,15 +33,49 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
   Case C) + a headless repro.
 - **30 min = Day 150: MET & CONFIRMED (3 clean live runs, iter121–122)** — Day 162 / 161 / 161, hall healthy
   (hp ~478–484, siege_ready, popularity 69–73). Enabled by iter120 keep-repair + iter121 fire-hardened seat.
-- **CURRENT BAR: 45 min = Day 225** single-life survival, live mouse play. **CONFIRMED 2/3 (iter123–124):** two
-  clean ACTIVE-food-expansion runs both reached **Day 235** healthy (popularity 73–74, food ~160). Need 1 more to
-  lock it. NOTE: the late-game does NOT coast — a STATIC 3-orchard build starves (pop eroded 72→29 by day 223); you
-  must keep building food. *(iter124 was mirrored live to the user's screen via ffplay :99→:0 — Wayland blocks
-  driving :0 directly; see harness memory.)*
+- **45 min = Day 225: MET & CONFIRMED ×3 (iter123–125)** — active-food-expansion runs reached Day 235/235/235.
+  The late-game does NOT coast: a STATIC build starves (pop 72→29 by day 223); you must keep building food.
+- **CURRENT BAR (raised iter125): 60 min = Day 300** single-life survival, live mouse play, WITH genuine event
+  interaction. **REACHED 1×/3 (iter125):** a blind-interactive run hit **Day 316** healthy (pop 81.7). A
+  perception-driven run reached Day 278 alive. Need 2 more clean Day-300 confirmations.
+- **BLOCKER emerging:** late-game **population collapse** — pop_count drifts 16→3 over a long run (food troughs +
+  aging/few births), leaving a near-empty "surviving" realm. Investigate before Day-300 is trustworthy.
 - **Next escalation candidates (after 45 min ×3):** late-game population decline (pop_count drifts ~16→9 — investigate
   for longer survival); content/variety; engagement/no-dead-time; multi-seed robustness; tighter/stress input.
 
 ---
+
+## Iteration 125 — 2026-06-17  (Day-225 confirmed ×3 → bar 60min; PERCEPTION added; population-collapse found)
+
+### Source
+Day-225 confirmation #3; user feedback ("you're not clicking the events — add perception"); raise the bar.
+
+### Change made
+- None to GAME code. New HARNESS capability: **perception** (`/tmp/perceive.py` + `/tmp/sr_percept.sh`) — screenshot
+  :99 → OCR (tesseract) → identify the event → decide → click the real button → narrate. Corrected diplomacy
+  button coords via OCR bounding boxes (Refuse (625,410), Accept (567,410)). All saved to harness memory.
+
+### Playtest (REAL — visible via ffplay :99→:0 mirror; SR_TELEMETRY + decision log)
+- **Day-225 confirmation #3:** reached Day 235 healthy → **45-min bar CONFIRMED ×3 → MILESTONE MET.** Bar raised
+  to **60 min / Day 300**.
+- **Day-300 blind-interactive run:** reached **Day 316** healthy (pop 81.7) — Day-300 reached 1×/3.
+- **Perception run (Day 278, alive):** 33 real OCR-read decisions — mostly REFUSE, but **one genuine PAY** when it
+  read "30 gold, 12 iron" and had 675g ("cheap insurance, buys ~14d peace"); also handled the reign milestone +
+  2 world events. Verified live that the corrected Refuse coord closes the panel. (User had reported demands
+  piling up — caused by the old wrong coord; fixed.)
+
+### Post-mortem
+- **Perception works** (reads the real screen, makes reasoned Pay/Refuse choices, narrates). Rough edges: OCR
+  garbles the demand NUMBER sometimes (→ defaults Refuse) and world-event titles; EventChoice button coords still
+  need tsv-bbox calibration. Failure class: NONE.
+- **NEW BLOCKER — population collapse:** across long runs pop_count drifts **16→3** (food troughs + aging/few
+  births). The realm "survives" (popularity high, hall intact) but withers near-empty — a hollow survival that
+  undermines Day-300+. This is the priority balance investigation.
+
+### Active Backlog
+**Required (balance):** late-game population collapse (pop_count→3) — diagnose births vs deaths in PeopleSystem,
+fix so a fed realm sustains its people. **Design:** 2 more Day-300 confirmations; tighten perception (OCR numbers,
+event-choice coords). **Optional:** spectator edge cases. **User-only:** ear-check narration; ear-tune SFX.
 
 ## Iteration 124 — 2026-06-17  (Day-225 confirmation #2, mirrored LIVE to the user's screen)
 
