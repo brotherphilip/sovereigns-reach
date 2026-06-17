@@ -76,14 +76,16 @@ func _init_simulation() -> void:
 	# their first Hall can be placed. No terrain is altered.
 	_snap_keep_to_buildable()
 	GameState.initialize_player(0, PLAYER_NAME, _keep_x, _keep_y)
+	# Lean start: you begin a small village and must EARN materials before you can build
+	# much (gather/trade first). Enough for the Village Hall + a first food building only.
 	var p: Dictionary = GameState.players[0]
-	p["gold"]                   = 500
+	p["gold"]                   = 120
 	p["prestige"]               = 0
-	p["resources"]["wood"]      = 300
-	p["resources"]["stone"]     = 100
-	p["resources"]["iron"]      = 50
-	p["food"]["apples"]         = 200   # full base granary cap (~8 days) — survive the build-up
-	p["population"]             = 50
+	p["resources"]["wood"]      = 60
+	p["resources"]["stone"]     = 15
+	p["resources"]["iron"]      = 0
+	p["food"]["apples"]         = 90    # a few days' buffer — set up food before it runs out
+	p["population"]             = 20
 
 	# Playable seat vs. spectator. The first city the player enters becomes their
 	# hand-built seat; entering any OTHER city shows a generated, growing town.

@@ -97,7 +97,9 @@ func _run_all() -> void:
 	# Case A — an UNDEFENDED seat: the siege chain fires and the hall ultimately falls.
 	print("\n[Undefended seat — the siege is a real threat]")
 	_setup(false)
-	_run_days(120)
+	# Sieges are paced slower now (SIEGE_COOLDOWN_DAYS 30, assembly 6) so an undefended seat
+	# takes more strikes / longer to fall — give the run a wider horizon to prove it still does.
+	_run_days(180)
 	ok("siege was telegraphed (assembling fired)", _assembled > 0)
 	ok("siege landed (a strike connected)", _struck > 0)
 	ok("an undefended seat is razed by the siege", _hall_destroyed and _hall_hp() <= 0)

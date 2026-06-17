@@ -39,6 +39,8 @@ const STATE_IDLE   = "idle"     # standing about near home
 const STATE_WANDER = "wander"   # ambling near home
 const STATE_WALK   = "walk"     # heading to a target (tx,ty)
 const STATE_BUILD  = "build"    # at a construction site, hammering
+const STATE_FETCH  = "fetch"    # builder walking to a depot to collect materials
+const STATE_HAULBACK = "haulback" # builder carrying a material load back to the site
 const STATE_WORK   = "work"     # at an assigned workplace, doing the job
 const STATE_INSIDE = "inside"   # gone in through a door (not drawn) — e.g. asleep at home at night
 
@@ -54,6 +56,7 @@ const STUCK_TIMEOUT: int = 480
 const STUCK_EPS: float = 0.5
 const WANDER_RADIUS: float = 4.0
 const BUILD_RATE: float = 1.0       # build-progress added per builder per tick
+const CONSTRUCTION_BATCH: int = 12  # material units a builder carries to a site per trip
 const MAX_CITIZENS: int = 40
 const SEP_RADIUS: float = 0.85      # personal space — pawns push apart within this
 const LAND_MOVE: int = 0b00000001   # is_passable move-type bit (foot/land)
@@ -562,18 +565,76 @@ static func _tick_citizen(c: Dictionary, buildings: Array, citizens: Array,
 				# Face inward toward the structure while hammering.
 				var ctr := _site_center(b)
 				c["facing"] = 1.0 if ctr.x >= c["x"] else -1.0
-				# This builder's labour raises the structure.
-				b["build_progress"] = float(b.get("build_progress", 0.0)) + BUILD_RATE
-				if b["build_progress"] >= float(b.get("build_required", 1.0)):
-					b["built"] = true
-					# Auto-staff a freshly finished workplace to full strength so it
-					# actually produces. New buildings default to 0 assigned workers,
-					# and both production and _reconcile_workers gate on workers>0 — so
-					# a player who builds (e.g.) an orchard and doesn't manually open it
-					# to add workers would get ZERO food and starve. They can still dial
-					# workers down via the selection panel to reallocate labour.
-					if int(b.get("workers", 0)) == 0 and WorkerJobs.employs_workers(b.get("type", "")):
-						b["workers"] = int(BuildingRegistry.lookup(b.get("type", "")).get("max_workers", 0))
+				# Build progress can't outrun DELIVERED materials: the cap is the delivered
+				# share of the labour. When the on-site supply runs out, the builder leaves
+				# to fetch another load from a depot, then returns to keep building.
+				var mtotal: int = int(b.get("build_mat_total", 0))
+				var mdone: int  = int(b.get("build_mat_delivered", 0))
+				var cap: float = float(b.get("build_required", 1.0))
+				if mtotal > 0:
+					cap = (float(mdone) / float(mtotal)) * float(b.get("build_required", 1.0))
+				if float(b.get("build_progress", 0.0)) < cap:
+					b["build_progress"] = float(b.get("build_progress", 0.0)) + BUILD_RATE
+					if b["build_progress"] >= float(b.get("build_required", 1.0)) and mdone >= mtotal:
+						b["built"] = true
+						# Auto-staff a freshly finished workplace to full strength so it
+						# actually produces (new buildings default to 0 workers, and both
+						# production and _reconcile_workers gate on workers>0).
+						if int(b.get("workers", 0)) == 0 and WorkerJobs.employs_workers(b.get("type", "")):
+							b["workers"] = int(BuildingRegistry.lookup(b.get("type", "")).get("max_workers", 0))
+				elif mdone < mtotal:
+					# Out of on-site materials — fetch a load from the nearest depot.
+					var depot := _nearest_depot(buildings, c)
+					if depot.is_empty():
+						b["build_mat_delivered"] = mtotal   # no depot: assume on-hand, never stall
+					else:
+						var dctr := _site_center(depot)
+						c["tx"] = dctr.x
+						c["ty"] = dctr.y
+						c["state"] = STATE_FETCH
+						c["stuck_ticks"] = 0
+						c.erase("best_dist")
+		STATE_FETCH:
+			var ftgt := Vector2(c["tx"], c["ty"])
+			_follow_path(c, ftgt, citizens, grid)
+			var fd := Vector2(c["x"], c["y"]).distance_to(ftgt)
+			if fd <= ARRIVE_DIST:
+				var site := _find(buildings, c.get("job", -1))
+				if site.is_empty() or not is_site(site):
+					c["carry"] = ""; c["bmat"] = 0
+					if not _assign_next_site(c, buildings, grid):
+						_go_home(c, rng, grid)
+				else:
+					# Pick up a load and carry it back to the site.
+					c["bmat"] = CONSTRUCTION_BATCH
+					c["carry"] = "materials"
+					c["stuck_ticks"] = 0
+					c.erase("best_dist")
+					var spot := _reachable_spot(site, int(c.get("build_slot", 0)), c, grid, false, null)
+					c["tx"] = spot.x
+					c["ty"] = spot.y
+					c["state"] = STATE_HAULBACK
+			else:
+				_track_stuck(c, fd, buildings, rng, grid)
+		STATE_HAULBACK:
+			var htgt := Vector2(c["tx"], c["ty"])
+			_follow_path(c, htgt, citizens, grid)
+			var hd := Vector2(c["x"], c["y"]).distance_to(htgt)
+			if hd <= ARRIVE_DIST:
+				var site2 := _find(buildings, c.get("job", -1))
+				if not site2.is_empty() and is_site(site2):
+					var tot: int = int(site2.get("build_mat_total", 0))
+					site2["build_mat_delivered"] = mini(tot, int(site2.get("build_mat_delivered", 0)) + int(c.get("bmat", CONSTRUCTION_BATCH)))
+					c["carry"] = ""; c["bmat"] = 0
+					c["stuck_ticks"] = 0
+					c.erase("best_dist")
+					c["state"] = STATE_BUILD
+				else:
+					c["carry"] = ""; c["bmat"] = 0
+					if not _assign_next_site(c, buildings, grid):
+						_go_home(c, rng, grid)
+			else:
+				_track_stuck(c, hd, buildings, rng, grid)
 		STATE_WORK:
 			c["vx"] = 0.0; c["vy"] = 0.0
 			var wb := _find(buildings, c.get("job", -1))
@@ -944,6 +1005,24 @@ static func _nearest_site(sites: Array, x: float, y: float) -> Dictionary:
 	var p := Vector2(x, y)
 	for b in sites:
 		var d := p.distance_to(Vector2(b.get("grid_x", 0), b.get("grid_y", 0)))
+		if d < best_d:
+			best_d = d
+			best = b
+	return best
+
+# Nearest BUILT storage depot a builder can draw construction materials from — a
+# stockpile, the granary, or the seat (village hall / keep) as a default supply point.
+const _DEPOT_TYPES: Array = ["stockpile", "granary", "village_hall", "keep"]
+static func _nearest_depot(buildings: Array, c: Dictionary) -> Dictionary:
+	var best: Dictionary = {}
+	var best_d: float = INF
+	var p := Vector2(c.get("x", 0.0), c.get("y", 0.0))
+	for b in buildings:
+		if not (b is Dictionary and b.get("built", true)):
+			continue
+		if not (String(b.get("type", "")) in _DEPOT_TYPES):
+			continue
+		var d := p.distance_to(_site_center(b))
 		if d < best_d:
 			best_d = d
 			best = b

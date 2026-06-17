@@ -1918,6 +1918,14 @@ func _cmd_place_building(cmd: Dictionary) -> bool:
 		building["build_required"] = 15.0
 	else:
 		building["build_required"] = float(maxi(1, _cdefn.get("width", 1) * _cdefn.get("height", 1))) * 100.0
+	# Material hauling: builders fetch the physical materials (wood/stone/iron) from a
+	# depot in batches; build progress is capped by how much has been DELIVERED, so a
+	# structure cannot rise faster than its supplies arrive (cost already deducted above —
+	# this paces construction and shows builders carrying the load). 0 = no haul (e.g. the
+	# free Village Hall / paths) → labour only.
+	var _mcost: Dictionary = _cdefn.get("cost", {})
+	building["build_mat_total"] = int(_mcost.get("wood", 0)) + int(_mcost.get("stone", 0)) + int(_mcost.get("iron", 0))
+	building["build_mat_delivered"] = 0
 	player["buildings"].append(building)
 	EventBus.building_placed.emit(pid, btype, gx, gy, bid)
 	return true

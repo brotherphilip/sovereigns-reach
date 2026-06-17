@@ -20,8 +20,8 @@ extends RefCounted
 const CitizenSystem = preload("res://simulation/world/CitizenSystem.gd")
 const SeasonSystem  = preload("res://simulation/world/SeasonSystem.gd")
 
-const COOLDOWN_DAYS: int = 5     # minimum days between events
-const DAILY_CHANCE: float = 0.34 # per-day chance an event fires once off cooldown
+const COOLDOWN_DAYS: int = 14    # minimum days between events (was 5 — events were too frequent)
+const DAILY_CHANCE: float = 0.10 # per-day chance an event fires once off cooldown (was 0.34)
 
 # tone: "good" | "bad" | "neutral" — drives the notification colour.
 # effect keys: food, gold, wood, stone, iron, popularity, prestige (signed deltas);

@@ -45,10 +45,10 @@ const ARCHETYPE_ASHEN_BARONY = "ashen_barony"
 # "siege assembling" warning, so the player has a clear window to ready defences.
 # (Was mistakenly TICKS_PER_DAY * 48 = 48 days — sieges almost never landed in a
 # 20-min/100-day session, leaving the mid-game with no real pressure.)
-const SIEGE_ASSEMBLY_TICKS: int = TICKS_PER_DAY * 4
+const SIEGE_ASSEMBLY_TICKS: int = TICKS_PER_DAY * 6
 # Minimum days between sieges from one faction, so they're paced (a recurring,
 # survivable threat) rather than back-to-back once the threshold is crossed.
-const SIEGE_COOLDOWN_DAYS: int = 15
+const SIEGE_COOLDOWN_DAYS: int = 30
 
 # "King's Peace" — establishment grace. A freshly-arrived faction will not launch
 # a siege against a player for its first PLAYER_GRACE_DAYS (≈ the first 6 real
@@ -76,13 +76,13 @@ static func make_faction(id: int, name: String, archetype: String,
 		"is_alive": true,
 		"capital_x": capital_x,
 		"capital_y": capital_y,
-		"gold": 500,
+		"gold": 140,
 		"prestige": 100,
 		"resources": {
-			"wood": 200, "stone": 50, "iron": 0,
-			"pitch": 0, "hops": 0, "wheat": 100,
+			"wood": 60, "stone": 15, "iron": 0,
+			"pitch": 0, "hops": 0, "wheat": 40,
 		},
-		"food": {"apples": 100, "bread": 0, "meat": 0, "ale": 0},
+		"food": {"apples": 60, "bread": 0, "meat": 0, "ale": 0},
 		"units": [],
 		"buildings": [],
 		"tech_unlocks": [],
@@ -296,10 +296,10 @@ static func should_attack(faction: Dictionary, players: Array, tick: int = 0) ->
 	var threshold: float = 20.0   # default
 
 	match arch:
-		ARCHETYPE_BANDIT:     threshold = 15.0  # attacks early and often
-		ARCHETYPE_MERCHANT:   threshold = 60.0  # rarely attacks
-		ARCHETYPE_IRONHAND:   threshold = 50.0  # methodical, attacks when ready
-		ARCHETYPE_ASHEN_BARONY: threshold = 40.0
+		ARCHETYPE_BANDIT:     threshold = 28.0  # raids, but no longer constantly
+		ARCHETYPE_MERCHANT:   threshold = 75.0  # rarely attacks
+		ARCHETYPE_IRONHAND:   threshold = 65.0  # methodical, attacks when ready
+		ARCHETYPE_ASHEN_BARONY: threshold = 55.0
 
 	if threat < threshold or players.is_empty():
 		return {"attack": false, "target_player_id": -1}
