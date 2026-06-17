@@ -82,3 +82,14 @@ func _run(mp) -> void:
 	for _i in range(120):
 		mp._tick_duck(false, 1.0 / 60.0)  # ~2s after the herald stops
 	ok("music restores to the resting bed after narration", absf(mp._duck_cur) < 0.5)
+
+	# Volume setting persists across sessions (the pause-menu slider writes it).
+	mp.set_music_volume_db(-24.0)
+	ok("set_music_volume_db updates the resting level", absf(mp.get_music_volume_db() - (-24.0)) < 0.01)
+	var cfg := ConfigFile.new()
+	var loaded_ok: bool = cfg.load(MusicPlayer.SETTINGS_PATH) == OK
+	ok("setting written to settings.cfg", loaded_ok and absf(float(cfg.get_value("audio", "music_db", 0.0)) - (-24.0)) < 0.01)
+	mp._base_db = MusicPlayer.MUSIC_BUS_DB     # pretend a fresh session at default
+	mp._load_settings()
+	ok("setting reloads on next session", absf(mp.get_music_volume_db() - (-24.0)) < 0.01)
+	mp.set_music_volume_db(MusicPlayer.MUSIC_BUS_DB)   # restore default for other runs

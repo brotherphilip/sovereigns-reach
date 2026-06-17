@@ -18,8 +18,15 @@ const WavLoad = preload("res://simulation/audio/WavLoad.gd")
 
 const MUSIC_DIR: String = "res://audio/Music/"
 const MUSIC_BUS: String = "Music"
-const MUSIC_BUS_DB: float = -13.0          # the whole music bed sits here — gentle, not overwhelming
+const MUSIC_BUS_DB: float = -13.0          # default resting level — gentle, not overwhelming
 const EXTS: PackedStringArray = [".mp3", ".ogg", ".wav"]
+
+# Player-facing volume control persists across sessions (a pause-menu slider writes it).
+const SETTINGS_PATH: String = "user://settings.cfg"
+const SETTINGS_SECTION: String = "audio"
+const SETTINGS_KEY: String = "music_db"
+const MUSIC_DB_MIN: float = -40.0          # slider floor; below this we treat it as muted
+const MUTE_DB: float = -80.0
 
 # Ducking: while the herald narration speaks, fade the music down so the voice stays clear,
 # then fade it back up. Smooth (no abrupt jump) via a per-frame dB glide.
@@ -33,6 +40,7 @@ var _base_db: float = MUSIC_BUS_DB          # the (user-settable) resting level
 var _duck_cur: float = 0.0                  # current duck offset (0 = not ducked)
 
 func _ready() -> void:
+	_load_settings()
 	_setup_bus()
 	_player = AudioStreamPlayer.new()
 	_player.name = "MusicStream"
@@ -159,11 +167,28 @@ func _load_stream(path: String) -> AudioStream:
 	return null
 
 # ── Public controls (for an options menu later) ──────────────────────────────────
-func set_music_volume_db(db: float) -> void:
-	_base_db = db
+func set_music_volume_db(db: float, save: bool = true) -> void:
+	_base_db = clampf(db, MUTE_DB, 6.0)
 	var idx: int = AudioServer.get_bus_index(MUSIC_BUS)
 	if idx >= 0:
 		AudioServer.set_bus_volume_db(idx, _base_db + _duck_cur)
+	if save:
+		_save_settings()
+
+func get_music_volume_db() -> float:
+	return _base_db
 
 func track_count() -> int:
 	return _playlist.size()
+
+# ── Persistence (a pause-menu slider writes the resting level) ────────────────────
+func _load_settings() -> void:
+	var cfg := ConfigFile.new()
+	if cfg.load(SETTINGS_PATH) == OK:
+		_base_db = clampf(float(cfg.get_value(SETTINGS_SECTION, SETTINGS_KEY, MUSIC_BUS_DB)), MUTE_DB, 6.0)
+
+func _save_settings() -> void:
+	var cfg := ConfigFile.new()
+	cfg.load(SETTINGS_PATH)   # preserve any other settings already in the file
+	cfg.set_value(SETTINGS_SECTION, SETTINGS_KEY, _base_db)
+	cfg.save(SETTINGS_PATH)
