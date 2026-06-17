@@ -14,6 +14,9 @@ static func get_day_phase(tick: int) -> Dictionary:
 		"year": SeasonSystem.year_of(tick) + 1,
 		"day_in_year": SeasonSystem.sky_day_in_year(tick) + 1,
 		"days_per_year": SeasonSystem.SKY_DAYS_PER_YEAR,
+		# Real light-cycle position (0 = noon) + darkness flag, for the sun/moon clock.
+		"cycle_f": SeasonSystem.day_night_phase(tick),
+		"is_night": SeasonSystem.is_night(tick),
 	}
 # GDD §2.2.5 / §3 — HUD data extraction and command generation.
 # All static functions read from player/world Dicts; no autoload calls here.

@@ -421,10 +421,9 @@ func _refresh_top_bar() -> void:
 	_ale_label.text     = "%d" % total_ale
 	var _phase: Dictionary = HUDController.get_day_phase(SimulationClock.current_tick)
 	if _time_clock != null:
-		var day_frac: float = float(SimulationClock.current_tick % SimulationClock.TICKS_PER_GAME_DAY) \
-			/ float(SimulationClock.TICKS_PER_GAME_DAY)
-		_time_clock.set_time(day_frac, String(_phase.get("phase", "Day")),
-			String(_phase.get("season", "")), SimulationClock.game_day())
+		# Drive the clock from the ACTUAL day/night cycle, not the calendar day.
+		_time_clock.set_time(float(_phase.get("cycle_f", 0.0)), bool(_phase.get("is_night", false)),
+			String(_phase.get("phase", "Day")), String(_phase.get("season", "")), SimulationClock.game_day())
 	var _wicon: String = HUDController.get_weather_icon(GameState.weather)
 	# Season (sky-day calendar) shown with the weather — both are "what the world is doing".
 	_weather_label.text = "%s · %s %s" % [
