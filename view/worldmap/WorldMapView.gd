@@ -109,6 +109,7 @@ func _input(event: InputEvent) -> void:
 # ── Background (procedural biome continent) ────────────────────────────────────
 
 const _SEA_DEEP: Color = Color(0.13, 0.27, 0.45)
+const _SEA_SHALLOW: Color = Color(0.20, 0.45, 0.60)   # lighter shelf hugging the coast
 
 func _biome_color(b: int) -> Color:
 	match b:
@@ -140,7 +141,19 @@ func _draw_background() -> void:
 		for gx in range(cols):
 			var b: int = tiles[gy * cols + gx]
 			if b == WorldMapData.B_SEA:
-				continue   # already the ocean base
+				# Shallow-water shelf (overhaul iter2): a sea cell touching land gets a lighter
+				# band, so the continent reads with a shoreline/depth instead of land slamming
+				# straight into deep ocean.
+				var coastal: bool = false
+				for d in [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]]:
+					var nx: int = gx + d[0]
+					var ny: int = gy + d[1]
+					if nx >= 0 and ny >= 0 and nx < cols and ny < rows and tiles[ny * cols + nx] != WorldMapData.B_SEA:
+						coastal = true
+						break
+				if coastal:
+					draw_rect(Rect2(gx * cw, gy * ch, cw + 1.0, ch + 1.0), _SEA_SHALLOW)
+				continue   # else: deep-ocean base already filled
 			var c: Color = _biome_color(b)
 			var h: int = ((gx * 73856093) ^ (gy * 19349663)) & 1023
 			var shade: float = 1.0 + (float(h) / 1023.0 - 0.5) * 0.16   # ±8% brightness
