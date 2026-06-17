@@ -47,9 +47,9 @@ func _test_worldmapdata() -> void:
 	var roads: Array    = data["roads"]
 	var deposits: Array = data["deposits"]
 
-	# City count
-	_ok(cities.size() == WorldMapData.CITY_COUNT,
-		"city count == %d (got %d)" % [WorldMapData.CITY_COUNT, cities.size()])
+	# City count — CITY_COUNT is a target/cap; terrain culling can yield fewer villages.
+	_ok(cities.size() <= WorldMapData.CITY_COUNT and cities.size() >= 40,
+		"city count within 40..%d (got %d)" % [WorldMapData.CITY_COUNT, cities.size()])
 
 	# All cities in bounds
 	var in_bounds: bool = true
@@ -83,11 +83,12 @@ func _test_worldmapdata() -> void:
 	_ok(cap_count == WorldMapData.FACTION_COUNT,
 		"exactly %d faction capitals" % WorldMapData.FACTION_COUNT)
 
-	# Every city has a faction_id
+	# Every city has a faction_id — a great house (>=0) or an independent village.
 	var all_assigned: bool = true
 	for c in cities:
-		if c["faction_id"] < 0: all_assigned = false
-	_ok(all_assigned, "every city has a faction_id >= 0")
+		var f: int = int(c["faction_id"])
+		if f < 0 and f != WorldMapData.INDEPENDENT_FACTION_ID: all_assigned = false
+	_ok(all_assigned, "every city has a faction_id (great house or independent)")
 
 	# Exactly one player start
 	var start_count: int = 0
@@ -95,16 +96,16 @@ func _test_worldmapdata() -> void:
 		if c["is_player_start"]: start_count += 1
 	_ok(start_count == 1, "exactly one player_start city")
 
-	# Player start is a capital
-	var start_is_capital: bool = false
+	# Player start is a small INDEPENDENT village, not a great-house capital.
+	var start_independent: bool = false
 	for c in cities:
-		if c["is_player_start"] and c["is_capital"]:
-			start_is_capital = true
-	_ok(start_is_capital, "player start city is a faction capital")
+		if c["is_player_start"]:
+			start_independent = (not c["is_capital"]) and int(c["faction_id"]) == WorldMapData.INDEPENDENT_FACTION_ID
+	_ok(start_independent, "player start city is a small independent village (not a capital)")
 
-	# Road count >= CITY_COUNT - 1 (MST minimum)
-	_ok(roads.size() >= WorldMapData.CITY_COUNT - 1,
-		"road count >= MST minimum %d (got %d)" % [WorldMapData.CITY_COUNT - 1, roads.size()])
+	# Road count >= cities-1 (MST minimum over the actual city set)
+	_ok(roads.size() >= cities.size() - 1,
+		"road count >= MST minimum %d (got %d)" % [cities.size() - 1, roads.size()])
 
 	# All road endpoints in valid range
 	var roads_valid: bool = true
@@ -187,8 +188,8 @@ func _test_worldmapcontroller() -> void:
 	var data: Dictionary = WorldMapData.generate(42)
 
 	var render_list: Array = WorldMapController.get_city_render_list(data)
-	_ok(render_list.size() == WorldMapData.CITY_COUNT,
-		"get_city_render_list returns %d items" % WorldMapData.CITY_COUNT)
+	_ok(render_list.size() == data["cities"].size(),
+		"get_city_render_list returns one item per city (%d)" % data["cities"].size())
 
 	# Check render item fields
 	if render_list.size() > 0:
@@ -200,7 +201,7 @@ func _test_worldmapcontroller() -> void:
 		_ok(item.has("is_player_start"), "render item has is_player_start field")
 
 	var road_list: Array = WorldMapController.get_road_render_list(data)
-	_ok(road_list.size() >= WorldMapData.CITY_COUNT - 1,
+	_ok(road_list.size() >= data["cities"].size() - 1,
 		"get_road_render_list returns enough roads")
 	if road_list.size() > 0:
 		var r: Dictionary = road_list[0]

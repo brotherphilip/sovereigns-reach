@@ -73,6 +73,10 @@ signal realm_notice(text: String, tone: String)
 signal objective_updated(index: int, total: int, text: String)
 # The player has ruled to Day 100 — twenty unbroken minutes, the loop's goal. Fired once.
 signal sovereign_reign_reached(day: int)
+# The player's derived feudal title rose (Reeve → … → King). Reaching King is the win.
+signal title_promoted(title_index: int, title_name: String)
+# The player lost their last holding (the realm has fallen) — strategic defeat.
+signal player_realm_lost()
 
 # --- World ---
 signal shire_ownership_changed(shire_id: int, old_owner: int, new_owner: int)

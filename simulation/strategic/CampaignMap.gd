@@ -11,6 +11,12 @@ extends RefCounted
 
 const MAX_DEVELOPMENT: int = 10
 
+# The player is NOT one of the great houses — they own a single small village at start
+# and grow by capturing. A dedicated faction id keeps their holdings distinct from the
+# AI great houses (0..N-1) and from ownerless independents.
+const PLAYER_FACTION_ID: int = 99
+const INDEPENDENT_FACTION_ID: int = -2  # ownerless village (mirrors WorldMapData)
+
 # Per-faction personality weights (0..1). Keyed by faction index. Drives the AI
 # brain; derived deterministically so saves/headless runs are reproducible.
 const PERSONALITIES: Array = [
@@ -33,21 +39,32 @@ static func ensure_initialized(world: Dictionary, players: Array = []) -> bool:
 	if wm.get("strategic_init", false):
 		return true
 
-	var player_fid: int = _resolve_player_faction(world, players)
-
-	# Upgrade each city with mutable strategic fields.
+	# Upgrade each city with mutable strategic fields. Ownership starts from the
+	# generator's faction_id (a great house, or INDEPENDENT for the many small villages).
+	var start_city_id: int = -1
 	for c in wm["cities"]:
 		if not c is Dictionary:
 			continue
-		c["owner_faction_id"] = c.get("faction_id", -1)
+		c["owner_faction_id"] = c.get("faction_id", INDEPENDENT_FACTION_ID)
 		var tier: int = c.get("tier", 0)
 		c["development"] = clampi(tier, 0, MAX_DEVELOPMENT)
 		# Garrison seeded from the generator's troop_count, with a floor so even
 		# sleepy hamlets can be defended/contested.
 		c["garrison"] = maxi(c.get("troop_count", 0), 4 + tier * 2)
 		c["unrest"] = 0.0
+		if c.get("is_player_start", false):
+			start_city_id = c.get("id", -1)
 
-	# Build a Kingdom per faction.
+	# The player owns exactly ONE small village to begin with — hand it to the player
+	# faction (it was independent in the generator output).
+	if start_city_id >= 0:
+		var sc: Dictionary = city_by_id(world, start_city_id)
+		if not sc.is_empty():
+			sc["owner_faction_id"] = PLAYER_FACTION_ID
+			sc["development"] = 0
+			sc["garrison"] = maxi(sc.get("garrison", 0), 6)
+
+	# Build a Kingdom per great house, plus a dedicated PLAYER kingdom.
 	var kingdoms: Array = []
 	for f in wm.get("factions", []):
 		if not f is Dictionary:
@@ -57,7 +74,7 @@ static func ensure_initialized(world: Dictionary, players: Array = []) -> bool:
 			"id": fid,
 			"name": f.get("name", "Faction %d" % fid),
 			"color_hex": f.get("color_hex", "#888888"),
-			"is_player": fid == player_fid,
+			"is_player": false,
 			"is_alive": true,
 			"treasury": 400,
 			"resources": {"wood": 250, "stone": 120, "iron": 60, "food": 250},
@@ -71,6 +88,24 @@ static func ensure_initialized(world: Dictionary, players: Array = []) -> bool:
 			"cities_lost": 0,
 		})
 
+	# The player's own kingdom — drives armies via player commands (no AI brain).
+	kingdoms.append({
+		"id": PLAYER_FACTION_ID,
+		"name": "Your Domain",
+		"color_hex": "#d4af37",
+		"is_player": true,
+		"is_alive": true,
+		"treasury": 200,
+		"resources": {"wood": 60, "stone": 20, "iron": 10, "food": 80},
+		"armies": [],
+		"next_army_id": PLAYER_FACTION_ID * 100000 + 1,
+		"personality": DEFAULT_PERSONALITY.duplicate(),
+		"relations": {},
+		"tribute_cooldown_until": 0,
+		"cities_captured": 0,
+		"cities_lost": 0,
+	})
+
 	# Default diplomacy: everyone neutral toward everyone else.
 	for k in kingdoms:
 		for other in kingdoms:
@@ -78,24 +113,15 @@ static func ensure_initialized(world: Dictionary, players: Array = []) -> bool:
 				k["relations"][str(other["id"])] = "neutral"
 
 	wm["kingdoms"] = kingdoms
-	wm["player_faction_id"] = player_fid
+	wm["player_faction_id"] = PLAYER_FACTION_ID
 	wm["strategic_init"] = true
 	world["world_map"] = wm
 	return true
 
-static func _resolve_player_faction(world: Dictionary, players: Array) -> int:
-	var wm: Dictionary = world.get("world_map", {})
-	# Prefer the city the player actually selected to play.
-	var sel: int = world.get("selected_city_id", -1)
-	if sel >= 0:
-		var c: Dictionary = city_by_id(world, sel)
-		if not c.is_empty():
-			return c.get("faction_id", -1)
-	# Fall back to the flagged start city.
-	for c in wm.get("cities", []):
-		if c is Dictionary and c.get("is_player_start", false):
-			return c.get("faction_id", -1)
-	return 0
+# The player is always their own dedicated faction now (owns a single starting village),
+# never one of the great houses the start village happened to sit near.
+static func _resolve_player_faction(_world: Dictionary, _players: Array) -> int:
+	return PLAYER_FACTION_ID
 
 # ── City accessors ─────────────────────────────────────────────────────────────
 

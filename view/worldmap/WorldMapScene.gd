@@ -58,6 +58,14 @@ func _init_and_build() -> void:
 	# campaign sim has owners, garrisons and kingdoms to work with.
 	GameState.ensure_strategic_initialized()
 
+	# Start the player on their ONE village: default-select it so the first city entry
+	# (and the "Return to…" button) land on the holding they actually own.
+	if int(GameState.world.get("selected_city_id", -1)) < 0:
+		for c in GameState.world.get("world_map", {}).get("cities", []):
+			if c is Dictionary and c.get("is_player_start", false):
+				GameState.world["selected_city_id"] = c.get("id", -1)
+				break
+
 	_build_scene()
 	SimulationClock.set_speed(SimulationClock.SPEED_PAUSED)
 
@@ -202,6 +210,18 @@ func _build_scene() -> void:
 	_watch_speed_btn.add_theme_font_size_override("font_size", 12)
 	_watch_speed_btn.pressed.connect(_on_cycle_watch_speed)
 	top_bar.add_child(_watch_speed_btn)
+
+	# Player feudal title + holdings — the "work your way up" progress readout.
+	var title_label := Label.new()
+	title_label.name = "TitleLabel"
+	title_label.text = "%s · %d %s" % [
+		GameState.player_title_name(), GameState.player_holdings_count(),
+		("village" if GameState.player_holdings_count() == 1 else "villages")]
+	title_label.position = Vector2(248, 9)
+	title_label.size     = Vector2(260, 22)
+	title_label.add_theme_font_size_override("font_size", 14)
+	title_label.add_theme_color_override("font_color", Color(0.97, 0.85, 0.42))
+	top_bar.add_child(title_label)
 
 	_day_label = Label.new()
 	_day_label.text     = "Campaign day %d" % GameState.strategic_day()

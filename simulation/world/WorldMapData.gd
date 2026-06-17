@@ -8,8 +8,10 @@ const MAP_WIDTH:   int = 1600
 const MAP_HEIGHT:  int = 900
 const MARGIN:      int = 80
 const MIN_DIST:    int = 120
-const CITY_COUNT:  int = 55
-const FACTION_COUNT: int = 5
+const CITY_COUNT:  int = 80
+const FACTION_COUNT: int = 4          # number of AI "great houses" (was 5 equal kingdoms)
+const GREAT_HOUSE_CLUSTER: int = 6    # villages each great house claims around its capital
+const INDEPENDENT_FACTION_ID: int = -2  # ownerless small village — capturable by player or houses
 
 # Biome grid resolution (each cell ≈ 20×20 px).
 const BIOME_COLS: int = 80
@@ -268,7 +270,7 @@ static func _place_cities(rng: RandomNumberGenerator, biome: Dictionary) -> Arra
 	for i in range(mini(chosen.size(), CITY_COUNT)):
 		var p: Vector2 = chosen[i]
 		cities.append({
-			"id": i, "name": CITY_NAMES[i % CITY_NAMES.size()],
+			"id": i, "name": _city_name(i),
 			"pos_x": p.x, "pos_y": p.y,
 			"faction_id": -1, "is_capital": false, "is_player_start": false,
 			"population": rng.randi_range(200, 2000),
@@ -277,6 +279,13 @@ static func _place_cities(rng: RandomNumberGenerator, biome: Dictionary) -> Arra
 			"connected_to": [],
 		})
 	return cities
+
+# Unique village name; appends an ordinal once the base list wraps (80 villages > 56 names).
+static func _city_name(i: int) -> String:
+	var n: int = CITY_NAMES.size()
+	if i < n:
+		return CITY_NAMES[i]
+	return "%s %d" % [CITY_NAMES[i % n], (i / n) + 1]
 
 # Deterministic Fisher–Yates shuffle (seeded rng → reproducible layouts).
 static func _shuffle(arr: Array, rng: RandomNumberGenerator) -> void:
@@ -288,11 +297,15 @@ static func _shuffle(arr: Array, rng: RandomNumberGenerator) -> void:
 
 # ── Faction assignment (k-means++ capitals + Voronoi) ──────────────────────────
 
+# New model (Stronghold-Kingdoms-style): a few AI "great houses" each hold a SMALL
+# cluster around their capital; everything else starts INDEPENDENT (small, capturable).
+# The player (assigned later in CampaignMap) begins owning a single independent village.
 static func _assign_factions(cities: Array, rng: RandomNumberGenerator) -> Array:
 	var n: int = cities.size()
 	if n == 0:
 		return []
 
+	# Spread great-house capitals (k-means++ style: each next is farthest from chosen).
 	var capital_indices: Array = []
 	capital_indices.append(rng.randi_range(0, n - 1))
 	for _f in range(FACTION_COUNT - 1):
@@ -311,24 +324,37 @@ static func _assign_factions(cities: Array, rng: RandomNumberGenerator) -> Array
 				best_idx  = i
 		capital_indices.append(best_idx)
 
-	for fi in range(capital_indices.size()):
-		cities[capital_indices[fi]]["is_capital"]  = true
-		cities[capital_indices[fi]]["faction_id"]  = fi
-		cities[capital_indices[fi]]["tier"]        = 3
+	# Everyone starts independent; great houses then claim a tight cluster.
+	for c in cities:
+		c["faction_id"] = INDEPENDENT_FACTION_ID
+		c["is_capital"] = false
 
-	for i in range(n):
-		if cities[i]["is_capital"]: continue
-		var best_fi: int   = 0
-		var best_d: float  = INF
-		for fi in range(capital_indices.size()):
-			var ci: int      = capital_indices[fi]
-			var dx: float    = cities[i]["pos_x"] - cities[ci]["pos_x"]
-			var dy: float    = cities[i]["pos_y"] - cities[ci]["pos_y"]
-			var d: float     = sqrt(dx*dx + dy*dy)
-			if d < best_d:
-				best_d  = d
-				best_fi = fi
-		cities[i]["faction_id"] = best_fi
+	for fi in range(capital_indices.size()):
+		var cap: int = capital_indices[fi]
+		cities[cap]["is_capital"] = true
+		cities[cap]["faction_id"] = fi
+		cities[cap]["tier"]       = 3
+		# Claim the nearest still-independent villages for this house.
+		var order: Array = []
+		for i in range(n):
+			if i == cap or cities[i]["is_capital"]: continue
+			var dx: float = cities[i]["pos_x"] - cities[cap]["pos_x"]
+			var dy: float = cities[i]["pos_y"] - cities[cap]["pos_y"]
+			order.append({"i": i, "d": dx * dx + dy * dy})
+		order.sort_custom(func(a, b): return a["d"] < b["d"])
+		var claimed: int = 0
+		for entry in order:
+			if claimed >= GREAT_HOUSE_CLUSTER: break
+			var idx: int = entry["i"]
+			if cities[idx]["faction_id"] != INDEPENDENT_FACTION_ID: continue
+			cities[idx]["faction_id"] = fi
+			cities[idx]["tier"]       = clampi(int(cities[idx].get("tier", 1)), 1, 2)
+			claimed += 1
+
+	# Independent villages start small.
+	for c in cities:
+		if c["faction_id"] == INDEPENDENT_FACTION_ID:
+			c["tier"] = mini(int(c.get("tier", 1)), 1)
 
 	var factions: Array = []
 	for fi in range(FACTION_COUNT):
@@ -362,7 +388,7 @@ static func _build_territory(cities: Array, biome: Dictionary) -> PackedByteArra
 			var px: float = (gx + 0.5) * cw
 			var py: float = (gy + 0.5) * ch
 			var best_d: float = INF
-			var best_f: int = 0
+			var best_f: int = INDEPENDENT_FACTION_ID
 			for c in cities:
 				var dx: float = px - c["pos_x"]
 				var dy: float = py - c["pos_y"]
@@ -370,26 +396,38 @@ static func _build_territory(cities: Array, biome: Dictionary) -> PackedByteArra
 				if d < best_d:
 					best_d = d
 					best_f = int(c["faction_id"])
-			terr[i] = best_f + 1
+			terr[i] = (best_f + 1) if best_f >= 0 else 0
 	return terr
 
 # ── Player start ──────────────────────────────────────────────────────────────
 
 static func _mark_player_start(cities: Array) -> void:
+	# The player begins as ONE small INDEPENDENT village near the map centre — not a
+	# great-house capital. Pick the independent, non-capital city closest to centre.
 	var cx: float = MAP_WIDTH  * 0.5
 	var cy: float = MAP_HEIGHT * 0.5
-	var best_idx: int   = 0
+	var best_idx: int   = -1
 	var best_d: float   = INF
 	for i in range(cities.size()):
-		if not cities[i]["is_capital"]: continue
+		if cities[i].get("is_capital", false): continue
+		if int(cities[i].get("faction_id", INDEPENDENT_FACTION_ID)) != INDEPENDENT_FACTION_ID: continue
 		var dx: float = cities[i]["pos_x"] - cx
 		var dy: float = cities[i]["pos_y"] - cy
 		var d: float  = sqrt(dx*dx + dy*dy)
 		if d < best_d:
 			best_d   = d
 			best_idx = i
-	if not cities.is_empty():
+	# Fallbacks: any non-capital, else city 0.
+	if best_idx < 0:
+		for i in range(cities.size()):
+			if not cities[i].get("is_capital", false):
+				best_idx = i
+				break
+	if best_idx < 0 and not cities.is_empty():
+		best_idx = 0
+	if best_idx >= 0:
 		cities[best_idx]["is_player_start"] = true
+		cities[best_idx]["tier"] = 0   # you start at the very bottom
 
 # ── Road network (Prim's MST + extra edges) ───────────────────────────────────
 

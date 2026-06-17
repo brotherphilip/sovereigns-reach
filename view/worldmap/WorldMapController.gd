@@ -35,7 +35,11 @@ static func _faction_color_hex(data: Dictionary, faction_id: int) -> String:
 	var factions: Array = data.get("factions", [])
 	if faction_id >= 0 and faction_id < factions.size():
 		return factions[faction_id].get("color_hex", "#888888")
-	return "#888888"
+	# The player (and any non-great-house kingdom) carries its own colour.
+	for k in data.get("kingdoms", []):
+		if k is Dictionary and int(k.get("id", -999)) == faction_id:
+			return String(k.get("color_hex", "#888888"))
+	return "#6b6b6b"  # independent villages — neutral grey
 
 # Field armies currently on the march, positioned partway along the road from
 # their current city toward the next hop so movement is visible.

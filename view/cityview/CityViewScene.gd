@@ -522,6 +522,11 @@ func _connect_signals() -> void:
 	EventBus.world_event.connect(_on_world_event)
 	# The 20-minute goal reached — a triumphant (dismissible) moment.
 	EventBus.sovereign_reign_reached.connect(_show_reign_milestone)
+	# Feudal climb: each promotion is a beat; reaching King wins the game.
+	EventBus.title_promoted.connect(_on_title_promoted)
+	# Strategic defeat: driven from your last holding.
+	EventBus.player_realm_lost.connect(func():
+		_show_game_over(false, "Your last holding has fallen. Your domain is no more."))
 	EventBus.realm_notice.connect(func(text: String, tone: String):
 		var c: Color = Color(0.55, 0.9, 0.45) if tone == "good" else (Color(1.0, 0.5, 0.4) if tone == "bad" else Color(0.95, 0.85, 0.45))
 		_hud.show_notification("📜 " + text, 7.0, c))
@@ -643,6 +648,14 @@ func _on_ai_faction_defeated(faction_id: int) -> void:
 func _on_popularity_changed(_pid: int, _old: float, new_val: float) -> void:
 	if new_val < 10.0:
 		_show_game_over(false, "The people have revolted! Your reign is over.")
+
+# The player's derived feudal title rose. Each step is a milestone toast; reaching the
+# top title (King) is the victory condition for the "work your way up" campaign.
+func _on_title_promoted(_title_index: int, title_name: String) -> void:
+	if _hud != null:
+		_hud.show_notification("👑 You have risen to %s!" % title_name, 7.0, Color(1.0, 0.85, 0.3))
+	if title_name == "King":
+		_show_game_over(true, "You have risen to KING — the realm is yours!")
 
 var _game_over_shown: bool = false
 

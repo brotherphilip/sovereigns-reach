@@ -46,6 +46,7 @@ const StrategicSim     = preload("res://simulation/strategic/StrategicSim.gd")
 const CampaignMap      = preload("res://simulation/strategic/CampaignMap.gd")
 const KingdomEconomy   = preload("res://simulation/strategic/KingdomEconomy.gd")
 const CampaignSystem   = preload("res://simulation/strategic/CampaignSystem.gd")
+const FeudalRank       = preload("res://simulation/strategic/FeudalRank.gd")
 const CityGenerator    = preload("res://simulation/world/CityGenerator.gd")
 const SeasonSystem     = preload("res://simulation/world/SeasonSystem.gd")
 # All fields are plain Dictionary/Array/int/float/bool — JSON-serializable.
@@ -1749,6 +1750,18 @@ func _tick_strategic_layer() -> void:
 			_record_recent_battle(wm, cid, sday, captured)
 	_prune_recent_battles(wm, sday)
 
+	# Feudal-title progression: the player's title is derived from holdings + development
+	# + prestige (pure expansion, no caps). A promotion fires a herald cue; reaching King
+	# is the win. Strategic defeat = driven from the last holding. (Skip while spectating.)
+	if not spectator_mode:
+		var promoted: int = FeudalRank.check_promotion(world, players)
+		if promoted >= 0:
+			EventBus.title_promoted.emit(promoted, FeudalRank.title_name(promoted))
+		var pfid: int = CampaignMap.player_faction_id(world)
+		if CampaignMap.faction_city_count(world, pfid) == 0 and not world.get("player_realm_lost_emitted", false):
+			world["player_realm_lost_emitted"] = true
+			EventBus.player_realm_lost.emit()
+
 # A contested-city marker lingers this many strategic days, fading out.
 const BATTLE_MARK_DAYS: int = 6
 
@@ -2216,6 +2229,18 @@ func _player_kingdom() -> Dictionary:
 
 func _cmd_develop_city(cmd: Dictionary) -> bool:
 	return player_develop_city(cmd["payload"].get("city_id", -1))
+
+# The player's current feudal title (derived from holdings + development + prestige).
+func player_title_name() -> String:
+	if not world.has("world_map") or world["world_map"].is_empty():
+		return FeudalRank.title_name(0)
+	return FeudalRank.title_name(FeudalRank.current_index(world, players))
+
+# How many villages the player currently holds.
+func player_holdings_count() -> int:
+	if not world.has("world_map") or world["world_map"].is_empty():
+		return 0
+	return CampaignMap.faction_city_count(world, CampaignMap.player_faction_id(world))
 
 # ── Player strategic actions (shared by the command path AND the world-map UI) ──
 # The world map advances the strategic layer directly with the clock paused, so the

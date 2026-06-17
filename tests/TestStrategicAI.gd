@@ -257,9 +257,13 @@ func _run_pure_sim() -> void:
 		% [captures, armies_raised, developments, tribute_events, max_armies_in_motion, str(saw_kingdom_defeated)])
 
 func _all_cities_owned(world: Dictionary) -> bool:
+	# Valid owners are a great house (>=0), the player (PLAYER_FACTION_ID), or an
+	# ownerless INDEPENDENT village — all legitimate. An unset/other value is a bug.
 	for c in CampaignMap.cities(world):
-		if c.get("owner_faction_id", -1) < 0:
-			return false
+		var o: int = int(c.get("owner_faction_id", -1))
+		if o >= 0 or o == CampaignMap.INDEPENDENT_FACTION_ID or o == CampaignMap.PLAYER_FACTION_ID:
+			continue
+		return false
 	return true
 
 # ── B) Determinism: same seed → identical outcome ────────────────────────────
@@ -301,9 +305,12 @@ func _run_player_ui_actions() -> void:
 	ok("player_lowest_dev_city returns an owned city", cid >= 0 and CampaignMap.owner_of(CampaignMap.city_by_id(gs.world, cid)) == pfid)
 	# is_player_city: true for an owned city, false for an enemy one (per-city order gating).
 	ok("is_player_city true for an owned city", gs.is_player_city(cid))
+	# A GREAT-HOUSE-owned city (owner >= 0, not the player) — used for both the enemy-city
+	# checks and the diplomacy block below (independents have no kingdom to treat with).
 	var enemy_cid: int = -1
 	for c in CampaignMap.cities(gs.world):
-		if CampaignMap.owner_of(c) != pfid:
+		var o: int = CampaignMap.owner_of(c)
+		if o >= 0 and o != pfid:
 			enemy_cid = c.get("id", -1); break
 	ok("is_player_city false for an enemy city", enemy_cid >= 0 and not gs.is_player_city(enemy_cid))
 	var cost: Dictionary = gs.develop_city_cost(cid)
