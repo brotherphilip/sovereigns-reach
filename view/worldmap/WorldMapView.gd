@@ -237,6 +237,10 @@ func _faction_color(faction_id: int) -> Color:
 # ── Roads ─────────────────────────────────────────────────────────────────────
 
 const ROAD_COLOR: Color = Color(0.55, 0.40, 0.25, 0.70)
+# Overhaul iter6: roads as a legible path — a dark casing under a lighter packed-earth line, so
+# the trade/march network reads clearly across the realm (was a near-invisible 1.5px faint line).
+const _ROAD_CASING: Color = Color(0.16, 0.11, 0.06, 0.55)
+const _ROAD_FILL: Color   = Color(0.74, 0.60, 0.37, 0.92)
 
 func _draw_roads() -> void:
 	for r in _road_list:
@@ -246,7 +250,9 @@ func _draw_roads() -> void:
 		var mid: Vector2 = (fp + tp) * 0.5
 		var perp: Vector2 = (tp - fp).orthogonal().normalized() * 14.0
 		mid += perp
-		draw_polyline(PackedVector2Array([fp, mid, tp]), ROAD_COLOR, 1.5)
+		var pts: PackedVector2Array = PackedVector2Array([fp, mid, tp])
+		draw_polyline(pts, _ROAD_CASING, 3.4)   # dark casing
+		draw_polyline(pts, _ROAD_FILL, 1.7)     # packed-earth road on top
 
 # ── Resource deposits ─────────────────────────────────────────────────────────
 
