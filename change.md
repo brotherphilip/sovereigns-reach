@@ -90,6 +90,38 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 166 — 2026-06-18  (DEV-LOOP — visuals/sound #3: persistent music-volume slider)
+
+### Plan
+The music timbre needs a user ear-check, so give the player CONTROL: a music-volume slider that persists, so they
+tune "how subtle" without code. Foundation = ConfigFile persistence (fully testable); UI = a slider in the pause menu.
+
+### Implement
+- `MusicPlayer` persistence: `_load_settings()` on startup reads `user://settings.cfg` [audio]/music_db (default
+  −13); `set_music_volume_db(db, save=true)` clamps, applies (composing with the duck offset) and saves;
+  `get_music_volume_db()`. Slider floor MUSIC_DB_MIN=−40 maps to MUTE_DB=−80 ("Off").
+- `CityViewScene` pause menu: added a "♪ Music" label + HSlider (−40..0 dB) wired to set_music_volume_db; panel
+  enlarged + buttons shifted to fit.
+
+### Playtest (REAL — headless test + Xvfb boots)
+- **`tests/TestMusic.gd` 16/0** (+3): set_music_volume_db updates the level; value is written to settings.cfg;
+  it reloads on a simulated next session.
+- City scene boots clean (SR_AUTOPLAY Xvfb): no parse/script errors with the new pause-menu code.
+- HONEST LIMIT: the slider's RENDER was NOT visually captured — opening the pause menu needs an ESC keypress, and
+  keyboard input doesn't register under headless Xvfb without a window manager (known harness limit). Persistence +
+  wiring are verified; the on-screen slider + audible level need a user check.
+
+### Docs
+- Updated `systems_bibliography.html` (Audio section volume/persistence + header).
+
+### Active Backlog
+- **Visuals/Sound focus (iter164-168):** user ear-check + try the pause-menu music slider; ambient/weather
+  soundscape next; then a visual polish pass. (Unverified-on-screen: pause-menu slider render — needs real input.)
+- **Design Iteration (deferred):** independents deplete late-game; spatial index ~15k+ units; coalition tuning.
+
+### Confidence: HIGH on persistence (TestMusic 16/0) + clean boot; the slider render/audio are user-verifiable only.
+Iterations since last command/compact: 4 (last compact iter162; COMPACT due next iteration ~iter167).
+
 ## Iteration 165 — 2026-06-18  (DEV-LOOP — visuals/sound #2: duck music under herald narration)
 
 ### Plan
