@@ -46,6 +46,43 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 143 — 2026-06-17  (DEV-LOOP — exercise the NEW core loop: expansion + feudal title)
+
+### Plan
+New bar (iter142): drive the player's strategic commands to capture a neighbouring village and climb the
+feudal title. Build a headless harness on the player-facing strategic API (player_raise_army /
+player_launch_campaign) and capture real state.
+
+### Found + fixed a REAL blocker (verified)
+- The lone-village player is the WEAKEST kingdom, so AI great houses' `KingdomAI._diplomacy` tribute extraction
+  silently DRAINED the player's strategic treasury to ~2 gold repeatedly (per-day evidence: day1 80→2 = −78,
+  day13 −22) → could only raise a size-1 army vs the weakest neighbour's defense 25 → **expansion impossible.**
+- **Fix:** `_diplomacy` now skips `is_player` tribute targets (the player faces tribute via the player-facing
+  envoy event, not a silent drain). **Verified:** treasury now accrues +2/day (80→110 over 15 days, no raids).
+  Tests green: TestStrategicAI 83/0, TestFeudalRank 19/0, TestPhase9 67/0.
+
+### NEW finding (real evidence — top balance problem, NOT yet patched)
+- Even after the tribute fix, the player's strategic income is **+2/day** (a 1-village dev-0 holding). By ~45
+  strat-days the affordable army (~22–34) still loses to the weakest neighbour (def 25, RNG); by ~90 strat-days the
+  AI great houses have **conquered the nearby independents** themselves, leaving the player ringed by def-58
+  great-house cities it can't take. **The player is out-paced — the "work your way up" loop is not viably
+  achievable at current income pacing.** (Capture mechanic itself works: army marches, assaults, seat is protected.)
+
+### Post-Mortem (the new loop is reachable mechanically but not balanced)
+- Root: player strategic war-chest grows far slower than AI expansion. Likely fixes (next iteration, needs design):
+  (a) bridge city-view prosperity → strategic treasury so a well-run city funds armies; (b) raise per-holding
+  strategic income / lower early army cost or first-target defense; (c) slow AI conquest of independents early.
+  Don't blind-patch — pick one lever and MEASURE capture-achievability + title rise.
+
+### Active Backlog
+- **Design Iteration (TOP):** player early-expansion economy is out-paced by AI (iter143 evidence) — make the first
+  capture + a title rise actually achievable; verify with the expansion harness.
+- **Required (test):** in-process multi-seed runner leaks state → one process per seed (iter141).
+- **Unverified:** `health` frozen at 50 with no sanitation (iter141) — instrument before claiming.
+
+### Confidence: HIGH — tribute drain fix has clean per-day before/after + green tests; the income-pacing problem is
+well-evidenced (army can't out-grow AI). Iterations since last command/compact: 1 (last compact iter142).
+
 ## Iteration 142 — 2026-06-17  (DEV-LOOP — fix AI-faction stacking; confirm multi-seed; COMPACT)
 
 ### Plan
