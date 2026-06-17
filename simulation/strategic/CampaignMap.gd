@@ -95,7 +95,7 @@ static func ensure_initialized(world: Dictionary, players: Array = []) -> bool:
 		"color_hex": "#d4af37",
 		"is_player": true,
 		"is_alive": true,
-		"treasury": 80,
+		"treasury": 150,
 		"resources": {"wood": 30, "stone": 10, "iron": 0, "food": 50},
 		"armies": [],
 		"next_army_id": PLAYER_FACTION_ID * 100000 + 1,

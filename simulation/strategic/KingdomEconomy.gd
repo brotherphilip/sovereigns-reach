@@ -8,6 +8,10 @@ extends RefCounted
 
 const CampaignMap = preload("res://simulation/strategic/CampaignMap.gd")
 
+# Player holdings earn this multiple of the passive AI per-province gold income, so a
+# player who develops their seat can fund an early conquest (see tick_day note).
+const PLAYER_INCOME_MULT: float = 4.0
+
 # ── Daily tick ─────────────────────────────────────────────────────────────────
 
 # Collect income from every owned city, pay army upkeep, and decay occupation
@@ -41,6 +45,13 @@ static func tick_day(world: Dictionary, kingdom: Dictionary, _tick: int) -> Arra
 		# Decay unrest toward 0.
 		if unrest > 0.0:
 			c["unrest"] = maxf(0.0, unrest - 0.1)
+
+	# The PLAYER actively develops their seat (the city-view economy), so their holdings
+	# yield more strategic gold than a passive AI province. Without this the lone-village
+	# player earned only ~2 gold/day and could never fund a first conquest before the AI
+	# ate the nearby independents (iter143 evidence). Player-only — AI balance unchanged.
+	if kingdom.get("is_player", false):
+		gold_gain = int(ceil(float(gold_gain) * PLAYER_INCOME_MULT))
 
 	kingdom["treasury"] = kingdom.get("treasury", 0) + gold_gain
 	var res: Dictionary = kingdom.get("resources", {})
