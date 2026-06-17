@@ -31,14 +31,49 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 - **FLOOR (MET & locked, iter118–119):** a real mouse-driven single-life playthrough survives **20 min = Day 100**
   on seed 42, ending on the "A Sovereign's Reign" victory — confirmed by 3 live Day-100 wins + CI (`TestSiege`
   Case C) + a headless repro.
-- **CURRENT BAR (raised iter120): 30 min = Day 150** single-life survival, live mouse play. *Why this bar:* the
-  passive defend-and-wait strategy that wins Day 100 leaves the hall at ~100 HP and losing ~50/strike — it likely
-  cannot reach Day 150 without a player counter to the relentless two-faction siege (garrison that repels, or
-  defeating/appeasing a faction). This bar probes whether the late-game has that answer.
-- **Next escalation candidates (after 30 min is reliable):** multi-seed robustness; a content/variety target;
-  an engagement/no-dead-time target.
+- **CURRENT BAR: 30 min = Day 150** single-life survival, live mouse play. **REACHED (1/3 confirmations, iter121):**
+  a live run hit **Day 162** with the hall HEALTHY and recovering (hp 442→484, popularity 72.7), enabled by
+  iter120's siege-ready-gated keep-repair + iter121's fire-hardened seat. Need **2 more clean Day-150 live runs**
+  before raising the bar (loop "reliably met" rule).
+- **Next escalation candidates (after 30 min is confirmed ×3):** raise duration to 45 min / Day 225; multi-seed
+  robustness; a content/variety target; an engagement/no-dead-time target.
 
 ---
+
+## Iteration 121 — 2026-06-17  (Fire-harden the seat → Day-150 bar REACHED live, hall healthy at Day 162)
+
+### Source
+Active Backlog (BALANCE): iter120 found a siege-proof defended seat still burned ~day 110. Root cause: the timber
+Village Hall (`fire_risk` 0.02) ignites in droughts (a once-per-day check), and over a long run that's an
+uncounterable, skill-independent game-ender — no firefighting exists; the Keep is stone/immune but needs tech.
+
+### Change made
+- **`BuildingRegistry.gd`: village_hall `fire_risk` 0.02 → 0.0** (seat fire-hardened, like the Keep). Losing the
+  seat is now a SIEGE outcome, not a random drought spark. Fire still threatens every OTHER timber building
+  (orchards/mills/hovels/barracks…), so it stays a real economic threat — only the run-ending seat-burn is removed.
+
+### Playtest (REAL)
+- **Headless faithful repro (defended, two factions, to Day 220):** with iter120 keep-repair + this fix the seat
+  **SURVIVES to Day 220** (hall_hp 490, siege_ready) — siege offset, seat unburnable.
+- **LIVE run (Xvfb, ~410 s, SR_TELEMETRY + screenshots), corrected to dismiss the day-100 reign popup
+  (≈427,305):** cleanly advanced past the Day-150 bar to **Day 162** — hall_hp RISING 442→484 (keep-repair
+  topping it up), popularity 72.7, siege_ready, 9 buildings; day advanced with no stall/death; final screenshot
+  shows the realm alive (only a non-pausing tribute panel). Suite **1308/0**.
+
+### Post-mortem — TARGET REACHED (Day 150), failure class: NONE
+- The Day-150/30-min bar is reached live (1 clean run). The two iter120/121 fixes together make a *prepared*
+  realm out-last the endgame indefinitely (siege offset + seat unburnable), so survival is now bounded by
+  player upkeep, not a hard death clock — right for the escalating-duration philosophy.
+- **Next:** 2 more clean Day-150 live confirmations, then raise to 45 min / Day 225.
+
+### Resolved (this iteration, with evidence)
+- **Siege grinds down even a defended seat (~day 91/110)** → keep-repair gated on is_siege_ready (iter120) — repro:
+  defended hall oscillates 400↔500, then survives. **Seat burns ~day 110 in droughts** → village_hall fire_risk
+  0.0 (iter121) — repro: seat survives to Day 220; live: Day 162 hall healthy.
+
+### Active Backlog
+**Design (confirmations):** 2 more clean Day-150 live runs before raising the bar to 45 min.
+**Design (optional):** spectator-battle edge cases. **User-only:** ear-check narration; ear-tune SFX.
 
 ## Iteration 120 — 2026-06-17  (Endless loop begins — raise the bar to 30 min / Day 150, probe the ceiling)
 
