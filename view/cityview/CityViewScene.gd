@@ -543,6 +543,67 @@ func _input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and event.keycode == KEY_TAB:
 		_toggle_macro_view()
 		get_viewport().set_input_as_handled()
+	elif event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
+		_toggle_pause_menu()
+		get_viewport().set_input_as_handled()
+
+var _pause_menu: CanvasLayer = null
+var _speed_before_pause: int = SimulationClock.SPEED_NORMAL
+
+# ESC pause menu: pauses the sim and offers Resume / Save / World Map / Main Menu / Quit.
+func _toggle_pause_menu() -> void:
+	if _pause_menu != null:
+		_close_pause_menu()
+		return
+	_speed_before_pause = SimulationClock.game_speed
+	SimulationClock.set_speed(SimulationClock.SPEED_PAUSED)
+	_pause_menu = CanvasLayer.new()
+	_pause_menu.name = "PauseMenu"
+	_pause_menu.layer = 50
+	add_child(_pause_menu)
+	var dim := ColorRect.new()
+	dim.color = Color(0.0, 0.0, 0.0, 0.55)
+	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_pause_menu.add_child(dim)
+	var panel := Panel.new()
+	panel.position = Vector2(490, 210)
+	panel.size = Vector2(300, 300)
+	var sty := StyleBoxFlat.new()
+	sty.bg_color = Color(0.08, 0.10, 0.07, 0.98)
+	sty.set_border_width_all(2)
+	sty.border_color = Color(0.62, 0.49, 0.22, 0.95)
+	sty.set_corner_radius_all(6)
+	panel.add_theme_stylebox_override("panel", sty)
+	_pause_menu.add_child(panel)
+	var title := Label.new()
+	title.text = "⚔  Paused"
+	title.position = Vector2(0, 16); title.size = Vector2(300, 30)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 20)
+	title.add_theme_color_override("font_color", Color(0.97, 0.85, 0.42))
+	panel.add_child(title)
+	var items: Array = [
+		["Resume", func(): _close_pause_menu()],
+		["Save Game", func(): _do_save(); _hud.show_notification("Game saved.", 3.0, Color(0.6, 0.9, 0.5)); _close_pause_menu()],
+		["World Map", func(): _close_pause_menu(); _on_return_to_world_map()],
+		["Main Menu", func(): get_tree().change_scene_to_file("res://view/menu/MainMenuScene.tscn")],
+		["Quit Game", func(): get_tree().quit()],
+	]
+	var y: float = 58.0
+	for it in items:
+		var b := Button.new()
+		b.text = String(it[0])
+		b.position = Vector2(40, y); b.size = Vector2(220, 38)
+		b.add_theme_font_size_override("font_size", 14)
+		b.pressed.connect(it[1])
+		panel.add_child(b)
+		y += 46.0
+
+func _close_pause_menu() -> void:
+	if _pause_menu != null:
+		_pause_menu.queue_free()
+		_pause_menu = null
+		SimulationClock.set_speed(_speed_before_pause)
 
 func _toggle_macro_view() -> void:
 	var ctrl := _macro_view.get_node_or_null("MacroMapControl")

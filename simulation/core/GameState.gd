@@ -1414,6 +1414,10 @@ func simulate_tick(tick: int) -> void:
 						faction.get("id", -1),
 						asm.get("target_player_id", -1),
 						AIFaction.SIEGE_ASSEMBLY_TICKS)
+					# Make the assault VISIBLE: stage a warband near the player's seat that
+					# marches in and fights, instead of an off-screen abstract strike.
+					if int(asm.get("target_player_id", -1)) == 0 and not spectator_mode:
+						_spawn_seat_attackers(faction)
 				if ev == "ashen_tribute_demanded":
 					var pending: Array = AIFaction.get_pending_demands(faction, 0)
 					var demands_map: Dictionary = {}
@@ -1561,6 +1565,39 @@ func _spawn_spectator_military(city: Dictionary, cx: int, cy: int) -> void:
 		world["spectator_besieger_name"] = kingdom.get("name", "A rival host")
 	else:
 		world["spectator_under_siege"] = false
+
+# Stage a VISIBLE besieging warband for `faction` a short march from the player's seat,
+# so a siege is an army you can see coming and fight — not just abstract hall damage. The
+# per-tick AI unit march (rally = keep while the siege is assembling) walks them in; the
+# always-rendered enemy units make the attack plainly visible. Bounded: skip if the faction
+# already has a live warband afield, so repeated sieges don't pile up endless units.
+func _spawn_seat_attackers(faction: Dictionary) -> void:
+	if players.is_empty():
+		return
+	var alive: int = 0
+	for u in faction.get("units", []):
+		if u is Dictionary and u.get("is_alive", false):
+			alive += 1
+	if alive >= 6:
+		return  # a warband is already in the field
+	var kx: int = int(players[0].get("keep_x", 100))
+	var ky: int = int(players[0].get("keep_y", 100))
+	# Stage ~14 tiles out, on the side toward the faction's home, so they march visibly in.
+	var dir := Vector2(float(faction.get("capital_x", kx) - kx), float(faction.get("capital_y", ky) - ky))
+	if dir.length() < 1.0:
+		dir = Vector2(1.0, 0.0)
+	dir = dir.normalized()
+	var sx: int = clampi(kx + int(dir.x * 14.0), 2, 197)
+	var sy: int = clampi(ky + int(dir.y * 14.0), 2, 197)
+	var uid: int = int(faction.get("next_unit_id", faction.get("id", 0) * 10000 + 1))
+	for j in range(8):
+		var ax: int = clampi(sx + (j % 4) * 2 - 3, 2, 197)
+		var ay: int = clampi(sy + (j / 4) * 2 - 2, 2, 197)
+		var fu: Dictionary = UnitState.create("armed_peasant", int(faction.get("id", -1)), ax, ay, uid)
+		if not fu.is_empty():
+			uid += 1
+			faction["units"].append(fu)
+	faction["next_unit_id"] = uid
 
 # The first hostile strategic army marching on (or sitting at) the given city, or {} if none.
 func _find_besieging_army(city_id: int, owner_fid: int) -> Dictionary:
