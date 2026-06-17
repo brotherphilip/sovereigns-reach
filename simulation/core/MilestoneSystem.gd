@@ -11,18 +11,18 @@ const PRESTIGE_BONUS: float = 50.0
 # game, the rest fill the mid/late session so the reward loop never goes quiet.
 const DEFINITIONS: Dictionary = {
 	# ── Early game ──
-	"first_woodcutter": "Felled the first tree — your lumber trade begins.",
-	"first_farm":       "Sowed the first field — your people will not starve.",
-	"population_50":    "50 souls call your realm home.",
-	"first_edict":      "Your will is law — the first royal edict proclaimed.",
-	"three_shires":     "Three shires fly your banner — a kingdom takes shape.",
+	"first_woodcutter": "First lumber operation online — timber production has begun.",
+	"first_farm":       "First farm operational — the population's food supply is secured.",
+	"population_50":    "Population reaches 50 — your settlement is growing.",
+	"first_edict":      "First directive issued — your policy is now in effect.",
+	"three_shires":     "Three territories under your control — a region takes shape.",
 	# ── Mid / late game (pace the long middle of the run) ──
-	"first_watchtower": "The first watchtower rises — your seat can weather a siege.",
-	"town_of_ten":      "Ten buildings stand — your settlement is now a town.",
-	"treasury_300":     "Three hundred gold in the treasury — a prosperous realm.",
-	"standing_army":    "Five soldiers answer your call — a standing company musters.",
-	"reign_day_50":     "Fifty days of rule — half a season survived, and the realm holds.",
-	"reign_day_75":     "Seventy-five days — the warlords' season wanes, and your realm still stands.",
+	"first_watchtower": "First watchtower built — your headquarters can withstand an assault.",
+	"town_of_ten":      "Ten structures built — your settlement is now a town.",
+	"treasury_300":     "Treasury reaches 300 — your administration is financially stable.",
+	"standing_army":    "Five soldiers under arms — a standing unit is mustered.",
+	"reign_day_50":     "Fifty days in command — the territory is holding steady.",
+	"reign_day_75":     "Seventy-five days in command — enemy pressure is easing and the territory still stands.",
 }
 
 # A standing army of this many living soldiers earns the standing_army milestone — a
