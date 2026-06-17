@@ -133,6 +133,10 @@ func _init_default_state() -> void:
 # Creates a procedural world grid and shire map, stores serialized data in world{}
 func setup_world(seed_value: int = 12345, shire_count: int = 8) -> void:
 	server_config["map_seed"] = seed_value
+	# Fresh local enemy roster each time the world is (re)built. CityViewScene calls
+	# setup_world then add_ai_faction on every entry, so without this the raider factions
+	# STACKED on each re-entry (2 → 4 → 6 …), piling on besiegers unfairly. (iter142 evidence.)
+	ai_factions = []
 	_weather_rng.seed = seed_value
 	_disease_rng.seed = seed_value ^ 0xDEADBEEF
 	_fire_rng.seed = seed_value ^ 0xCAFEBABE
