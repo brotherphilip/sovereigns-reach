@@ -51,6 +51,22 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 129 — 2026-06-17  (MAP-OVERHAUL LOOP #2 — shallow-water coastline shelf)
+
+### Source
+Map-overhaul loop. Assessed current map (zoomed coastal crop): deep ocean met land abruptly — no shoreline depth.
+
+### Change made (`WorldMapView.gd` `_draw_background`, view-only)
+- **Shallow-water shelf:** a SEA cell adjacent (8-neighbour) to land now draws a lighter `_SEA_SHALLOW` band
+  instead of the deep-ocean base — a shoreline hugging the whole continent, giving the landmass depth.
+
+### Playtest (REAL — Xvfb before/after, zoomed coastal crops)
+- After-render shows the lighter shelf banding the coast (visible on the western shore). Clean render.
+- Map systems intact: **TestPhase9 67/0, TestStrategicAI 83/0.** Failure class: NONE (view-only).
+
+### Backlog (next): biome palette/variety (richer forest/hills/mountain, smoother transitions); city icon+label
+clarity & per-faction styling; selection/hover feedback; action affordances; decorative detail.
+
 ## Iteration 128 — 2026-06-17  (MAP-OVERHAUL LOOP #1 — de-mud the world map: textured terrain + kingdom borders)
 
 ### Source
