@@ -94,7 +94,7 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ### Active Backlog (Base Game) — deduplicated
 - **Phase 2 (deferred, user-agreed): physical AI cities** — prototype ONE AI city running CitizenSystem hauling; measure FPS/tick cost before committing.
-- **Visual polish (POLISH):** WALL colours still cluster (tan-timber / grey-stone / wood-plank); several small buildings (well, hovel, granary, market, watchtower, quarry, mine) read as plain blobs at play-zoom. (Roofs diversified iter175; villager tunics iter191.)
+- **Visual polish (POLISH):** WALL colours still cluster (tan-timber / grey-stone / wood-plank); `market` reads sparse and `well` is tiny at play-zoom. (Roofs diversified iter175; villager tunics iter191; watchtower rebuilt iter193.)
 - **OBSERVATION — night dead-space (taste, needs USER call, NOT a bug):** deep-night `NightLayer.MAX_DARK = 0.92` (near-black away from lamps) + depopulated night (skeleton crew) ⇒ ~5 min/cycle dark+empty. Soften MAX_DARK or add night ambient life only if the user wants less dead time.
 - **Deathmatch "Empires of Ages":** `deathmatch.md` absent; no active work. Create only when that mode is built.
 
@@ -106,8 +106,25 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 - **SR_SEASON dev hook (iter190):** sets `world.season` directly + repaints. Ev: autumn=gold / winter=pale renders.
 - **Villager tunic variety (iter191):** per-id muted peasant palette in `CitizenLayer`. Ev: before/after zoom renders.
 - **Phantom day-1 population drop (iter192):** `initialize_player` spawned 14 citizens while population read 20 → day-1 `living_count` sync dropped 20→14 (looked like 6 villagers lost, flipped the pop-20 objective). Now spawns 20 (matches AIFaction.START_WORKFORCE symmetry) + syncs population to living count. Ev: telemetry was 20→14, now stable 20 through day 7; TestPeople 21/0, TestSurvival 6/0.
+- **Watchtower art (iter193):** was a spindly 3-post stub (read as a flagpole); `BuildingModels._watchtower` rebuilt as a braced timber lookout (splayed legs + X-bracing + railed platform + thatch cap + pennant). Ev: building-showcase before/after renders, 0 triangulation errors.
 - **Xvfb on-screen harness (iter189):** detached background-subshell launch renders + self-screenshots reliably (foreground = exit 144). Logs are real evidence too.
 - **(Durable, older — see Current Targets):** Day-100 FLOOR multi-seed survival; Reeve→King climb on 5 seeds ≤113d; late-game coalition-vs-leader; on-screen in-city FLOOR survival (iter158).
+
+---
+
+## Iteration 193 — 2026-06-19  (DEV-LOOP — Base Game; profile: on-screen visual audit. Watchtower art rebuilt)
+
+### Plan
+From the deduplicated backlog ("small buildings read as blobs"), use the building-showcase render to find the weakest small building and rebuild it. Expected: the worst offender reads clearly at play-zoom.
+
+### Playtest (REAL — building-showcase + in-context renders)
+- Rendered `_BuildingShowcase` (all 28 types, G=0, 0 errors). Audit: most buildings read well; the **watchtower** was the clear miss — a spindly 3-post stub + flag that read as a flagpole, not a tower (and it's a DEFENSE building). `market` is sparse and `well` tiny (minor, left).
+
+### Implement
+- `BuildingModels._watchtower`: rebuilt as a braced timber lookout — four splayed legs with X cross-bracing on the front faces, a railed platform, a thatch hip cap, and a pennant. All fills are simple triangles (no degenerate polygons).
+- **Verified before/after:** showcase zoom shows a real lookout tower (was a mound+pole). Re-rendered showcase + an in-context SR_WORKERS town: G=0, **0 triangulation / 0 script errors** in both.
+
+### Confidence: HIGH — before/after showcase zoom + clean in-context render. View-only; no sim change. Failure class: VISUALS (weak art), fixed.
 
 ---
 
