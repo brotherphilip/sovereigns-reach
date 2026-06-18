@@ -39,7 +39,7 @@ const STORAGE_FULL_FRAC: float = 0.85   # build another stockpile/granary once t
 const FOOD_PER_CAPITA: float = 0.5     # food units eaten per worker per day
 const BASE_HOUSING: int = 8            # the faction's keep shelters this many
 const HOVEL_ROOMS: int = 4
-const START_WORKFORCE: int = 10
+const START_WORKFORCE: int = 20   # same as the player's starting population (symmetry, iter177)
 
 const TICKS_PER_DAY: int = 240
 
@@ -85,13 +85,15 @@ static func make_faction(id: int, name: String, archetype: String,
 		"is_alive": true,
 		"capital_x": capital_x,
 		"capital_y": capital_y,
-		"gold": 140,
+		# Starts with the SAME limited pile as the player's settlement (CityViewScene:
+		# gold 120 / wood 60 / stone 15 / 90 apples / 20 workers) — no head-start (iter177).
+		"gold": 120,
 		"prestige": 100,
 		"resources": {
 			"wood": 60, "stone": 15, "iron": 0,
-			"pitch": 0, "hops": 0, "wheat": 40,
+			"pitch": 0, "hops": 0, "wheat": 0,
 		},
-		"food": {"apples": 60, "bread": 0, "meat": 0, "ale": 0},
+		"food": {"apples": 90, "bread": 0, "meat": 0, "ale": 0},
 		"units": [],
 		"buildings": [],
 		"tech_unlocks": [],
