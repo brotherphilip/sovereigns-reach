@@ -547,19 +547,42 @@ static func _stockpile(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Ve
 # A real grove: trees laid out in rows across the whole footprint, each rendered in
 # its seasonal stage (bare winter → budding spring → leafy summer → fruiting autumn).
 static func _orchard(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vector2, season: int) -> void:
-	# Ground tinted for the season (lush in spring/summer, golden autumn, pale winter).
+	# A working FARMSTEAD, not a flat patch: a seasonal orchard ground, a rail-fenced
+	# enclosure, ranks of apple trees AROUND an open yard, and a central thatched shed
+	# (the store/press) with stacked apple crates by its door.
 	var ground := Color(0.40, 0.56, 0.30) * SeasonSystem.ground_tint(season)
 	ci.draw_colored_polygon(PackedVector2Array([t, r, b, l]), ground)
+	var ctr: Vector2 = (t + r + b + l) * 0.25
 	var stage: int = SeasonSystem.growth_stage(season)
-	# Lay a grid of trees across the parallelogram l→t (one axis) and l→b (the other),
-	# painter-ordered back-to-front so nearer trees overlap farther ones correctly.
 	var ex := t - l
 	var ey := b - l
-	var rows: Array[float] = [0.18, 0.40, 0.62, 0.84]
-	for v in rows:
-		for u in rows:
-			var base: Vector2 = l + ex * u + ey * v
-			_tree(ci, base, stage, season)
+	var slots: Array[float] = [0.12, 0.30, 0.50, 0.70, 0.88]
+	# True for the central clearing kept open for the shed + yard.
+	var _clear := func(u: float, v: float) -> bool:
+		return u > 0.32 and u < 0.72 and v > 0.30 and v < 0.80
+	# Back rows of trees (everything but the frontmost rank) — drawn before the shed.
+	for vi in range(slots.size() - 1):
+		var v: float = slots[vi]
+		for u in slots:
+			if not _clear.call(u, v):
+				_tree(ci, l + ex * u + ey * v, stage, season)
+	# Rail fence along the two front edges (the enclosure reads as a kept plot).
+	_fence(ci, l, b)
+	_fence(ci, b, r)
+	# Central timber shed with a thatched gable + door (the orchard's store/press).
+	var shed := _box(ci, ctr.lerp(t, 0.30), ctr.lerp(r, 0.30), ctr.lerp(b, 0.30), ctr.lerp(l, 0.30), 9.0, WOOD, TEX_PLANK)
+	_gable(ci, shed, 5.0, THATCH_D)
+	_door(ci, ctr.lerp(l, 0.30), ctr.lerp(b, 0.30), 9.0, Color(0.30, 0.20, 0.12))
+	# Stacked apple crates by the shed door.
+	var crate: Vector2 = ctr.lerp(b, 0.52)
+	ci.draw_rect(Rect2(crate.x - 4.0, crate.y - 3.0, 8.0, 5.0), WOOD_D)
+	ci.draw_rect(Rect2(crate.x - 3.0, crate.y - 7.0, 6.0, 4.0), WOOD)
+	for k in range(3):
+		ci.draw_circle(crate + Vector2(-2.0 + float(k) * 2.0, -7.0), 1.0, RED)
+	# Frontmost rank of trees, drawn last so it correctly overlaps the shed/yard.
+	var vf: float = slots[slots.size() - 1]
+	for u in slots:
+		_tree(ci, l + ex * u + ey * vf, stage, season)
 
 # One tree at its seasonal growth stage. 0 bare, 1 budding, 2 leafy, 3 fruiting.
 static func _tree(ci: CanvasItem, base: Vector2, stage: int, season: int) -> void:

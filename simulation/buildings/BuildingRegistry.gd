@@ -171,10 +171,10 @@ const BUILDINGS: Dictionary = {
 	# ── §5.3 Food & Agriculture ──────────────────────────────────────────────
 	"apple_orchard": {
 		"name": "Apple Orchard", "category": Category.FOOD,
-		"width": 2, "height": 2, "field": true,
-		"cost": {"wood": 5},
+		"width": 3, "height": 3, "field": true,
+		"cost": {"wood": 8},
 		"max_workers": 2, "worker_slots": 2,
-		"terrain_req": TERRAIN_GRASS | TERRAIN_VALLEY, "fire_risk": 0.02, "hp": 40,
+		"terrain_req": TERRAIN_GRASS | TERRAIN_VALLEY, "fire_risk": 0.02, "hp": 55,
 		"requires_tech": [], "produces": {"apples": 2}, "consumes": {},
 		"coverage_radius": 0,
 		"description": "Fast, cheap. Low food yield. Good for early game.",
