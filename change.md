@@ -46,6 +46,10 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
   750 — so this verifies the economy doesn't slowly DRIFT/starve over a longer horizon, NOT added threat). HONEST:
   with the user's calm-realm directive, "survival" is no longer the binding challenge; a meaningful *difficulty*
   bar (vs a duration/stability bar) would need user direction on re-introducing threat/engagement to the mid-game.
+  **Day-150 bar: PROVISIONALLY MET (iter198, 1 seed).** SR_SEED=31337 survived to **day 164** (popularity min 47.7,
+  hall intact, 0 errors) THROUGH a real drought food crash (food→0 at day 137, pop 20→17, then recovered) — the
+  realm self-corrects and the new low-food warning fires in-window. 2 more varied seeds would confirm the bar; the
+  food crash is a watch-item (see Live Backlog), not a loss.
 - **FLOOR — Day-100 (20-min) single-life survival: MET & MULTI-SEED CONFIRMED (iter140–142).** Headless managed
   runs through the REAL placement path survive Day 100 on **5 distinct seeds** (12345, 4242, 999, 7777, 31337),
   min popularity 45–49, hall intact. Food trough solved by the iter140 granary buffer (200→300) + stacking.
@@ -104,6 +108,7 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 - **Phase 2 (deferred, user-agreed): physical AI cities** — prototype ONE AI city running CitizenSystem hauling; measure FPS/tick cost before committing.
 - **Visual polish (POLISH):** WALL colours still cluster (tan-timber / grey-stone / wood-plank); `market` reads sparse and `well` is tiny at play-zoom. (Roofs diversified iter175; villager tunics iter191; watchtower rebuilt iter193.)
 - **OBSERVATION — night dead-space (taste, needs USER call, NOT a bug):** deep-night `NightLayer.MAX_DARK = 0.92` (near-black away from lamps) + depopulated night (skeleton crew) ⇒ ~5 min/cycle dark+empty. Soften MAX_DARK or add night ambient life only if the user wants less dead time.
+- **WATCH-ITEM — late-game drought food crash:** the Day-150 run (seed 31337) saw food stable at 200 (day 62–112) then crash to **0 at day 137** (a prolonged drought + a thin food workforce as a worker aged out), recovering to 200 by day 145. The realm SURVIVED (popularity min 47.7, hall intact, reached day 164) and the new low-food warning fires in-window, so NOT fixed. But if a future seed actually LOSES to a drought food crash (popularity → revolt), buff the drought-time food buffer (e.g., bigger granary base, or a deeper off-season trickle). Needs more seeds to judge.
 - **OBSERVATION — peaceful 100-day life (from the 10-cycle peace, user-directed):** the FLOOR run (iter194) reached day 114 with NO siege (King's Peace until day 750) while the standing objective still says "ready your defences — build a Barracks, Wall or Tower." The defence prompt is premature now; consider deferring it (or the King's-Peace-ending telegraph) closer to when threats actually arrive. Stems from the user's calm-realm directive — needs a user call before changing.
 - **Deathmatch "Empires of Ages":** `deathmatch.md` absent; no active work. Create only when that mode is built.
 
@@ -121,7 +126,28 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 - **Xvfb on-screen harness (iter189):** detached background-subshell launch renders + self-screenshots reliably (foreground = exit 144). Logs are real evidence too.
 - **SR_SEED autoplay hook (iter196):** `CityViewScene._init_simulation` honours SR_SEED to vary the map/economy seed (seeds weather/disease/fire/social/wildlife/citizen RNGs), so on-screen FLOOR runs can be INDEPENDENT (autoplay was deterministic at seed 42). Enables real "3 varied clean runs" milestone evidence.
 - **Hovel hearth smoke (iter197):** homes had no chimney smoke (only bakery/brewery/blacksmith did) → read as empty boxes. `_hovel` now draws a mud chimney + 3-puff drifting smoke wisp (per-frame draw time). Ev: building-showcase zoom shows chimney+wisp, 0 triangulation/parse errors.
+- **Low-food warning (iter198):** a drought could drain the granary to 0 (brief starvation) with NO early heads-up (is_starving only flips at food 0; warnings existed only for popularity + builder-stall). GameState now emits a one-time "stores run low" realm_notice below ~3 days' food (pop+ration scaled), re-arming above ~6 days. Ev: tests/TestFoodWarning.gd 5/0 (fires/no-spam/re-arms/re-fires); the day-150 run (seed 31337) exercised exactly this (food→0 day 137). Aligned with calm-realm (player aid, no added threat).
 - **(Durable, older — see Current Targets):** Day-100 FLOOR multi-seed survival; Reeve→King climb on 5 seeds ≤113d; late-game coalition-vs-leader; on-screen in-city FLOOR survival (iter158).
+
+---
+
+## Iteration 198 — 2026-06-19  (DEV-LOOP — Base Game; profile: long-haul survivor / day-150. Late-game food-crash found + low-food warning)
+
+### Plan
+Verify the new Day-150 stability bar (seed 31337), watching for late-game food/popularity drift; add a fresh improvement while it runs.
+
+### Playtest (REAL — Xvfb autoplay seed 31337, ~395s + headless)
+- **Day-150 run: G=0, reached day 164** (past the 150 bar), popularity min 47.7 (held), hall 500, 0 errors → **Day-150 bar PROVISIONALLY MET (1 seed).** BUT a real late-game stress: food was stable at 200 (day 62–112) then **crashed to 0 at day 137** (prolonged drought + a food worker aging out tipped production below consumption), pop 20→17, recovering to 200 by day 145. The realm SELF-CORRECTED and survived; popularity never neared revolt. Final screenshot (day 164, daytime): town intact, no visual faults.
+- Late-game food curve analysis of the iter196-197 runs first surfaced the thin drought buffer (seed-999 dipped to food=20 at day 80).
+
+### Post-mortem → TARGET REACHED (survived) + a real ROBUSTNESS finding (non-fatal)
+The food crash is weather-driven (drought) + workforce-thin, but bounded/recoverable — NOT a loss. The right mitigation (aligned with the calm-realm directive: help the player, don't add threat) is a WARNING, not a silent famine.
+
+### Implement
+- `GameState`: low-food warning — one-time "stores run low" realm_notice below ~3 days' food (pop+ration scaled), re-arm above ~6 days. Mirrors the restless/builders warnings. The famine was previously silent until is_starving (food 0).
+- `tests/TestFoodWarning.gd` (5/0): fires at low food, no spam while low, re-arms on recovery, re-fires on a new shortage.
+
+### Confidence: HIGH — day-164 telemetry + screenshot + new test all captured. Regressions green (Survival 6/0, People 21/0, Siege 9/0).
 
 ---
 
