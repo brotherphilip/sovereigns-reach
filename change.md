@@ -38,6 +38,14 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 > hauling + slower events/sieges. The old medieval Day-150/225/300 survival ladder below is ARCHIVED context;
 > the live targets are these:
 
+- **★ MILESTONE MET (iter197): ON-SCREEN Day-100 FLOOR confirmed on 3 INDEPENDENT seeds.** Real Xvfb autoplay
+  runs of `CityViewScene` (via the iter196 SR_SEED hook) each reached **day 114**, hall intact, 0 errors, on
+  distinct maps/weather: seed 42 (min popularity 50.0), seed 777 (48.6, "Spring·Clear"), seed 999 (50.0). The
+  20-min single-life FLOOR is comprehensively met on the real scene. **BAR RAISED → Day-150 (30-min) single life,
+  framed as a LATE-GAME STABILITY check** (the realm is peaceful now — 10-cycle King's Peace, no siege until day
+  750 — so this verifies the economy doesn't slowly DRIFT/starve over a longer horizon, NOT added threat). HONEST:
+  with the user's calm-realm directive, "survival" is no longer the binding challenge; a meaningful *difficulty*
+  bar (vs a duration/stability bar) would need user direction on re-introducing threat/engagement to the mid-game.
 - **FLOOR — Day-100 (20-min) single-life survival: MET & MULTI-SEED CONFIRMED (iter140–142).** Headless managed
   runs through the REAL placement path survive Day 100 on **5 distinct seeds** (12345, 4242, 999, 7777, 31337),
   min popularity 45–49, hall intact. Food trough solved by the iter140 granary buffer (200→300) + stacking.
@@ -112,7 +120,27 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 - **King's Peace intro units (iter195):** the onboarding toast said "shields your realm for 750 days" (raw PLAYER_GRACE_DAYS, economic days) while the HUD counts CALENDAR days — confusing. Now derives calendar days from clock constants → "for its first 50 days". Ev: on-screen render of the toast reads "first 50 days".
 - **Xvfb on-screen harness (iter189):** detached background-subshell launch renders + self-screenshots reliably (foreground = exit 144). Logs are real evidence too.
 - **SR_SEED autoplay hook (iter196):** `CityViewScene._init_simulation` honours SR_SEED to vary the map/economy seed (seeds weather/disease/fire/social/wildlife/citizen RNGs), so on-screen FLOOR runs can be INDEPENDENT (autoplay was deterministic at seed 42). Enables real "3 varied clean runs" milestone evidence.
+- **Hovel hearth smoke (iter197):** homes had no chimney smoke (only bakery/brewery/blacksmith did) → read as empty boxes. `_hovel` now draws a mud chimney + 3-puff drifting smoke wisp (per-frame draw time). Ev: building-showcase zoom shows chimney+wisp, 0 triangulation/parse errors.
 - **(Durable, older — see Current Targets):** Day-100 FLOOR multi-seed survival; Reeve→King climb on 5 seeds ≤113d; late-game coalition-vs-leader; on-screen in-city FLOOR survival (iter158).
+
+---
+
+## Iteration 197 — 2026-06-19  (DEV-LOOP — Base Game; profile: unattended autoplay, VARIED seed. ★ 3-run FLOOR MILESTONE MET ★ + hovel hearth smoke)
+
+### Plan
+Bank the 3rd VARIED-seed clean FLOOR run (seed 999) to complete the 3-independent-run milestone; a fresh "richer environment" improvement (hovel hearth smoke) while it runs; raise the bar if the milestone lands.
+
+### Playtest (REAL — Xvfb autoplay seed 999 + showcase render)
+- **VARIED FLOOR run (SR_SEED=999): G=0, day 114**, popularity min 50.0 → 58.4, pop stable 20, food healthy, hall 500, 0 errors. → **★ MILESTONE: 3 INDEPENDENT clean on-screen day-100 runs ★** — seed 42 (min 50.0), 777 (48.6), 999 (50.0), all day 114, distinct maps/weather. BAR RAISED to Day-150 (late-game STABILITY check; see Current Targets — honest note: peaceful realm, so it's a stability/duration bar, not added difficulty).
+- **Hovel art verified:** building-showcase render G=0, 0 triangulation/parse errors; zoom shows the new chimney + smoke wisp on the hovel.
+
+### Implement
+- `BuildingModels._hovel`: mud chimney + 3-puff drifting hearth-smoke wisp (threads the per-frame draw `time` through the dispatcher) so homes read as inhabited.
+
+### Post-mortem → TARGET REACHED + milestone
+No fault. Phase-4 "what's thin": the peaceful mid-game (day ~12–100) is low-stakes (no threat, rare events) — a consequence of the user's calm directive; meaningful added challenge needs user direction (logged in Current Targets + backlog).
+
+### Confidence: HIGH — 3 independent runs + showcase render all captured; hovel art before/after.
 
 ---
 
