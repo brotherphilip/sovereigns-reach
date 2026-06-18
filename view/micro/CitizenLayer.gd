@@ -27,6 +27,15 @@ const STEEL_DK := Color(0.42, 0.45, 0.52)
 const WOOD  := Color(0.45, 0.30, 0.16)
 const WOOD_DK := Color(0.30, 0.20, 0.10)
 const OUTLINE := Color(0.12, 0.09, 0.07, 0.38)
+# Muted, period-appropriate peasant tunic palette — browns, tans, ochre, dull green/blue,
+# faded rust, grey. Indexed per-citizen by id so a village reads as varied folk, not a
+# uniform cohort (mirrors the iter175 building-roof diversification, for people).
+const PEASANT_TUNICS: Array = [
+	Color(0.45, 0.34, 0.22), Color(0.38, 0.30, 0.20), Color(0.60, 0.50, 0.32),
+	Color(0.36, 0.42, 0.26), Color(0.31, 0.40, 0.34), Color(0.56, 0.34, 0.28),
+	Color(0.36, 0.42, 0.52), Color(0.47, 0.45, 0.42), Color(0.52, 0.41, 0.25),
+	Color(0.42, 0.32, 0.30),
+]
 
 # People are drawn a little smaller so buildings read at a realistic scale.
 const PAWN_SCALE: float = 0.82
@@ -457,7 +466,16 @@ func _draw_citizen(sx: float, sy: float, c: Dictionary) -> void:
 	var building: bool = st == "build"
 
 	var ap := _appearance(c)
-	var tunic: Color = Color(0.30, 0.42, 0.55) if builder else (Color(0.60, 0.34, 0.42) if ap.female else Color(0.44, 0.40, 0.26))
+	# Per-person tunic from a muted peasant palette (deterministic by id) so a crowd reads
+	# as varied individuals, not one uniform pink/olive cohort. Builders keep a distinct
+	# blue-grey so they're identifiable at a glance while working a site.
+	var tunic: Color
+	if builder:
+		tunic = Color(0.30, 0.42, 0.55)
+	else:
+		tunic = PEASANT_TUNICS[int(c.get("id", 0)) % PEASANT_TUNICS.size()]
+		if ap.female:
+			tunic = tunic.lerp(Color(0.64, 0.40, 0.44), 0.22)   # a touch warmer/rosier for women
 
 	var j := _draw_figure(sx, sy, c, ap, tunic, t, moving and not building, building)
 	var s: float = j.s
