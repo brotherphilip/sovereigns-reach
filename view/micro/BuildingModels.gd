@@ -329,7 +329,7 @@ static func draw_finished(ci: CanvasItem, btype: String, cat: int, w: int, h: in
 	match btype:
 		"village_hall":      _village_hall(ci, t, r, b, l, ctr)
 		"keep":              _keep(ci, t, r, b, l, ctr, time)
-		"hovel":             _hovel(ci, t, r, b, l)
+		"hovel":             _hovel(ci, t, r, b, l, time)
 		"market":            _market(ci, t, r, b, l, ctr, seed)
 		"trading_post":      _trading_post(ci, t, r, b, l, ctr)
 		"well":              _well(ci, t, r, b, l, ctr)
@@ -428,11 +428,19 @@ static func _merlons(ci: CanvasItem, a: Vector2, bb: Vector2, col: Color, n: int
 		var p: Vector2 = a.lerp(bb, (float(i) + 0.5) / float(n))
 		ci.draw_rect(Rect2(p.x - 2.4, p.y - 4.5, 4.8, 4.5), col)
 
-static func _hovel(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vector2) -> void:
+static func _hovel(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vector2, time: float = 0.0) -> void:
 	var c := _box(ci, t, r, b, l, 17.0, Color(0.72, 0.62, 0.45))
 	_win(ci, b.lerp(r, 0.5) + Vector2(0, -10))
 	_door(ci, l, b, 17.0)
 	_gable(ci, c, 12.0, THATCH)
+	# A humble mud chimney with a gentle hearth-smoke wisp — signals an inhabited home
+	# (the town reads as lived-in, not a set of empty boxes).
+	var ch := c[1].lerp(c[2], 0.42) + Vector2(0, -11)
+	ci.draw_rect(Rect2(ch.x - 1.8, ch.y - 5.0, 3.6, 8.0), WOOD_D)
+	ci.draw_rect(Rect2(ch.x - 2.1, ch.y - 6.0, 4.2, 1.8), Color(0.46, 0.34, 0.22))
+	for k in range(3):
+		var sy: float = fmod(time * 5.0 + float(k) * 5.0, 15.0)
+		ci.draw_circle(ch + Vector2(sin(time * 1.6 + float(k)) * 1.8, -7.0 - sy), 1.2 + sy * 0.1, Color(0.82, 0.82, 0.82, 0.22 * (1.0 - sy / 15.0)))
 
 static func _market(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vector2, ctr: Vector2, seed: int = 0) -> void:
 	# Open-air stalls around a stone market cross — stall count, awning colours and goods
