@@ -340,6 +340,18 @@ func _dev_autoplay() -> void:
 				if GameState._grid != null:
 					GameState._grid.set_building_at(gx + dx, gy + dy, b["id"])
 					GameState._grid.set_field_at(gx + dx, gy + dy, field)
+	# Initial stockpile beside the hall (iter183) + a regular one, and some raw stock so the
+	# pile visuals (iter184) are visible for inspection.
+	GameState._spawn_initial_stockpile(GameState.players[0], _keep_x, _keep_y)
+	var sx2: int = clampi(_keep_x - 6, 2, 196); var sy2: int = clampi(_keep_y + 2, 2, 196)
+	var sb2: Dictionary = BState.create("stockpile", 0, sx2, sy2, GameState._next_building_id)
+	GameState._next_building_id += 1
+	sb2["built"] = true
+	GameState.players[0]["buildings"].append(sb2)
+	if GameState._grid != null:
+		GameState._grid.set_building_at(sx2, sy2, sb2["id"])
+	GameState.players[0]["resources"]["wood"] = 250
+	GameState.players[0]["resources"]["stone"] = 120
 	# A standing garrison so the realm can survive the post-grace sieges (a food-only,
 	# defenceless seat loses its keep ~day 72 — verified iter158; defenders are needed).
 	var US = preload("res://simulation/units/UnitState.gd")
