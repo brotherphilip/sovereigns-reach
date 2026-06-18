@@ -260,16 +260,25 @@ func _build_scene() -> void:
 	# Dev hook: pop the "20 minutes reached" reign-milestone overlay shortly after boot.
 	if OS.get_environment("SR_REIGN") != "":
 		_dev_reign_preview()
-	# Dev hook: jump the calendar to a chosen season (0=spring..3=autumn..) for previews.
+	var SeasonRef = preload("res://simulation/world/SeasonSystem.gd")
+	# Dev hook: jump the calendar to a chosen season (0=spring 1=summer 2=autumn 3=winter).
+	# Sets the live season DIRECTLY + repaints — the preview clock may not advance a whole
+	# game-day, so the simulate_tick season-propagation (GameState) wouldn't otherwise fire.
+	# Also parks current_tick at noon of that season's first day so the HUD/sim agree.
 	if OS.get_environment("SR_SEASON") != "":
-		var s: int = int(OS.get_environment("SR_SEASON"))
-		var SeasonRef = preload("res://simulation/world/SeasonSystem.gd")
-		GameState.world["calendar_offset_ticks"] = s * SeasonRef.DAY_NIGHT_TICKS * SeasonRef.SKY_DAYS_PER_SEASON
+		var s: int = clampi(int(OS.get_environment("SR_SEASON")), 0, SeasonRef.SEASON_COUNT - 1)
+		SimulationClock.current_tick = s * SeasonRef.DAY_NIGHT_TICKS * SeasonRef.SKY_DAYS_PER_SEASON
+		GameState.world["season"] = s
+		GameState.world["season_day"] = SeasonRef.sky_day_of(SimulationClock.current_tick)
+		GameState.world.erase("calendar_offset_ticks")
+		if EventBus.has_signal("season_changed"):
+			EventBus.season_changed.emit(s, SeasonRef.season_name(s))
 	# Dev hook: jump the time-of-day to deepest night (for lighting previews). 1.0 = midnight.
+	# Preserves the season set above by moving only WITHIN the current day.
 	if OS.get_environment("SR_NIGHT") != "":
-		var SeasonRef2 = preload("res://simulation/world/SeasonSystem.gd")
 		var nf: float = clampf(float(OS.get_environment("SR_NIGHT")), 0.0, 1.0)
-		SimulationClock.current_tick = int(round(nf * 0.5 * SeasonRef2.DAY_NIGHT_TICKS))
+		var day_start: int = (SimulationClock.current_tick / SeasonRef.DAY_NIGHT_TICKS) * SeasonRef.DAY_NIGHT_TICKS
+		SimulationClock.current_tick = day_start + int(round(nf * 0.5 * SeasonRef.DAY_NIGHT_TICKS))
 	# Dev hook: append a real game-state telemetry row (~1/sec) to the SR_TELEMETRY CSV, so a
 	# live playtest yields an HONEST state-over-time capture (day, popularity, gold, food, unit
 	# & building counts, FPS) read straight from the running sim — not guessed from screenshots.
