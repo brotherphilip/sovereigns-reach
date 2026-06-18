@@ -82,7 +82,8 @@ func _connect_tutorial() -> void:
 # tutorial_hint clip if a hint isn't recognised.
 const _TUTORIAL_VO: Array = [
 	["Welcome",                    "tut_hall"],
-	["Your hall stands",           "tut_farm"],
+	["Woodcutter",                 "tut_woodcutter"],
+	["feed your people",           "tut_farm"],
 	["Now store your food",        "tut_granary"],
 	["Grow your people",           "tut_housing"],
 	["Trade with your neighbours", "tut_market"],

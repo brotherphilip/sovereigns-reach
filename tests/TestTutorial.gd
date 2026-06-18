@@ -54,10 +54,13 @@ func _run_steps() -> void:
 	var tgt: Dictionary = _ts.current_target()
 	ok("first target is to build the village_hall", tgt.get("kind") == "build" and tgt.get("build") == "village_hall")
 
-	# Placing the Village Hall advances to the food step.
+	# Placing the Village Hall advances to the woodcutter step (wood is needed for everything).
 	_ts._on_building_placed(0, "village_hall", 0, 0, 1)
 	ok("placing the hall advances to step 1", _ts.index == 1)
-	ok("step 1 target is a farm", _ts.current_target().get("build") == "apple_orchard")
+	ok("step 1 target is the woodcutter", _ts.current_target().get("build") == "woodcutter_camp")
+	# Then the woodcutter advances to the food step.
+	_ts._on_building_placed(0, "woodcutter_camp", 0, 0, 2)
+	ok("step 2 target is a farm", _ts.current_target().get("build") == "apple_orchard")
 
 	# A wrong building does NOT advance.
 	var before: int = _ts.index

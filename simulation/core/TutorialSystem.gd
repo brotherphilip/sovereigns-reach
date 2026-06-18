@@ -22,8 +22,10 @@ const CAT_DEFENSE: int  = 4
 const STEPS: Array = [
 	{"kind": "build", "cat": CAT_CIVIC, "build": "village_hall",
 		"hint": "Welcome, my lord. Open the Build menu, the Civic tab, and place your Village Hall to found your settlement."},
+	{"kind": "build", "cat": CAT_HARVEST, "build": "woodcutter_camp",
+		"hint": "Wood builds everything. Open the Harvest tab and raise a Woodcutter's Camp — without timber flowing in, your works will stall."},
 	{"kind": "build", "cat": CAT_FOOD, "build": "apple_orchard",
-		"hint": "Your hall stands. Build an Apple Orchard from the Food tab to feed your people — they eat every day."},
+		"hint": "Now feed your people. Build an Apple Orchard from the Food tab — your people eat every day."},
 	{"kind": "build", "cat": CAT_FOOD, "build": "granary",
 		"hint": "Now store your food: build a Granary. Food only keeps once you have somewhere to put it."},
 	{"kind": "build", "cat": CAT_CIVIC, "build": "hovel",
