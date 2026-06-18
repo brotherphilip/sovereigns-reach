@@ -90,6 +90,32 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 177 — 2026-06-18  (USER-DIRECTED — AI starts with the SAME limited pile as the player)
+
+### Task (user)
+"Does the AI start with the same limited amounts as the player?" → make starting resources symmetric.
+
+### Finding (REAL — code read)
+- Tactical AIFaction started with gold 140 / food 60 / 10 workers vs the player's city start gold 120 / food 90 /
+  20 workers (wood 60 + stone 15 matched). So the AI had a small head-start on gold but fewer workers.
+- Strategic great houses (CampaignMap) start treasury 150 + {wood 80, stone 40, iron 20, food 90} AND own a city
+  cluster, vs the player kingdom treasury 150 + {wood 30, stone 10, iron 0, food 50} + ONE village — the
+  intentional start-as-village asymmetry (established powers to climb against), NOT a free-resource bug.
+
+### Implement (AIFaction.make_faction)
+- Aligned the tactical AI's start to the player EXACTLY: gold 120, wood 60, stone 15, iron 0 (wheat/pitch/hops 0),
+  90 apples, START_WORKFORCE 20. No head-start.
+
+### Playtest (REAL — headless)
+- TestAIEconomy 6/0, TestSiege 9/0, TestSurvival 6/0, TestPeople 21/0 — doubling the AI workforce + trimming gold
+  did NOT break the survival floor or siege balance.
+
+### Open (user decision)
+- Whether to also equalize the strategic great houses' starting RESOURCES to the player kingdom's (keeping the
+  territory difference as the intended climb challenge). Left as-is pending the user's call.
+
+### Confidence: HIGH — tactical AI now starts identical to the player; regressions green.
+
 ## Iteration 176 — 2026-06-18  (USER-DIRECTED — AI economy symmetry: storage limits, no free resources)
 
 ### Task (user)
