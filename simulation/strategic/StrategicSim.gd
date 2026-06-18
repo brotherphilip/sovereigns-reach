@@ -44,6 +44,12 @@ static func tick_day(world: Dictionary, players: Array, tick: int) -> Array:
 			"battles": battles,
 		})
 
+	# Secessions: neglected, over-extended AI conquests revolt back to independence — so the
+	# pool of capturable independents doesn't deplete late-game (iter155: 20→2) and the world
+	# stays alive to expand into. Player holdings are EXEMPT (you actively govern; this also
+	# keeps the verified King climb untouched). See _process_secessions.
+	results.append_array(_process_secessions(world, tick))
+
 	# Defeat resolution: a kingdom that holds no cities has fallen.
 	for kingdom in CampaignMap.kingdoms(world):
 		if not (kingdom is Dictionary and kingdom.get("is_alive", false)):
@@ -59,3 +65,44 @@ static func tick_day(world: Dictionary, players: Array, tick: int) -> Array:
 			})
 
 	return results
+
+# A neglected (development 0), non-capital, frontier city held by an AI great house can revolt
+# back to INDEPENDENT — replenishing the conquest pool and adding rebellion drama. Conservative:
+# player-exempt, capitals/seat-exempt, only dev-0 frontier cities, and never strips a faction
+# below 3 holdings. Deterministic per-tick RNG. Returns per-secession result dicts.
+const SECESSION_CHANCE: float = 0.012   # per eligible city per day
+static func _process_secessions(world: Dictionary, tick: int) -> Array:
+	var out: Array = []
+	var rng := RandomNumberGenerator.new()
+	rng.seed = tick * 2654435761
+	var seat: int = int(world.get("player_seat_city_id", -1))
+	for c in CampaignMap.cities(world):
+		if not c is Dictionary:
+			continue
+		var owner: int = CampaignMap.owner_of(c)
+		if owner == CampaignMap.INDEPENDENT_FACTION_ID or owner == CampaignMap.PLAYER_FACTION_ID:
+			continue
+		if c.get("is_capital", false) or c.get("id", -1) == seat:
+			continue
+		if int(c.get("development", c.get("tier", 0))) > 0:
+			continue
+		if CampaignMap.faction_city_count(world, owner) <= 3:
+			continue
+		# Frontier only: it must border a city the owner doesn't hold.
+		var frontier: bool = false
+		for nid in CampaignMap.neighbor_ids(c):
+			var n: Dictionary = CampaignMap.city_by_id(world, nid)
+			if not n.is_empty() and CampaignMap.owner_of(n) != owner:
+				frontier = true
+				break
+		if not frontier:
+			continue
+		if rng.randf() < SECESSION_CHANCE:
+			CampaignMap.set_owner(world, c.get("id", -1), CampaignMap.INDEPENDENT_FACTION_ID)
+			c["garrison"] = maxi(4, int(c.get("garrison", 0)) / 2)
+			c["unrest"] = 0.0
+			var dk: Dictionary = CampaignMap.kingdom_by_id(world, owner)
+			if not dk.is_empty():
+				dk["cities_lost"] = dk.get("cities_lost", 0) + 1
+			out.append({"faction_id": owner, "events": ["city_seceded"], "battles": []})
+	return out
