@@ -90,6 +90,29 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 173 — 2026-06-18  (DEV-LOOP — regression-guard the secession mechanic)
+
+### Plan
+The iter172 secession logic shipped without a test. Guard it (tight, high-value): a controlled-world unit test.
+
+### Implement (test only)
+- `TestStrategicAI._test_secession()`: a synthetic world (AI faction with 6 dev-0 frontier cities + a developed
+  one + a capital + a player city, all bordering an independent hub) driven through `_process_secessions` 600 ticks.
+
+### Playtest (REAL — headless)
+- **TestStrategicAI 91/0** (+5): an eligible AI dev-0 frontier city secedes to INDEPENDENT; player / developed /
+  capital cities never secede (exemptions hold); a faction is never stripped below 3 holdings.
+
+### No game code change (regression guard for iter172).
+
+### Active Backlog
+- **VO for the 5 iter169 events (user TTS).**
+- **Design Iteration (deferred):** spatial index ~15k+ units (scale-only); coalition/secession intensity tuning if
+  long-game depletion should be fully solved; ambient soundscape (risky-blind timbre).
+
+### Confidence: HIGH — 5 new assertions green; mechanic guarded.
+Iterations since last command/compact: 1 (last compact iter172).
+
 ## Iteration 172 — 2026-06-18  (DEV-LOOP — independents-secession mechanic + COMPACT)
 
 ### Plan
