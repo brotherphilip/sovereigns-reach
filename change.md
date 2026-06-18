@@ -132,6 +132,29 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 202 — 2026-06-19  (DEV-LOOP — Base Game; profile: QA / untested-area sweep. Save/load + WorldMap campaign verified clean — honest exhaustion)
+
+### Plan
+Avoid churn (no more identical Day-150 seeds). Stress UNTESTED-this-session areas where a real bug could hide: (1) save/load round-trip, (2) the WorldMap strategic scene with the campaign running. Fix anything real; else report honest exhaustion.
+
+### Playtest (REAL — headless tests + Xvfb render)
+- **Save/load round-trip: CLEAN.** TestSaveLoad 13/0 (grid/terrain/buildings/citizens/gold/biome-bytes all preserved through serialize→deserialize) + TestSeatPersistence 16/0 (seat restored, grid re-registered, micro-clock fast-forwarded 20 days, economy actually ran on restore, no double-tick, mode flags clean).
+- **WorldMap strategic scene + live campaign (SR_AUTOWATCH, 25s): CLEAN.** G=0, 0 triangulation / 0 script errors. Screenshot: hex-tile continent with distinct biomes, faction-coloured city castles, road network, army markers, kingdoms legend — all legible, no faults/missing textures.
+
+### Post-mortem → TARGET REACHED / no fault (honest exhaustion)
+Neither area surfaced a bug. Combined with: Day-150 met on 4 seeds (0 losses), the 13-file headless sweep green, and the iter187-201 bug-fixes all resolved — the high-value AUTONOMOUS backlog is genuinely EXHAUSTED. NO code change this loop (per the no-churn rule — manufacturing a marginal diff would be a FAILURE).
+
+### NEEDS USER STEER (the remaining high-value items are design calls, not autonomous QA):
+1. **Mid-game engagement** — the 10-cycle peace (your calm directive) makes days ~12–150 low-stakes (no threat, rare events); a meaningful *difficulty/engagement* bar would mean re-introducing mid-game stakes — conflicts with "calm", so it's your call.
+2. **Night dead-space** — `NightLayer.MAX_DARK 0.92` + depopulated night = ~5 min/cycle dark+empty (taste).
+3. **Premature "ready your defences" objective** during the long peace (reorder later, or leave as onboarding?).
+4. **Phase 2: physical AI cities** (deferred, user-agreed; large).
+Plus the drought-food-crash watch-item (bounded/non-fatal across 4 seeds; buff only on a real loss or your request).
+
+### Confidence: HIGH — both areas verified clean with captured evidence (tests + render). Honest status: out of high-value autonomous work; awaiting user direction.
+
+---
+
 ## Iteration 201 — 2026-06-19  (DEV-LOOP — Base Game; profile: long-haul survivor / 4th seed + COMPACT. Day-150 firmed to 4 seeds, freeze fix validated)
 
 ### Plan
