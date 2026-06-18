@@ -96,6 +96,11 @@ var campfire: Dictionary = {"active": false}
 var spectator_mode: bool = false
 var _spectator_city_id: int = -1
 var _spectator_last_dev: int = -1
+# While true (catch-up fast-forward on returning to your seat), simulate_tick advances ONLY
+# your own economy/construction — not the strategic layer (it already advanced on the world
+# map) and not enemy raiders (you weren't there to defend; war is the strategic layer's job).
+var _catch_up_mode: bool = false
+const CATCH_UP_MAX_DAYS: int = 120   # bound the on-return fast-forward so it can't freeze the game
 
 func _ready() -> void:
 	_init_default_state()
@@ -1238,7 +1243,7 @@ func simulate_tick(tick: int) -> void:
 	# MARCH on the player's seat once they've assembled a siege against them — so
 	# the early game isn't swarmed by raiders that wipe freshly-recruited units.
 	# (They still defend themselves via auto-aggro if the player attacks.)
-	if not spectator_mode and not ai_factions.is_empty() and not _ai_paused():
+	if not spectator_mode and not _catch_up_mode and not ai_factions.is_empty() and not _ai_paused():
 		var keep := Vector2i(-1, -1)
 		if not players.is_empty():
 			keep = Vector2i(players[0].get("keep_x", 100), players[0].get("keep_y", 100))
@@ -1466,7 +1471,7 @@ func simulate_tick(tick: int) -> void:
 		# Strategic / campaign layer: the world-map kingdoms grow, build, raise
 		# armies, wage campaigns and conduct diplomacy each game-day. Paused during
 		# the tutorial so the great houses don't expand while the player learns.
-		if not _ai_paused():
+		if not _ai_paused() and not _catch_up_mode:
 			_tick_strategic_layer()
 
 		# City generation feedback: a spectated town gains buildings as its strategic
@@ -2940,6 +2945,8 @@ func stash_seat_snapshot() -> void:
 		"next_citizen_id": _next_citizen_id,
 		"next_animal_id": _next_animal_id,
 		"seat_city_id": int(world.get("player_seat_city_id", -1)),
+		"left_at_tick": SimulationClock.current_tick,
+		"left_at_day": strategic_day(),
 	}
 
 func has_seat_snapshot_for(city_id: int) -> bool:
@@ -2971,7 +2978,30 @@ func restore_seat_snapshot() -> bool:
 	_next_animal_id   = int(s["next_animal_id"])
 	_register_buildings_in_grid(players[0].get("buildings", []))
 	world["grid"] = _grid.serialize()
+
+	# Catch the seat up: while you were away the micro clock was paused, but the world-map
+	# strategic clock advanced. Fast-forward your economy/construction by the days elapsed so
+	# half-built works finish and the town isn't frozen at the frame you left. (Strategic layer
+	# + raiders are suppressed via _catch_up_mode — they're handled by the world map.)
+	var left_tick: int = int(s.get("left_at_tick", SimulationClock.current_tick))
+	var elapsed_days: int = maxi(0, strategic_day() - int(s.get("left_at_day", strategic_day())))
+	_catch_up_seat(left_tick, elapsed_days)
 	return true
+
+# Advance ONLY the player's seat by `elapsed_days` game-days from `start_tick`, restoring a
+# continuous micro timeline for the city (independent of any spectator-clock drift). Bounded
+# by CATCH_UP_MAX_DAYS so a very long absence can't lock the game on the loading frame.
+func _catch_up_seat(start_tick: int, elapsed_days: int) -> void:
+	SimulationClock.current_tick = start_tick
+	if elapsed_days <= 0:
+		return
+	elapsed_days = mini(elapsed_days, CATCH_UP_MAX_DAYS)
+	var total: int = elapsed_days * SimulationClock.TICKS_PER_GAME_DAY
+	_catch_up_mode = true
+	for i in range(1, total + 1):
+		simulate_tick(start_tick + i)
+	_catch_up_mode = false
+	SimulationClock.current_tick = start_tick + total
 
 # Guarantee timber within reach of the player's seat. The Woodcutter's Camp is the
 # tutorial's gated step-1 build but it REQUIRES forest terrain, and forest placement is

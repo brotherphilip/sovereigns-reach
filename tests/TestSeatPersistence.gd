@@ -57,5 +57,34 @@ func _init() -> void:
 	ok("grid placement re-registered", _gs._grid.get_building_at(100, 100) == 1)
 	ok("not in spectator mode after restore", not _gs.spectator_mode)
 
+	_test_catch_up()
+
 	print("\n=== Seat Persistence Results: %d passed, %d failed ===" % [_pass, _fail])
 	quit(0 if _fail == 0 else 1)
+
+# Leaving the city pauses its micro clock while the world-map strategic clock advances; on
+# return the seat must FAST-FORWARD by the elapsed days so half-built works finish instead of
+# freezing at the frame you left.
+func _test_catch_up() -> void:
+	print("\n[catch-up: the seat advances by the days elapsed while away]")
+	var clock: Node = root.get_node_or_null("SimulationClock")
+	_gs.world = {"player_seat_city_id": 5, "selected_city_id": 5, "world_map": {"strategic_day": 10}}
+	_gs.spectator_mode = false
+	_gs.setup_world(4242, 8)
+	_gs.initialize_player(0, "Test", 100, 100)
+	_gs.players[0]["food"]["apples"] = 500.0
+	clock.current_tick = 8000   # the seat's micro clock at departure
+	_gs.stash_seat_snapshot()
+
+	# Simulate being away 20 strategic days (and spectator clock drift the seat must ignore).
+	_gs.world["world_map"]["strategic_day"] = 30
+	clock.current_tick = 99999
+
+	var sday_before: int = _gs.strategic_day()
+	_gs.restore_seat_snapshot()
+	ok("seat micro-clock fast-forwarded 20 days from departure (8000 + 20*240)",
+		clock.current_tick == 8000 + 20 * 240)
+	ok("catch-up did NOT advance the strategic day (no double-tick)", _gs.strategic_day() == sday_before)
+	ok("the seat economy actually ran (food was consumed over 20 days)",
+		float(_gs.players[0]["food"].get("apples", 500.0)) < 500.0)
+	ok("catch-up left mode flag clean", not _gs._catch_up_mode)
