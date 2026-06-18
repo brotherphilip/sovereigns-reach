@@ -96,7 +96,6 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 - **Phase 2 (deferred, user-agreed): physical AI cities** — prototype ONE AI city running CitizenSystem hauling; measure FPS/tick cost before committing.
 - **Visual polish (POLISH):** WALL colours still cluster (tan-timber / grey-stone / wood-plank); several small buildings (well, hovel, granary, market, watchtower, quarry, mine) read as plain blobs at play-zoom. (Roofs diversified iter175; villager tunics iter191.)
 - **OBSERVATION — night dead-space (taste, needs USER call, NOT a bug):** deep-night `NightLayer.MAX_DARK = 0.92` (near-black away from lamps) + depopulated night (skeleton crew) ⇒ ~5 min/cycle dark+empty. Soften MAX_DARK or add night ambient life only if the user wants less dead time.
-- **WATCH-ITEM (needs re-verification):** SR_AUTOPLAY telemetry shows population dipping ~20→14 in the first ~4 game-days then stabilising (iter191). Likely the age-pyramid initial-settler death stagger, but confirm it's not a "feels-bad" early death-wave for a new player.
 - **Deathmatch "Empires of Ages":** `deathmatch.md` absent; no active work. Create only when that mode is built.
 
 ### Resolved Index (recent, real evidence) — collapsed
@@ -106,8 +105,30 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 - **Gable triangulation spam (iter189):** `BuildingModels._slope_fan` ends per-frame "triangulation failed" on every gable building. Ev: render logs 102/frame → 0 across autoplay/workers/day/night/seasons/worldmap/combat (iter189-191).
 - **SR_SEASON dev hook (iter190):** sets `world.season` directly + repaints. Ev: autumn=gold / winter=pale renders.
 - **Villager tunic variety (iter191):** per-id muted peasant palette in `CitizenLayer`. Ev: before/after zoom renders.
+- **Phantom day-1 population drop (iter192):** `initialize_player` spawned 14 citizens while population read 20 → day-1 `living_count` sync dropped 20→14 (looked like 6 villagers lost, flipped the pop-20 objective). Now spawns 20 (matches AIFaction.START_WORKFORCE symmetry) + syncs population to living count. Ev: telemetry was 20→14, now stable 20 through day 7; TestPeople 21/0, TestSurvival 6/0.
 - **Xvfb on-screen harness (iter189):** detached background-subshell launch renders + self-screenshots reliably (foreground = exit 144). Logs are real evidence too.
 - **(Durable, older — see Current Targets):** Day-100 FLOOR multi-seed survival; Reeve→King climb on 5 seeds ≤113d; late-game coalition-vs-leader; on-screen in-city FLOOR survival (iter158).
+
+---
+
+## Iteration 192 — 2026-06-19  (DEV-LOOP — Base Game; profile: Casual Novice / new-player first-week. COMPACT + fixed phantom day-1 population drop)
+
+### Plan
+(1) COMPACT change.md (due). (2) Diagnose the iter191 watch-item — population dipping 20→14 early — and fix if it's a real "feels-bad" issue. Expected: a new player should not appear to lose villagers on day 1.
+
+### COMPACT (done)
+Added a single consolidated `## Live Backlog & Resolved Index` after Current Targets (Phase 1 now reads ONE tight, deduplicated section instead of scanning 48 scattered per-iteration `### Active Backlog` snapshots). Run History fully preserved — nothing deleted/rewritten. Cross-refs verified (gable/SR_SEASON/tunic/night/pacing all cite real evidence).
+
+### Post-mortem → real PLAYSTYLE/UX bug (diagnosed from telemetry)
+The iter191 dip was NOT a death wave: fine-grained telemetry showed population step 20→14 at the SINGLE day0→day1 boundary then perfectly flat. Settlers' max age on day 1 = 511 < AGE_OLD (528) → ZERO old-age deaths possible. Root cause: `GameState.initialize_player` spawns only **14** citizens, but the start-as-village intent is population **20** (AIFaction.START_WORKFORCE=20 symmetry; ObjectiveSystem "reach population 20"). The day-boundary `living_count` sync then corrected 20→14 — reading as "6 villagers vanished on day 1" AND flipping the population-20 objective from met to unmet.
+
+### Implement
+- `GameState.initialize_player`: spawn 20 starting citizens (was 14) + sync `population` to `living_count` at init, so it's a stable, honest 20 from day 0. (Also gives ~4 more working adults — a healthier opening workforce.)
+
+### Playtest (REAL — Xvfb autoplay + telemetry)
+Before: pop 20→14 at day 1. After: **pop stable 20 through day 7**, popularity 50.0→50.7 (rising), food 90→110 (rising), hall 500, 0 triangulation/script errors. Headless: TestPeople 21/0, TestSurvival 6/0.
+
+### Confidence: HIGH — before/after telemetry + green regressions. Failure class: PLAYSTYLE/UX (phantom loss), fixed.
 
 ---
 
