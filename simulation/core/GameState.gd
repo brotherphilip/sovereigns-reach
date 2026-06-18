@@ -1367,7 +1367,7 @@ func simulate_tick(tick: int) -> void:
 			if total_food > 0 and float(total_food) < daily_need * 3.0 and not world.get("food_low_warned", false):
 				world["food_low_warned"] = true
 				EventBus.realm_notice.emit(
-					"⚠ Your stores run low — raise more Orchards or Farms, or lower rations (Edicts) until the harvest recovers.",
+					"⚠ Your stores run low — lower your food Ration, proclaim Frugal Tables (Edicts), or raise more Orchards/Farms until the harvest recovers.",
 					"bad")
 			elif float(total_food) >= daily_need * 6.0 and world.get("food_low_warned", false):
 				world["food_low_warned"] = false
