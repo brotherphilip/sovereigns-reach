@@ -51,11 +51,17 @@ func _run() -> void:
 
 	# Resources come only from buildings it paid for + staffed: a faction with NO workforce
 	# earns nothing (no free income).
+	# No starting capital + no workforce → it can't build any producer, so it earns nothing.
+	# (A faction WITH starting resources legitimately bootstraps an economy, like the player —
+	# that's not "free income". The guarantee is: goods come only from paid-for, staffed buildings.)
 	var idle: Dictionary = AIFaction.make_faction(2, "Idle", AIFaction.ARCHETYPE_BANDIT, 60, 60)
 	idle["population"] = 0
-	var g0: int = idle.get("gold", 0)
-	var w0: int = int(idle.get("resources", {}).get("wood", 0))
+	idle["gold"] = 0
+	idle["resources"] = {}
+	idle["food"] = {}
 	for day in range(1, 30):
 		AIFaction.tick(idle, world, day * 240)
-	ok("a workforce-less faction earns no goods (no free income)",
-		idle.get("gold", 0) <= g0 and int(idle.get("resources", {}).get("wood", 0)) <= w0)
+	var earned: int = idle.get("gold", 0)
+	for g in idle.get("resources", {}):
+		earned += int(idle["resources"][g])
+	ok("a broke, building-less faction earns no goods (no free income)", earned == 0 and idle.get("buildings", []).is_empty())

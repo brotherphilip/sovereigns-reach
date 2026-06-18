@@ -90,6 +90,38 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 176 — 2026-06-18  (USER-DIRECTED — AI economy symmetry: storage limits, no free resources)
+
+### Task (user)
+"AI gets resources out of nowhere — it should gather the same as the player: build resource buildings, capped
+stockpiles, multiply stockpiles when full. All the player's limitations should ALWAYS apply to the AI."
+Chosen scope (AskUserQuestion): "same limits now, evaluate full physical sim later."
+
+### Finding (REAL — code read)
+- Tactical `AIFaction` was already building-gated (earns only from staffed producers it pays for, needs housing+
+  food) — NOT truly free — BUT had NO storage cap: resources accumulated infinitely, no stockpiles, no
+  "production halts when full". Strategic great houses (`KingdomEconomy`) use passive per-city dev income (same
+  abstraction the player's strategic treasury uses) — out of scope for this "limits" pass.
+
+### Implement (AIFaction.gd — mirror StorageSystem / FoodSystem)
+- Raw goods now share a capped pool = RAW_BASE(500) + Σ built stockpiles×100; food capped = 200 + granaries×300.
+- Production HALTS when the target store is full (producer idles, workers free) and deposits are CLAMPED to
+  remaining room — stores never exceed capacity (same as the player's haulers refusing to deposit).
+- `_build_economy` raises a stockpile/granary FIRST when a store is ≥85% full — "stockpiles multiplied when full".
+
+### Playtest (REAL — headless)
+- **`tests/TestAIEconomy.gd` 6/0** (NEW): raw + food never exceed capacity; AI built 7 stockpiles + granaries to
+  grow storage; capacity scales with stockpiles; a broke building-less faction earns nothing (no free income).
+- Regression: TestPeople 21/0, TestPhase7 111/0, TestSiege 9/0.
+
+### Active Backlog
+- **Phase 2 (deferred, user-agreed): full physical AI cities** — prototype ONE AI city running CitizenSystem
+  hauling (positioned villagers walk/gather/deliver) + measure FPS/tick cost before deciding whether to go all-in.
+  Also: extend storage/gather symmetry to strategic great houses if Phase 2 proceeds.
+- Building visual pass (iter175): optional wall-colour + small-building boosts if the user wants.
+
+### Confidence: HIGH — AI storage now strictly capped + stockpile-multiplied (TestAIEconomy 6/0); regressions green.
+
 ## Iteration 175 — 2026-06-18  (USER-DIRECTED — buildings too similar: roof palette diversification)
 
 ### Task (user)
