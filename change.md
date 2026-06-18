@@ -90,6 +90,28 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 171 — 2026-06-18  (DEV-LOOP — regression health-check of the recent burst)
+
+### Plan
+Tight iteration (2-min heartbeat). Surveyed for a high-value addition: edicts (~20, early ones intentionally
+capped at 2) and seasonal events (winter already has 4) are both already well-covered — padding would be dishonest.
+So: verify the systems touched in iters 161-170 are still green together rather than manufacture churn.
+
+### Playtest (REAL — focused headless regression)
+- TestWorldEvents 46/0 · TestStrategicAI 86/0 · TestMusic 20/0 · TestAudio 36/0 · TestSurvival 6/0. The coalition,
+  music mixer, textured terrain and the +10 new events all coexist with no regression.
+
+### No game code change (honest health-check; content/feature set is already rich — no padding).
+
+### Active Backlog
+- **VO for new events (user TTS):** the 5 iter169 event keys.
+- **Design Iteration (deferred):** independents deplete late-game (secession/founding mechanic — the one real
+  remaining content gap, but balance-risky to the verified climb); spatial index ~15k+ units; coalition tuning;
+  ambient soundscape.
+
+### Confidence: HIGH — 5 recently-touched suites all green together.
+Iterations since last command/compact: 4 (last compact iter167; COMPACT due next iteration ~iter172).
+
 ## Iteration 170 — 2026-06-18  (DEV-LOOP — verify iter169 events fire in a real sim)
 
 ### Plan
