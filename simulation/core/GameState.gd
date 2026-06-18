@@ -570,11 +570,13 @@ func _tick_player_economy(player: Dictionary, tick: int) -> void:
 		if player.get("edict_points", 0) < ep_cap:
 			player["edict_points"] = mini(ep_cap, player.get("edict_points", 0) + 2)
 
-		# Milestones (GDD §1.4.3): check once per day, emit per newly earned
-		var ms_day: int = tick / SimulationClock.TICKS_PER_GAME_DAY
-		var new_milestones: Array = MilestoneSystem.check(player, world, milestones, player.get("active_edicts", []), ms_day)
-		for ms_id in new_milestones:
-			EventBus.milestone_earned.emit(player["id"], ms_id, MilestoneSystem.PRESTIGE_BONUS)
+		# Milestones (GDD §1.4.3): check once per day, emit per newly earned.
+		# Suppressed during the tutorial so its gated steps aren't interrupted by milestone toasts/VO.
+		if not _ai_paused():
+			var ms_day: int = tick / SimulationClock.TICKS_PER_GAME_DAY
+			var new_milestones: Array = MilestoneSystem.check(player, world, milestones, player.get("active_edicts", []), ms_day)
+			for ms_id in new_milestones:
+				EventBus.milestone_earned.emit(player["id"], ms_id, MilestoneSystem.PRESTIGE_BONUS)
 
 	# Phase 5: Edict expiration (every tick, not just day boundary)
 	var expired_edicts: Array = EdictSystem.tick(player, tick)
@@ -1302,7 +1304,8 @@ func simulate_tick(tick: int) -> void:
 			EventBus.sovereign_reign_reached.emit(day)
 
 		# Standing objectives — the player's running sense of direction toward Day 100.
-		if not spectator_mode:
+		# Suppressed during the tutorial (its steps ARE the objective; no competing prompts).
+		if not spectator_mode and not _ai_paused():
 			var obj: Dictionary = ObjectiveSystem.evaluate(players[0], world, day)
 			for done_o in obj.get("newly_completed", []):
 				EventBus.realm_notice.emit("✓ Objective complete: " + String(done_o.get("text", "")), "good")
@@ -1311,7 +1314,7 @@ func simulate_tick(tick: int) -> void:
 
 		# Telegraph the end of the establishment grace (King's Peace) so the player has
 		# fair warning to raise defences before rival lords are free to march on them.
-		if not spectator_mode and day == AIFaction.PLAYER_GRACE_DAYS:
+		if not spectator_mode and not _ai_paused() and day == AIFaction.PLAYER_GRACE_DAYS:
 			EventBus.realm_notice.emit(
 				"⚔ The King's Peace has ended — rival lords may now march on your realm. Raise walls and a garrison while you can.",
 				"bad")
@@ -1320,7 +1323,7 @@ func simulate_tick(tick: int) -> void:
 		# town outpacing its churches/inns). Tell the player HOW to lift spirits once,
 		# when it crosses below the threshold, and re-arm only after it recovers — so a
 		# slow drift toward revolt is never silent.
-		if not spectator_mode:
+		if not spectator_mode and not _ai_paused():
 			var pop_now: float = float(players[0].get("popularity", 50.0))
 			if pop_now < 35.0 and not world.get("restless_warned", false):
 				world["restless_warned"] = true
@@ -1344,7 +1347,7 @@ func simulate_tick(tick: int) -> void:
 
 		# Realm events: a flavourful daily happening (merchant, foraging, wolves…) that
 		# keeps the kingdom alive between the big beats. Player's own seat only.
-		if not spectator_mode:
+		if not spectator_mode and not _ai_paused():
 			var revent: Dictionary = WorldEventSystem.tick(players[0], world, _social_rng, day)
 			if not revent.is_empty():
 				var spawn_n: int = int(revent.get("effect", {}).get("spawn_citizens", 0))
