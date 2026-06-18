@@ -94,6 +94,51 @@ static func raise_army(world: Dictionary, kingdom: Dictionary, city_id: int, siz
 	kingdom.get("armies", []).append(army)
 	return aid
 
+# Form a field army from the player's REAL trained units (carried by identity), rather
+# than gold-levied abstract soldiers. The army's strength IS the units it carries, so the
+# host that crosses the map and fights at the far city is literally the troops you trained
+# (Phase 1 of the layer fusion). No gold cost — you already paid to train them. Merges into
+# an idle friendly army already at the city. Returns the army id, or -1.
+static func create_unit_army(world: Dictionary, kingdom: Dictionary, city_id: int, units: Array) -> int:
+	if units.is_empty():
+		return -1
+	var c: Dictionary = CampaignMap.city_by_id(world, city_id)
+	if c.is_empty() or CampaignMap.owner_of(c) != kingdom.get("id", -1):
+		return -1
+	for a in kingdom.get("armies", []):
+		if a is Dictionary and a.get("location_city_id", -1) == city_id and a.get("path", []).is_empty():
+			var carried: Array = a.get("units", [])
+			carried.append_array(units)
+			a["units"] = carried
+			a["size"] = carried.size()
+			return a.get("id", -1)
+	var aid: int = kingdom.get("next_army_id", kingdom.get("id", 0) * 100000 + 1)
+	kingdom["next_army_id"] = aid + 1
+	var army: Dictionary = {
+		"id": aid,
+		"owner_faction_id": kingdom.get("id", -1),
+		"size": units.size(),
+		"units": units.duplicate(),
+		"location_city_id": city_id,
+		"dest_city_id": -1,
+		"path": [],
+	}
+	kingdom.get("armies", []).append(army)
+	return aid
+
+# After casualties change army["size"], keep the carried real-unit roster (if any) in sync
+# so the survivors that arrive/garrison are the actual surviving troops. Trims the weakest
+# (lowest-hp) first when shrinking; a no-op for gold-levied armies that carry no roster.
+static func _sync_carried_units(army: Dictionary) -> void:
+	var units: Array = army.get("units", [])
+	if units.is_empty():
+		return
+	var target: int = maxi(0, army.get("size", 0))
+	if units.size() <= target:
+		return
+	units.sort_custom(func(a, b): return int(a.get("hp", 0)) > int(b.get("hp", 0)))
+	army["units"] = units.slice(0, target)
+
 # ── Launching campaigns ────────────────────────────────────────────────────────
 
 static func find_army(kingdom: Dictionary, army_id: int) -> Dictionary:
@@ -182,6 +227,12 @@ static func tick_armies(world: Dictionary, kingdom: Dictionary, _players: Array,
 			if not here.is_empty() and CampaignMap.owner_of(here) == fid:
 				var cap: int = CampaignMap.garrison_cap(here)
 				here["garrison"] = mini(cap, here.get("garrison", 0) + army.get("size", 0))
+				# Carry the real troops home into the city's garrison roster too (Phase 1).
+				var carried: Array = army.get("units", [])
+				if not carried.is_empty():
+					var gu: Array = here.get("garrison_units", [])
+					gu.append_array(carried)
+					here["garrison_units"] = gu
 				continue  # army absorbed into garrison
 			# Idle on a non-owned (enemy/neutral) tile — a defeated host that halted at the
 			# contested city. Order it to retreat to the nearest owned city instead of
@@ -247,6 +298,7 @@ static func _resolve_assault(world: Dictionary, attacker: Dictionary, army: Dict
 	# an off-screen battle; only a tactical siege that fells the keep can take it.
 	if city.get("id", -1) == int(world.get("player_seat_city_id", -1)):
 		army["size"] = int(float(atk) * rng.randf_range(0.1, 0.4))
+		_sync_carried_units(army)
 		result["repelled_seat"] = true
 		return result
 
@@ -258,7 +310,12 @@ static func _resolve_assault(world: Dictionary, attacker: Dictionary, army: Dict
 		city["garrison"] = mini(CampaignMap.garrison_cap(city), occupiers)
 		city["unrest"] = 0.6
 		city["population"] = maxi(50, int(float(city.get("population", 100)) * 0.85))  # sacked
-		army["size"] = 0  # the field army becomes the new garrison
+		# Survivors occupy the city as its new garrison; the field army empties out.
+		army["size"] = occupiers
+		_sync_carried_units(army)   # the occupying garrison = the surviving real troops
+		city["garrison_units"] = army.get("units", []).duplicate()
+		army["size"] = 0
+		army["units"] = []
 		attacker["cities_captured"] = attacker.get("cities_captured", 0) + 1
 		var dk: Dictionary = CampaignMap.kingdom_by_id(world, defender_fid)
 		if not dk.is_empty():
@@ -270,6 +327,7 @@ static func _resolve_assault(world: Dictionary, attacker: Dictionary, army: Dict
 		var def_losses: int = int(float(atk) * rng.randf_range(0.3, 0.6))
 		city["garrison"] = maxi(0, city.get("garrison", 0) - def_losses)
 		army["size"] = int(float(atk) * rng.randf_range(0.1, 0.4))
+		_sync_carried_units(army)
 	return result
 
 # ── Telemetry helpers ──────────────────────────────────────────────────────────

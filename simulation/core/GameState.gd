@@ -2502,6 +2502,55 @@ func player_launch_campaign(army_id: int, target_city_id: int) -> bool:
 func _cmd_launch_campaign(cmd: Dictionary) -> bool:
 	return player_launch_campaign(cmd["payload"].get("army_id", -1), cmd["payload"].get("target_city_id", -1))
 
+# Count of the player's real, deployable (alive, not still training) soldiers standing in
+# their seat — the host they could march RIGHT NOW. (UI label + march gating.)
+func player_field_strength() -> int:
+	if players.is_empty():
+		return 0
+	var n: int = 0
+	for u in players[0].get("units", []):
+		if u is Dictionary and UnitState.is_deployable(u):
+			n += 1
+	return n
+
+# March the player's REAL trained troops out of their seat to assault a target city. This
+# is the layer fusion (Phase 1): the army that crosses the map and fights is literally the
+# units you trained — they are pulled out of the city, packed into a world-map field army by
+# identity, and sent down the road. No gold cost (you paid to train them). `max_units` caps
+# how many to send (-1 = all). Returns true if a road path exists and at least one marched.
+func player_march_units(from_city_id: int, target_city_id: int, max_units: int = -1) -> bool:
+	var k: Dictionary = _player_kingdom()
+	if k.is_empty() or players.is_empty():
+		return false
+	var player: Dictionary = players[0]
+	var pool: Array = []
+	for u in player.get("units", []):
+		if u is Dictionary and UnitState.is_deployable(u):
+			pool.append(u)
+	if pool.is_empty():
+		return false
+	if max_units > 0 and pool.size() > max_units:
+		pool = pool.slice(0, max_units)
+	var aid: int = CampaignSystem.create_unit_army(world, k, from_city_id, pool)
+	if aid < 0:
+		return false
+	if not CampaignSystem.launch_campaign(world, k, aid, target_city_id):
+		# No road to the target — undo: hand the troops back to the city, drop the army.
+		var army: Dictionary = CampaignSystem.find_army(k, aid)
+		k["armies"].erase(army)
+		return false
+	# Remove the marched units from the seat now that the campaign is underway.
+	var marched := {}
+	for u in pool:
+		marched[u.get("id", -1)] = true
+	var remaining: Array = []
+	for u in player.get("units", []):
+		if not (u is Dictionary and marched.has(u.get("id", -1))):
+			remaining.append(u)
+	player["units"] = remaining
+	EventBus.campaign_launched.emit(k.get("id", -1), aid, target_city_id)
+	return true
+
 func _cmd_strategic_diplomacy(cmd: Dictionary) -> bool:
 	return player_set_diplomacy(cmd["payload"].get("faction_id", -1), cmd["payload"].get("action", ""))
 
