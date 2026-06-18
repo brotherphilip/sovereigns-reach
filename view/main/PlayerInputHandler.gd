@@ -229,6 +229,13 @@ func _on_key(event: InputEventKey) -> void:
 				_deselect()
 		KEY_DELETE:
 			_try_demolish_selected()
+		# Quick game-speed toggles: 1 = Normal, 2 = Fast (2×), 3 = Fastest (5×).
+		KEY_1:
+			set_game_speed(SimulationClock.SPEED_NORMAL)
+		KEY_2:
+			set_game_speed(SimulationClock.SPEED_FAST)
+		KEY_3:
+			set_game_speed(SimulationClock.SPEED_FASTEST)
 
 func _try_demolish_selected() -> void:
 	if _selected_building_id < 0:

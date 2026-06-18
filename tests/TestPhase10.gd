@@ -330,14 +330,14 @@ func _test_medium_fixes() -> void:
 	ok("three_shires does not re-fire", "three_shires" not in earned2)
 
 	# Mid/late-game milestones (iter 69): keep the reward loop alive past the early game.
-	# reign_day_50 fires on the day-50 survival beat (and only then).
+	# reign_day_50 fires on the day-6 survival beat (calendar days now) and only then.
 	var p_day: Dictionary = _fresh_player(60)
-	ok("reign_day_50 does NOT fire before day 50", "reign_day_50" not in MilestoneSystem.check(p_day, _gs.world, {}, [], 49))
-	ok("reign_day_50 fires at day 50", "reign_day_50" in MilestoneSystem.check(p_day, _gs.world, {}, [], 50))
-	# reign_day_75 (iter103) — a late-game beat to keep the reward loop alive in the endgame.
+	ok("reign_day_50 does NOT fire before day 6", "reign_day_50" not in MilestoneSystem.check(p_day, _gs.world, {}, [], 5))
+	ok("reign_day_50 fires at day 6", "reign_day_50" in MilestoneSystem.check(p_day, _gs.world, {}, [], 6))
+	# reign_day_75 — a later beat to keep the reward loop alive toward the endgame (calendar day 9).
 	var p_d75: Dictionary = _fresh_player(60)
-	ok("reign_day_75 does NOT fire before day 75", "reign_day_75" not in MilestoneSystem.check(p_d75, _gs.world, {}, [], 74))
-	ok("reign_day_75 fires at day 75", "reign_day_75" in MilestoneSystem.check(p_d75, _gs.world, {}, [], 75))
+	ok("reign_day_75 does NOT fire before day 9", "reign_day_75" not in MilestoneSystem.check(p_d75, _gs.world, {}, [], 8))
+	ok("reign_day_75 fires at day 9", "reign_day_75" in MilestoneSystem.check(p_d75, _gs.world, {}, [], 9))
 	# town_of_ten fires once the settlement reaches 10 buildings.
 	var p_town: Dictionary = _fresh_player(60)
 	p_town["buildings"] = []

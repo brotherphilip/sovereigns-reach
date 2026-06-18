@@ -46,16 +46,16 @@ func _test_individual_completions() -> void:
 	ok("grow_village needs population >= 20",
 		ObjectiveSystem.is_complete("grow_village", {"population": 20, "buildings": []}, {}, 1)
 		and not ObjectiveSystem.is_complete("grow_village", {"population": 19, "buildings": []}, {}, 1))
-	ok("survive_winter completes at day 48", ObjectiveSystem.is_complete("survive_winter", empty, {}, 48)
-		and not ObjectiveSystem.is_complete("survive_winter", empty, {}, 47))
+	ok("survive_winter completes at day 6", ObjectiveSystem.is_complete("survive_winter", empty, {}, 6)
+		and not ObjectiveSystem.is_complete("survive_winter", empty, {}, 5))
 	ok("ready_for_war complete with a barracks (military)",
 		ObjectiveSystem.is_complete("ready_for_war", {"buildings": [_bld("barracks")]}, {}, 1))
 	ok("ready_for_war complete with a palisade (defense)",
 		ObjectiveSystem.is_complete("ready_for_war", {"buildings": [_bld("wooden_palisade")]}, {}, 1))
 	ok("ready_for_war NOT complete with only an orchard",
 		not ObjectiveSystem.is_complete("ready_for_war", {"buildings": [_bld("apple_orchard")]}, {}, 1))
-	ok("rule_to_100 completes at day 100", ObjectiveSystem.is_complete("rule_to_100", empty, {}, 100)
-		and not ObjectiveSystem.is_complete("rule_to_100", empty, {}, 99))
+	ok("rule_to_100 completes at day 12", ObjectiveSystem.is_complete("rule_to_100", empty, {}, 12)
+		and not ObjectiveSystem.is_complete("rule_to_100", empty, {}, 11))
 	# Unbuilt sites don't count.
 	ok("an unbuilt hall site does NOT satisfy found_hall",
 		not ObjectiveSystem.is_complete("found_hall", {"buildings": [{"type": "village_hall", "built": false}]}, {}, 1))

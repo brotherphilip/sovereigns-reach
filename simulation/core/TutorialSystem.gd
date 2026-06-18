@@ -102,6 +102,7 @@ func _emit_step() -> void:
 func _advance() -> void:
 	index += 1
 	GameState.world["tutorial_index"] = index
+	GameState.world["tutorial_awaiting_build"] = false
 	if index >= STEPS.size():
 		index = STEP_DONE
 		GameState.world["tutorial_index"] = STEP_DONE
@@ -116,21 +117,37 @@ func _expects(kind: String) -> bool:
 
 # ── Completion triggers ─────────────────────────────────────────────────────────
 
-func _on_building_placed(_pid: int, building_type: String, _gx: int, _gy: int, _bid: int) -> void:
-	if not _expects("build"):
-		return
+# Does `building_type` satisfy the current build step? Forgiving: any farm for the food
+# step, any seat for the hall, any wall/tower for the defence step.
+func _matches_want(building_type: String) -> bool:
 	var want: String = String(STEPS[index].get("build", ""))
-	var ok: bool = building_type == want
-	# Forgiving matches: any farm for the food step, any seat for the hall, any wall/tower
-	# for the defense step.
+	if building_type == want:
+		return true
 	if want == "apple_orchard" and building_type in ["apple_orchard", "wheat_farm", "pig_farm", "dairy_farm"]:
-		ok = true
-	elif want == "village_hall" and building_type in ["village_hall", "keep"]:
-		ok = true
-	elif want == "lookout_tower" and building_type in ["lookout_tower", "watchtower", "great_tower", "wooden_palisade", "stone_wall", "gatehouse"]:
-		ok = true
-	if ok:
-		_advance()
+		return true
+	if want == "village_hall" and building_type in ["village_hall", "keep"]:
+		return true
+	if want == "lookout_tower" and building_type in ["lookout_tower", "watchtower", "great_tower", "wooden_palisade", "stone_wall", "gatehouse"]:
+		return true
+	return false
+
+# True once a matching building exists AND is fully raised (not just placed).
+func _want_is_built() -> bool:
+	if GameState.players.is_empty():
+		return false
+	for b in GameState.players[0].get("buildings", []):
+		if b is Dictionary and b.get("built", false) and _matches_want(String(b.get("type", ""))):
+			return true
+	return false
+
+func _on_building_placed(_pid: int, building_type: String, _gx: int, _gy: int, _bid: int) -> void:
+	# Placement no longer advances the lesson — the next step waits until this building is
+	# fully BUILT (see _on_tick). On a correct placement, nudge the player to let it rise.
+	if not _expects("build") or not _matches_want(building_type):
+		return
+	if not bool(GameState.world.get("tutorial_awaiting_build", false)):
+		GameState.world["tutorial_awaiting_build"] = true
+		tutorial_hint.emit("Good — now let your builders raise it. Fetch the timber, stack it, and build. The next task waits until it stands.")
 
 func _on_gold_changed(_pid: int, _old_v: int, _new_v: int) -> void:
 	pass  # trade is taught in the Market step's hint; no separate gate
@@ -151,6 +168,11 @@ func _on_envoy_sent(_fid: int, _demand: Dictionary) -> void:
 	tutorial_hint.emit("A rival house demands tribute. Pay to keep the peace, or refuse and ready your walls.")
 
 func _on_tick(tick: int) -> void:
+	# Build steps advance only once the placed structure is fully RAISED — so each prompt
+	# (woodcutter, food, …) is held back until the prior building finishes building.
+	if _expects("build") and _want_is_built():
+		_advance()
+		return
 	# Research step has no dedicated signal — detect a newly-unlocked tech.
 	if _expects("research") and _research_baseline >= 0 and _player_tech_count() > _research_baseline:
 		_advance()
@@ -159,10 +181,10 @@ func _on_tick(tick: int) -> void:
 	if is_active():
 		return
 	if not _defense_hint_given and not GameState.players.is_empty():
-		var day: int = tick / 240
-		if day >= 22 and not GameState.is_siege_ready(GameState.players[0]):
+		var day: int = tick / SimulationClock.TICKS_PER_CALENDAR_DAY
+		if day >= 3 and not GameState.is_siege_ready(GameState.players[0]):
 			_defense_hint_given = true
-			tutorial_hint.emit("The peace ends near Day 30 — after that, rival houses may march on your hall. Build walls and a watchtower (Build, Defence) and station a guard, or your hall will fall.")
+			tutorial_hint.emit("The peace ends near Day 4 — after that, rival houses may march on your hall. Build walls and a watchtower (Build, Defence) and station a guard, or your hall will fall.")
 			return
 	if tick - _last_edict_hint_tick < 4800:
 		return

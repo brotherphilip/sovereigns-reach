@@ -56,7 +56,7 @@ static func get_hud_data(player: Dictionary, weather: Dictionary, current_tick: 
 		"is_starving": player.get("is_starving", false),
 		"weather_name": WeatherSystem.weather_name(weather.get("current", 0)),
 		"weather_popularity_delta": weather.get("effects", {}).get("popularity_delta", 0.0),
-		"game_day": current_tick / 240,
+		"game_day": current_tick / SimulationClock.TICKS_PER_CALENDAR_DAY,
 		"edict_points": player.get("edict_points", 0),
 		"inn_coverage": player.get("inn_coverage", 0.0),
 		"religion_coverage": player.get("religion_coverage", 0.0),
@@ -217,9 +217,8 @@ static func get_market_prices(resource: String, world: Dictionary) -> Dictionary
 
 # Returns formatted time string from ticks (e.g. "Day 5, Tick 120").
 static func format_tick_time(tick: int) -> String:
-	var day: int = tick / 240
-	var t_in_day: int = tick % 240
-	return "Day %d (%d/240)" % [day, t_in_day]
+	var day: int = tick / SimulationClock.TICKS_PER_CALENDAR_DAY
+	return "Day %d" % day
 
 # Returns a multi-line tooltip showing market price history for a resource (last ≤5 snapshots).
 static func get_market_history_tooltip(resource: String, world: Dictionary) -> String:

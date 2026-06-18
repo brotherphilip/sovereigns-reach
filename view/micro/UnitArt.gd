@@ -15,6 +15,7 @@ const UnitState = preload("res://simulation/units/UnitState.gd")
 
 const SKIN      := Color(0.86, 0.70, 0.55)
 const SKIN_DARK := Color(0.62, 0.46, 0.34)
+const OUTLINE   := Color(0.10, 0.07, 0.05, 0.40)
 const STEEL     := Color(0.74, 0.77, 0.82)
 const STEEL_DK  := Color(0.42, 0.45, 0.52)
 const WOOD      := Color(0.47, 0.32, 0.17)
@@ -43,7 +44,7 @@ static func draw_unit(ci: CanvasItem, pos: Vector2, unit: Dictionary, team: Colo
 		"trebuchet":      _siege_trebuchet(ci, pos, team, phase, st, facing)
 		"siege_tower":    _siege_tower(ci, pos, team, phase, facing)
 		"mantlet":        _siege_mantlet(ci, pos, team, facing)
-		_:               _draw_person(ci, pos, utype, team, phase, st, facing, flash)
+		_:               _draw_person(ci, pos, utype, team, phase, st, facing, flash, uid, t)
 
 # ── Animation helpers ────────────────────────────────────────────────────────
 
@@ -82,7 +83,7 @@ static func _style(utype: String) -> Dictionary:
 # ── Humanoid figure ──────────────────────────────────────────────────────────
 
 static func _draw_person(ci: CanvasItem, pos: Vector2, utype: String, team: Color,
-		phase: float, st: String, facing: float, flash: float) -> void:
+		phase: float, st: String, facing: float, flash: float, uid: int = 0, t: float = 0.0) -> void:
 	var s: Dictionary = _style(utype)
 	# Cloth is tinted toward the team color so allegiance reads clearly.
 	var cloth: Color = (s["cloth"] as Color).lerp(team, 0.45)
@@ -92,23 +93,38 @@ static func _draw_person(ci: CanvasItem, pos: Vector2, utype: String, team: Colo
 
 	var walk: bool = st == "walk"
 	var atk: bool = st == "attack"
-	var bob: float = (abs(sin(phase)) * 1.6) if walk else (sin(phase * 0.25) * 0.4)
-	var cx: float = pos.x
+	# Natural motion: a weight bob (two per stride walking; a slow breath at rest, with
+	# a per-soldier phase so a formation doesn't pulse in lockstep), and a lean into travel.
+	var gait: float = sin(phase) if walk else 0.0
+	var bob: float = (abs(sin(phase)) * 1.9) if walk else (sin(t * 1.6 + float(uid)) * 0.55)
+	var lean: float = (facing * 1.5) if walk else (sin(t * 0.5 + float(uid) * 1.3) * 0.4)
+	# Idle weight-shift archetype so standing troops aren't statues.
+	var idle_shift: float = 0.0
+	if not walk and not atk:
+		match uid % 3:
+			0: idle_shift = sin(t * 0.7 + float(uid)) * 0.9
+			1: idle_shift = sin(t * 0.45 + float(uid)) * 0.5
+	var cx: float = pos.x + idle_shift
 	var feet: float = pos.y
-	var hip := Vector2(cx, feet - 7.0 - bob)
-	var sh := Vector2(cx, feet - 15.0 - bob)
-	var head := Vector2(cx, feet - 19.5 - bob)
+	var hip := Vector2(cx + lean * 0.5, feet - 7.0 - bob)
+	var sh := Vector2(cx + lean, feet - 15.0 - bob)
+	var head := Vector2(sh.x, sh.y - 4.5)
 
-	# Legs (swing while walking).
-	var swing: float = sin(phase) * 3.2 if walk else 0.0
+	# Legs — two-segment, knees bending forward; the swinging foot lifts off the ground.
 	var leg_col: Color = STEEL_DK if plate else cloth.darkened(0.4)
-	_limb(ci, hip, Vector2(cx - 1.2 + swing, feet), leg_col, 2.4)
-	_limb(ci, hip, Vector2(cx + 1.2 - swing, feet), leg_col, 2.4)
+	if not s.get("robe", false):
+		var stride: float = (3.4 if walk else 1.3)
+		var lift_a: float = maxf(0.0, gait) * 2.4 if walk else 0.0
+		var lift_b: float = maxf(0.0, -gait) * 2.4 if walk else 0.0
+		var foot_a := Vector2(cx + facing * gait * stride, feet - lift_a)
+		var foot_b := Vector2(cx - facing * gait * stride, feet - lift_b)
+		_limb2(ci, hip, foot_b, facing * (1.0 + lift_b), leg_col, 2.4)
+		_limb2(ci, hip, foot_a, facing * (1.0 + lift_a), leg_col.lightened(0.06), 2.4)
 
 	# Cloak (behind torso) for scouts.
 	if s.has("cloak"):
 		var cl: Color = s["cloak"]
-		var sway: float = swing * 0.6
+		var sway: float = gait * 1.9
 		ci.draw_colored_polygon(PackedVector2Array([
 			sh + Vector2(-facing * 1.0, -1.0), sh + Vector2(facing * 3.0, -1.0),
 			Vector2(cx + facing * 4.0 - sway, feet - 2.0), Vector2(cx - facing * 2.0 - sway, feet - 1.0),
@@ -121,11 +137,21 @@ static func _draw_person(ci: CanvasItem, pos: Vector2, utype: String, team: Colo
 			Vector2(cx + 4.0, feet), Vector2(cx - 4.0, feet),
 		]), cloth)
 
-	# Torso.
+	# Torso — a shaded body with a lit leading half and an outline so it reads at a glance.
 	var torso_col: Color = STEEL if plate else cloth
-	_limb(ci, hip, sh, torso_col, 5.2 if plate else 4.2)
+	var tw: float = 5.2 if plate else 4.2
+	var torso := PackedVector2Array([
+		hip + Vector2(-tw * 0.42, 0), hip + Vector2(tw * 0.42, 0),
+		sh + Vector2(tw * 0.5, 0), sh + Vector2(-tw * 0.5, 0)])
+	ci.draw_colored_polygon(torso, torso_col)
+	ci.draw_colored_polygon(PackedVector2Array([
+		Vector2(hip.x, hip.y), hip + Vector2(facing * tw * 0.42, 0),
+		sh + Vector2(facing * tw * 0.5, 0), Vector2(sh.x, sh.y)]), torso_col.lightened(0.16))
+	for i in range(torso.size()):
+		ci.draw_line(torso[i], torso[(i + 1) % torso.size()], OUTLINE, 0.9)
+	# Neck.
+	ci.draw_line(sh, head + Vector2(0, 2.0), (STEEL if plate else SKIN).darkened(0.1), 1.7)
 	if plate:
-		# Pauldron highlights.
 		ci.draw_circle(sh + Vector2(-2.6, 0), 1.6, STEEL.lightened(0.12))
 		ci.draw_circle(sh + Vector2(2.6, 0), 1.6, STEEL.lightened(0.12))
 		_limb(ci, hip + Vector2(0,-1), sh, STEEL_DK, 1.0)  # chest seam
@@ -139,7 +165,9 @@ static func _draw_person(ci: CanvasItem, pos: Vector2, utype: String, team: Colo
 		_draw_shield(ci, sh, hip, facing, s["shield"], team)
 
 	# Head + helm.
+	ci.draw_circle(head, 3.4, OUTLINE)
 	ci.draw_circle(head, 3.0, SKIN)
+	ci.draw_circle(head + Vector2(-facing * 1.4, 0.4), 1.5, SKIN.darkened(0.12))   # cheek shadow
 	_draw_helm(ci, head, s.get("helm", "none"), team, facing)
 
 	# Quiver on the back.
@@ -299,6 +327,23 @@ static func _draw_helm(ci: CanvasItem, head: Vector2, kind: String, team: Color,
 
 static func _limb(ci: CanvasItem, a: Vector2, b: Vector2, col: Color, w: float) -> void:
 	ci.draw_line(a, b, col, w)
+
+# Two-segment limb that bends at a mid-joint, with a soft outline + rounded joints so
+# arms and legs read as articulated rather than as straws.
+static func _limb2(ci: CanvasItem, a: Vector2, b: Vector2, bend: float, col: Color, w: float) -> void:
+	var dir := b - a
+	var L := dir.length()
+	if L < 0.01:
+		ci.draw_circle(a, w * 0.5, col)
+		return
+	var n := Vector2(-dir.y, dir.x) / L
+	var knee := (a + b) * 0.5 + n * bend
+	ci.draw_line(a, knee, OUTLINE, w + 0.7)
+	ci.draw_line(knee, b, OUTLINE, w + 0.7)
+	ci.draw_line(a, knee, col, w)
+	ci.draw_line(knee, b, col.lightened(0.05), w)
+	ci.draw_circle(knee, w * 0.5, col)
+	ci.draw_circle(b, w * 0.52, col)
 
 # ── Siege engines ────────────────────────────────────────────────────────────
 

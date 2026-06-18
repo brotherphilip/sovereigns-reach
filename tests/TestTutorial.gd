@@ -37,6 +37,12 @@ func _last_is_defense_hint() -> bool:
 func _bare_player() -> Dictionary:
 	return {"id": 0, "is_alive": true, "buildings": [], "units": []}
 
+# Append a fully-built building to the tutorial player so completion-gated steps advance.
+func _place_built(btype: String, bid: int) -> void:
+	var b: Dictionary = BuildingState.create(btype, 0, 5 + bid, 5, bid)
+	b["built"] = true
+	_gs.players[0]["buildings"].append(b)
+
 # The fleshed-out, data-driven curriculum: start → guided steps → completion, plus the
 # enemy-AI pause flag that holds the world still while the player learns.
 func _run_steps() -> void:
@@ -54,17 +60,25 @@ func _run_steps() -> void:
 	var tgt: Dictionary = _ts.current_target()
 	ok("first target is to build the village_hall", tgt.get("kind") == "build" and tgt.get("build") == "village_hall")
 
-	# Placing the Village Hall advances to the woodcutter step (wood is needed for everything).
+	# Placing the Village Hall does NOT advance — the next step waits until it is BUILT.
 	_ts._on_building_placed(0, "village_hall", 0, 0, 1)
-	ok("placing the hall advances to step 1", _ts.index == 1)
+	ok("placing the hall does not advance yet", _ts.index == 0)
+	_ts._on_tick(240)
+	ok("an unbuilt hall still does not advance", _ts.index == 0)
+	# Once the hall is fully raised, the woodcutter step unlocks (wood is needed for all).
+	_place_built("village_hall", 1)
+	_ts._on_tick(480)
+	ok("a BUILT hall advances to step 1", _ts.index == 1)
 	ok("step 1 target is the woodcutter", _ts.current_target().get("build") == "woodcutter_camp")
-	# Then the woodcutter advances to the food step.
-	_ts._on_building_placed(0, "woodcutter_camp", 0, 0, 2)
-	ok("step 2 target is a farm", _ts.current_target().get("build") == "apple_orchard")
+	# Then a built woodcutter advances to the food step.
+	_place_built("woodcutter_camp", 2)
+	_ts._on_tick(720)
+	ok("a built woodcutter advances to the farm step", _ts.current_target().get("build") == "apple_orchard")
 
-	# A wrong building does NOT advance.
+	# A wrong (built) building does NOT advance.
 	var before: int = _ts.index
-	_ts._on_building_placed(0, "well", 0, 0, 2)
+	_place_built("well", 3)
+	_ts._on_tick(960)
 	ok("a non-target building does not advance", _ts.index == before)
 
 	# Skipping ends the tutorial and resumes enemy AI.
@@ -80,13 +94,15 @@ func _run() -> void:
 	_ts.index = _ts.STEP_DONE
 	_ts._defense_hint_given = false
 	_hints.clear()
-	_ts._on_tick(15 * 240)   # day 15 — too early
-	ok("no defence hint before day 22", not _last_is_defense_hint())
-	_ts._on_tick(22 * 240)   # day 22 — undefended → warn
-	ok("undefended realm IS warned at day 22", _last_is_defense_hint())
+	# Defence warning now fires on CALENDAR day 3 (3 × TICKS_PER_CALENDAR_DAY).
+	var cd: int = SimulationClock.TICKS_PER_CALENDAR_DAY
+	_ts._on_tick(2 * cd)   # calendar day 2 — too early
+	ok("no defence hint before calendar day 3", not _last_is_defense_hint())
+	_ts._on_tick(3 * cd)   # calendar day 3 — undefended → warn
+	ok("undefended realm IS warned at calendar day 3", _last_is_defense_hint())
 	# Fires only once.
 	var n_after: int = _hints.size()
-	_ts._on_tick(24 * 240)
+	_ts._on_tick(4 * cd)
 	ok("defence hint fires only once", _hints.size() == n_after)
 
 	print("\n[A siege-ready realm is NOT nagged]")

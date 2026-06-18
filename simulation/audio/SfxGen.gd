@@ -20,6 +20,8 @@ static func for_event(name: String) -> AudioStreamWAV:
 		"PRESTIGE_GAINED":     return _chime()
 		"EDICT_ACTIVATED":     return _ding()
 		"UI_CLICK":            return _click()
+		"WOOD_CHOP":           return _wood_chop()
+		"HAMMER_HIT":          return _hammer_hit()
 		_:                     return _ding()
 
 # ── sample plumbing ──────────────────────────────────────────────────────────────
@@ -37,6 +39,38 @@ static func _push(buf: PackedByteArray, s: float) -> void:
 	buf.push_back((v >> 8) & 0xFF)
 
 # ── effects ──────────────────────────────────────────────────────────────────────
+# A hollow "choonk thud" — an axe biting into a tree trunk: a sharp noisy bite at the
+# front, over a low woody resonant body that drops a touch in pitch as it lands.
+static func _wood_chop() -> AudioStreamWAV:
+	var buf := PackedByteArray()
+	var rng := RandomNumberGenerator.new(); rng.seed = 13
+	var n: int = int(0.17 * MIX)
+	for i in range(n):
+		var t: float = float(i) / MIX
+		# Axe cracking into the wood — a short noise transient, very fast decay.
+		var bite: float = rng.randf_range(-1.0, 1.0) * exp(-t * 95.0) * 0.55
+		# Hollow body resonance with a slight downward "thunk".
+		var pitch: float = 180.0 - 45.0 * (1.0 - exp(-t * 14.0))
+		var body_env: float = exp(-t * 21.0)
+		var body: float = sin(TAU * pitch * t) + 0.45 * sin(TAU * pitch * 1.5 * t) + 0.28 * sin(TAU * pitch * 0.5 * t)
+		_push(buf, (bite + body * body_env) * 0.5)
+	return _new_wav(buf)
+
+# A builder's hammer landing on timber — a crisp knock with a short woody/iron ring.
+# Higher and tighter than the axe's chop, so the two read apart in a busy yard.
+static func _hammer_hit() -> AudioStreamWAV:
+	var buf := PackedByteArray()
+	var rng := RandomNumberGenerator.new(); rng.seed = 29
+	var n: int = int(0.11 * MIX)
+	for i in range(n):
+		var t: float = float(i) / MIX
+		# Sharp strike transient (the head landing).
+		var bite: float = rng.randf_range(-1.0, 1.0) * exp(-t * 150.0) * 0.5
+		# Short bright ring of the str+ timber.
+		var ring: float = (sin(TAU * 330.0 * t) + 0.5 * sin(TAU * 540.0 * t) + 0.3 * sin(TAU * 800.0 * t)) * exp(-t * 34.0)
+		_push(buf, (bite + ring * 0.4) * 0.5)
+	return _new_wav(buf)
+
 # A soft wooden knock — a building set down.
 static func _wood_thock() -> AudioStreamWAV:
 	var buf := PackedByteArray()

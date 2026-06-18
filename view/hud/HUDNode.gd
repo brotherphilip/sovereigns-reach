@@ -423,7 +423,7 @@ func _refresh_top_bar() -> void:
 	if _time_clock != null:
 		# Drive the clock from the ACTUAL day/night cycle, not the calendar day.
 		_time_clock.set_time(float(_phase.get("cycle_f", 0.0)), bool(_phase.get("is_night", false)),
-			String(_phase.get("phase", "Day")), String(_phase.get("season", "")), SimulationClock.game_day())
+			String(_phase.get("phase", "Day")), String(_phase.get("season", "")), SimulationClock.calendar_day())
 	var _wicon: String = HUDController.get_weather_icon(GameState.weather)
 	# Season (sky-day calendar) shown with the weather — both are "what the world is doing".
 	_weather_label.text = "%s · %s %s" % [

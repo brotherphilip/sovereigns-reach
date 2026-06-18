@@ -365,7 +365,7 @@ func _show_game_over(victory: bool, message: String) -> void:
 	panel.add_child(msg)
 
 	var day_lbl := Label.new()
-	day_lbl.text = "Day %d reached." % SimulationClock.game_day()
+	day_lbl.text = "Day %d reached." % SimulationClock.calendar_day()
 	day_lbl.position = Vector2(20, 160)
 	day_lbl.size = Vector2(560, 24)
 	day_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER

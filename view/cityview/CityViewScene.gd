@@ -323,7 +323,7 @@ func _dev_telemetry(path: String) -> void:
 
 func _dev_reign_preview() -> void:
 	await get_tree().create_timer(2.0).timeout
-	_show_reign_milestone(100)
+	_show_reign_milestone(12)
 
 func _dev_screenshot(path: String) -> void:
 	var delay: float = 12.0
@@ -942,7 +942,7 @@ func _show_reign_milestone(_day: int) -> void:
 	panel.add_child(title)
 
 	var msg := Label.new()
-	msg.text = "One hundred days of unbroken rule — a full twenty minutes upon the throne.\nYour people prosper, your walls stand, and your name will be remembered.\n\nLong may you reign.   (+200 prestige)"
+	msg.text = "Twelve days of unbroken rule — a sovereign's reign upon the throne.\nYour people prosper, your walls stand, and your name will be remembered.\n\nLong may you reign.   (+200 prestige)"
 	msg.position = Vector2(30, 90); msg.size = Vector2(580, 140)
 	msg.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	msg.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART

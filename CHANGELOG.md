@@ -2,6 +2,46 @@
 
 ---
 
+## 2026-06-18 — User-directed OVERHAUL session (people, audio, economy, world map, time, AI)
+
+A multi-part overhaul driven directly by the user:
+
+- **People & animation:** villagers, job-workers and soldiers are now articulated figures
+  (two-segment limbs bending at knee/elbow, shaded torsos, neck/hands/feet, faces, hair that
+  greys with age). Natural opposite-phase walk (weight bob, lean into travel, foot-lift, stride
+  scaled by real speed) and varied per-person idles (weight-shift, breath, glance, stretch).
+  Tools now strike the ACTUAL object — the woodcutter's axe bites the real tree, the builder's
+  hammer the real building, the orchardist picks among the real apple trees — with impact FX
+  (wood chips, forge sparks, rock dust, grain, sawdust) timed to a real fast-down / slow-up swing.
+  (view/micro/CitizenLayer.gd, UnitArt.gd, UnitLayer.gd; sim hook act_x/act_y in CitizenSystem.)
+- **Spatial audio:** a pooled positional sound field (AudioStreamPlayer2D) plays a procedural
+  "choonk" axe-thud and a builder/smith hammer-hit from each tool's world position — panning
+  L/R and fading with distance/zoom off the active camera (earshot ~800px). Animation + strike
+  rate scale with game speed; keys 1/2/3 set 1×/2×/5×. (SfxGen WOOD_CHOP/HAMMER_HIT, AudioManager,
+  PlayerInputHandler.)
+- **Economy / workers:** node harvesters (woodcutter/quarry/mine) now carry goods STRAIGHT to a
+  stockpile (preferred over the hall) — no pointless camp detour. Fixed builders freezing at the
+  hall when fetching materials (they targeted the impassable building centre; now a reachable
+  adjacent tile). The builder who finishes a building becomes its worker. The tutorial advances
+  only once the current building is fully BUILT (not merely placed). Construction takes ~3× longer
+  with smaller carry-batches (more trips to the stockpile). (CitizenSystem, TutorialSystem.)
+- **World map:** redrawn as shaded HEX tiles with a faint lattice + layered terrain (tree copses,
+  boulders, dry shrubs, snow peaks, shaded shallows); faction territory is now a crisp coloured
+  border instead of a muddy wash. (WorldMapView.gd.)
+- **Time:** a sun-aligned CALENDAR day (TICKS_PER_CALENDAR_DAY=3600, ~5 days/sunrise, was ~75).
+  "A Sovereign's Reign" milestone is now Day 12; reign beats Day 6/9; objectives Day 6/12; King's
+  Peace ends ~Day 4. The economy stays on the 240-tick economic day, so difficulty per real-minute
+  is unchanged. (SimulationClock, GameState, MilestoneSystem, ObjectiveSystem, HUD.)
+- **AI from scratch:** great houses no longer start developed or garrisoned — every realm (player
+  included) begins undeveloped with an EMPTY garrison and must build up over time. (WorldMapData,
+  CampaignMap.)
+- Added a player-facing HTML game manual (game_manual.html + manual/img) built from real renders
+  and the game's own audio.
+- Tests updated + green: Objectives 30/0, Phase10 80/0, Tutorial 18/0, Siege 9/0, Survival 6/0,
+  StrategicAI 91/0, Economy 13/0, Workers 21/0, People 21/0, Phase9 67/0, Phase1 69/0, Seasons 25/0.
+
+---
+
 ## [Iteration 172] 2026-06-14 — Bespoke per-type models for every finished building
 
 User request: redo all finished builds of each building type into a detailed, fitting,

@@ -10,8 +10,17 @@ extends Node
 const TICK_RATE: float = 20.0
 const TICK_INTERVAL: float = 1.0 / TICK_RATE
 
-# One game day = 240 ticks at NORMAL speed (12 real seconds per game-day)
+# One ECONOMIC day = 240 ticks (12 real seconds). This is the internal cadence for
+# food consumption, AI upkeep, seasons, etc. — balance is tuned to it and it is kept
+# fixed. (Renamed in spirit to "economic day".)
 const TICKS_PER_GAME_DAY: int = 240
+
+# The CALENDAR day the player sees and that milestones/objectives/victory are keyed to.
+# It is deliberately ~15× longer than the economic day so the day counter lines up with
+# the sun (one sunrise→sunset spans ~5 calendar days, not ~75), and the journey to the
+# great milestone is ~12 days rather than a racing 100. Economy stays on the economic
+# day, so difficulty per real-minute is unchanged — only the day NUMBER is rescaled.
+const TICKS_PER_CALENDAR_DAY: int = 3600
 
 const SPEED_PAUSED: int = 0
 const SPEED_NORMAL: int = 1
@@ -80,6 +89,10 @@ func is_paused() -> bool:
 
 func game_day() -> int:
 	return current_tick / TICKS_PER_GAME_DAY
+
+# The player-facing calendar day (sun-aligned). Use this for display + milestones.
+func calendar_day() -> int:
+	return current_tick / TICKS_PER_CALENDAR_DAY
 
 func ticks_into_current_day() -> int:
 	return current_tick % TICKS_PER_GAME_DAY

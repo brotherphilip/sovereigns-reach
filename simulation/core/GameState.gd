@@ -578,7 +578,7 @@ func _tick_player_economy(player: Dictionary, tick: int) -> void:
 		# Milestones (GDD §1.4.3): check once per day, emit per newly earned.
 		# Suppressed during the tutorial so its gated steps aren't interrupted by milestone toasts/VO.
 		if not _ai_paused():
-			var ms_day: int = tick / SimulationClock.TICKS_PER_GAME_DAY
+			var ms_day: int = tick / SimulationClock.TICKS_PER_CALENDAR_DAY   # reign milestones are in calendar days
 			var new_milestones: Array = MilestoneSystem.check(player, world, milestones, player.get("active_edicts", []), ms_day)
 			for ms_id in new_milestones:
 				EventBus.milestone_earned.emit(player["id"], ms_id, MilestoneSystem.PRESTIGE_BONUS)
@@ -1288,6 +1288,7 @@ func simulate_tick(tick: int) -> void:
 	# count so food/popularity/AI keep working.
 	if tick > 0 and tick % SimulationClock.TICKS_PER_GAME_DAY == 0 and not players.is_empty():
 		var day: int = tick / SimulationClock.TICKS_PER_GAME_DAY
+		var cal_day: int = tick / SimulationClock.TICKS_PER_CALENDAR_DAY   # sun-aligned, player-facing
 		_next_citizen_id = PeopleSystem.tick_day(citizens, players[0], _citizen_rng, day, _next_citizen_id)
 		var living: int = PeopleSystem.living_count(citizens)
 		if players[0].get("population", 0) != living:
@@ -1303,15 +1304,15 @@ func simulate_tick(tick: int) -> void:
 		# The 20-minute goal: reaching Day 100 alive is the whole point of a "life". Mark
 		# the achievement once — a triumphant moment + a fame reward — then let the
 		# sovereign keep ruling (this is NOT a game-over; the realm endures).
-		if not spectator_mode and day >= 100 and not world.get("reign_celebrated", false):
+		if not spectator_mode and cal_day >= 12 and not world.get("reign_celebrated", false):
 			world["reign_celebrated"] = true
 			players[0]["prestige"] = float(players[0].get("prestige", 0.0)) + 200.0
-			EventBus.sovereign_reign_reached.emit(day)
+			EventBus.sovereign_reign_reached.emit(cal_day)
 
 		# Standing objectives — the player's running sense of direction toward Day 100.
 		# Suppressed during the tutorial (its steps ARE the objective; no competing prompts).
 		if not spectator_mode and not _ai_paused():
-			var obj: Dictionary = ObjectiveSystem.evaluate(players[0], world, day)
+			var obj: Dictionary = ObjectiveSystem.evaluate(players[0], world, cal_day)
 			for done_o in obj.get("newly_completed", []):
 				EventBus.realm_notice.emit("✓ Objective complete: " + String(done_o.get("text", "")), "good")
 			if not obj.get("newly_completed", []).is_empty() or day == 1:

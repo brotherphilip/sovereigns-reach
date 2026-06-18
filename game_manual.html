@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sovereign's Reach — The Lord's Manual</title>
+<style>
+  :root{
+    --bg:#14110f; --surface:#1d1813; --card:#241d16; --line:#3a2f24;
+    --accent:#e0a94a; --gold:#ffd27a; --green:#7bc36a; --red:#d2664a; --blue:#6fa8d8;
+    --text:#e8ddca; --muted:#9b8e78; --code:#0e0c0a;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{background:var(--bg);color:var(--text);font-family:'Iowan Old Style','Palatino Linotype','Segoe UI',system-ui,serif;line-height:1.65}
+
+  /* ── Hero ─────────────────────────────────────────── */
+  header.hero{position:relative;min-height:340px;display:flex;align-items:center;justify-content:center;
+    text-align:center;padding:3rem 1.5rem;border-bottom:2px solid var(--accent);overflow:hidden}
+  header.hero .bg{position:absolute;inset:0;background-image:url('manual/img/main_menu.png');
+    background-size:cover;background-position:center 30%;filter:saturate(1.05)}
+  header.hero .scrim{position:absolute;inset:0;background:linear-gradient(180deg,rgba(20,17,15,.45),rgba(20,17,15,.82))}
+  header.hero .inner{position:relative;z-index:2}
+  header.hero h1{font-size:3rem;color:var(--gold);text-shadow:3px 3px 10px #000;letter-spacing:1px}
+  header.hero .sub{color:#f0e2c4;margin-top:.4rem;font-size:1.15rem;text-shadow:1px 1px 4px #000}
+  header.hero .kicker{color:var(--accent);text-transform:uppercase;letter-spacing:3px;font-size:.8rem;margin-bottom:.6rem}
+
+  nav{background:var(--surface);padding:.7rem 1.2rem;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:20;
+    display:flex;flex-wrap:wrap;gap:.2rem 1.1rem;justify-content:center}
+  nav a{color:var(--accent);text-decoration:none;font-size:.82rem;font-family:'Segoe UI',sans-serif}
+  nav a:hover{color:var(--gold);text-decoration:underline}
+
+  main{max-width:1080px;margin:0 auto;padding:1.5rem}
+  section{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:1.4rem 1.6rem;margin:1.4rem 0;
+    box-shadow:0 2px 14px rgba(0,0,0,.3)}
+  h2{color:var(--gold);font-size:1.6rem;border-bottom:1px solid var(--line);padding-bottom:.4rem;margin-bottom:.8rem;
+    display:flex;align-items:center;gap:.5rem}
+  h3{color:var(--accent);font-size:1.12rem;margin:1.1rem 0 .35rem}
+  p,li{color:var(--text)}
+  p{margin:.5rem 0}
+  ul,ol{margin:.3rem 0 .6rem 1.4rem}
+  li{margin:.18rem 0}
+  b,strong{color:#f3e8d0}
+  .lead{font-size:1.08rem;color:#f0e6d2}
+  .muted{color:var(--muted);font-size:.9rem}
+  code{background:var(--code);color:var(--gold);padding:1px 6px;border-radius:4px;font-size:.86em;font-family:'Segoe UI',monospace}
+
+  figure{margin:1rem 0}
+  figure img{width:100%;border:1px solid var(--line);border-radius:8px;display:block;
+    box-shadow:0 4px 18px rgba(0,0,0,.45)}
+  figcaption{color:var(--muted);font-size:.85rem;text-align:center;margin-top:.45rem;font-style:italic}
+
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+  @media(max-width:760px){.grid2{grid-template-columns:1fr}}
+
+  table{width:100%;border-collapse:collapse;margin:.6rem 0;font-size:.92rem}
+  th,td{text-align:left;padding:.45rem .6rem;border-bottom:1px solid var(--line);vertical-align:top}
+  th{color:var(--gold);font-family:'Segoe UI',sans-serif;font-size:.82rem;text-transform:uppercase;letter-spacing:.5px}
+  tr:hover td{background:rgba(224,169,74,.05)}
+  .cat{display:inline-block;border-radius:10px;padding:1px 9px;font-size:.7rem;font-family:'Segoe UI',sans-serif;color:#1a1410}
+  .c-civic{background:#cfd6df}.c-food{background:#b6d98f}.c-harvest{background:#d9b67a}
+  .c-mil{background:#d99a8f}.c-def{background:#a9b0bb}
+
+  .callout{border-left:3px solid var(--accent);background:rgba(224,169,74,.07);padding:.7rem 1rem;margin:.8rem 0;border-radius:0 6px 6px 0}
+  .callout.danger{border-color:var(--red);background:rgba(210,102,74,.09)}
+  .callout.tip{border-color:var(--green);background:rgba(123,195,106,.08)}
+
+  /* ── Soundboard ───────────────────────────────────── */
+  .board{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:.9rem;margin-top:.7rem}
+  .clip{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:.7rem .8rem}
+  .clip .ttl{color:var(--gold);font-family:'Segoe UI',sans-serif;font-size:.92rem;font-weight:600}
+  .clip .desc{color:var(--muted);font-size:.82rem;margin:.15rem 0 .45rem}
+  .clip audio{width:100%;height:34px}
+  .music-row{display:flex;flex-wrap:wrap;gap:1rem;margin-top:.6rem}
+  .music-row .clip{flex:1 1 320px}
+
+  .ladder{display:flex;flex-wrap:wrap;gap:.4rem;align-items:center;margin:.7rem 0;font-family:'Segoe UI',sans-serif}
+  .rank{background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:.35rem .9rem;font-size:.9rem}
+  .rank b{color:var(--gold)}
+  .rank.king{background:linear-gradient(135deg,#5a3f1e,#8a6320);border-color:var(--gold)}
+  .rank.king b{color:#fff6df}
+  .arrow{color:var(--accent)}
+
+  footer{color:var(--muted);text-align:center;padding:2.5rem 1rem;font-size:.82rem;border-top:1px solid var(--line);margin-top:2rem}
+  .pill{display:inline-block;background:#3a2f24;color:var(--gold);border-radius:10px;padding:1px 9px;font-size:.72rem;
+    font-family:'Segoe UI',sans-serif;margin-left:6px}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="bg"></div><div class="scrim"></div>
+  <div class="inner">
+    <div class="kicker">The Lord's Manual</div>
+    <h1>⚜ Sovereign's Reach</h1>
+    <p class="sub">A medieval kingdom-builder. Raise a village, feed your people, hold your walls — and climb from Reeve to King.</p>
+    <p class="muted" style="margin-top:.8rem">Every picture and every voice in this manual is taken straight from the game.</p>
+  </div>
+</header>
+
+<nav>
+  <a href="#start">Getting Started</a>
+  <a href="#city">The City</a>
+  <a href="#buildings">Buildings</a>
+  <a href="#economy">People &amp; Economy</a>
+  <a href="#survival">Popularity &amp; Survival</a>
+  <a href="#time">Time &amp; Seasons</a>
+  <a href="#war">War</a>
+  <a href="#world">World &amp; the Throne</a>
+  <a href="#events">The Herald</a>
+  <a href="#music">Music</a>
+</nav>
+
+<main>
+
+<!-- ════════ GETTING STARTED ════════ -->
+<section id="start">
+  <h2>⚑ Getting Started</h2>
+  <p class="lead">You begin as the lord of one small, independent village in a land of free hamlets and four ambitious great houses. Survive, grow, and outshine your rivals until the realm hails you as King.</p>
+  <ol>
+    <li>From the title screen, choose <b>New Game</b>. Pick your difficulty (it defaults to Normal).</li>
+    <li>You start with nothing built. <b>Place a Village Hall</b> anywhere on free ground — it is the heart of your settlement and spawns your first peasants.</li>
+    <li>Next raise a <b>Woodcutter's Camp</b> (near trees) and <b>food</b> — without timber and bread, nothing else can follow.</li>
+    <li>A <b>King's Peace</b> shields you for your first stretch of days. Use that grace to build farms and walls <em>before</em> rival houses march.</li>
+  </ol>
+  <div class="callout tip"><b>First time?</b> When prompted, accept the <b>guided tutorial</b> — a herald walks you step-by-step through the Hall, the Woodcutter's Camp, food, and your first defences, pausing the world so you can learn in peace.</div>
+  <figure>
+    <img src="manual/img/main_menu.png" alt="Sovereign's Reach main menu">
+    <figcaption>The title screen — a hand-drawn dusk over a distant town, with New Game, Load Game and a difficulty toggle.</figcaption>
+  </figure>
+</section>
+
+<!-- ════════ THE CITY VIEW ════════ -->
+<section id="city">
+  <h2>🏘 The City View</h2>
+  <p>This is where you live most of the game: a tactical, isometric view of a single settlement that you build and run in real time. People walk, haul, farm and fight while the clock ticks.</p>
+  <figure>
+    <img src="manual/img/city_day.png" alt="A growing village in the city view">
+    <figcaption>A spring afternoon in your village — the Hall, food and storage take shape while citizens go about their work.</figcaption>
+  </figure>
+  <h3>Reading the screen</h3>
+  <ul>
+    <li><b>Top bar</b> — your gold, population, food, the date and season, prestige, faith and the health of your seat.</li>
+    <li><b>Right panel</b> — your <b>Popularity</b> readout (the people's mood) and the current <b>Objective</b>.</li>
+    <li><b>Bottom bar</b> — the <b>build menu</b>, sorted into tabs (Civic, Harvest, Food, Military, Defense). The menu follows your current goal and pulses to nudge you.</li>
+    <li><b>Bottom-left</b> — the speed controls (pause ▮▮ up to fastest) plus buttons for the World Map, Tech and Edicts.</li>
+    <li><b>Top-left</b> — a mini-map of the surrounding land.</li>
+  </ul>
+  <div class="callout"><b>Controls:</b> mouse-wheel zooms, drag to pan. Click a building card, then click free ground to place it; builders will walk over and raise it over time. Click a finished building to inspect it.</div>
+</section>
+
+<!-- ════════ BUILDINGS ════════ -->
+<section id="buildings">
+  <h2>🏛 Buildings</h2>
+  <p>Everything you make is built by hand by your people, raised plank by plank over real time. Below is the full roster, drawn exactly as they appear in-game.</p>
+  <figure>
+    <img src="manual/img/buildings.png" alt="Every building type in Sovereign's Reach">
+    <figcaption>The complete building roster, rendered from the game's own art.</figcaption>
+  </figure>
+
+  <h3>What each one does</h3>
+  <table>
+    <thead><tr><th>Building</th><th>Role</th><th>What it does</th></tr></thead>
+    <tbody>
+      <tr><td><b>Village Hall</b></td><td><span class="cat c-civic">Civic</span></td><td>The heart of your village. Spawns peasants. <b>If it falls, your village ends.</b></td></tr>
+      <tr><td><b>Keep</b></td><td><span class="cat c-civic">Civic</span></td><td>A fortified late-game upgrade of the Hall — the seat of a great realm.</td></tr>
+      <tr><td><b>Hovel</b></td><td><span class="cat c-civic">Civic</span></td><td>A family home with 4 rooms. Build more to let your population grow.</td></tr>
+      <tr><td><b>Well</b></td><td><span class="cat c-civic">Civic</span></td><td>Clean water raises sanitation and lowers disease risk. Cheap, needs no staff.</td></tr>
+      <tr><td><b>Apothecary</b></td><td><span class="cat c-civic">Civic</span></td><td>Prevents disease and cures sick peasants nearby.</td></tr>
+      <tr><td><b>Market</b></td><td><span class="cat c-civic">Civic</span></td><td>Enables resource trading; a trade cart spawns here.</td></tr>
+      <tr><td><b>Guildhall</b></td><td><span class="cat c-civic">Civic</span></td><td>Houses merchants and manages trade carts; upgrades add more carts.</td></tr>
+      <tr><td><b>Church / Cathedral</b></td><td><span class="cat c-civic">Civic</span></td><td>Spreads Faith over an area. Marriage events give popularity spikes. The Cathedral is a vast, fireproof status symbol.</td></tr>
+      <tr><td><b>Woodcutter's Camp</b></td><td><span class="cat c-harvest">Harvest</span></td><td>Harvests timber — must sit near trees. Build this <em>first</em>; nothing else moves without wood.</td></tr>
+      <tr><td><b>Stone Quarry</b></td><td><span class="cat c-harvest">Harvest</span></td><td>Mines stone blocks for stronger buildings and walls.</td></tr>
+      <tr><td><b>Iron Mine</b></td><td><span class="cat c-harvest">Harvest</span></td><td>Mines raw iron from ore veins for weapons and armour.</td></tr>
+      <tr><td><b>Stockpile</b></td><td><span class="cat c-harvest">Harvest</span></td><td>Universal raw-goods storage. Expands when you place more beside it.</td></tr>
+      <tr><td><b>Apple Orchard</b></td><td><span class="cat c-food">Food</span></td><td>Fast and cheap with a low yield — the ideal early-game food.</td></tr>
+      <tr><td><b>Wheat Farm → Mill → Bakery</b></td><td><span class="cat c-food">Food</span></td><td>The bread chain: grow wheat, grind it to flour, bake bread — the highest food output and the biggest popularity bonus.</td></tr>
+      <tr><td><b>Dairy / Pig Farm</b></td><td><span class="cat c-food">Food</span></td><td>Livestock add food variety on a slower cycle.</td></tr>
+      <tr><td><b>Hops Farm → Brewery → Inn</b></td><td><span class="cat c-food">Food</span></td><td>The ale chain: a major popularity driver. Inns distribute ale in a radius and stack.</td></tr>
+      <tr><td><b>Granary</b></td><td><span class="cat c-food">Food</span></td><td>Stores all food and controls rationing. Vital — protect it.</td></tr>
+      <tr><td><b>Barracks</b></td><td><span class="cat c-mil">Military</span></td><td>Turns peasants into soldiers, using gold and weapons.</td></tr>
+      <tr><td><b>Armory</b></td><td><span class="cat c-mil">Military</span></td><td>Stores weapons and armour and caps your army size — but is explosive if it catches fire.</td></tr>
+      <tr><td><b>Blacksmith / Tannery / Armorer</b></td><td><span class="cat c-mil">Military</span></td><td>The arms chain: leather and iron plate for your infantry; swords and armour for the late game.</td></tr>
+      <tr><td><b>Fletcher / Poleturner / Crossbow Workshop</b></td><td><span class="cat c-mil">Military</span></td><td>Craft bows, cheap pikes, and heavy crossbows from wood and iron.</td></tr>
+      <tr><td><b>Wooden Palisade</b></td><td><span class="cat c-def">Defense</span></td><td>Cheap early walls — but they burn down easily.</td></tr>
+      <tr><td><b>Stone Wall</b></td><td><span class="cat c-def">Defense</span></td><td>High-HP walls your troops can stand on top of. Immune to fire.</td></tr>
+      <tr><td><b>Gatehouse</b></td><td><span class="cat c-def">Defense</span></td><td>Your main entry, with a portcullis you can open and close.</td></tr>
+      <tr><td><b>Watchtower / Lookout / Great Tower</b></td><td><span class="cat c-def">Defense</span></td><td>Reveal terrain and approaching enemies, extend archer range, and mount ballistas and mangonels.</td></tr>
+    </tbody>
+  </table>
+  <div class="callout danger"><b>Fire is real.</b> Timber buildings can burn — and the Armory and Pitch Rig <em>explode</em> when destroyed. Wells, stone walls and the Cathedral resist fire; place flammable stores with care.</div>
+</section>
+
+<!-- ════════ ECONOMY ════════ -->
+<section id="economy">
+  <h2>👪 People &amp; the Economy</h2>
+  <p>Your citizens are real people — they are born, age, marry, raise families and die. Only the working-age take jobs.</p>
+  <h3>How work flows</h3>
+  <ul>
+    <li><b>Housing grows population.</b> Each Hovel adds rooms; with food and rooms to spare, families have children and your numbers climb.</li>
+    <li><b>Jobs pull people in.</b> When you raise a working building, idle villagers are drawn to it, dressed for the trade, given tools, and they walk over to toil.</li>
+    <li><b>Goods are physical.</b> Resources are gathered, processed and <b>hauled</b> by carriers — production only counts once goods are <em>delivered</em> to a stockpile or granary. If storage is full, production stops.</li>
+    <li><b>Chains matter.</b> Wheat → flour → bread and hops → ale → inn are multi-step chains. Build the whole chain, or the front end backs up.</li>
+  </ul>
+  <div class="callout tip"><b>Golden rule:</b> wood first, food second, housing third. A fed, housed, employed village is a happy one — and happiness is survival.</div>
+</section>
+
+<!-- ════════ SURVIVAL ════════ -->
+<section id="survival">
+  <h2>♛ Popularity &amp; Survival</h2>
+  <p><b>Popularity</b> is the people's faith in your rule — your most important number. Bread, ale, faith, clean water and safety raise it; hunger, disease, fire, heavy taxes and war drag it down.</p>
+  <div class="callout danger"><b>You lose if:</b> your <b>popularity collapses</b> (the people abandon you), or your <b>Village Hall / Keep is destroyed</b>. Everything else is recoverable — these two are not.</div>
+  <h3>Staying alive</h3>
+  <ul>
+    <li>Keep <b>food above demand</b> year-round — winters cut yields hard, so over-build food before the cold (see Seasons).</li>
+    <li>Raise <b>Wells</b> and an <b>Apothecary</b> early; disease in a crowded, dirty town spreads fast.</li>
+    <li>Don't over-tax. Comfort, ale and faith buy you the goodwill to weather a bad year.</li>
+    <li>Build <b>walls and a garrison during the King's Peace.</b> When it ends, rivals will test you.</li>
+  </ul>
+</section>
+
+<!-- ════════ TIME & SEASONS ════════ -->
+<section id="time">
+  <h2>🌙 Time &amp; Seasons</h2>
+  <p>A single clock drives the whole world — it never pauses just because you look away, and your realm keeps progressing even while you tour the world map. Choose your speed from pause up to fastest.</p>
+  <div class="grid2">
+    <figure style="margin:0">
+      <img src="manual/img/city_winter_night.png" alt="The village at night">
+      <figcaption>Night falls — windows glow warm across the village while a neighbouring house offers a marriage alliance.</figcaption>
+    </figure>
+    <div>
+      <h3>Day &amp; night</h3>
+      <p>A full day↔night cycle plays out continuously: light drifts from noon to deep midnight and back. It's atmospheric — and night is when wolves and raiders are boldest.</p>
+      <h3>The four seasons</h3>
+      <p>The calendar turns through <b>Spring, Summer, Autumn and Winter</b>. Harvests are <b>gated by season</b> — many crops only yield in their window — and winter is a lean, hungry stretch. A realm that doesn't stockpile food for the cold will starve no matter how rich it looked in summer.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ════════ WAR ════════ -->
+<section id="war">
+  <h2>⚔ War &amp; Defence</h2>
+  <p>Peace never lasts. Bandit kings and rival baronies will raid, demand tribute, and ultimately lay siege to your seat.</p>
+  <figure>
+    <img src="manual/img/city_combat.png" alt="Troops gathered around the hall">
+    <figcaption>A trained host musters at the hall — real units with their own bodies, weapons and animations.</figcaption>
+  </figure>
+  <h3>Raising a host</h3>
+  <ul>
+    <li>Build the <b>arms chain</b> (Blacksmith / Fletcher / Tannery) and an <b>Armory</b> to stock weapons, then a <b>Barracks</b> to turn peasants into soldiers for gold and arms.</li>
+    <li>Units fight on their own initiative — they auto-engage, patrol, kite and form up — and archers gain range from towers.</li>
+    <li>Walls aren't decoration: troops <b>stand and fight from atop stone walls</b>, and gatehouses bottleneck attackers.</li>
+  </ul>
+  <div class="callout"><b>Sieges are survivable but unforgiving.</b> A prepared seat — stone walls, a garrison, towers, and keep repairs — can outlast even a two-faction siege. An undefended hall will be ground down and razed. The herald will warn you when a siege approaches.</div>
+</section>
+
+<!-- ════════ WORLD MAP ════════ -->
+<section id="world">
+  <h2>🗺 The World Map &amp; the Throne</h2>
+  <p>Step up from your single town to the <b>strategic layer</b>: a living continent of biomes, roads, free villages and AI great houses that grow, build, raise armies, campaign and scheme in their own right.</p>
+  <figure>
+    <img src="manual/img/world_map.png" alt="The strategic world map">
+    <figcaption>The realm at large — your holding is crowned in gold; rival houses hold the coloured territories. Castles mark cities; banners mark armies.</figcaption>
+  </figure>
+  <h3>Ruling beyond your walls</h3>
+  <ul>
+    <li><b>Develop</b> your holdings, <b>Raise Army</b>, <b>March</b> on neighbours, and conduct <b>Diplomacy</b> — the same powers your AI rivals wield.</li>
+    <li>Marching sends your <b>real trained host</b> from the city, not an abstract gold levy.</li>
+    <li>You can spectate any city in the world — and watch a besieged town fight out its battle live.</li>
+  </ul>
+  <h3>Climbing to King — the win condition</h3>
+  <p>Your <b>title</b> is derived from the size and development of your domain (plus prestige). Grow your realm and your standing rises through the ranks. Reach the top title — <b>King</b> — and you win.</p>
+  <div class="ladder">
+    <span class="rank"><b>Reeve</b></span><span class="arrow">→</span>
+    <span class="rank"><b>Bailiff</b></span><span class="arrow">→</span>
+    <span class="rank"><b>Knight</b></span><span class="arrow">→</span>
+    <span class="rank"><b>Baron</b></span><span class="arrow">→</span>
+    <span class="rank"><b>Earl</b></span><span class="arrow">→</span>
+    <span class="rank"><b>Duke</b></span><span class="arrow">→</span>
+    <span class="rank king"><b>♛ King</b></span>
+  </div>
+  <p class="muted">Each village you hold contributes its development to your standing score; investing in your realm (prestige) advances your title even without conquest.</p>
+</section>
+
+<!-- ════════ THE HERALD / SOUNDBOARD ════════ -->
+<section id="events">
+  <h2>📜 The Herald — Voices of the Realm</h2>
+  <p>Your reign is narrated by a grim herald. Nearly a hundred moments — events, decrees, milestones, sieges and capstones — are voiced. <b>These are the game's actual recordings; press play.</b></p>
+
+  <h3>Realm events &amp; decisions</h3>
+  <p class="muted">Each day may bring a card to weigh: a merchant, a feast, a threat at the gate. Some you decide; some simply happen.</p>
+  <div class="board">
+    <div class="clip"><div class="ttl">⚖ A Wandering Merchant</div><div class="desc">A trader offers goods at the gate.</div><audio controls preload="none" src="audio/narration/event_wandering_merchant.wav"></audio></div>
+    <div class="clip"><div class="ttl">🌾 Harvest Home</div><div class="desc">The fields come in; the village feasts.</div><audio controls preload="none" src="audio/narration/event_harvest_home.wav"></audio></div>
+    <div class="clip"><div class="ttl">🐺 Wolves in the Night</div><div class="desc">The pack comes down from the hills.</div><audio controls preload="none" src="audio/narration/event_wolves_in_the_night.wav"></audio></div>
+    <div class="clip"><div class="ttl">🚪 Refugees at the Gate</div><div class="desc">Desperate folk beg shelter within your walls.</div><audio controls preload="none" src="audio/narration/event_refugees_at_gate.wav"></audio></div>
+    <div class="clip"><div class="ttl">💍 A Marriage Alliance</div><div class="desc">A neighbouring house offers a binding match.</div><audio controls preload="none" src="audio/narration/event_marriage_alliance.wav"></audio></div>
+    <div class="clip"><div class="ttl">🏇 A Grand Tourney</div><div class="desc">Knights gather to joust for honour and gold.</div><audio controls preload="none" src="audio/narration/event_grand_tourney.wav"></audio></div>
+    <div class="clip"><div class="ttl">💰 Bandits Demand a Toll</div><div class="desc">Pay them off — or refuse and risk their wrath.</div><audio controls preload="none" src="audio/narration/event_bandit_toll.wav"></audio></div>
+    <div class="clip"><div class="ttl">⛪ A Wedding Feast</div><div class="desc">Bells ring; spirits — and popularity — lift.</div><audio controls preload="none" src="audio/narration/event_wedding_feast.wav"></audio></div>
+    <div class="clip"><div class="ttl">❄ The First Snow</div><div class="desc">Winter's edge arrives; brace the stores.</div><audio controls preload="none" src="audio/narration/event_first_snow.wav"></audio></div>
+  </div>
+
+  <h3>Milestones of your reign</h3>
+  <p class="muted">The herald marks each step of your growth.</p>
+  <div class="board">
+    <div class="clip"><div class="ttl">🌱 Your First Farm</div><div class="desc">The first field is sown.</div><audio controls preload="none" src="audio/narration/milestone_first_farm.wav"></audio></div>
+    <div class="clip"><div class="ttl">🏘 A Town of Ten</div><div class="desc">Ten souls now call your village home.</div><audio controls preload="none" src="audio/narration/milestone_town_of_ten.wav"></audio></div>
+    <div class="clip"><div class="ttl">🛡 A Standing Army</div><div class="desc">You command a trained host at last.</div><audio controls preload="none" src="audio/narration/milestone_standing_army.wav"></audio></div>
+    <div class="clip"><div class="ttl">📅 Fifty Days of Reign</div><div class="desc">Half a hundred days under your rule.</div><audio controls preload="none" src="audio/narration/milestone_reign_day_50.wav"></audio></div>
+  </div>
+
+  <h3>Decrees, war &amp; destiny</h3>
+  <p class="muted">The great turning points of a reign — and its possible ends.</p>
+  <div class="board">
+    <div class="clip"><div class="ttl">📜 An Edict Proclaimed</div><div class="desc">A new royal decree takes effect.</div><audio controls preload="none" src="audio/narration/edict_proclaimed.wav"></audio></div>
+    <div class="clip"><div class="ttl">⚔ A Siege Approaches</div><div class="desc">An enemy host marches on your seat.</div><audio controls preload="none" src="audio/narration/siege_incoming.wav"></audio></div>
+    <div class="clip"><div class="ttl">🛡 The Siege is Held</div><div class="desc">Your walls turn the assault aside.</div><audio controls preload="none" src="audio/narration/siege_held.wav"></audio></div>
+    <div class="clip"><div class="ttl">💥 The Wall is Breached</div><div class="desc">The enemy breaks through.</div><audio controls preload="none" src="audio/narration/siege_breached.wav"></audio></div>
+    <div class="clip"><div class="ttl">👑 A Sovereign's Reign (Victory)</div><div class="desc">The realm hails you — you have won.</div><audio controls preload="none" src="audio/narration/victory.wav"></audio></div>
+    <div class="clip"><div class="ttl">🕯 The Realm Has Fallen</div><div class="desc">Your seat is lost; the reign ends.</div><audio controls preload="none" src="audio/narration/realm_fallen.wav"></audio></div>
+    <div class="clip"><div class="ttl">🎓 Welcome, my Lord (Tutorial)</div><div class="desc">The herald's first words of counsel.</div><audio controls preload="none" src="audio/narration/tut_welcome.wav"></audio></div>
+  </div>
+  <p class="muted" style="margin-top:.8rem">…and dozens more — bountiful foraging, a master craftsman, a saint's relic, deep frost, a baron's loan, smugglers' caches, an envoy's gift, the grand tourney and beyond — all waiting in your reign.</p>
+</section>
+
+<!-- ════════ MUSIC ════════ -->
+<section id="music">
+  <h2>🎵 The Score</h2>
+  <p>An understated, slightly distant score underpins the realm — deliberately "old and far-off," it sits low beneath the herald and ducks out of the way whenever he speaks. These are the game's actual tracks.</p>
+  <div class="music-row">
+    <div class="clip"><div class="ttl">♪ Bronze Rainfall</div><div class="desc">From the in-game music bed.</div><audio controls preload="none" src="audio/Music/Bronze Rainfall.mp3"></audio></div>
+    <div class="clip"><div class="ttl">♪ The Quiet Room</div><div class="desc">From the in-game music bed.</div><audio controls preload="none" src="audio/Music/The Quiet Room.mp3"></audio></div>
+  </div>
+  <p class="muted" style="margin-top:.6rem">In-game these play through a dedicated music bus with a high-pass/low-pass and light lo-fi treatment, and you can set their volume (down to off) in the pause menu's audio mixer.</p>
+</section>
+
+</main>
+
+<footer>
+  <p>⚜ <b>Sovereign's Reach</b> — The Lord's Manual</p>
+  <p>All artwork rendered from the running game; all voices and music are the game's own audio files.</p>
+  <p style="margin-top:.5rem">Built in Godot 4.6.3 · For the full systems reference, see <a href="systems_bibliography.html" style="color:var(--accent)">systems_bibliography.html</a>.</p>
+</footer>
+
+</body>
+</html>

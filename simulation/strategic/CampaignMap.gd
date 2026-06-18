@@ -48,9 +48,11 @@ static func ensure_initialized(world: Dictionary, players: Array = []) -> bool:
 		c["owner_faction_id"] = c.get("faction_id", INDEPENDENT_FACTION_ID)
 		var tier: int = c.get("tier", 0)
 		c["development"] = clampi(tier, 0, MAX_DEVELOPMENT)
-		# Garrison seeded from the generator's troop_count, with a floor so even
-		# sleepy hamlets can be defended/contested.
-		c["garrison"] = maxi(c.get("troop_count", 0), 4 + tier * 2)
+		# NO free startup military — every realm (AI and player alike) begins with an
+		# EMPTY garrison (the generator's random troop_count is ignored at start) and must
+		# raise its troops over time (KingdomEconomy regens a settled holding's militia
+		# toward its cap day by day). Build from scratch.
+		c["garrison"] = 0
 		c["unrest"] = 0.0
 		if c.get("is_player_start", false):
 			start_city_id = c.get("id", -1)
@@ -62,7 +64,7 @@ static func ensure_initialized(world: Dictionary, players: Array = []) -> bool:
 		if not sc.is_empty():
 			sc["owner_faction_id"] = PLAYER_FACTION_ID
 			sc["development"] = 0
-			sc["garrison"] = maxi(sc.get("garrison", 0), 6)
+			sc["garrison"] = 0   # the player starts from scratch too — no free troops
 
 	# Build a Kingdom per great house, plus a dedicated PLAYER kingdom.
 	var kingdoms: Array = []

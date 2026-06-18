@@ -21,8 +21,8 @@ const DEFINITIONS: Dictionary = {
 	"town_of_ten":      "Ten buildings raised — your village has grown into a town.",
 	"treasury_300":     "Your treasury holds 300 gold — your rule rests on firm coin.",
 	"standing_army":    "Five men now bear arms for you — a standing guard is mustered.",
-	"reign_day_50":     "Fifty days you have ruled — the realm holds steady.",
-	"reign_day_75":     "Seventy-five days you have ruled — the enemy's pressure eases, and the realm still stands.",
+	"reign_day_50":     "Six days you have ruled — the realm holds steady.",
+	"reign_day_75":     "Nine days you have ruled — the enemy's pressure eases, and the realm still stands.",
 }
 
 # A standing army of this many living soldiers earns the standing_army milestone — a
@@ -93,13 +93,14 @@ static func check(player: Dictionary, _world: Dictionary, milestones: Dictionary
 			milestones["standing_army"] = true
 			earned.append("standing_army")
 
+	# Reign milestones are in CALENDAR (sun-aligned) days now — the great milestone is day 12.
 	if not milestones.has("reign_day_50"):
-		if day >= 50:
+		if day >= 6:
 			milestones["reign_day_50"] = true
 			earned.append("reign_day_50")
 
 	if not milestones.has("reign_day_75"):
-		if day >= 75:
+		if day >= 9:
 			milestones["reign_day_75"] = true
 			earned.append("reign_day_75")
 

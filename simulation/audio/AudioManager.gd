@@ -11,7 +11,9 @@ enum SoundEvent {
 	POPULARITY_CRITICAL,
 	PRESTIGE_GAINED,
 	EDICT_ACTIVATED,
-	UI_CLICK         # appended last — keep existing values stable
+	UI_CLICK,         # keep existing values stable
+	WOOD_CHOP,        # axe biting a tree
+	HAMMER_HIT        # appended last — builder's hammer on timber
 }
 
 const SfxGen = preload("res://simulation/audio/SfxGen.gd")
@@ -22,9 +24,9 @@ const _GAIN_DB: Dictionary = {
 	"UNIT_HIT": -10.0, "UNIT_DEATH": -7.0, "UNIT_KILLED": -7.0,
 	"BUILDING_PLACED": -5.0, "BUILDING_DEMOLISHED": -6.0, "WEATHER_CHANGED": -9.0,
 	"SIEGE_INCOMING": -3.0, "POPULARITY_CRITICAL": -4.0, "PRESTIGE_GAINED": -6.0,
-	"EDICT_ACTIVATED": -5.0, "UI_CLICK": -16.0,
+	"EDICT_ACTIVATED": -5.0, "UI_CLICK": -16.0, "WOOD_CHOP": -9.0, "HAMMER_HIT": -10.0,
 }
-const _MIN_GAP: Dictionary = {"UNIT_HIT": 0.12, "UNIT_DEATH": 0.10, "UNIT_KILLED": 0.10, "UI_CLICK": 0.04}
+const _MIN_GAP: Dictionary = {"UNIT_HIT": 0.12, "UNIT_DEATH": 0.10, "UNIT_KILLED": 0.10, "UI_CLICK": 0.04, "WOOD_CHOP": 0.14}
 var _last_play: Dictionary = {}
 
 func play(event: SoundEvent) -> void:

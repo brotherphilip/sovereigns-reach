@@ -333,7 +333,11 @@ static func _assign_factions(cities: Array, rng: RandomNumberGenerator) -> Array
 		var cap: int = capital_indices[fi]
 		cities[cap]["is_capital"] = true
 		cities[cap]["faction_id"] = fi
-		cities[cap]["tier"]       = 3
+		# Great houses now start FROM SCRATCH, like the player — an undeveloped seat they
+		# must build up over time (KingdomAI invests turn by turn). They keep only the
+		# head-start of holding a cluster of villages, not prebuilt development.
+		cities[cap]["tier"]        = 0
+		cities[cap]["development"] = 0
 		# Claim the nearest still-independent villages for this house.
 		var order: Array = []
 		for i in range(n):
@@ -348,7 +352,8 @@ static func _assign_factions(cities: Array, rng: RandomNumberGenerator) -> Array
 			var idx: int = entry["i"]
 			if cities[idx]["faction_id"] != INDEPENDENT_FACTION_ID: continue
 			cities[idx]["faction_id"] = fi
-			cities[idx]["tier"]       = clampi(int(cities[idx].get("tier", 1)), 1, 2)
+			cities[idx]["tier"]        = 0   # claimed villages also start undeveloped
+			cities[idx]["development"] = 0
 			claimed += 1
 
 	# Independent villages start small.

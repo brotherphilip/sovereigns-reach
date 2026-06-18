@@ -12,9 +12,9 @@ const OBJECTIVES: Array = [
 	{"id": "found_hall",     "text": "Found your seat — build a Village Hall."},
 	{"id": "feed_people",    "text": "Feed your people — build an Orchard and a Granary."},
 	{"id": "grow_village",   "text": "Grow your village to 20 souls — build Hovels to house new families."},
-	{"id": "survive_winter", "text": "Endure to Day 48 — stock winter food (orchards reap in autumn; bake bread to keep)."},
+	{"id": "survive_winter", "text": "Endure to Day 6 — stock winter food (orchards reap in autumn; bake bread to keep)."},
 	{"id": "ready_for_war",  "text": "Ready your defences — build a Barracks, Wall or Tower."},
-	{"id": "rule_to_100",    "text": "Endure — rule your realm to Day 100 (20 minutes)."},
+	{"id": "rule_to_100",    "text": "Endure — rule your realm to Day 12, a sovereign's reign."},
 ]
 
 # Which build-menu category the player needs for each objective — so the HUD can auto-open
@@ -65,11 +65,11 @@ static func is_complete(id: String, player: Dictionary, _world: Dictionary, day:
 		"grow_village":
 			return int(player.get("population", 0)) >= 20
 		"survive_winter":
-			return day >= 48
+			return day >= 6
 		"ready_for_war":
 			return _has_built_category(player, [BuildingRegistry.Category.MILITARY, BuildingRegistry.Category.DEFENSE])
 		"rule_to_100":
-			return day >= 100
+			return day >= 12
 	return false
 
 # Evaluate progress for the day. Mutates world["objectives_done"] (id->true). Returns

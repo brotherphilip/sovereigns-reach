@@ -55,8 +55,8 @@ const ARRIVE_DIST: float = 0.7      # close enough to a standing spot to work
 const STUCK_TIMEOUT: int = 480
 const STUCK_EPS: float = 0.5
 const WANDER_RADIUS: float = 4.0
-const BUILD_RATE: float = 1.0       # build-progress added per builder per tick
-const CONSTRUCTION_BATCH: int = 12  # material units a builder carries to a site per trip
+const BUILD_RATE: float = 0.33      # build-progress added per builder per tick (3× slower — raising a real structure takes time)
+const CONSTRUCTION_BATCH: int = 4   # material units a builder carries per trip (smaller load ⇒ ~3× more trips to the stockpile)
 const MAX_CITIZENS: int = 40
 const SEP_RADIUS: float = 0.85      # personal space — pawns push apart within this
 const LAND_MOVE: int = 0b00000001   # is_passable move-type bit (foot/land)
@@ -92,6 +92,10 @@ static func make_citizen(id: int, hx: float, hy: float, rng: RandomNumberGenerat
 		"vx": 0.0, "vy": 0.0, "hx": hx, "hy": hy,
 		"state": STATE_IDLE, "state_ticks": rng.randi_range(IDLE_TICKS.x, IDLE_TICKS.y),
 		"tx": hx, "ty": hy, "facing": 1.0, "anim": 0.0, "is_alive": true,
+		# Action target (tile coords) of the thing the pawn is acting ON while doing a
+		# stationary job — the tree it fells, the building it raises, the anvil it works.
+		# The view orients the swing toward this point and lands impact FX on it.
+		"act_x": hx, "act_y": hy,
 		# ── Person profile ──
 		"sex": sex,
 		"born_day": born_day,
@@ -259,6 +263,26 @@ static func _reconcile_workers(citizens: Array, buildings: Array, rng: RandomNum
 			slot += 1
 			need -= 1
 
+# Convert the builder who just finished `b` into that building's worker, on the spot —
+# it becomes the building's 'person' and starts the job immediately (chain workers begin
+# their gather→process→deliver loop; service workers stand and toil).
+static func _become_worker(c: Dictionary, b: Dictionary, rng: RandomNumberGenerator) -> void:
+	var style: Dictionary = WorkerJobs.for_building(b.get("type", ""))
+	c["role"] = "worker"
+	c["job"] = int(b.get("id", -1))
+	c["job_type"] = style.get("job", "Laborer")
+	c["work_anim"] = style.get("anim", "carry")
+	c["work_slot"] = 0
+	c["carry"] = ""
+	c["bmat"] = 0
+	c["stuck_ticks"] = 0
+	c.erase("best_dist")
+	c["state"] = STATE_WORK
+	c["state_ticks"] = rng.randi_range(WORK_TICKS.x, WORK_TICKS.y)
+	if ResourceTick.is_chain(b.get("type", "")):
+		c["work_phase"] = PH_SEEK
+		c["src_set"] = false
+
 static func _release_worker(c: Dictionary, grid: Object = null) -> void:
 	c["role"] = "peasant"
 	c["job"] = -1
@@ -340,6 +364,13 @@ static func _tick_hauler(c: Dictionary, wb: Dictionary, buildings: Array, citize
 		PH_GATHER:
 			c["vx"] = 0.0; c["vy"] = 0.0
 			c["work_anim"] = job_anim
+			# Act on (and face) the actual node tile being harvested — the tree/rock/ore —
+			# or the crop at the worker's own feet for field jobs.
+			if int(c.get("node_x", -1)) >= 0:
+				c["act_x"] = float(c["node_x"]); c["act_y"] = float(c["node_y"])
+				c["facing"] = 1.0 if float(c["node_x"]) >= c["x"] else -1.0
+			else:
+				c["act_x"] = c["x"]; c["act_y"] = c["y"]
 			c["phase_ticks"] = int(c.get("phase_ticks", 0)) - 1
 			if int(c["phase_ticks"]) <= 0:
 				if int(c.get("node_x", -1)) >= 0 and grid != null:
@@ -349,6 +380,21 @@ static func _tick_hauler(c: Dictionary, wb: Dictionary, buildings: Array, citize
 					if dens <= 0:
 						grid.set_terrain(nx, ny, WorldGrid.Terrain.GRASS)
 						changed.append(Vector2i(nx, ny))
+					# NODE harvest (woodcutter/quarry/mine): nothing to "process" — carry the
+					# felled goods STRAIGHT to a stockpile, no detour back to the camp, so the
+					# worker is plainly seen hauling its wood/stone/ore to the store.
+					var outs := ResourceTick.per_worker_output(wb, player, season, farm_mult)
+					if outs.is_empty():
+						c["carry"] = ""
+						c["work_phase"] = PH_SEEK; c["src_set"] = false
+						return
+					c["carry"] = String(outs.keys()[0])
+					var nstore := _pick_store(buildings, String(c["carry"]), Vector2(c["x"], c["y"]))
+					var nspot: Vector2 = _work_spot(nstore, int(c.get("work_slot", 0)), rng, grid) if not nstore.is_empty() else _work_spot(wb, 0, rng, grid)
+					c["tx"] = nspot.x; c["ty"] = nspot.y; c["ptx"] = -99999
+					c["work_phase"] = PH_HAUL_OUT
+					c["haul_ticks"] = 0
+					return
 				elif _chain_source(btype) == "fetch":
 					if not _consume_inputs(wb, player):
 						c["work_phase"] = PH_WAIT; c["phase_ticks"] = WAIT_TICKS
@@ -368,6 +414,10 @@ static func _tick_hauler(c: Dictionary, wb: Dictionary, buildings: Array, citize
 		PH_PROCESS:
 			c["vx"] = 0.0; c["vy"] = 0.0
 			c["work_anim"] = job_anim
+			# Work AT the building: act on (and face) its centre.
+			var pc := _site_center(wb)
+			c["act_x"] = pc.x; c["act_y"] = pc.y
+			c["facing"] = 1.0 if pc.x >= c["x"] else -1.0
 			c["phase_ticks"] = int(c.get("phase_ticks", 0)) - 1
 			if int(c["phase_ticks"]) <= 0:
 				var outputs := ResourceTick.per_worker_output(wb, player, season, farm_mult)
@@ -377,7 +427,7 @@ static func _tick_hauler(c: Dictionary, wb: Dictionary, buildings: Array, citize
 					return
 				var primary: String = String(outputs.keys()[0])
 				c["carry"] = primary
-				var store := _nearest_building_of(buildings, _store_types(StorageSystem.store_for(primary)), Vector2(c["x"], c["y"]))
+				var store := _pick_store(buildings, primary, Vector2(c["x"], c["y"]))
 				var t: Vector2 = _work_spot(store, int(c.get("work_slot", 0)), rng, grid) if not store.is_empty() else _work_spot(wb, 0, rng, grid)
 				c["tx"] = t.x; c["ty"] = t.y; c["ptx"] = -99999
 				c["work_phase"] = PH_HAUL_OUT
@@ -468,6 +518,21 @@ static func _store_types(kind: String) -> Array:
 		"granary": return ["granary", "village_hall", "keep"]
 		"armory":  return ["armory", "village_hall", "keep"]
 	return ["stockpile", "village_hall", "keep"]
+
+# Choose where to drop a delivered good, PREFERRING its dedicated store (an actual
+# stockpile / granary / armory) over the hall/keep — so wood, stone and ore are visibly
+# carried to the stockpile, not just dumped at the nearest seat. Falls back to the
+# hall/keep only when no dedicated store is reachable.
+static func _pick_store(buildings: Array, good: String, from: Vector2) -> Dictionary:
+	var dedicated: Array
+	match StorageSystem.store_for(good):
+		"granary": dedicated = ["granary"]
+		"armory":  dedicated = ["armory"]
+		_:         dedicated = ["stockpile"]
+	var s := _nearest_building_of(buildings, dedicated, from)
+	if not s.is_empty():
+		return s
+	return _nearest_building_of(buildings, ["village_hall", "keep"], from)
 
 static func _has_inputs(wb: Dictionary, player: Dictionary) -> bool:
 	var inputs: Dictionary = ResourceTick.PRODUCTION_INPUTS.get(wb.get("type", ""), {})
@@ -562,9 +627,10 @@ static func _tick_citizen(c: Dictionary, buildings: Array, citizens: Array,
 				if not _assign_next_site(c, buildings, grid):
 					_go_home(c, rng, grid)
 			else:
-				# Face inward toward the structure while hammering.
+				# Face inward toward the structure while hammering, and aim the hammer at it.
 				var ctr := _site_center(b)
 				c["facing"] = 1.0 if ctr.x >= c["x"] else -1.0
+				c["act_x"] = ctr.x; c["act_y"] = ctr.y
 				# Build progress can't outrun DELIVERED materials: the cap is the delivered
 				# share of the labour. When the on-site supply runs out, the builder leaves
 				# to fetch another load from a depot, then returns to keep building.
@@ -577,20 +643,27 @@ static func _tick_citizen(c: Dictionary, buildings: Array, citizens: Array,
 					b["build_progress"] = float(b.get("build_progress", 0.0)) + BUILD_RATE
 					if b["build_progress"] >= float(b.get("build_required", 1.0)) and mdone >= mtotal:
 						b["built"] = true
-						# Auto-staff a freshly finished workplace to full strength so it
-						# actually produces (new buildings default to 0 workers, and both
-						# production and _reconcile_workers gate on workers>0).
+						# Auto-staff a freshly finished workplace (new buildings default to 0
+						# workers; both production and _reconcile_workers gate on workers>0).
 						if int(b.get("workers", 0)) == 0 and WorkerJobs.employs_workers(b.get("type", "")):
 							b["workers"] = int(BuildingRegistry.lookup(b.get("type", "")).get("max_workers", 0))
+						# The builder who finished it STAYS ON as the building's worker (its
+						# 'person'), rather than wandering off — unless the player later sets
+						# workers to 0. Remaining slots fill from idle villagers via reconcile.
+						if WorkerJobs.employs_workers(b.get("type", "")) and int(b.get("workers", 0)) > 0:
+							_become_worker(c, b, rng)
+							return
 				elif mdone < mtotal:
 					# Out of on-site materials — fetch a load from the nearest depot.
 					var depot := _nearest_depot(buildings, c)
 					if depot.is_empty():
 						b["build_mat_delivered"] = mtotal   # no depot: assume on-hand, never stall
 					else:
-						var dctr := _site_center(depot)
-						c["tx"] = dctr.x
-						c["ty"] = dctr.y
+						# Walk to a REACHABLE tile beside the depot, never its (impassable)
+						# centre — otherwise the builder can't "arrive" and freezes at the wall.
+						var dspot := _reachable_spot(depot, int(c.get("build_slot", 0)), c, grid, false, rng)
+						c["tx"] = dspot.x
+						c["ty"] = dspot.y
 						c["state"] = STATE_FETCH
 						c["stuck_ticks"] = 0
 						c.erase("best_dist")
@@ -648,6 +721,7 @@ static func _tick_citizen(c: Dictionary, buildings: Array, citizens: Array,
 				# animates the job. Periodically shuffle so workers don't stand frozen.
 				var ctr := _site_center(wb)
 				c["facing"] = 1.0 if ctr.x >= c["x"] else -1.0
+				c["act_x"] = ctr.x; c["act_y"] = ctr.y
 				c["state_ticks"] = int(c.get("state_ticks", 0)) - 1
 				if c["state_ticks"] <= 0:
 					var spot := _work_spot(wb, int(c.get("work_slot", 0)) + rng.randi_range(0, 5), rng, grid)

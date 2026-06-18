@@ -38,6 +38,7 @@ var _damage_popups: Array = []
 var _hit_flash: Dictionary = {}
 var _prev_alive: Dictionary = {}
 var _death_anims: Array = []
+var _anim_time: float = 0.0   # real time scaled by game speed (drives limb animation)
 const _POPUP_LIFE_MS: int = 1400
 const _FLASH_LIFE_MS: int = 220
 const _DEATH_ANIM_MS: int = 700
@@ -46,6 +47,9 @@ func _ready() -> void:
 	EventBus.simulation_tick.connect(_on_tick)
 
 func _process(delta: float) -> void:
+	# Animation clock scaled by game speed, so troops' gait/attacks speed up at 2×/5×
+	# (and freeze when paused) to match their faster movement instead of moonwalking.
+	_anim_time += delta * float(SimulationClock.SPEED_MULTIPLIERS.get(SimulationClock.game_speed, 1.0))
 	# Units are continuously animated (limbs swing, archers draw, siege arms wind),
 	# so redraw every frame whenever any are present.
 	if not _player_units.is_empty() or not _ai_units.is_empty() \
@@ -226,8 +230,7 @@ func _draw_unit(unit: Dictionary, is_enemy: bool) -> void:
 		draw_arc(Vector2(cx, cy + 1.0), ring_r, 0, TAU, 18, Color(1.0, 1.0, 0.4, pulse + 0.2), 1.2)
 
 	# Detailed, animated per-type body (feet at the tile centre).
-	var now_s: float = Time.get_ticks_msec() * 0.001
-	UnitArt.draw_unit(self, Vector2(cx, cy), unit, team, now_s, flash)
+	UnitArt.draw_unit(self, Vector2(cx, cy), unit, team, _anim_time, flash)
 
 	# HP bar floating above the (now taller) figure.
 	var hp: int     = unit.get("hp", 1)
