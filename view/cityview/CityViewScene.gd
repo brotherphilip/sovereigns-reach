@@ -76,21 +76,41 @@ func _resolve_city() -> void:
 # ── Simulation init ───────────────────────────────────────────────────────────
 
 func _init_simulation() -> void:
+	var sel: int = GameState.world.get("selected_city_id", -1)
+	var seat: int = GameState.world.get("player_seat_city_id", -1)
+	var has_wm: bool = GameState.world.has("world_map")
+	var spectating: bool = sel >= 0 and seat >= 0 and sel != seat and has_wm
+
+	# ── Spectating a rival city: it OVERWRITES players[0] with a showcase, so first save our
+	# live seat (it keeps catching up later). The seat is "displaced" until we return to it. ──
+	if spectating:
+		GameState.stash_seat_snapshot()
+		GameState.spectator_mode = false
+		_spectator = true
+		GameState.setup_world(_map_seed, DEFAULT_SHIRE_COUNT)
+		_snap_keep_to_buildable()
+		GameState.initialize_player(0, PLAYER_NAME, _keep_x, _keep_y)
+		GameState.enter_spectator_city(sel, _keep_x, _keep_y, _map_seed)
+		GameState.world["seat_displaced"] = true
+		return
+
+	# ── Our own seat. ──
 	GameState.spectator_mode = false
+	_spectator = false
 
-	# Returning to your OWN, already-built seat: restore exactly what you left instead of
-	# rebuilding a fresh village. (Bug: every entry re-ran setup_world/initialize_player and
-	# wiped the city — going to the world map and back reset everything.)
-	var sel0: int = GameState.world.get("selected_city_id", -1)
-	var seat0: int = GameState.world.get("player_seat_city_id", -1)
-	if sel0 >= 0 and sel0 == seat0 and GameState.has_seat_snapshot_for(sel0):
-		if GameState.restore_seat_snapshot():
-			_spectator = false
-			var rp: Dictionary = GameState.players[0]
-			_keep_x = int(rp.get("keep_x", _keep_x))
-			_keep_y = int(rp.get("keep_y", _keep_y))
-			return
+	# Returning to an established seat. The single autoload clock never pauses now, so while we
+	# were on the world map the seat kept ticking LIVE in the background — just keep it. The
+	# ONLY time it needs restoring is after a spectator detour displaced players[0].
+	if GameState.world.get("seat_established", false):
+		if GameState.world.get("seat_displaced", false):
+			GameState.restore_seat_snapshot()
+			GameState.world["seat_displaced"] = false
+		var rp: Dictionary = GameState.players[0]
+		_keep_x = int(rp.get("keep_x", _keep_x))
+		_keep_y = int(rp.get("keep_y", _keep_y))
+		return
 
+	# ── First entry: build the seat from scratch. ──
 	GameState.setup_world(_map_seed, DEFAULT_SHIRE_COUNT)
 	# No cleared "starting zone": just spawn the player on nearby buildable land so
 	# their first Hall can be placed. No terrain is altered.
@@ -106,26 +126,16 @@ func _init_simulation() -> void:
 	p["resources"]["iron"]      = 0
 	p["food"]["apples"]         = 90    # a few days' buffer — set up food before it runs out
 	p["population"]             = 20
-
-	# Playable seat vs. spectator. The first city the player enters becomes their
-	# hand-built seat; entering any OTHER city shows a generated, growing town.
-	var selected: int = GameState.world.get("selected_city_id", -1)
-	var seat: int = GameState.world.get("player_seat_city_id", -1)
-	if seat < 0 and selected >= 0 and GameState.world.has("world_map"):
-		GameState.world["player_seat_city_id"] = selected
-		seat = selected
-	_spectator = selected >= 0 and selected != seat and GameState.world.has("world_map")
-
-	if _spectator:
-		# Showcase the selected city, sized to its strategic development.
-		GameState.enter_spectator_city(selected, _keep_x, _keep_y, _map_seed)
-	else:
-		# Your own seat: rival raiders may still threaten it.
-		GameState.add_ai_faction("bandit_king",   20,  20)
-		GameState.add_ai_faction("ashen_barony", 180, 180)
-		# Guarantee timber near the seat so the tutorial's gated step-1 Woodcutter's Camp
-		# (which needs forest terrain) is always buildable, whatever the seed rolled.
-		GameState.ensure_forest_near(_keep_x, _keep_y)
+	if seat < 0 and sel >= 0 and has_wm:
+		GameState.world["player_seat_city_id"] = sel
+	# Your own seat: rival raiders may still threaten it.
+	GameState.add_ai_faction("bandit_king",   20,  20)
+	GameState.add_ai_faction("ashen_barony", 180, 180)
+	# Guarantee timber near the seat so the tutorial's gated step-1 Woodcutter's Camp
+	# (which needs forest terrain) is always buildable, whatever the seed rolled.
+	GameState.ensure_forest_near(_keep_x, _keep_y)
+	GameState.world["seat_established"] = true
+	GameState.world["seat_displaced"] = false
 
 # Move the start position to the nearest buildable (grass/valley) tile so the
 # player's first Hall can be placed there — without clearing any terrain.
@@ -763,10 +773,15 @@ func _on_trade_sell(resource: String, amount: int) -> void:
 # ── Navigation ────────────────────────────────────────────────────────────────
 
 func _on_return_to_world_map() -> void:
-	SimulationClock.set_speed(SimulationClock.SPEED_PAUSED)
-	# Preserve your hand-built seat so re-entering it restores this exact city (no-op while
-	# spectating a rival town — that isn't your seat).
-	GameState.stash_seat_snapshot()
+	# If we were spectating a rival, restore our seat so it resumes ticking LIVE on the map
+	# (players[0] is the showcase while spectating; the real seat is in the snapshot).
+	if GameState.spectator_mode or GameState.world.get("seat_displaced", false):
+		GameState.restore_seat_snapshot()
+		GameState.world["seat_displaced"] = false
+	GameState.spectator_mode = false
+	# Do NOT pause: the single autoload clock keeps advancing the seat economy AND the
+	# strategic layer in the background, so the world never freezes while you're on the map.
+	SimulationClock.set_speed(SimulationClock.SPEED_NORMAL)
 	get_tree().change_scene_to_file("res://view/worldmap/WorldMapScene.tscn")
 
 # ── Combat / win-loss handlers ────────────────────────────────────────────────

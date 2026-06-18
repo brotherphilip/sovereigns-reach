@@ -12,7 +12,8 @@ var _loading_canvas: CanvasLayer = null
 # "Watch the campaign" live strategic ticker.
 var _watching: bool = false
 var _watch_accum: float = 0.0
-var _watch_speed: int = 1               # 1 = 1 day / WATCH_INTERVAL; 2,4 faster
+var _watch_speed: int = 1               # (legacy) retained for dev hooks
+var _last_seen_day: int = -1            # last strategic day the view synced to
 var _watch_btn: Button = null
 var _watch_speed_btn: Button = null
 var _day_label: Label = null
@@ -75,7 +76,10 @@ func _init_and_build() -> void:
 		_dev_autoclimb(int(OS.get_environment("SR_CLIMB")))
 
 	_build_scene()
-	SimulationClock.set_speed(SimulationClock.SPEED_PAUSED)
+	# Single shared clock: keep it RUNNING on the map so the seat economy + the strategic
+	# layer keep advancing in the background (no more freezing the world when you leave town).
+	if not SimulationClock.is_paused():
+		SimulationClock.set_speed(SimulationClock.SPEED_NORMAL)
 
 	# Dev/headless hook: jump straight into spectating a developed rival city.
 	# (Returns early — that flow changes scene itself.)
@@ -88,10 +92,12 @@ func _init_and_build() -> void:
 		_loading_canvas.queue_free()
 		_loading_canvas = null
 
-	# Dev/headless hook: auto-run the campaign watcher (used for screenshots).
+	_refresh_watch_btn()
+
+	# Dev/headless hook: fast-forward the shared clock (used for screenshots).
 	if OS.get_environment("SR_AUTOWATCH") != "":
-		_watch_speed = 4
-		_on_toggle_watch()
+		SimulationClock.set_speed(SimulationClock.SPEED_FASTEST)
+		_refresh_watch_btn()
 
 	# Dev hook: render for SR_SHOT_DELAY seconds, save a PNG to SR_SHOT, then quit.
 	if OS.get_environment("SR_SHOT") != "":
@@ -158,20 +164,16 @@ func _dev_jump_to_spectator() -> void:
 			break
 	get_tree().change_scene_to_file("res://view/cityview/CityViewScene.tscn")
 
-# Drive the strategic campaign simulation while "watching", and keep the view in
-# sync. The in-game clock stays paused on the map; we advance the strategic layer
-# directly so rivals visibly grow, march and conquer.
-func _process(delta: float) -> void:
-	if not _watching or _world_view == null:
+# The single autoload clock now drives time everywhere (its simulate_tick advances both the
+# strategic layer and the live seat). The map just keeps its view in sync with that clock —
+# refresh on each day boundary, and slide marching armies smoothly within a day.
+func _process(_delta: float) -> void:
+	if _world_view == null:
 		return
-	_watch_accum += delta * float(_watch_speed)
-	var advanced: bool = false
-	while _watch_accum >= WATCH_INTERVAL:
-		_watch_accum -= WATCH_INTERVAL
-		GameState.advance_strategic_day()
-		advanced = true
-	if advanced:
-		_world_view.set_current_day(GameState.strategic_day())  # fade battle markers
+	var day: int = GameState.strategic_day()
+	if day != _last_seen_day:
+		_last_seen_day = day
+		_world_view.set_current_day(day)  # fade battle markers
 		_world_view.refresh()
 		_refresh_develop_btn()
 		_refresh_raise_btn()
@@ -179,10 +181,10 @@ func _process(delta: float) -> void:
 		_refresh_realm_label()
 		_refresh_march_status()
 		if _day_label != null:
-			_day_label.text = "Campaign day %d" % GameState.strategic_day()
-	# Slide marching armies smoothly between cities every frame (sub-day march progress),
-	# so the campaign visibly moves across the map rather than jumping city-to-city.
-	_world_view.set_army_frac(clampf(_watch_accum / WATCH_INTERVAL, 0.0, 1.0))
+			_day_label.text = "Campaign day %d" % day
+	# Sub-day march progress from the live clock, so the campaign visibly creeps across the map.
+	var frac: float = float(SimulationClock.ticks_into_current_day()) / float(SimulationClock.TICKS_PER_GAME_DAY)
+	_world_view.set_army_frac(clampf(frac, 0.0, 1.0))
 
 func _build_scene() -> void:
 	var data: Dictionary = GameState.world["world_map"]
@@ -453,14 +455,31 @@ func _fade_to_scene(path: String) -> void:
 	tween.tween_callback(func(): get_tree().change_scene_to_file(path))
 
 func _on_toggle_watch() -> void:
-	_watching = not _watching
+	# Pause / resume the single shared simulation clock.
+	if SimulationClock.is_paused():
+		SimulationClock.set_speed(SimulationClock.SPEED_NORMAL)
+	else:
+		SimulationClock.set_speed(SimulationClock.SPEED_PAUSED)
+	_refresh_watch_btn()
+
+func _refresh_watch_btn() -> void:
 	if _watch_btn != null:
-		_watch_btn.text = "⏸ Pause Campaign" if _watching else "▶ Watch Campaign"
+		_watch_btn.text = "▶ Resume Time" if SimulationClock.is_paused() else "⏸ Pause Time"
+	if _watch_speed_btn != null:
+		_watch_speed_btn.text = {0: "1×", 1: "1×", 2: "2×", 3: "5×"}.get(SimulationClock.game_speed, "1×")
 
 func _on_cycle_watch_speed() -> void:
-	_watch_speed = 1 if _watch_speed >= 4 else _watch_speed * 2
+	# Cycle the shared clock NORMAL → FAST → FASTEST → NORMAL.
+	var s: int = SimulationClock.game_speed
+	if s == SimulationClock.SPEED_FAST:
+		s = SimulationClock.SPEED_FASTEST
+	elif s == SimulationClock.SPEED_FASTEST:
+		s = SimulationClock.SPEED_NORMAL
+	else:
+		s = SimulationClock.SPEED_FAST
+	SimulationClock.set_speed(s)
 	if _watch_speed_btn != null:
-		_watch_speed_btn.text = "%d×" % _watch_speed
+		_watch_speed_btn.text = {1: "1×", 2: "2×", 3: "5×"}.get(s, "1×")
 
 # The city the Develop button acts on: the right-click-selected city if it's one of
 # yours, otherwise your least-developed holding (the natural default investment).
