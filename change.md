@@ -90,6 +90,35 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 169 — 2026-06-18  (DEV-LOOP — autonomous resumed: +5 world events, content depth)
+
+### Plan
+Back to the open-ended loop (user chose "resume autonomous"). Pick a safe, additive, test-guarded improvement:
+new world events (WorldEventSystem is the content-extension point) for more replayability/engagement, no balance
+blast-radius.
+
+### Implement
+- Added 5 events to `WorldEventSystem.EVENTS` (modern administrative tone, matching the rewrite):
+  - `veteran_officer` (decision: commission −35g/+18 prestige/+3 pop, or decline)
+  - `smugglers_cache` (auto: +55 gold) · `well_fouled` (auto: −24 food) · `envoy_gift` (auto: +35g/+25 food)
+  - `guild_petition` (decision: fund −45g/+8 pop, or table −3 pop)
+  Mix of tones + 2 player decisions; effects in-band with existing events (apply() clamps to ≥0).
+
+### Playtest (REAL — headless)
+- **`tests/TestWorldEvents.gd` 46/0**: the pool's generic validators (unique ids, required fields, effects bounded
+  / never underflow, good+bad present, seasonal + min-day gating) all pass with the 5 additions — confirms they're
+  well-formed and integrated.
+
+### Active Backlog
+- **VO for new events (user TTS):** `event_veteran_officer / event_smugglers_cache / event_well_fouled /
+  event_guild_petition / event_envoy_gift` are silent until clips are dropped in audio/narration/ (NarrationPlayer
+  handles missing gracefully — see narration-voiceover rule).
+- **Design Iteration (deferred):** independents deplete late-game (secession/founding mechanic — real but риsky to
+  the verified climb; design call); spatial index ~15k+ units; coalition tuning; ambient soundscape.
+
+### Confidence: HIGH — TestWorldEvents 46/0 confirms the 5 new events are valid + integrated.
+Iterations since last command/compact: 2 (last compact iter167).
+
 ## Iteration 168 — 2026-06-18  (DEV-LOOP — visuals/sound #5 (LAST): textured grass terrain; live on :99)
 
 ### Plan
