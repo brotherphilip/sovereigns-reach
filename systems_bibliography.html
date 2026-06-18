@@ -85,7 +85,9 @@
   <p>Because only the calendar layer was rescaled (the economy still runs on the 240-tick day),
   difficulty per real-minute is unchanged — only the day NUMBER. Key beats:
   <b>"A Sovereign's Reign" milestone = Day 12</b>; reign beats Day 6/9; objectives Day 6/12;
-  the King's Peace (AI siege grace) ends ~Day 4; the defence warning ~Day 3.</p>
+  the King's Peace (AI siege + tribute grace) now lasts <b>10 sun cycles</b> (PLAYER_GRACE_DAYS 750
+  economic days ≈ calendar Day 50); the defence warning ~Day 3. Realm events are paced to one every
+  <b>3–5 sun cycles</b> (was ~one per cycle).</p>
   <h3>Day / night cycle (the sun)</h3>
   <ul>
     <li>A full day↔night spans <code>DAY_NIGHT_TICKS = 18000</code> ≈ <b>15 real minutes</b> at Normal
@@ -129,9 +131,13 @@
       1 life-year), independent of the seasonal calendar.</li>
     <li>Only working-age adults take jobs; <code>CitizenSystem</code> pulls idle villagers into job-workers
       (woodcutter/reaper/smith…) that walk to buildings and toil, and into <b>builders</b> for unfinished sites.</li>
-    <li><b>At night</b> the idle townsfolk walk to their <b>allotted house</b> (round-robin over hovels/hall)
-      and sleep; assigned <b>workers keep a night shift</b> so production isn't paused. (Opt-in <code>day_night</code>
-      flag; the real game enables it.)</li>
+    <li><b>At night</b> the town goes home to sleep: every villager walks to their <b>allotted house</b>
+      (round-robin over hovels/hall), to the door, and steps <b>INSIDE</b> (not drawn). Workers are released
+      home too, keeping only a <b>1-worker skeleton crew on essential FOOD buildings</b> so the larder still
+      trickles overnight; the day reconcile re-staffs everyone at dawn — so the streets visibly empty after
+      dark and refill by day. (Opt-in <code>day_night</code> flag; the real game enables it. Proven by
+      <code>tests/TestNight.gd</code> + <code>tools/ProbeHaulEconomy.gd</code>: midnight 8/12 asleep, 4 on the
+      night shift.)</li>
     <li><b>Construction is pure builder labour</b> (no materials needed); builders come only from idle
       villagers. AI towns reserve builders when works are pending; the player is warned if every villager is
       employed and works stall.</li>
@@ -176,8 +182,9 @@
       Recruit at a Barracks; units muster at the campfire and take orders.</li>
     <li>Tactical combat: 8-direction A* pathfinding, arrows as projectiles, siege engines, auto-aggro defense.
       <b>Friend-or-foe</b> shown via blue (yours) / red (enemy) discs under each unit.</li>
-    <li><b>King's Peace:</b> rival factions can't siege a freshly-arrived realm for its first
-      <code>PLAYER_GRACE_DAYS = 60</code> economic days (≈ calendar Day 4); a siege then assembles
+    <li><b>King's Peace:</b> a long calm establishment — rival factions can't siege OR send
+      tribute/ransom demands to a freshly-arrived realm for its first
+      <code>PLAYER_GRACE_DAYS = 750</code> economic days (= <b>10 sun cycles</b>); a siege then assembles
       (telegraphed) before it can fell the keep.</li>
     <li><b>No startup garrison (2026-06-18):</b> every realm — AI and player alike — begins with an
       EMPTY garrison (the generator's random troop_count is ignored at start) and must raise its
