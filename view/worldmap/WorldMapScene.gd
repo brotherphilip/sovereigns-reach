@@ -24,8 +24,10 @@ var _march_btn: Button = null
 var _diplo_btn: Button = null
 var _action_city_id: int = -1     # right-click-selected city for strategic orders
 var _diplo_faction_id: int = -1   # owner kingdom of a selected rival city (diplomacy target)
-var _campaign_army_id: int = -1   # >=0 = awaiting a march target (campaign targeting mode)
-const RAISE_BATCH: int = 10       # soldiers levied per Raise Army click
+var _campaign_army_id: int = -1   # >=0 = awaiting a march target (legacy gold-army targeting)
+var _march_arming: bool = false   # true = awaiting a target for the real-troop host march
+var _march_source_city: int = -1  # the owned city the marching host departs from
+const RAISE_BATCH: int = 10       # (legacy) soldiers levied per Raise Army click
 const WATCH_INTERVAL: float = 0.45      # real seconds per strategic day at speed 1
 
 func _ready() -> void:
@@ -314,7 +316,7 @@ func _build_scene() -> void:
 	# spell out the strategic orders for first-time players.
 	var legend := Label.new()
 	legend.name = "OrdersLegend"
-	legend.text = "⚜ Realm orders: right-click a city to select it, then ⚒ Develop · ⚔ Raise · ⚔ March · 🕊 Diplomacy"
+	legend.text = "⚜ Realm orders: right-click your seat, then ⚔ March your trained host onto an enemy village · ⚒ Develop · 🕊 Diplomacy"
 	legend.position = Vector2(8, vp.y - 176)
 	legend.size = Vector2(900, 20)
 	legend.add_theme_font_size_override("font_size", 12)
@@ -501,68 +503,55 @@ func _refresh_develop_btn() -> void:
 	_develop_btn.disabled = not GameState.can_player_develop_city(cid)
 
 func _on_raise_army() -> void:
-	if _action_city_id < 0 or not GameState.is_player_city(_action_city_id):
-		_set_info("Right-click one of your own cities to muster an army there.", Color(1.0, 0.6, 0.3))
-		return
-	var city_name: String = GameState.get_city(_action_city_id).get("name", "your city")
-	if GameState.player_raise_army(_action_city_id, RAISE_BATCH):
-		_set_info("⚔ %d soldiers muster at %s — a field army stands ready. Use March to send them." % [RAISE_BATCH, city_name], Color(0.6, 0.9, 0.5))
-		if _world_view != null:
-			_world_view.refresh()
-	else:
-		_set_info("Cannot raise troops at %s — the treasury is short." % city_name, Color(1.0, 0.6, 0.3))
-	_refresh_raise_btn()
-	_refresh_march_btn()
-	_refresh_realm_label()
+	# Armies are no longer gold-levied — your host IS the soldiers you train at the Barracks
+	# in the city view. This button just reports your standing host and points you there.
+	var host: int = GameState.player_field_strength()
+	_set_info("⚔ Your host: %d trained troops at your seat. Train more at the Barracks (city view), then March them from here." % host,
+		Color(0.85, 0.85, 0.6))
 
-# Raise Army acts only on a selected OWN city (you choose where to muster). Names the
-# target + cost; disabled until you right-click one of your cities and can afford it.
+# Reports the player's REAL standing host (trained at the Barracks) — armies are no longer
+# purchased with gold, so this is informational and always enabled as a reminder.
 func _refresh_raise_btn() -> void:
 	if _raise_btn == null:
 		return
-	if _action_city_id >= 0 and GameState.is_player_city(_action_city_id):
-		var nm: String = GameState.get_city(_action_city_id).get("name", "city")
-		_raise_btn.text = "⚔ Raise %d at %s (%dg)" % [RAISE_BATCH, nm, GameState.raise_army_cost(RAISE_BATCH)]
-		_raise_btn.disabled = not GameState.can_player_raise_army(_action_city_id, RAISE_BATCH)
-	else:
-		_raise_btn.text = "⚔ Raise Army — right-click your city"
-		_raise_btn.disabled = true
+	_raise_btn.text = "⚔ Host: %d trained — train at the Barracks" % GameState.player_field_strength()
+	_raise_btn.disabled = false
 
 func _on_march() -> void:
 	# Already armed → this press cancels the march order.
-	if _campaign_army_id >= 0:
-		_campaign_army_id = -1
+	if _march_arming:
+		_march_arming = false
+		_march_source_city = -1
 		_set_info("March order cancelled.", Color(0.80, 0.74, 0.54))
 		_refresh_march_btn()
 		return
 	if _action_city_id < 0 or not GameState.is_player_city(_action_city_id):
-		_set_info("Right-click one of your cities that holds an army to march it.", Color(1.0, 0.6, 0.3))
+		_set_info("Right-click your seat to march the troops you've trained there.", Color(1.0, 0.6, 0.3))
 		return
-	var aid: int = GameState.player_army_at_city(_action_city_id)
-	if aid < 0:
-		_set_info("No army stands at %s — raise one first." % GameState.get_city(_action_city_id).get("name", "that city"), Color(1.0, 0.6, 0.3))
+	var host: int = GameState.player_field_strength()
+	if host <= 0:
+		_set_info("No trained troops to march — train soldiers at the Barracks in your city first.", Color(1.0, 0.6, 0.3))
 		return
-	_campaign_army_id = aid
-	_set_info("⚔ March order armed (%d troops from %s) — right-click an enemy city to send them." % [
-		GameState.player_army_size(aid), GameState.get_city(_action_city_id).get("name", "your city")], Color(1.0, 0.9, 0.4))
+	_march_arming = true
+	_march_source_city = _action_city_id
+	_set_info("⚔ March order armed (%d trained troops from %s) — right-click an enemy village to send them." % [
+		host, GameState.get_city(_action_city_id).get("name", "your seat")], Color(1.0, 0.9, 0.4))
 	_refresh_march_btn()
 
-# Enabled when the selected own city holds an idle army; shows targeting state while armed.
+# Enabled when the selected own city holds trained troops; shows targeting state while armed.
 func _refresh_march_btn() -> void:
 	if _march_btn == null:
 		return
-	if _campaign_army_id >= 0:
+	if _march_arming:
 		_march_btn.text = "⚔ Marching… right-click a target  (✕ cancel)"
 		_march_btn.disabled = false
 		return
-	var aid: int = -1
-	if _action_city_id >= 0 and GameState.is_player_city(_action_city_id):
-		aid = GameState.player_army_at_city(_action_city_id)
-	if aid >= 0:
-		_march_btn.text = "⚔ March %s's army (%d)" % [GameState.get_city(_action_city_id).get("name", "city"), GameState.player_army_size(aid)]
+	var host: int = GameState.player_field_strength() if (_action_city_id >= 0 and GameState.is_player_city(_action_city_id)) else 0
+	if host > 0:
+		_march_btn.text = "⚔ March host (%d) from %s" % [host, GameState.get_city(_action_city_id).get("name", "city")]
 		_march_btn.disabled = false
 	else:
-		_march_btn.text = "⚔ March — select a city with an army"
+		_march_btn.text = "⚔ March — select your seat (needs trained troops)"
 		_march_btn.disabled = true
 
 func _on_diplomacy() -> void:
@@ -602,21 +591,24 @@ func _on_city_selected(city_id: int) -> void:
 	if _world_view != null:
 		_world_view.set_selected_city(city_id)   # visual selection ring
 
-	# Campaign targeting: an army is awaiting a destination.
-	if _campaign_army_id >= 0:
+	# Campaign targeting: a real-troop host is awaiting a destination.
+	if _march_arming:
 		if GameState.is_player_city(city_id):
 			# Re-selecting an own city cancels targeting and falls through to normal select.
-			_campaign_army_id = -1
+			_march_arming = false
+			_march_source_city = -1
 		else:
-			var tgt_name: String = c.get("name", "the enemy city")
-			if GameState.player_launch_campaign(_campaign_army_id, city_id):
-				_set_info("⚔ Your army marches on %s! The campaign is underway." % tgt_name, Color(0.6, 0.9, 0.5))
+			var tgt_name: String = c.get("name", "the enemy village")
+			var host: int = GameState.player_field_strength()
+			if GameState.player_march_units(_march_source_city, city_id):
+				_set_info("⚔ Your %d trained troops march on %s! They leave the city and take the road." % [host, tgt_name], Color(0.6, 0.9, 0.5))
 				if _world_view != null:
 					_world_view.refresh()
 				_refresh_march_status()
 			else:
 				_set_info("No road reaches %s from there — choose a connected target." % tgt_name, Color(1.0, 0.6, 0.3))
-			_campaign_army_id = -1
+			_march_arming = false
+			_march_source_city = -1
 			_refresh_march_btn()
 			return
 
