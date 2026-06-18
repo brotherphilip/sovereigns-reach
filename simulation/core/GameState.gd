@@ -721,8 +721,8 @@ const SIEGE_READY_THRESHOLD: int = 3
 # was 600 > 500 HP — a fully siege-ready seat still fell ~day 91 (the taught "build defences"
 # strategy couldn't reach the 20-min goal). At 50, two factions deal ~400 < 500, so a prepared
 # ruler survives Day 100 with margin, while an undefended seat (150) still falls ~day 91.
-const SIEGE_DAMAGE_DEFENDED: int = 50
-const SIEGE_DAMAGE_UNDEFENDED: int = 150
+const SIEGE_DAMAGE_DEFENDED: int = 32     # smaller attacks (was 50) — a prepared seat shrugs them off more easily
+const SIEGE_DAMAGE_UNDEFENDED: int = 110  # still punishing if you never defend (was 150)
 # A living realm patches its seat between assaults (builders shore up the keep). Tuned (iter120)
 # so a DEFENDED seat under the live two-faction siege (≈5.3 dmg/day at 50/strike) RECOVERS and can
 # hold indefinitely with good play, while an UNDEFENDED seat (≈15.8/day at 150) still falls — so
@@ -1354,7 +1354,7 @@ func simulate_tick(tick: int) -> void:
 		# Realm events: a flavourful daily happening (merchant, foraging, wolves…) that
 		# keeps the kingdom alive between the big beats. Player's own seat only.
 		if not spectator_mode and not _ai_paused():
-			var revent: Dictionary = WorldEventSystem.tick(players[0], world, _social_rng, day)
+			var revent: Dictionary = WorldEventSystem.tick(players[0], world, _social_rng, day, day < AIFaction.PLAYER_GRACE_DAYS)
 			if not revent.is_empty():
 				var spawn_n: int = int(revent.get("effect", {}).get("spawn_citizens", 0))
 				if spawn_n > 0:

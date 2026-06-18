@@ -63,7 +63,8 @@ const SIEGE_COOLDOWN_DAYS: int = 30
 # won't besiege the player for its first PLAYER_GRACE_DAYS. Set so the peace ends around
 # CALENDAR day 4 (60 economic days = 4 sun-aligned days), matching the on-screen warning.
 # Long-lived world factions are unaffected (their days_alive is far past this).
-const PLAYER_GRACE_DAYS: int = 60
+# A long peace (≈ calendar Day 6) — no sieges AND no tribute/ransom demands until it ends.
+const PLAYER_GRACE_DAYS: int = 90
 
 # Diplomacy depth: refusing a tribute demand adds a PERSISTENT grievance that raises
 # the faction's threat (escalating toward a siege) and cools slowly; paying tribute

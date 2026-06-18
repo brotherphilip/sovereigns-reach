@@ -180,7 +180,9 @@ func _test_choice_events() -> void:
 func _collect_ids_in_range(day_lo: int, day_hi: int) -> Dictionary:
 	var ids := {}
 	var rng := RandomNumberGenerator.new(); rng.seed = 12345
-	for _trial in range(80):
+	# Events are now rarer (lower DAILY_CHANCE + longer cooldown), so sample many more
+	# trials to reliably surface the in-season events while still proving out-of-season ones never fire.
+	for _trial in range(400):
 		var world := {"last_event_day": -999}
 		for d in range(day_lo, day_hi):
 			var ev := WorldEventSystem.tick(_player(), world, rng, d)

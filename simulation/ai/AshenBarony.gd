@@ -17,7 +17,7 @@ const CAPITAL_NAME: String = "Highwatch"
 # choose to pay or refuse is a real decision; one you can never pay is just a tax.)
 const DEMAND_RESOURCE_1: String = "gold"
 const DEMAND_RESOURCE_2: String = "iron"
-const DEMAND_COOLDOWN_DAYS: int = 14    # days between tribute demands
+const DEMAND_COOLDOWN_DAYS: int = 30    # economic-days between tribute demands (rarer; was 14)
 const TRIBUTE_GOLD_AMOUNT: int  = 60
 const TRIBUTE_IRON_AMOUNT: int  = 25
 
@@ -71,8 +71,8 @@ static func tick(faction: Dictionary, players: Array, _world: Dictionary, tick: 
 		if faction.get("supply_lines_active", false):
 			faction["resources"]["wood"] = faction["resources"].get("wood", 0) + SUPPLY_LINE_WOOD_DAILY
 
-		# Diplomatic demands every 14 days (GDD §8.4.2)
-		if day > 0 and day - faction.get("last_demand_day", 0) >= DEMAND_COOLDOWN_DAYS:
+		# Tribute/ransom demands — held off entirely during the King's Peace, then paced.
+		if day >= AIFaction.PLAYER_GRACE_DAYS and day - faction.get("last_demand_day", 0) >= DEMAND_COOLDOWN_DAYS:
 			_send_demands(faction, players, tick)
 			events.append("ashen_tribute_demanded")
 
@@ -100,7 +100,7 @@ static func _send_demands(faction: Dictionary, players: Array, tick: int) -> voi
 	faction["last_demand_day"] = faction.get("days_alive", 0)
 
 static func _recruit_barony(faction: Dictionary) -> void:
-	var budget: int = mini(300, faction.get("gold", 0) / 2)
+	var budget: int = mini(120, faction.get("gold", 0) / 3)   # smaller hosts — gentler attacks
 	var spent: int = 0
 	var next_uid: int = faction.get("id", 0) * 10000 + faction.get("units", []).size() + 1
 	while spent < budget:

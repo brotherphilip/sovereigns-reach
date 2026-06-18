@@ -20,8 +20,8 @@ extends RefCounted
 const CitizenSystem = preload("res://simulation/world/CitizenSystem.gd")
 const SeasonSystem  = preload("res://simulation/world/SeasonSystem.gd")
 
-const COOLDOWN_DAYS: int = 14    # minimum days between events (was 5 — events were too frequent)
-const DAILY_CHANCE: float = 0.10 # per-day chance an event fires once off cooldown (was 0.34)
+const COOLDOWN_DAYS: int = 45    # minimum economic-days between events — events are now rare (was 14)
+const DAILY_CHANCE: float = 0.05 # per-day chance an event fires once off cooldown (was 0.10) — WAY fewer events
 
 # tone: "good" | "bad" | "neutral" — drives the notification colour.
 # effect keys: food, gold, wood, stone, iron, popularity, prestige (signed deltas);
@@ -116,7 +116,7 @@ const EVENTS: Array = [
 		],
 	},
 	{
-		"id": "bandit_toll", "tone": "bad", "weight": 7, "min_day": 8,
+		"id": "bandit_toll", "tone": "bad", "weight": 7, "min_day": 8, "hostile": true,
 		"title": "Bandits on the Road",
 		"text": "Raiders have blocked the eastern road and demand forty gold to let your carts pass.",
 		"choices": [
@@ -477,7 +477,7 @@ static func resolve(player: Dictionary, event_id: String, choice_index: int) -> 
 # Roll for a daily event. Mutates `player` (resource/popularity/prestige deltas) and
 # returns the chosen event dict (with an added "summary" line) for the view, or {} if
 # nothing fired. `spawn_citizens` is returned untouched for GameState to enact.
-static func tick(player: Dictionary, world: Dictionary, rng: RandomNumberGenerator, day: int) -> Dictionary:
+static func tick(player: Dictionary, world: Dictionary, rng: RandomNumberGenerator, day: int, in_peace: bool = false) -> Dictionary:
 	if day <= 0 or player.is_empty():
 		return {}
 	var last: int = int(world.get("last_event_day", -999))
@@ -492,6 +492,9 @@ static func tick(player: Dictionary, world: Dictionary, rng: RandomNumberGenerat
 	var pool: Array = []
 	var total: int = 0
 	for e in EVENTS:
+		# During the King's Peace, hostile/extortion events (raiders, tolls) don't occur.
+		if in_peace and bool(e.get("hostile", false)):
+			continue
 		if day >= int(e.get("min_day", 0)) and _event_in_season(e, season):
 			pool.append(e)
 			total += int(e.get("weight", 1))

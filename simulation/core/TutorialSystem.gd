@@ -182,9 +182,9 @@ func _on_tick(tick: int) -> void:
 		return
 	if not _defense_hint_given and not GameState.players.is_empty():
 		var day: int = tick / SimulationClock.TICKS_PER_CALENDAR_DAY
-		if day >= 3 and not GameState.is_siege_ready(GameState.players[0]):
+		if day >= 5 and not GameState.is_siege_ready(GameState.players[0]):
 			_defense_hint_given = true
-			tutorial_hint.emit("The peace ends near Day 4 — after that, rival houses may march on your hall. Build walls and a watchtower (Build, Defence) and station a guard, or your hall will fall.")
+			tutorial_hint.emit("The peace ends near Day 6 — after that, rival houses may march on your hall. Build walls and a watchtower (Build, Defence) and station a guard, or your hall will fall.")
 			return
 	if tick - _last_edict_hint_tick < 4800:
 		return

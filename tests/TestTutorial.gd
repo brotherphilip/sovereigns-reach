@@ -94,15 +94,16 @@ func _run() -> void:
 	_ts.index = _ts.STEP_DONE
 	_ts._defense_hint_given = false
 	_hints.clear()
-	# Defence warning now fires on CALENDAR day 3 (3 × TICKS_PER_CALENDAR_DAY).
+	# Defence warning now fires on CALENDAR day 5 (5 × TICKS_PER_CALENDAR_DAY), just before
+	# the King's Peace ends ~Day 6.
 	var cd: int = SimulationClock.TICKS_PER_CALENDAR_DAY
-	_ts._on_tick(2 * cd)   # calendar day 2 — too early
-	ok("no defence hint before calendar day 3", not _last_is_defense_hint())
-	_ts._on_tick(3 * cd)   # calendar day 3 — undefended → warn
-	ok("undefended realm IS warned at calendar day 3", _last_is_defense_hint())
+	_ts._on_tick(4 * cd)   # calendar day 4 — too early
+	ok("no defence hint before calendar day 5", not _last_is_defense_hint())
+	_ts._on_tick(5 * cd)   # calendar day 5 — undefended → warn
+	ok("undefended realm IS warned at calendar day 5", _last_is_defense_hint())
 	# Fires only once.
 	var n_after: int = _hints.size()
-	_ts._on_tick(4 * cd)
+	_ts._on_tick(6 * cd)
 	ok("defence hint fires only once", _hints.size() == n_after)
 
 	print("\n[A siege-ready realm is NOT nagged]")
