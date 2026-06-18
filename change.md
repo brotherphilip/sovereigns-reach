@@ -96,6 +96,7 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 - **Phase 2 (deferred, user-agreed): physical AI cities** — prototype ONE AI city running CitizenSystem hauling; measure FPS/tick cost before committing.
 - **Visual polish (POLISH):** WALL colours still cluster (tan-timber / grey-stone / wood-plank); `market` reads sparse and `well` is tiny at play-zoom. (Roofs diversified iter175; villager tunics iter191; watchtower rebuilt iter193.)
 - **OBSERVATION — night dead-space (taste, needs USER call, NOT a bug):** deep-night `NightLayer.MAX_DARK = 0.92` (near-black away from lamps) + depopulated night (skeleton crew) ⇒ ~5 min/cycle dark+empty. Soften MAX_DARK or add night ambient life only if the user wants less dead time.
+- **OBSERVATION — peaceful 100-day life (from the 10-cycle peace, user-directed):** the FLOOR run (iter194) reached day 114 with NO siege (King's Peace until day 750) while the standing objective still says "ready your defences — build a Barracks, Wall or Tower." The defence prompt is premature now; consider deferring it (or the King's-Peace-ending telegraph) closer to when threats actually arrive. Stems from the user's calm-realm directive — needs a user call before changing.
 - **Deathmatch "Empires of Ages":** `deathmatch.md` absent; no active work. Create only when that mode is built.
 
 ### Resolved Index (recent, real evidence) — collapsed
@@ -107,8 +108,28 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 - **Villager tunic variety (iter191):** per-id muted peasant palette in `CitizenLayer`. Ev: before/after zoom renders.
 - **Phantom day-1 population drop (iter192):** `initialize_player` spawned 14 citizens while population read 20 → day-1 `living_count` sync dropped 20→14 (looked like 6 villagers lost, flipped the pop-20 objective). Now spawns 20 (matches AIFaction.START_WORKFORCE symmetry) + syncs population to living count. Ev: telemetry was 20→14, now stable 20 through day 7; TestPeople 21/0, TestSurvival 6/0.
 - **Watchtower art (iter193):** was a spindly 3-post stub (read as a flagpole); `BuildingModels._watchtower` rebuilt as a braced timber lookout (splayed legs + X-bracing + railed platform + thatch cap + pennant). Ev: building-showcase before/after renders, 0 triangulation errors.
+- **TestSiege silent regression (iter194):** 5 siege assertions had been failing since iter187 (grace 90→750) — fresh test factions couldn't siege within the 100-260d windows, leaving the FLOOR's siege-survival guarantees untested. Fixed: age hostile factions to `days_alive=PLAYER_GRACE_DAYS` at setup (tests POST-peace mechanics). Now TestSiege 9/0.
 - **Xvfb on-screen harness (iter189):** detached background-subshell launch renders + self-screenshots reliably (foreground = exit 144). Logs are real evidence too.
 - **(Durable, older — see Current Targets):** Day-100 FLOOR multi-seed survival; Reeve→King climb on 5 seeds ≤113d; late-game coalition-vs-leader; on-screen in-city FLOOR survival (iter158).
+
+---
+
+## Iteration 194 — 2026-06-19  (DEV-LOOP — Base Game; profile: unattended autoplay / long FLOOR run. Day-114 clean + restored TestSiege coverage)
+
+### Plan
+Run a real long SR_AUTOPLAY to reach day 100 (the FLOOR) on-screen with telemetry; broad headless regression sweep in parallel; let the run's data + any test failure drive the improvement.
+
+### Playtest (REAL — Xvfb autoplay, ~275s, + headless sweep)
+- **FLOOR run reached day 114** (past the day-100 / 20-min target), G=0, **0 triangulation / 0 script errors**. Trajectory: population ROCK-STABLE at 20 the whole run (iter192 fix holds), **popularity monotonically 50.0→59.8 (min 50.0, never dipped)**, food healthy (climbed to the 300 cap, oscillated 90-300, held 142 through a Spring drought), hall_hp 500 throughout (no siege — King's Peace). Final screenshot: a night scene with lamp-glow + emptied streets (skeleton-crew confirmed again). Clean TARGET REACHED.
+- **Headless sweep:** TestEconomy 13/0, TestWorkers 21/0, TestNight 5/0, TestWorldEvents 46/0, TestStrategicAI 91/0, TestPhase10 80/0, TestPhase6 104/0 — but **TestSiege 4/5 FAILED**.
+
+### Post-mortem → real SILENT REGRESSION (test coverage lost)
+TestSiege's 5 failures ("siege telegraphed/landed/razed/struck") trace to iter187's grace 90→750: the test adds a fresh faction (days_alive=0) and runs 100-260 days, but the 750-day King's Peace blocks every siege in that window — so the siege chain (and the FLOOR's siege-survival guarantee) went UNTESTED since iter187. Same class as the iter190 TestPhase6 tribute fix.
+
+### Implement
+- `tests/TestSiege._setup`: age hostile factions to `days_alive = PLAYER_GRACE_DAYS` so the test exercises POST-peace siege mechanics. **TestSiege 5-fail → 9/0** (telegraph, strike, undefended razed, prepared survives, two-faction survival all restored).
+
+### Confidence: HIGH — day-114 telemetry + screenshot captured; TestSiege before/after 4→9 pass; full sweep green. Failure class for the run: TARGET REACHED (1 of 3 clean runs toward raising the bar); the test fix is a CORRECTNESS/coverage restore.
 
 ---
 
