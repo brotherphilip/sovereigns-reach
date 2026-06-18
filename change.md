@@ -90,6 +90,27 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iterations 181–185 — 2026-06-18  (USER-DIRECTED — tutorial-focus loop: gate every step, kill interruptions, fix woodcutter ordering, initial stockpile + pile visuals)
+
+### Task (user)
+"Focus the loop on the tutorial: ensure every step is gated, that no voice-overs / objective spawns / anything else distracting interrupts it. Add missing steps (the woodcutter is a game-stopping building but isn't prompted soon enough). The game must spawn a stockpile next to the village hall when it's built (so AI know to deliver there) — this initial stockpile doesn't add to total storage and looks slightly bigger. For it and all stockpiles: a blank slate with stock shown as little piles that grow as stock is added and vanish as it's taken away."
+
+### Implement
+- **iter181 — de-distraction (GameState.gd):** gated every non-tutorial prompt on `not _ai_paused()` (true while `world.tutorial_active`): milestones (575), standing objectives (1308), King's-Peace end warning (1317), restless-people + construction-stall warnings (1326), realm/world events (1350), and AI factions' daily strategic actions (1241/1371). During the tutorial the world holds still and only the step hints speak.
+- **iter182 — woodcutter ordering (TutorialSystem.gd):** inserted Woodcutter's Camp as **step 1** (right after the hall, before food) — "Wood builds everything." Farm/orchard becomes step 2. Matching VO `tut_woodcutter` + NarrationPlayer keyword map entry.
+- **iter183 — initial stockpile spawn (GameState.gd):** on village-hall placement, `_spawn_initial_stockpile` drops a built stockpile on a free tile beside the 3×3 hall with `storage_max=0` (adds **no** capacity) and `initial=true`; `_has_initial_stockpile` guards against duplicates. Gives haulers/AI a delivery target from turn one.
+- **iter184 — stockpile pile visuals (BuildingLayer.gd):** stockpiles now draw as a **blank plank platform** (`_draw_stockpile`); fill ratio = `StorageSystem.get_stored(p)/get_capacity(p)` places up to 9 (initial) / 6 (regular) goods piles (wood/stone/sack-coloured trapezoid+cap) via `_bilerp`. Recomputed every frame, so piles grow/shrink and disappear as stock moves. Initial stockpile renders taller (deck_h 9 vs 5) with a banner post to read as the primary store.
+- **iter185 — integration verification:** ran the gated curriculum + rendered the city on :99.
+
+### Playtest (REAL)
+- Tests: **TestTutorial 16/0** (woodcutter now step 1, farm step 2), **TestNarration 82/0** (tut_woodcutter key parity), **TestStrategicAI 91/0**; regression TestEconomy 13/0, TestSurvival 6/0, TestWorkers 21/0, TestPhase6 103/0.
+- Visual (Xvfb :99, SR_AUTOPLAY + SR_ZOOM, /tmp/stock.png): confirmed the **initial stockpile beside the hall** — bigger plank platform with a red banner — and goods piles on it proportional to the seeded 250 wood / 120 stone. No SCRIPT/Parse errors.
+
+### HONEST LIMIT
+Visuals verified by screenshot; the *dynamic* shrink/grow of piles is verified by code path (per-frame recompute from live `get_stored`), not yet by a before/after capture mid-drain. Audible non-interruption during a live tutorial run is a user ear-check.
+
+### Confidence: HIGH on gating + curriculum (tests) and on initial-stockpile render (screenshot); MEDIUM on pile-drain animation (code-path, not captured).
+
 ## Iteration 178 — 2026-06-18  (USER-DIRECTED — retone ALL text + VO: plain timeless kingdom voice)
 
 ### Task (user)
