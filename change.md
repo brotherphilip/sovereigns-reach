@@ -96,6 +96,7 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 - **Phase 2 (deferred, user-agreed): physical AI cities** — prototype ONE AI city running CitizenSystem hauling; measure FPS/tick cost before committing.
 - **Visual polish (POLISH):** WALL colours still cluster (tan-timber / grey-stone / wood-plank); `market` reads sparse and `well` is tiny at play-zoom. (Roofs diversified iter175; villager tunics iter191; watchtower rebuilt iter193.)
 - **OBSERVATION — night dead-space (taste, needs USER call, NOT a bug):** deep-night `NightLayer.MAX_DARK = 0.92` (near-black away from lamps) + depopulated night (skeleton crew) ⇒ ~5 min/cycle dark+empty. Soften MAX_DARK or add night ambient life only if the user wants less dead time.
+- **Milestone tooling:** SR_AUTOPLAY is deterministic (fixed seed 42) → repeated FLOOR runs are identical, so they can't constitute "3 independent clean runs" to raise the bar. Add an SR_SEED env hook to CityViewScene autoplay (vary the map/economy seed) so on-screen FLOOR runs can be varied; until then, rely on the headless 5-seed coverage for robustness.
 - **OBSERVATION — peaceful 100-day life (from the 10-cycle peace, user-directed):** the FLOOR run (iter194) reached day 114 with NO siege (King's Peace until day 750) while the standing objective still says "ready your defences — build a Barracks, Wall or Tower." The defence prompt is premature now; consider deferring it (or the King's-Peace-ending telegraph) closer to when threats actually arrive. Stems from the user's calm-realm directive — needs a user call before changing.
 - **Deathmatch "Empires of Ages":** `deathmatch.md` absent; no active work. Create only when that mode is built.
 
@@ -109,8 +110,28 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 - **Phantom day-1 population drop (iter192):** `initialize_player` spawned 14 citizens while population read 20 → day-1 `living_count` sync dropped 20→14 (looked like 6 villagers lost, flipped the pop-20 objective). Now spawns 20 (matches AIFaction.START_WORKFORCE symmetry) + syncs population to living count. Ev: telemetry was 20→14, now stable 20 through day 7; TestPeople 21/0, TestSurvival 6/0.
 - **Watchtower art (iter193):** was a spindly 3-post stub (read as a flagpole); `BuildingModels._watchtower` rebuilt as a braced timber lookout (splayed legs + X-bracing + railed platform + thatch cap + pennant). Ev: building-showcase before/after renders, 0 triangulation errors.
 - **TestSiege silent regression (iter194):** 5 siege assertions had been failing since iter187 (grace 90→750) — fresh test factions couldn't siege within the 100-260d windows, leaving the FLOOR's siege-survival guarantees untested. Fixed: age hostile factions to `days_alive=PLAYER_GRACE_DAYS` at setup (tests POST-peace mechanics). Now TestSiege 9/0.
+- **King's Peace intro units (iter195):** the onboarding toast said "shields your realm for 750 days" (raw PLAYER_GRACE_DAYS, economic days) while the HUD counts CALENDAR days — confusing. Now derives calendar days from clock constants → "for its first 50 days". Ev: on-screen render of the toast reads "first 50 days".
 - **Xvfb on-screen harness (iter189):** detached background-subshell launch renders + self-screenshots reliably (foreground = exit 144). Logs are real evidence too.
 - **(Durable, older — see Current Targets):** Day-100 FLOOR multi-seed survival; Reeve→King climb on 5 seeds ≤113d; late-game coalition-vs-leader; on-screen in-city FLOOR survival (iter158).
+
+---
+
+## Iteration 195 — 2026-06-19  (DEV-LOOP — Base Game; profile: unattended autoplay / new-player onboarding. King's-Peace units fix + 2nd FLOOR run + full sweep)
+
+### Plan
+Bank a 2nd clean FLOOR run toward the milestone; in parallel fix the King's-Peace messaging (flagged iter194); broad headless sweep.
+
+### Implement
+- `CityViewScene` King's-Peace intro toast: quote the grace in CALENDAR days (the HUD's "Day N"), derived from clock constants (PLAYER_GRACE_DAYS 750 econ-days × 240/3600 = 50 cal-days), not the raw "750 days". **Verified on-screen:** toast renders "shields your realm for its first 50 days". (Telegraph at GameState:1328 keys off the economic day — unaffected.)
+
+### Playtest (REAL — Xvfb autoplay + non-autoplay render + headless sweep)
+- **FLOOR run #2: G=0, day 114**, popularity 50.0→59.6 (min 50.0), pop stable 20→19, food healthy, hall 500, 0 errors. HONEST CAVEAT: SR_AUTOPLAY is DETERMINISTIC (fixed seed 42) — run #2 is byte-for-byte the same trajectory as iter194's run #1, so "consecutive clean runs" here is the SAME run repeated, not independent confirmation. Real FLOOR robustness rests on the headless 5-seed coverage (Current Targets), not autoplay repeats.
+- **Full headless sweep GREEN:** Economy 13/0, Workers 21/0, Night 5/0, WorldEvents 46/0, StrategicAI 91/0, Phase6 104/0, Phase10 80/0, Siege 9/0, People 21/0, Survival 6/0, Tutorial 18/0, Narration 82/0.
+
+### Post-mortem → TARGET REACHED (clean) + a UX units fix
+No fault in the run. The determinism caveat means I am NOT claiming the 3-run milestone off identical autoplay; bar-raising should use VARIED seeds/playstyles (autoplay needs a seed hook to vary — backlog).
+
+### Confidence: HIGH on the message fix (on-screen) + green sweep. The FLOOR-run evidence is real but deterministic (not 3 independent runs).
 
 ---
 
