@@ -79,6 +79,11 @@ func _resolve_city() -> void:
 # ── Simulation init ───────────────────────────────────────────────────────────
 
 func _init_simulation() -> void:
+	# Dev hook: override the map/economy seed so on-screen FLOOR runs can be VARIED (the
+	# default game is otherwise deterministic at seed 42, so repeated autoplay runs are
+	# identical and can't serve as independent confirmations). Default game / first entry only.
+	if OS.get_environment("SR_SEED") != "":
+		_map_seed = int(OS.get_environment("SR_SEED"))
 	var sel: int = GameState.world.get("selected_city_id", -1)
 	var seat: int = GameState.world.get("player_seat_city_id", -1)
 	var has_wm: bool = GameState.world.has("world_map")
