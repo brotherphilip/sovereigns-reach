@@ -90,6 +90,28 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 187 — 2026-06-18  (USER-DIRECTED — calmer pacing in SUN CYCLES + real night sleep; hauling audited)
+
+### Task (user)
+Events still fire WAY too often (should be every 3–5 sun cycles, not "every 5 days"); King's Peace should last ≥10 sun cycles; woodcutters/apple-pickers "never haul" (apples just appear in food count); people pace the house wall at night instead of going inside to sleep.
+
+### Finding (REAL — code read + headless evidence)
+- Scale clarity: the visible **sun cycle** = `SeasonSystem.DAY_NIGHT_TICKS` 18000t = **75 economic-days = 5 on-screen calendar days**. Old events: `COOLDOWN_DAYS 45` + `DAILY_CHANCE 0.05` ⇒ ~1 event per sun cycle ⇒ exactly the player's "every 5 (calendar) days". `PLAYER_GRACE_DAYS 90` = 1.2 sun cycles.
+- **Night bug (real):** at night, idle pawns walk to the home door, but the `STATE_WALK` arrival handler called `_go_home` (re-targets the home CENTRE → snapped back outside), so they never entered `STATE_INSIDE` — they oscillated at the wall all night. Confirmed by writing TestNight (failing path) then the fix.
+- **Hauling (NOT a sim bug):** TestEconomy proves chain output is credited ONLY on physical delivery (wood→stockpile, apples→granary); GameState skips interval production for chain buildings (GameState:395). No second crediting path for player food/wood exists. The "apples just appear" perception is most plausibly the *frequent food-granting events* (now 4× rarer) plus short trips to the adjacent keep when no granary/stockpile is built yet (goods route to the seat). Left the verified-correct hauler unchanged rather than fabricate a fix.
+
+### Implement
+- `WorldEventSystem`: `COOLDOWN_DAYS 45→225` (3 sun cycles) + `DAILY_CHANCE 0.05→0.013` ⇒ events every ~3–5 sun cycles.
+- `AIFaction.PLAYER_GRACE_DAYS 90→750` (10 sun cycles): long calm King's Peace (no sieges/tribute).
+- `CitizenSystem`: night door-arrival → `STATE_INSIDE` (sleep, not drawn); home door snapped to a free reachable tile via `_assign_homes(…, grid)`.
+
+### Playtest (REAL — headless)
+TestNight 5/0 (6/6 villagers sleep indoors at night; all rise by day), TestWorldEvents 46/0 (horizon widened to the longer cooldown), TestWorkers 21/0, TestPeople 21/0, TestEconomy 13/0, TestSurvival 6/0.
+
+### Confidence: HIGH on events/peace constants + night sleep (new test reproduces & guards). HONEST: hauling "fix" is a no-op — sim verified correct; visual perception attributed to event frequency, not captured live this iteration.
+
+---
+
 ## Iteration 186 — 2026-06-18  (TUTORIAL-FOCUS follow-up — guarantee timber so the gated step-1 Woodcutter can't hard-stall)
 
 ### Finding (REAL — code read)
