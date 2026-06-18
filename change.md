@@ -90,6 +90,31 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 174 — 2026-06-18  (DEV-LOOP — broad regression sweep; backlog genuinely empty)
+
+### Plan
+Backlog empty. Honest highest-value: sweep the large integration suites not run since the iter161-173 burst
+(coalition/music/mixer/terrain/events/secession all touched shared systems) to catch any cross-system regression.
+
+### Playtest (REAL — headless)
+- TestPhase6 103/0 · TestPhase7 111/0 · TestPhase10 80/0 · TestPeople 21/0 · TestEconomy 13/0 — all green; no
+  regression from the recent burst.
+
+### No game code change (honest verification — nothing newly broken).
+
+### STATUS: out of high-value autonomous work
+- The start-as-village→King game is comprehensively built, verified, and content-rich; the last real items
+  (coalition, secession, audio, terrain, +events) are shipped + guarded. Remaining work needs the USER: new
+  content/mechanics direction, balance tuning to taste, or VO for the 5 iter169 events (their TTS). Further
+  autonomous loops will be green health-checks (low marginal value). Recommend redirect or widen the heartbeat.
+
+### Active Backlog
+- **Needs user:** VO for the 5 iter169 events; any new content/mechanic/balance direction.
+- **Deferred (scale-only / optional):** spatial index ~15k+ units; coalition/secession intensity tuning.
+
+### Confidence: HIGH — 5 large suites green; no regression.
+Iterations since last command/compact: 2 (last compact iter172).
+
 ## Iteration 173 — 2026-06-18  (DEV-LOOP — regression-guard the secession mechanic)
 
 ### Plan
