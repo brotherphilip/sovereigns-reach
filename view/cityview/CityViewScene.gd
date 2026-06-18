@@ -109,6 +109,9 @@ func _init_simulation() -> void:
 		# Your own seat: rival raiders may still threaten it.
 		GameState.add_ai_faction("bandit_king",   20,  20)
 		GameState.add_ai_faction("ashen_barony", 180, 180)
+		# Guarantee timber near the seat so the tutorial's gated step-1 Woodcutter's Camp
+		# (which needs forest terrain) is always buildable, whatever the seed rolled.
+		GameState.ensure_forest_near(_keep_x, _keep_y)
 
 # Move the start position to the nearest buildable (grass/valley) tile so the
 # player's first Hall can be placed there — without clearing any terrain.

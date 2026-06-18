@@ -90,6 +90,21 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 186 — 2026-06-18  (TUTORIAL-FOCUS follow-up — guarantee timber so the gated step-1 Woodcutter can't hard-stall)
+
+### Finding (REAL — code read)
+`woodcutter_camp` requires `terrain_req: TERRAIN_FOREST` (BuildingRegistry:120), but in-city forest is placed RANDOMLY (`WorldGrid._place_forests`) with no guarantee near the seat; `prepare_starting_area` only flattens mountain/river/rock/marsh and leaves forest to chance. With the woodcutter now a GATED step-1 build (iter182), an unlucky seed with no nearby trees would make the step impossible → the tutorial hard-stalls.
+
+### Implement
+- `GameState.ensure_forest_near(cx, cy, reach=14, want=8)`: if too little forest within reach, plant a compact grove on grass tiles just outside the keep footprint (nearest-ring scan), so the first woodcutter is always buildable.
+- Called from `CityViewScene._init_simulation` on the player's OWN-seat branch only (not spectator cities).
+
+### Playtest (REAL — headless)
+- /tmp/test_forest.gd: forced a treeless seat (forest=0 within r14) → after `ensure_forest_near`, forest=25; the 3×3 hall footprint stayed buildable (not overwritten). PASS ×3.
+- Regressions: TestCityGeneration 25/0, TestEconomy 13/0, TestWorkers 21/0.
+
+### Confidence: HIGH — guarantee proven from a zero-forest start; footprint preserved; regressions green.
+
 ## Iterations 181–185 — 2026-06-18  (USER-DIRECTED — tutorial-focus loop: gate every step, kill interruptions, fix woodcutter ordering, initial stockpile + pile visuals)
 
 ### Task (user)

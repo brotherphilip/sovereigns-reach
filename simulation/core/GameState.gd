@@ -2867,6 +2867,40 @@ func prepare_starting_area(cx: int, cy: int, radius: int) -> void:
 						or t == WorldGrid.Terrain.ROCK or t == WorldGrid.Terrain.MARSH:
 					_grid.set_terrain(x, y, WorldGrid.Terrain.GRASS)
 
+# Guarantee timber within reach of the player's seat. The Woodcutter's Camp is the
+# tutorial's gated step-1 build but it REQUIRES forest terrain, and forest placement is
+# random — an unlucky seed could leave the start with no nearby trees, hard-stalling the
+# tutorial. If the seat has too little forest within reach, plant a small grove on grass
+# just outside the keep footprint so the first woodcutter is always buildable. (iter186)
+func ensure_forest_near(cx: int, cy: int, reach: int = 14, want: int = 8) -> void:
+	if _grid == null:
+		return
+	if _grid.count_terrain_in_radius(cx, cy, reach, WorldGrid.Terrain.FOREST) >= want:
+		return
+	# Find a grass anchor a few tiles out (clear of the 3×3 hall footprint), nearest-first.
+	for r in range(4, reach + 1):
+		for dy in range(-r, r + 1):
+			for dx in range(-r, r + 1):
+				if absi(dx) != r and absi(dy) != r:
+					continue  # ring only
+				var ax: int = cx + dx
+				var ay: int = cy + dy
+				if not _grid.in_bounds(ax, ay):
+					continue
+				if _grid.get_terrain(ax, ay) != WorldGrid.Terrain.GRASS:
+					continue
+				# Plant a compact grove around the anchor on grass tiles only.
+				var planted: int = 0
+				for gy in range(-2, 3):
+					for gx in range(-2, 3):
+						var tx: int = ax + gx
+						var ty: int = ay + gy
+						if _grid.in_bounds(tx, ty) and _grid.get_terrain(tx, ty) == WorldGrid.Terrain.GRASS:
+							_grid.set_terrain(tx, ty, WorldGrid.Terrain.FOREST)
+							planted += 1
+				if planted >= want:
+					return
+
 # --- Serialization ---
 
 func serialize() -> Dictionary:
