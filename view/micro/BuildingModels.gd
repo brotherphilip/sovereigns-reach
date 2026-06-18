@@ -189,6 +189,12 @@ static func _hip(ci: CanvasItem, c: PackedVector2Array, rh: float, roof: Color) 
 	ci.draw_polyline(PackedVector2Array([bu, apex]), EDGE, 0.5)
 	return apex
 
+# Fill a roof slope as a triangle fan from an off-axis apex over a chain of (possibly
+# collinear) edge points — robust where a single concave polygon's triangulation fails.
+static func _slope_fan(ci: CanvasItem, apex: Vector2, pts: PackedVector2Array, col: Color) -> void:
+	for i in range(pts.size() - 1):
+		ci.draw_colored_polygon(PackedVector2Array([apex, pts[i], pts[i + 1]]), col)
+
 # Gabled roof with a horizontal ridge running along the tu→bu (depth) axis.
 static func _gable(ci: CanvasItem, c: PackedVector2Array, rh: float, roof: Color) -> void:
 	var tu: Vector2 = c[0]; var ru: Vector2 = c[1]; var bu: Vector2 = c[2]; var lu: Vector2 = c[3]
@@ -196,8 +202,13 @@ static func _gable(ci: CanvasItem, c: PackedVector2Array, rh: float, roof: Color
 	var rfront := bu + Vector2(0, -rh)
 	var c_left := roof.darkened(0.18)
 	var c_right := roof.lightened(0.08)
-	ci.draw_colored_polygon(PackedVector2Array([lu, tu, rback, rfront, bu]), c_left)   # left slope
-	ci.draw_colored_polygon(PackedVector2Array([tu, ru, bu, rfront, rback]), c_right)  # right slope
+	# Each slope runs from a side eave (lu / ru) up to the raised ridge (rback→rfront).
+	# tu, rback, rfront, bu are vertically COLLINEAR (the ridge sits on the depth axis), so
+	# filling the slope as one concave pentagon makes draw_colored_polygon's triangulation
+	# fail (a self-overlapping sliver). Fanning triangles from the OFF-AXIS eave corner is
+	# always a valid decomposition — same fill, no per-frame "triangulation failed" spam.
+	_slope_fan(ci, lu, PackedVector2Array([tu, rback, rfront, bu]), c_left)    # left slope
+	_slope_fan(ci, ru, PackedVector2Array([tu, rback, rfront, bu]), c_right)   # right slope
 	# Tile courses running parallel to the ridge down each slope.
 	_courses(ci, [tu, lu, bu], rback, rfront, c_left.darkened(0.16))
 	_courses(ci, [tu, ru, bu], rback, rfront, c_right.darkened(0.16))
