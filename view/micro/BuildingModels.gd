@@ -319,7 +319,7 @@ static func draw_finished(ci: CanvasItem, btype: String, cat: int, w: int, h: in
 		"village_hall":      _village_hall(ci, t, r, b, l, ctr)
 		"keep":              _keep(ci, t, r, b, l, ctr, time)
 		"hovel":             _hovel(ci, t, r, b, l)
-		"market":            _market(ci, t, r, b, l, ctr)
+		"market":            _market(ci, t, r, b, l, ctr, seed)
 		"trading_post":      _trading_post(ci, t, r, b, l, ctr)
 		"well":              _well(ci, t, r, b, l, ctr)
 		"apothecary":        _shop(ci, t, r, b, l, ctr, Color(0.42, 0.62, 0.40), "+")
@@ -332,7 +332,7 @@ static func draw_finished(ci: CanvasItem, btype: String, cat: int, w: int, h: in
 		"apple_orchard":     _orchard(ci, t, r, b, l, season, seed)
 		"pig_farm":          _pen(ci, t, r, b, l, ctr, Color(0.86, 0.62, 0.62))
 		"dairy_farm":        _dairy(ci, t, r, b, l, ctr)
-		"wheat_farm":        _wheat(ci, t, r, b, l, ctr, season)
+		"wheat_farm":        _wheat(ci, t, r, b, l, ctr, season, seed)
 		"hops_farm":         _hops(ci, t, r, b, l, season)
 		"mill":              _windmill(ci, t, r, b, l, ctr, time)
 		"bakery":            _bakery(ci, t, r, b, l, ctr, time)
@@ -341,9 +341,9 @@ static func draw_finished(ci: CanvasItem, btype: String, cat: int, w: int, h: in
 		"granary":           _granary(ci, t, r, b, l, ctr)
 		"church":            _church(ci, t, r, b, l, ctr, false)
 		"cathedral":         _church(ci, t, r, b, l, ctr, true)
-		"barracks":          _barracks(ci, t, r, b, l, ctr)
+		"barracks":          _barracks(ci, t, r, b, l, ctr, seed)
 		"siege_workshop":    _siege(ci, t, r, b, l, ctr)
-		"blacksmith", "armorer": _forge(ci, t, r, b, l, ctr, time)
+		"blacksmith", "armorer": _forge(ci, t, r, b, l, ctr, time, seed)
 		"armory":            _armory(ci, t, r, b, l, ctr)
 		"fletcher":          _shop(ci, t, r, b, l, ctr, WOOD, "arrow")
 		"crossbow_workshop": _shop(ci, t, r, b, l, ctr, WOOD, "bow")
@@ -423,10 +423,20 @@ static func _hovel(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vector
 	_door(ci, l, b, 17.0)
 	_gable(ci, c, 12.0, THATCH)
 
-static func _market(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vector2, ctr: Vector2) -> void:
-	# open-air stalls: striped awnings on posts + crates
-	var stalls := [[l.lerp(ctr, 0.55), Color(0.82, 0.30, 0.24)], [r.lerp(ctr, 0.55), Color(0.86, 0.82, 0.74)],
-		[b.lerp(ctr, 0.45), Color(0.30, 0.46, 0.72)]]
+static func _market(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vector2, ctr: Vector2, seed: int = 0) -> void:
+	# Open-air stalls around a stone market cross — stall count, awning colours and goods
+	# vary per market so a row of them reads as distinct squares, not clones.
+	var rng := RandomNumberGenerator.new()
+	rng.seed = int(seed) * 2654435761 + 91
+	var awnings := [Color(0.82, 0.30, 0.24), Color(0.86, 0.82, 0.74), Color(0.30, 0.46, 0.72), Color(0.40, 0.62, 0.34), Color(0.74, 0.58, 0.24)]
+	awnings.shuffle()
+	# Trodden market ground.
+	ci.draw_colored_polygon(PackedVector2Array([t, r, b, l]), Color(0.52, 0.47, 0.34))
+	var anchors := [l.lerp(ctr, 0.55), r.lerp(ctr, 0.55), b.lerp(ctr, 0.45), t.lerp(ctr, 0.5)]
+	var stalls := []
+	var n_stalls: int = rng.randi_range(3, 4)
+	for i in range(n_stalls):
+		stalls.append([anchors[i] + Vector2(rng.randf_range(-3, 3), rng.randf_range(-2, 2)), awnings[i % awnings.size()]])
 	for s in stalls:
 		var g: Vector2 = s[0]
 		var p1 := _post(ci, g + Vector2(-7, 0), 12.0, WOOD_D)
@@ -662,25 +672,44 @@ static func _dairy(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vector
 	_fence(ci, b.lerp(l, 0.0), r)
 	_critter(ci, b.lerp(r, 0.55) + Vector2(0, 4), Color(0.90, 0.88, 0.84))  # cow
 
-static func _wheat(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vector2, ctr: Vector2, season: int) -> void:
+static func _wheat(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vector2, ctr: Vector2, season: int, seed: int = 0) -> void:
+	# A big working wheat field with a corner THRESHING BARN — and per-plot variation in
+	# tint, furrow count, scarecrow placement and autumn sheaves, so no two fields match.
+	var rng := RandomNumberGenerator.new()
+	rng.seed = int(seed) * 2246822519 + 5
 	var stage: int = SeasonSystem.growth_stage(season)
-	# Field colour tracks the crop: winter stubble, spring sprouts, summer green, gold autumn.
 	var field := Color(0.83, 0.69, 0.30)
 	match stage:
 		0: field = Color(0.62, 0.56, 0.40)   # ploughed / stubble
 		1: field = Color(0.55, 0.70, 0.34)   # green sprouts
 		2: field = Color(0.50, 0.66, 0.28)   # tall green
 		3: field = Color(0.86, 0.70, 0.26)   # ripe gold
+	field = field * rng.randf_range(0.94, 1.07)
 	ci.draw_colored_polygon(PackedVector2Array([t, r, b, l]), field)
+	var ex := t - l
+	var ey := b - l
+	# Furrow rows (count + spacing wobble per plot).
 	var row_col := field.darkened(0.22)
-	for i in range(1, 6):
-		var f := float(i) / 6.0
+	var nrows: int = rng.randi_range(6, 9)
+	for i in range(1, nrows):
+		var f: float = float(i) / float(nrows) + rng.randf_range(-0.01, 0.01)
 		ci.draw_line(l.lerp(t, f), b.lerp(r, f), row_col, 0.8)
-	# scarecrow
-	var sc := ctr + Vector2(0, -2)
-	_post(ci, sc, 12.0, WOOD_D, 1.4)
-	ci.draw_line(sc + Vector2(-6, -8), sc + Vector2(6, -8), WOOD_D, 1.2)
-	ci.draw_circle(sc + Vector2(0, -13), 2.4, Color(0.78, 0.66, 0.40))
+	# Corner threshing barn (box + gable + door), tucked toward the back.
+	var bc: Vector2 = l + ex * rng.randf_range(0.18, 0.26) + ey * rng.randf_range(0.18, 0.26)
+	var barn := _box(ci, bc.lerp(t, 0.18), bc.lerp(r, 0.18), bc.lerp(b, 0.18), bc.lerp(l, 0.18), rng.randf_range(11.0, 13.0), WOOD_D.lightened(0.06), TEX_PLANK)
+	_gable(ci, barn, rng.randf_range(6.0, 7.5), ROOF_LEATHER if rng.randf() < 0.5 else THATCH_D)
+	# Autumn: stacked sheaves dotted across the stubble.
+	if stage == 3:
+		for i in range(rng.randi_range(3, 6)):
+			var sp: Vector2 = l + ex * rng.randf_range(0.35, 0.92) + ey * rng.randf_range(0.35, 0.92)
+			ci.draw_colored_polygon(PackedVector2Array([sp + Vector2(-2.5, 1), sp + Vector2(2.5, 1), sp + Vector2(0, -5)]), Color(0.84, 0.70, 0.32))
+			ci.draw_line(sp + Vector2(-1.5, 0), sp + Vector2(1.5, 0), Color(0.66, 0.52, 0.22), 0.8)
+	# One or two scarecrows at varied spots.
+	for i in range(rng.randi_range(1, 2)):
+		var sc: Vector2 = l + ex * rng.randf_range(0.4, 0.85) + ey * rng.randf_range(0.35, 0.8)
+		_post(ci, sc, 12.0, WOOD_D, 1.4)
+		ci.draw_line(sc + Vector2(-6, -8), sc + Vector2(6, -8), WOOD_D, 1.2)
+		ci.draw_circle(sc + Vector2(0, -13), 2.4, Color(0.78, 0.66, 0.40))
 
 static func _hops(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vector2, season: int) -> void:
 	var stage: int = SeasonSystem.growth_stage(season)
@@ -824,20 +853,35 @@ static func _church(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vecto
 
 # ── MILITARY ───────────────────────────────────────────────────────────────────
 
-static func _barracks(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vector2, ctr: Vector2) -> void:
-	var c := _box(ci, t, r, b, l, 18.0, WOOD_D.lightened(0.05), TEX_PLANK)
+static func _barracks(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vector2, ctr: Vector2, seed: int = 0) -> void:
+	# A timber longhouse set on the BACK of the plot, with an open training YARD in front —
+	# a pell (practice post), a weapon rack and war banners, varied per instance.
+	var rng := RandomNumberGenerator.new()
+	rng.seed = int(seed) * 374761393 + 17
+	var ex := t - l
+	var ey := b - l
+	# Packed-earth muster yard across the whole plot.
+	ci.draw_colored_polygon(PackedVector2Array([t, r, b, l]), Color(0.50, 0.45, 0.33))
+	# Longhouse occupies the back ~62% of the footprint (toward t), leaving a front yard.
+	var c := _box(ci, t, t + ey * 0.62, l + ey * 0.62, l, 18.0, WOOD_D.lightened(0.05), TEX_PLANK)
 	_gable(ci, c, 9.0, ROOF_LEATHER)
-	_door(ci, l, b, 18.0, Color(0.18, 0.12, 0.08))
-	# war banners
+	# War banners along the eaves.
 	for f in [0.3, 0.7]:
-		var p := (c[0] as Vector2).lerp(c[1], f) + Vector2(0, 0)
+		var p := (c[0] as Vector2).lerp(c[1], f)
 		var tp := _post(ci, p, 10.0, WOOD_D, 1.2)
 		ci.draw_colored_polygon(PackedVector2Array([tp, tp + Vector2(0, 9), tp + Vector2(5, 4)]), RED)
-	# weapon rack out front
-	var rk := b.lerp(r, 0.6) + Vector2(0, 4)
+	# Front-yard training props (positions/counts vary).
+	var yard: Vector2 = ctr.lerp(b, 0.45)
+	# Pell — a practice post wrapped with a straw man.
+	var pell: Vector2 = yard + ex * rng.randf_range(-0.12, 0.04) + ey * rng.randf_range(-0.02, 0.10)
+	_post(ci, pell, 11.0, WOOD_D, 2.0)
+	ci.draw_circle(pell + Vector2(0, -11), 2.2, Color(0.78, 0.66, 0.40))
+	ci.draw_line(pell + Vector2(-4, -8), pell + Vector2(4, -8), WOOD_D, 1.4)
+	# Weapon rack with a varied number of spears.
+	var rk: Vector2 = yard + ex * rng.randf_range(0.10, 0.22) + ey * rng.randf_range(0.05, 0.18)
 	ci.draw_line(rk + Vector2(-5, 0), rk + Vector2(5, 0), WOOD, 1.4)
-	for i in range(3):
-		ci.draw_line(rk + Vector2(-4 + i * 4, 0), rk + Vector2(-4 + i * 4, -9), IRON, 1.0)
+	for i in range(rng.randi_range(2, 4)):
+		ci.draw_line(rk + Vector2(-4 + i * 3, 0), rk + Vector2(-4 + i * 3, -9), IRON, 1.0)
 
 static func _siege(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vector2, ctr: Vector2) -> void:
 	ci.draw_colored_polygon(PackedVector2Array([t, r, b, l]), DIRT)
@@ -853,19 +897,34 @@ static func _siege(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vector
 	ci.draw_circle(piv + Vector2(-12, -6), 2.4, STONE_D)     # projectile
 	ci.draw_rect(Rect2(piv.x + 4, piv.y - 2, 5, 6), IRON_D)  # counterweight
 
-static func _forge(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vector2, ctr: Vector2, time: float) -> void:
-	var c := _box(ci, t, r, b, l, 14.0, STONE_D, TEX_STONE)
+static func _forge(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vector2, ctr: Vector2, time: float, seed: int = 0) -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = int(seed) * 1099087573 + 23
+	var ey := b - l
+	# Sooty work-yard ground across the plot.
+	ci.draw_colored_polygon(PackedVector2Array([t, r, b, l]), Color(0.34, 0.31, 0.29))
+	# Stone forge-house on the back ~60% of the plot.
+	var c := _box(ci, t, t + ey * 0.60, l + ey * 0.60, l, 14.0, STONE_D, TEX_STONE)
 	_gable(ci, c, 7.0, ROOF_RUST)
-	# stone chimney with glowing forge
-	var ch := c[1].lerp(c[2], 0.5)
+	# Stone chimney with a heat shimmer.
+	var ch: Vector2 = (c[1] as Vector2).lerp(c[2], 0.5)
 	ci.draw_rect(Rect2(ch.x - 3, ch.y - 14, 6, 14), STONE)
 	var fl := 0.6 + 0.4 * sin(time * 6.0)
 	ci.draw_circle(ch + Vector2(0, -15), 2.0 + fl, Color(0.5, 0.5, 0.5, 0.4))
-	# anvil + glow out front
-	var an := b.lerp(l, 0.5) + Vector2(0, 4)
+	# Front work-yard: anvil with a hot glow, a coal heap, a water trough — placed with jitter.
+	var yard: Vector2 = ctr.lerp(b, 0.5)
+	var an: Vector2 = yard + Vector2(rng.randf_range(-6, 0), rng.randf_range(0, 4))
 	ci.draw_circle(an + Vector2(0, 1), 4.0 * fl, Color(1.0, 0.5, 0.1, 0.5))
 	ci.draw_rect(Rect2(an.x - 3, an.y - 3, 6, 2), IRON_D)
 	ci.draw_rect(Rect2(an.x - 1, an.y - 1, 2, 3), IRON_D)
+	# Coal heap.
+	var coal: Vector2 = yard + Vector2(rng.randf_range(4, 9), rng.randf_range(-1, 3))
+	ci.draw_circle(coal, 3.2, Color(0.12, 0.11, 0.12))
+	ci.draw_circle(coal + Vector2(-1, -1), 1.4, Color(0.22, 0.20, 0.22))
+	# Water trough.
+	var tr: Vector2 = yard + Vector2(rng.randf_range(-2, 4), rng.randf_range(5, 8))
+	ci.draw_rect(Rect2(tr.x - 4, tr.y - 2, 8, 4), WOOD_D)
+	ci.draw_rect(Rect2(tr.x - 3, tr.y - 1.5, 6, 2), Color(0.32, 0.48, 0.62))
 
 static func _armory(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vector2, ctr: Vector2) -> void:
 	var c := _box(ci, t, r, b, l, 15.0, STONE, TEX_STONE)
