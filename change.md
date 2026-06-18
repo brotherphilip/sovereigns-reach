@@ -90,6 +90,27 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Live Backlog & Resolved Index  (compacted iter192 — Phase 1 reads THIS; the per-iteration `### Active Backlog` blocks in Run History below are historical snapshots, superseded here)
+
+### Active Backlog (Base Game) — deduplicated
+- **Phase 2 (deferred, user-agreed): physical AI cities** — prototype ONE AI city running CitizenSystem hauling; measure FPS/tick cost before committing.
+- **Visual polish (POLISH):** WALL colours still cluster (tan-timber / grey-stone / wood-plank); several small buildings (well, hovel, granary, market, watchtower, quarry, mine) read as plain blobs at play-zoom. (Roofs diversified iter175; villager tunics iter191.)
+- **OBSERVATION — night dead-space (taste, needs USER call, NOT a bug):** deep-night `NightLayer.MAX_DARK = 0.92` (near-black away from lamps) + depopulated night (skeleton crew) ⇒ ~5 min/cycle dark+empty. Soften MAX_DARK or add night ambient life only if the user wants less dead time.
+- **WATCH-ITEM (needs re-verification):** SR_AUTOPLAY telemetry shows population dipping ~20→14 in the first ~4 game-days then stabilising (iter191). Likely the age-pyramid initial-settler death stagger, but confirm it's not a "feels-bad" early death-wave for a new player.
+- **Deathmatch "Empires of Ages":** `deathmatch.md` absent; no active work. Create only when that mode is built.
+
+### Resolved Index (recent, real evidence) — collapsed
+- **Calmer pacing (iter187):** realm events every 3–5 sun cycles (`WorldEventSystem` COOLDOWN 225 + chance 0.013); King's Peace = 10 sun cycles (`AIFaction.PLAYER_GRACE_DAYS 750`, gates sieges AND tribute). Ev: TestWorldEvents 46/0, TestPhase6 104/0.
+- **Night sleep + skeleton crew (iter188):** villagers walk to the home door and step INSIDE; at night only a 1-worker crew stays on FOOD buildings, rest sleep, re-staff at dawn. Ev: TestNight 5/0, ProbeHaulEconomy (midnight 8/12 asleep, food still credits), on-screen night shot (iter190), survival telemetry food 90→180 rising (iter191).
+- **Hauling audited (iter187-188):** chain goods credited ONLY on physical delivery; no double-credit path. Ev: TestEconomy 13/0.
+- **Gable triangulation spam (iter189):** `BuildingModels._slope_fan` ends per-frame "triangulation failed" on every gable building. Ev: render logs 102/frame → 0 across autoplay/workers/day/night/seasons/worldmap/combat (iter189-191).
+- **SR_SEASON dev hook (iter190):** sets `world.season` directly + repaints. Ev: autumn=gold / winter=pale renders.
+- **Villager tunic variety (iter191):** per-id muted peasant palette in `CitizenLayer`. Ev: before/after zoom renders.
+- **Xvfb on-screen harness (iter189):** detached background-subshell launch renders + self-screenshots reliably (foreground = exit 144). Logs are real evidence too.
+- **(Durable, older — see Current Targets):** Day-100 FLOOR multi-seed survival; Reeve→King climb on 5 seeds ≤113d; late-game coalition-vs-leader; on-screen in-city FLOOR survival (iter158).
+
+---
+
 ## Iteration 191 — 2026-06-19  (DEV-LOOP — Base Game; profile: unattended autoplay + on-screen visual audit. Combat sweep clean, FLOOR re-confirmed, villager tunic variety)
 
 ### Plan
