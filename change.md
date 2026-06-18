@@ -116,6 +116,26 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 196 — 2026-06-19  (DEV-LOOP — Base Game; profile: unattended autoplay, VARIED seed. SR_SEED hook + 1st independent FLOOR run + compact + full sweep)
+
+### Plan
+Add an SR_SEED autoplay hook so on-screen FLOOR runs can be VARIED (the iter194/195 runs were identical deterministic seed-42); bank an independent clean run; do the due compact + broad sweep.
+
+### Implement
+- `CityViewScene._init_simulation`: honour SR_SEED to override `_map_seed` before `setup_world` (which seeds weather/disease/fire/social/wildlife/citizen RNGs off it) — default-game first-entry only. Now repeated autoplay runs can be genuinely independent.
+
+### Playtest (REAL — Xvfb autoplay seed 777 + full headless sweep)
+- **VARIED FLOOR run (SR_SEED=777): G=0, day 114**, popularity min 48.6 → 57.6, pop 20→18, food healthy, hall 500, 0 triangulation/script errors. Confirmed INDEPENDENT of seed-42: different map (water in different corners), **"Spring · Clear"** weather (vs seed-42's "Spring · Drought"), and a different popularity curve (min 48.6 vs 50.0). A genuinely distinct clean run.
+- **Full headless sweep GREEN (12 files, 496 assertions, 0 fail):** Economy 13, Workers 21, Night 5, WorldEvents 46, StrategicAI 91, Phase6 104, Phase10 80, Siege 9, People 21, Survival 6, Tutorial 18, Narration 82.
+- **COMPACT done:** Live Backlog & Resolved Index re-verified tight (resolved the SR_SEED milestone-tooling item; no same-root-cause Resolved dups to collapse). Run History preserved.
+
+### Post-mortem → TARGET REACHED (clean, independent)
+MILESTONE PROGRESS: now **2 independent clean on-screen FLOOR runs** (seed 42 day 114, seed 777 day 114). One more VARIED seed ⇒ the 3-run milestone (then raise the bar). NOT claiming it yet. Minor real datum: seed 777 dipped to popularity 48.6 mid-run then recovered — still far above the revolt threshold (10).
+
+### Confidence: HIGH — independent run + screenshot + green sweep all captured.
+
+---
+
 ## Iteration 195 — 2026-06-19  (DEV-LOOP — Base Game; profile: unattended autoplay / new-player onboarding. King's-Peace units fix + 2nd FLOOR run + full sweep)
 
 ### Plan
