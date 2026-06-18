@@ -110,7 +110,7 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 - **Phase 2 (deferred, user-agreed): physical AI cities** — prototype ONE AI city running CitizenSystem hauling; measure FPS/tick cost before committing.
 - **Visual polish (POLISH):** WALL colours still cluster (tan-timber / grey-stone / wood-plank); `market` reads sparse and `well` is tiny at play-zoom. (Roofs diversified iter175; villager tunics iter191; watchtower rebuilt iter193.)
 - **OBSERVATION — night dead-space (taste, needs USER call, NOT a bug):** deep-night `NightLayer.MAX_DARK = 0.92` (near-black away from lamps) + depopulated night (skeleton crew) ⇒ ~5 min/cycle dark+empty. Soften MAX_DARK or add night ambient life only if the user wants less dead time.
-- **WATCH-ITEM — late-game drought food crash:** the Day-150 run (seed 31337) saw food stable at 200 (day 62–112) then crash to **0 at day 137** (a prolonged drought + a thin food workforce as a worker aged out), recovering to 200 by day 145. The realm SURVIVED (popularity min 47.7, hall intact, reached day 164) and the new low-food warning fires in-window, so NOT fixed. But if a future seed actually LOSES to a drought food crash (popularity → revolt), buff the drought-time food buffer (e.g., bigger granary base, or a deeper off-season trickle). Needs more seeds to judge.
+- **WATCH-ITEM — late-game drought food crash (strengthened iter200):** food can crash to 0 mid-late game on a drought seed (a prolonged drought + a thin food workforce as a worker ages out). Now seen on **2 of 3 Day-150 seeds** — 31337 (min_pop 47.7, recovered) and 12345 (min_pop **27.9** — a PASSIVE autoplay eroded much closer to the revolt threshold of 10). 4242 was clean (min_food 70). NO seed has actually revolted/lost, and a real player has the low-food warning + ration control to cope (the passive autoplay can't react, so 27.9 is a worst case). NOT fixed (no loss; user wants calm, not easier). IF a future seed actually revolts, OR if the user wants drought-robustness, buff the drought-time food buffer (bigger granary base, deeper off-season/drought trickle, or auto-lower rations under famine).
 - **OBSERVATION — peaceful 100-day life (from the 10-cycle peace, user-directed):** the FLOOR run (iter194) reached day 114 with NO siege (King's Peace until day 750) while the standing objective still says "ready your defences — build a Barracks, Wall or Tower." The defence prompt is premature now; consider deferring it (or the King's-Peace-ending telegraph) closer to when threats actually arrive. Stems from the user's calm-realm directive — needs a user call before changing.
 - **Deathmatch "Empires of Ages":** `deathmatch.md` absent; no active work. Create only when that mode is built.
 
@@ -128,8 +128,29 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 - **Xvfb on-screen harness (iter189):** detached background-subshell launch renders + self-screenshots reliably (foreground = exit 144). Logs are real evidence too.
 - **SR_SEED autoplay hook (iter196):** `CityViewScene._init_simulation` honours SR_SEED to vary the map/economy seed (seeds weather/disease/fire/social/wildlife/citizen RNGs), so on-screen FLOOR runs can be INDEPENDENT (autoplay was deterministic at seed 42). Enables real "3 varied clean runs" milestone evidence.
 - **Hovel hearth smoke (iter197):** homes had no chimney smoke (only bakery/brewery/blacksmith did) → read as empty boxes. `_hovel` now draws a mud chimney + 3-puff drifting smoke wisp (per-frame draw time). Ev: building-showcase zoom shows chimney+wisp, 0 triangulation/parse errors.
+- **Autoplay choice-event FREEZE (iter200):** SR_AUTOPLAY seed 12345 froze at day 9 (game_day stuck the whole run; render/telemetry alive) — a choice event fired and `EventChoicePanel` paused the sim (SPEED_PAUSED) awaiting a click autoplay never gives. Prior FLOOR runs were clean only by luck (didn't roll a choice event; 225-day cooldown ⇒ ≤1 event/run). Fix: under SR_AUTOPLAY the panel auto-resolves with the conservative last option (decline/pass) and never pauses. Ev: seed 12345 re-run reached day 164 (was frozen at 9). Real-player flow unchanged.
 - **Low-food warning (iter198):** a drought could drain the granary to 0 (brief starvation) with NO early heads-up (is_starving only flips at food 0; warnings existed only for popularity + builder-stall). GameState now emits a one-time "stores run low" realm_notice below ~3 days' food (pop+ration scaled), re-arming above ~6 days. Ev: tests/TestFoodWarning.gd 5/0 (fires/no-spam/re-arms/re-fires); the day-150 run (seed 31337) exercised exactly this (food→0 day 137). Aligned with calm-realm (player aid, no added threat).
 - **(Durable, older — see Current Targets):** Day-100 FLOOR multi-seed survival; Reeve→King climb on 5 seeds ≤113d; late-game coalition-vs-leader; on-screen in-city FLOOR survival (iter158).
+
+---
+
+## Iteration 200 — 2026-06-19  (DEV-LOOP — Base Game; profile: long-haul survivor / 3rd Day-150 seed. Found+fixed an autoplay sim FREEZE on choice events)
+
+### Plan
+Bank the 3rd Day-150 seed (12345) for full rigor; broad sweep; honestly assess remaining autonomous value (was braced for an "exhausted/needs-user-steer" report).
+
+### Playtest (REAL — Xvfb autoplay seed 12345 + full headless sweep)
+- **FREEZE found:** seed 12345 run "finished" (G=0, screenshot saved) but `game_day` was STUCK at 9 for the entire ~395s (396 telemetry rows all day 9; FPS 21-23, render alive). → SIM FREEZE, not a survival result. Root cause: a choice event fired ~day 9 and `EventChoicePanel` paused the sim (SPEED_PAUSED) for a decision autoplay can't make. Prior FLOOR/Day-150 "clean" runs were clean only by luck (didn't roll a choice event; the 225-day cooldown means ≤1 event/run).
+- **Full sweep GREEN:** 13 files, 501 assertions, 0 failures.
+
+### Implement
+- `EventChoicePanel._on_world_event`: under SR_AUTOPLAY, auto-resolve a choice event with the conservative LAST option (decline/pass — no resource drain) instead of presenting + pausing. Real-player flow unchanged.
+- **Verified:** seed 12345 re-run reached **day 164** (was frozen at 9). It was a STRESSED survival though — min_pop **27.9**, min_food 0 (a drought food crash; 2 of 3 seeds now show this). Survived (27.9 > revolt 10, hall intact); strengthened the food-crash watch-item (no buff — no loss, real players have warning+rations).
+
+### Post-mortem → FREEZE (fixed) + a strengthened balance WATCH-ITEM
+The freeze made all autoplay evidence silently fragile — a genuinely substantive find (NOT the "exhausted" loop I expected). The drought food-crash is more common/severe than earlier seeds showed but still non-fatal.
+
+### Confidence: HIGH — freeze before/after (day 9 frozen → day 164), green sweep, screenshot.
 
 ---
 
