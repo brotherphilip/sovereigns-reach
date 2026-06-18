@@ -207,10 +207,13 @@ static func _process_economy(faction: Dictionary) -> void:
 			if g == "gold":
 				faction["gold"] = faction.get("gold", 0) + amt
 			elif g in _FOOD_GOODS:
-				if not food_full:
-					food[g] = int(food.get(g, 0)) + amt   # surplus over cap is not banked
-			elif not raw_full:
-				res[g] = int(res.get(g, 0)) + amt
+				# Deposit only what fits — surplus over the granary cap is not banked (the
+				# player's granary discards overflow too), so stores never exceed capacity.
+				var froom: int = maxi(0, _food_capacity(faction) - _food_stored(faction))
+				food[g] = int(food.get(g, 0)) + mini(amt, froom)
+			else:
+				var rroom: int = maxi(0, _raw_capacity(faction) - _raw_stored(faction))
+				res[g] = int(res.get(g, 0)) + mini(amt, rroom)
 	faction["resources"] = res
 	faction["food"] = food
 	_feed_and_grow(faction)
