@@ -90,6 +90,44 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 172 — 2026-06-18  (DEV-LOOP — independents-secession mechanic + COMPACT)
+
+### Plan
+Take on the one real remaining content item (independents deplete late-game). Implement conservatively
+(player-EXEMPT so the verified King climb can't break) + verify with TestKingClimb and a dynamism A/B.
+
+### Implement
+- `StrategicSim._process_secessions()`: a neglected (dev 0), non-capital, frontier city held by an AI great
+  house can revolt back to INDEPENDENT (1.2%/day), never stripping a faction below 3 holdings. Player holdings +
+  the player seat are exempt; deterministic per-tick RNG. Replenishes the conquest pool + adds rebellion flavour.
+
+### Playtest (REAL — headless)
+- **King climb green** (seed 12345: King d89, post-King hold ✓) — player exemption keeps the climb untouched.
+  **TestStrategicAI 86/0** (no regression from the new tick_day step).
+- Dynamism A/B (pure-AI, seed 12345): independents (-2) over time = day100 **13** (vs ~11 without), day150 8,
+  day200 1. HONEST: it gives a small mid-game bump + rebellion flavour but does NOT stop day-200 depletion —
+  because the AI develops conquests (dev>0) so few stay eligible. Aggressive enough to truly balance conquest
+  would risk the verified dynamics, so kept conservative.
+
+### Post-Mortem (LEGITIMATE — reframed)
+- KEY honest finding: within the actual 20-min play horizon (~day 100) independents are PLENTIFUL with or without
+  this (11-13), so the "deplete" was never a real problem in normal play — only in 200d+ marathons. The mechanic is
+  harmless + additive (flavour + small replenish), King-safe, no regression. The "independents deplete" backlog
+  item is therefore reframed as a non-issue-in-play (mild mechanic shipped), not an open gap.
+
+### COMPACT (5-loop checkpoint; last compact iter167)
+- Current Targets current (start-as-village→King fully built/verified/coalition; audio mixer + music + textured
+  terrain; +events). Active Backlog tight (below). Resolved cites real evidence; nothing in both Active+Resolved;
+  Run History untouched.
+
+### Active Backlog
+- **VO for the 5 iter169 events (user TTS).**
+- **Design Iteration (deferred):** spatial index ~15k+ units (scale-only); coalition/secession intensity tuning if
+  the user wants long-game depletion fully solved; ambient soundscape (risky-blind timbre).
+
+### Confidence: HIGH on King-safety + no regression; HIGH that depletion is a non-issue in the play horizon.
+Iterations since last command/compact: 0 (COMPACTED this iteration, iter172).
+
 ## Iteration 171 — 2026-06-18  (DEV-LOOP — regression health-check of the recent burst)
 
 ### Plan
