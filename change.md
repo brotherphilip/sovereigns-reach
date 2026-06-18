@@ -90,6 +90,37 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 188 — 2026-06-19  (DEV-LOOP — Base Game; profile: Casual Novice / unattended-town. Night skeleton crew + real economy probe)
+
+### Plan
+On-screen Xvfb verification of the iter187 hauling/night claims (promised last loop). If the render harness can't capture, fall back to a REAL headless state-over-time probe on the actual SR_AUTOPLAY layout. Expected: confirm chain goods accrue only via delivery, and that the night fix doesn't stall the workforce.
+
+### Playtest attempt 1 (Xvfb on-screen) — INFRA BLOCKED (honest)
+Every windowed render attempt (`xvfb-run … CityViewScene`, foreground/background/sandbox-disabled) dies at **exit 144 before the screenshot timer fires** — X11 server spawn is sandbox/seccomp-blocked THIS session (xvfb-run is installed; no log file is even produced). Logged as infra; did NOT fabricate any screenshot analysis. (First Xvfb-blocked loop — not yet the 2-loop INFRA halt.)
+
+### Playtest attempt 2 (REAL — headless probe `tools/ProbeHaulEconomy.gd`)
+Mirrors CityViewScene._dev_autoplay EXACTLY (hall + granary + 3 orchards + wheat + woodcutter, no stockpile), drives CitizenSystem with day_night across 3 sun cycles (54000t), samples credited food/wood + inside/working counts:
+- **Food 0→300** then flat (granary cap; production correctly halts when full). Delivery works.
+- **Wood 0→~53** then flat — the keep's cellar cap with NO stockpile built. → This is almost certainly the user's "woodcutters never take wood to the stockpile": there IS no stockpile at start, the small cellar fills fast, then cutters wait. Working as designed (player must build a stockpile), now documented with numbers.
+- **NIGHT (real finding):** inside=0, working=12 — NOBODY slept. The iter187 fix only sent IDLE pawns home; the design comment's "small night shift" was never coded (full crew stayed on). A fully-employed small village never sleeps.
+
+### Implement (post-mortem → PLAYSTYLE/immersion fault)
+- `CitizenSystem._night_shift`: at night, release the workforce home to bed, keep only a 1-worker skeleton crew on essential FOOD buildings (so the larder trickles overnight). Day-branch reconcile re-staffs everyone at dawn. Re-probe: **midnight inside=8/12, working=4** (3 orchards + wheat), day inside=0/working=12. Streets now visibly empty after dark.
+- Fixed stale `TestPhase6` "tribute after 14 days" (broke silently when the King's Peace was lengthened in 141ea89/iter187): now asserts NO tribute during the peace, demands once it ends.
+
+### Playtest (REAL — headless regressions)
+TestNight 5/0 · TestWorkers 21/0 · TestEconomy 13/0 · TestPeople 21/0 · TestSurvival 6/0 · TestPhase6 104/0. Probe numbers above are the state-over-time capture.
+
+### Confidence: HIGH on night-shift + economy delivery (real probe numbers + green tests). On-screen visual confirmation: NOT captured (Xvfb infra-blocked this session) — honest gap, retry when the render harness is available.
+
+### Active Backlog (Base Game)
+- **On-screen Xvfb capture is infra-blocked this session** (exit 144). Re-attempt the worker-haul + night-sleep visual confirmation when the render path works; if it fails a 2nd consecutive loop → INFRA HALT.
+- Phase 2 (deferred, user-agreed): full physical AI cities — prototype ONE AI city running CitizenSystem hauling + measure FPS/tick cost before going all-in.
+- Visual polish (optional, user-driven): WALL colours still cluster; several small buildings read as plain blobs at play-zoom.
+- Deathmatch ("Empires of Ages"): `deathmatch.md` does not exist yet; no active deathmatch work. Create it only when that mode is actually worked on.
+
+---
+
 ## Iteration 187 — 2026-06-18  (USER-DIRECTED — calmer pacing in SUN CYCLES + real night sleep; hauling audited)
 
 ### Task (user)
