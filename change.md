@@ -90,6 +90,30 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 191 — 2026-06-19  (DEV-LOOP — Base Game; profile: unattended autoplay + on-screen visual audit. Combat sweep clean, FLOOR re-confirmed, villager tunic variety)
+
+### Plan
+Finish the render-error sweep on the one remaining draw path (combat/units/projectiles); re-confirm the 20-min survival FLOOR with real on-screen telemetry after the iter187-190 balance changes; then a concrete improvement from the visual audit.
+
+### Playtest (REAL — Xvfb on-screen + telemetry)
+- **Combat draw path clean:** SR_SPAWN_UNITS render (20 units, ~17 FPS, mid-battle) — G=0, **0 triangulation / 0 script errors**. The render-error sweep is now complete across ALL major paths (autoplay, workers, day, night, spring→winter, worldmap, combat); only the iter189 gable bug ever existed.
+- **FLOOR economy re-confirmed (real telemetry):** SR_AUTOPLAY 80s run → game_day 33, **popularity 50.0→53.1 (rising), food 90→180 (rising), hall_hp 500 intact, 0 errors**. The iter188 night skeleton-crew does NOT starve the realm — food climbs steadily through day↔night cycles. (Window reached day 33, not 100; trend strongly positive, headless TestSurvival covers the full 100. Population dipped 20→14 early, age-pyramid deaths, then stable.)
+- **Visual audit (zoomed worker crowd):** every villager wore one of just 3 fixed tunic colours (builder blue / female dusty-rose / male olive) → a crowd of women read as a uniform PINK cohort. Same monotony the iter175 roof pass fixed for buildings.
+
+### Implement
+- `CitizenLayer`: per-person tunic from a 10-colour muted peasant palette (browns/tans/ochre/dull green-blue/rust/grey), indexed deterministically by citizen id; women a touch rosier; builders stay blue-grey for at-a-glance readability. **Verified before/after on-screen:** crowd now reads as varied folk, not uniform pink.
+
+### Confidence: HIGH — combat clean + FLOOR telemetry + tunic variety all captured (screenshots + render logs + CSV). View-only + verification; no sim/balance change this loop.
+
+### Active Backlog (Base Game)
+- OBSERVATION (taste, not changed): deep-night `MAX_DARK 0.92` + depopulated night = ~5 min/cycle dark+empty; soften or add night life if the user wants.
+- Phase 2 (deferred): physical AI cities prototype + FPS/tick cost.
+- Visual polish: WALL colours still cluster; small buildings read as plain blobs at play-zoom. (Roofs iter175, villager tunics iter191 now diversified.)
+- COMPACT due next loop (iter192): dedup Active-Backlog/Resolved, collapse same-root-cause Resolved, verify cross-refs; NEVER delete Run History.
+- Deathmatch: `deathmatch.md` absent; create only when worked on.
+
+---
+
 ## Iteration 190 — 2026-06-19  (DEV-LOOP — Base Game; profile: unattended on-screen QA. Visual audit of iter188/189 + fixed dead SR_SEASON hook)
 
 ### Plan
