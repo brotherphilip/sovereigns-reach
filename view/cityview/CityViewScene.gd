@@ -77,6 +77,20 @@ func _resolve_city() -> void:
 
 func _init_simulation() -> void:
 	GameState.spectator_mode = false
+
+	# Returning to your OWN, already-built seat: restore exactly what you left instead of
+	# rebuilding a fresh village. (Bug: every entry re-ran setup_world/initialize_player and
+	# wiped the city — going to the world map and back reset everything.)
+	var sel0: int = GameState.world.get("selected_city_id", -1)
+	var seat0: int = GameState.world.get("player_seat_city_id", -1)
+	if sel0 >= 0 and sel0 == seat0 and GameState.has_seat_snapshot_for(sel0):
+		if GameState.restore_seat_snapshot():
+			_spectator = false
+			var rp: Dictionary = GameState.players[0]
+			_keep_x = int(rp.get("keep_x", _keep_x))
+			_keep_y = int(rp.get("keep_y", _keep_y))
+			return
+
 	GameState.setup_world(_map_seed, DEFAULT_SHIRE_COUNT)
 	# No cleared "starting zone": just spawn the player on nearby buildable land so
 	# their first Hall can be placed. No terrain is altered.
@@ -750,6 +764,9 @@ func _on_trade_sell(resource: String, amount: int) -> void:
 
 func _on_return_to_world_map() -> void:
 	SimulationClock.set_speed(SimulationClock.SPEED_PAUSED)
+	# Preserve your hand-built seat so re-entering it restores this exact city (no-op while
+	# spectating a rival town — that isn't your seat).
+	GameState.stash_seat_snapshot()
 	get_tree().change_scene_to_file("res://view/worldmap/WorldMapScene.tscn")
 
 # ── Combat / win-loss handlers ────────────────────────────────────────────────

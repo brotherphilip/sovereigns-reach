@@ -2916,6 +2916,63 @@ func prepare_starting_area(cx: int, cy: int, radius: int) -> void:
 						or t == WorldGrid.Terrain.ROCK or t == WorldGrid.Terrain.MARSH:
 					_grid.set_terrain(x, y, WorldGrid.Terrain.GRASS)
 
+# --- Seat persistence across scene changes ------------------------------------
+# GameState is an autoload, but CityViewScene._init_simulation used to rebuild the world
+# (setup_world + initialize_player) on EVERY entry — so leaving for the world map (or
+# spectating a rival city, which overwrites players[0]) wiped your hand-built seat. These
+# snapshot the seat's living state on leave and restore it on return, so your city is
+# exactly as you left it. The grid TERRAIN is saved; building/field occupancy is rederived
+# from the buildings list via _register_buildings_in_grid.
+
+func stash_seat_snapshot() -> void:
+	# Never overwrite the seat with a spectator showcase (players[0] is the rival town then).
+	if spectator_mode or players.is_empty() or _grid == null:
+		return
+	world["seat_snapshot"] = {
+		"grid": _grid.serialize(),
+		"player": players[0].duplicate(true),
+		"citizens": citizens.duplicate(true),
+		"ai_factions": ai_factions.duplicate(true),
+		"wildlife": wildlife.duplicate(true),
+		"campfire": campfire.duplicate(true),
+		"next_building_id": _next_building_id,
+		"next_unit_id": _next_unit_id,
+		"next_citizen_id": _next_citizen_id,
+		"next_animal_id": _next_animal_id,
+		"seat_city_id": int(world.get("player_seat_city_id", -1)),
+	}
+
+func has_seat_snapshot_for(city_id: int) -> bool:
+	var s = world.get("seat_snapshot", null)
+	return s is Dictionary and not s.is_empty() and int(s.get("seat_city_id", -2)) == city_id
+
+func restore_seat_snapshot() -> bool:
+	var s = world.get("seat_snapshot", null)
+	if not (s is Dictionary and not s.is_empty()):
+		return false
+	spectator_mode = false
+	_grid = WorldGrid.new(server_config["map_width"], server_config["map_height"])
+	_grid.deserialize(s["grid"])
+	# Shire map is deterministic from the seed; rebuild only if this fresh session lost it.
+	if _shire_map == null:
+		_shire_map = ShireMap.new()
+		_shire_map.generate_default(server_config["map_width"], server_config["map_height"],
+			8, server_config.get("map_seed", 12345) ^ 0x51932)
+	while players.size() < 1:
+		players.append({})
+	players[0]   = (s["player"] as Dictionary).duplicate(true)
+	citizens     = (s["citizens"] as Array).duplicate(true)
+	ai_factions  = (s["ai_factions"] as Array).duplicate(true)
+	wildlife     = (s["wildlife"] as Array).duplicate(true)
+	campfire     = (s["campfire"] as Dictionary).duplicate(true)
+	_next_building_id = int(s["next_building_id"])
+	_next_unit_id     = int(s["next_unit_id"])
+	_next_citizen_id  = int(s["next_citizen_id"])
+	_next_animal_id   = int(s["next_animal_id"])
+	_register_buildings_in_grid(players[0].get("buildings", []))
+	world["grid"] = _grid.serialize()
+	return true
+
 # Guarantee timber within reach of the player's seat. The Woodcutter's Camp is the
 # tutorial's gated step-1 build but it REQUIRES forest terrain, and forest placement is
 # random — an unlucky seed could leave the start with no nearby trees, hard-stalling the
