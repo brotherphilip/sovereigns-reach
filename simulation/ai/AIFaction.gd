@@ -26,6 +26,15 @@ const MAX_FACTION_BUILDINGS: int = 22
 # Food/gold routing for abstract faction stores.
 const _FOOD_GOODS: Array = ["apples", "bread", "cheese", "meat", "ale"]
 
+# Storage symmetry (iter176): the AI is bound by the SAME storage limits as the player —
+# raw goods share a capped pool (keep cellar + built stockpiles) and food a capped granary,
+# so production HALTS when full and the AI must build MORE stockpiles/granaries to grow its
+# stores (it can't accumulate resources out of nowhere). Mirrors StorageSystem / FoodSystem.
+const RAW_GOODS: Array = ["wood", "firewood", "stone", "iron", "pitch", "hops", "wheat", "flour", "leather"]
+const RAW_BASE: int = 500        # keep cellar before any stockpile (mirror StorageSystem.RAW_BASE)
+const FOOD_BASE: int = 200       # granary-less default (mirror FoodSystem)
+const STORAGE_FULL_FRAC: float = 0.85   # build another stockpile/granary once this full
+
 # Workforce / housing economy (abstract mirror of the player's).
 const FOOD_PER_CAPITA: float = 0.5     # food units eaten per worker per day
 const BASE_HOUSING: int = 8            # the faction's keep shelters this many
@@ -177,20 +186,65 @@ static func _process_economy(faction: Dictionary) -> void:
 				break
 		if short:
 			continue   # idle for lack of materials — keep the workers free
+		# STORAGE LIMIT (symmetry with the player): if the store this producer fills is
+		# already full, it stands idle — production HALTS until the faction builds more
+		# stockpiles/granaries. Gold is uncapped (not physically stored), same as the player.
+		var outs: Dictionary = ResourceTick.daily_output(btype, staff)
+		var raw_full: bool = _raw_stored(faction) >= _raw_capacity(faction)
+		var food_full: bool = _food_stored(faction) >= _food_capacity(faction)
+		var blocked: bool = true
+		for g in outs:
+			var room_ok: bool = (g == "gold") or (g in _FOOD_GOODS and not food_full) or (not (g in _FOOD_GOODS) and not raw_full)
+			if room_ok:
+				blocked = false
+		if blocked:
+			continue   # nowhere to put the output — idle, keep the workers free
 		pool -= staff
 		for r in inputs:
 			res[r] = int(res.get(r, 0)) - int(inputs[r])
-		for g in ResourceTick.daily_output(btype, staff):
-			var amt: int = int(ResourceTick.daily_output(btype, staff)[g])
+		for g in outs:
+			var amt: int = int(outs[g])
 			if g == "gold":
 				faction["gold"] = faction.get("gold", 0) + amt
 			elif g in _FOOD_GOODS:
-				food[g] = int(food.get(g, 0)) + amt
-			else:
+				if not food_full:
+					food[g] = int(food.get(g, 0)) + amt   # surplus over cap is not banked
+			elif not raw_full:
 				res[g] = int(res.get(g, 0)) + amt
 	faction["resources"] = res
 	faction["food"] = food
 	_feed_and_grow(faction)
+
+# ── Storage capacity (mirror of the player's StorageSystem / FoodSystem) ─────────
+static func _raw_capacity(faction: Dictionary) -> int:
+	var cap: int = RAW_BASE
+	for b in faction.get("buildings", []):
+		var bt: String = b if b is String else (b.get("type", "") if b is Dictionary else "")
+		if bt == "stockpile":
+			cap += int(BuildingRegistry.lookup("stockpile").get("storage_capacity", 100))
+	return cap
+
+static func _raw_stored(faction: Dictionary) -> int:
+	var total: int = 0
+	var res: Dictionary = faction.get("resources", {})
+	for g in RAW_GOODS:
+		total += maxi(0, int(res.get(g, 0)))
+	return total
+
+static func _food_capacity(faction: Dictionary) -> int:
+	var cap: int = FOOD_BASE
+	for b in faction.get("buildings", []):
+		var bt: String = b if b is String else (b.get("type", "") if b is Dictionary else "")
+		if bt == "granary":
+			cap += int(BuildingRegistry.lookup("granary").get("storage_capacity", 300))
+	return cap
+
+static func _food_stored(faction: Dictionary) -> int:
+	var total: int = 0
+	var food: Dictionary = faction.get("food", {})
+	for g in _FOOD_GOODS:
+		total += maxi(0, int(food.get(g, 0)))
+	return total
 
 # The workforce eats daily; if fed and there's a free room it grows, otherwise it
 # starves and shrinks — the same housing+food pressure the player's population faces.
@@ -224,24 +278,42 @@ static func _build_economy(faction: Dictionary) -> void:
 	var blds: Array = faction.get("buildings", [])
 	if blds.size() >= MAX_FACTION_BUILDINGS:
 		return
+	# STORAGE FIRST (symmetry): if a store is nearly full, the AI raises another stockpile/
+	# granary so production can keep flowing — "stockpiles multiplied when full", exactly as
+	# the player must. Only when storage has headroom does it return to its economy cycle.
+	if _raw_stored(faction) >= int(float(_raw_capacity(faction)) * STORAGE_FULL_FRAC):
+		if _try_build(faction, "stockpile"):
+			return
+	if _food_stored(faction) >= int(float(_food_capacity(faction)) * STORAGE_FULL_FRAC):
+		if _try_build(faction, "granary"):
+			return
 	var order: Array = BUILD_PRIORITY.get(faction.get("archetype", ""), [])
 	if order.is_empty():
 		return
-	var btype: String = order[blds.size() % order.size()]
+	_try_build(faction, String(order[blds.size() % order.size()]))
+
+# Build one building of `btype` if the faction can afford it (pays standard BuildingRegistry
+# cost from its own stores). Returns true on success. Used for both the economy cycle and the
+# on-demand storage expansion.
+static func _try_build(faction: Dictionary, btype: String) -> bool:
+	if int(faction.get("buildings", []).size()) >= MAX_FACTION_BUILDINGS:
+		return false
 	var cost: Dictionary = BuildingRegistry.lookup(btype).get("cost", {})
 	var res: Dictionary = faction.get("resources", {})
 	for r in cost:
 		var have: int = faction.get("gold", 0) if r == "gold" else int(res.get(r, 0))
 		if have < int(cost[r]):
-			return  # can't afford yet — wait until production allows it
+			return false  # can't afford yet — wait until production allows it
 	for r in cost:
 		if r == "gold":
 			faction["gold"] = faction.get("gold", 0) - int(cost[r])
 		else:
 			res[r] = int(res.get(r, 0)) - int(cost[r])
 	faction["resources"] = res
+	var blds: Array = faction.get("buildings", [])
 	blds.append(btype)
 	faction["buildings"] = blds
+	return true
 
 # ── Threat level ──────────────────────────────────────────────────────────────
 
