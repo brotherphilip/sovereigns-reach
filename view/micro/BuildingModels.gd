@@ -311,7 +311,8 @@ static func _rose(ci: CanvasItem, c: Vector2, rad: float) -> void:
 
 static func draw_finished(ci: CanvasItem, btype: String, cat: int, w: int, h: int,
 		t: Vector2, r: Vector2, b: Vector2, l: Vector2,
-		wall: Color, roof: Color, trim: Color, time: float, season: int = SeasonSystem.Season.SUMMER) -> void:
+		wall: Color, roof: Color, trim: Color, time: float, season: int = SeasonSystem.Season.SUMMER,
+		seed: int = 0) -> void:
 	var ctr := (t + b) * 0.5
 	_shadow(ci, t, r, b, l)
 	match btype:
@@ -323,12 +324,12 @@ static func draw_finished(ci: CanvasItem, btype: String, cat: int, w: int, h: in
 		"well":              _well(ci, t, r, b, l, ctr)
 		"apothecary":        _shop(ci, t, r, b, l, ctr, Color(0.42, 0.62, 0.40), "+")
 		"guildhall":         _guildhall(ci, t, r, b, l, ctr)
-		"woodcutter_camp":   _woodcutter(ci, t, r, b, l, ctr)
+		"woodcutter_camp":   _woodcutter(ci, t, r, b, l, ctr, seed)
 		"stone_quarry":      _quarry(ci, t, r, b, l, ctr)
 		"iron_mine":         _mine(ci, t, r, b, l, ctr)
 		"pitch_rig":         _pitch_rig(ci, t, r, b, l, ctr, time)
 		"stockpile":         _stockpile(ci, t, r, b, l, ctr)
-		"apple_orchard":     _orchard(ci, t, r, b, l, season)
+		"apple_orchard":     _orchard(ci, t, r, b, l, season, seed)
 		"pig_farm":          _pen(ci, t, r, b, l, ctr, Color(0.86, 0.62, 0.62))
 		"dairy_farm":        _dairy(ci, t, r, b, l, ctr)
 		"wheat_farm":        _wheat(ci, t, r, b, l, ctr, season)
@@ -482,18 +483,36 @@ static func _guildhall(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Ve
 
 # ── HARVESTING ───────────────────────────────────────────────────────────────────
 
-static func _woodcutter(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vector2, ctr: Vector2) -> void:
-	# lean-to + log pile + chopping block with axe
-	var c := _box(ci, t.lerp(ctr, 0.3), r.lerp(ctr, 0.3), b.lerp(ctr, 0.3), l.lerp(ctr, 0.3), 13.0, WOOD)
-	_gable(ci, c, 7.0, THATCH_D)
-	# log stack
-	for i in range(3):
-		_log(ci, b.lerp(l, 0.5) + Vector2(-2 + i * 5, 2 - i * 3), 5.0)
-	# chopping block + axe
-	var blk := r.lerp(ctr, 0.5) + Vector2(0, 2)
-	ci.draw_rect(Rect2(blk.x - 3, blk.y - 5, 6, 5), WOOD_D)
-	ci.draw_line(blk + Vector2(0, -5), blk + Vector2(5, -11), WOOD_D, 1.4)
-	ci.draw_colored_polygon(PackedVector2Array([blk + Vector2(5, -11), blk + Vector2(9, -10), blk + Vector2(6, -13)]), IRON)
+static func _woodcutter(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vector2, ctr: Vector2, seed: int = 0) -> void:
+	# A LOGGING YARD that fills the plot (no two alike): trodden ground, a corner lean-to,
+	# scattered log stacks, fresh-cut stumps, and a chopping block with an axe.
+	var rng := RandomNumberGenerator.new()
+	rng.seed = int(seed) * 40503 + 7
+	var ex := t - l
+	var ey := b - l
+	# Cleared, trodden earth across the plot.
+	ci.draw_colored_polygon(PackedVector2Array([t, r, b, l]), Color(0.46, 0.40, 0.27).lerp(DIRT, 0.5))
+	# Corner lean-to hut (the cutters' shelter), set toward the back.
+	var hc: Vector2 = l.lerp(ctr, 0.55) + ex * 0.10
+	var hut := _box(ci, hc.lerp(t, 0.26), hc.lerp(r, 0.26), hc.lerp(b, 0.26), hc.lerp(l, 0.26), rng.randf_range(10.5, 12.5), WOOD)
+	_gable(ci, hut, rng.randf_range(5.5, 6.8), THATCH_D)
+	# Fresh-cut stumps dotted about.
+	for i in range(rng.randi_range(2, 4)):
+		var sp: Vector2 = l + ex * rng.randf_range(0.2, 0.9) + ey * rng.randf_range(0.2, 0.9)
+		ci.draw_circle(sp, 2.0, WOOD_D)
+		ci.draw_circle(sp, 1.1, Color(0.70, 0.54, 0.34))
+	# Stacks of cut logs across the yard.
+	for i in range(rng.randi_range(3, 5)):
+		var u: float = rng.randf_range(0.42, 0.92)
+		var v: float = rng.randf_range(0.30, 0.88)
+		var pos: Vector2 = l + ex * u + ey * v
+		for k in range(rng.randi_range(2, 3)):
+			_log(ci, pos + Vector2(-2.0 + float(k) * 4.5, 1.0 - float(k) * 3.0), 5.0)
+	# Chopping block + buried axe.
+	var blk: Vector2 = ctr + Vector2(rng.randf_range(-5.0, 6.0), 3.0)
+	ci.draw_rect(Rect2(blk.x - 3.0, blk.y - 5.0, 6.0, 5.0), WOOD_D)
+	ci.draw_line(blk + Vector2(0, -5.0), blk + Vector2(5.0, -11.0), WOOD_D, 1.4)
+	ci.draw_colored_polygon(PackedVector2Array([blk + Vector2(5.0, -11.0), blk + Vector2(9.0, -10.0), blk + Vector2(6.0, -13.0)]), IRON)
 
 static func _quarry(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vector2, ctr: Vector2) -> void:
 	# open pit: terraced grey, with cut blocks + a crane
@@ -546,43 +565,57 @@ static func _stockpile(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Ve
 
 # A real grove: trees laid out in rows across the whole footprint, each rendered in
 # its seasonal stage (bare winter → budding spring → leafy summer → fruiting autumn).
-static func _orchard(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vector2, season: int) -> void:
-	# A working FARMSTEAD, not a flat patch: a seasonal orchard ground, a rail-fenced
-	# enclosure, ranks of apple trees AROUND an open yard, and a central thatched shed
-	# (the store/press) with stacked apple crates by its door.
-	var ground := Color(0.40, 0.56, 0.30) * SeasonSystem.ground_tint(season)
+static func _orchard(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vector2, season: int, seed: int = 0) -> void:
+	# A working FARMSTEAD, not a flat patch — and NO two orchards look alike: a per-plot
+	# RNG (seeded by the building id) jitters every tree, varies the planting density,
+	# nudges the shed and crates, and tints the ground, so each instance reads distinct.
+	var rng := RandomNumberGenerator.new()
+	rng.seed = int(seed) * 2654435761 + 12345
+	# Ground tinted for the season, with a small per-plot hue/brightness wobble.
+	var gt: float = rng.randf_range(0.93, 1.08)
+	var ground := Color(0.40, 0.56, 0.30).lerp(Color(0.36, 0.52, 0.26), rng.randf()) * SeasonSystem.ground_tint(season) * gt
 	ci.draw_colored_polygon(PackedVector2Array([t, r, b, l]), ground)
 	var ctr: Vector2 = (t + r + b + l) * 0.25
 	var stage: int = SeasonSystem.growth_stage(season)
 	var ex := t - l
 	var ey := b - l
 	var slots: Array[float] = [0.12, 0.30, 0.50, 0.70, 0.88]
+	var density: float = rng.randf_range(0.78, 1.0)        # some plots are sparser
 	# True for the central clearing kept open for the shed + yard.
 	var _clear := func(u: float, v: float) -> bool:
 		return u > 0.32 and u < 0.72 and v > 0.30 and v < 0.80
-	# Back rows of trees (everything but the frontmost rank) — drawn before the shed.
+	# Each tree: jittered position + a per-tree growth wobble, so ranks aren't a rigid grid.
+	var _plant := func(u: float, v: float) -> void:
+		if _clear.call(u, v) or rng.randf() > density:
+			return
+		var ju: float = u + rng.randf_range(-0.05, 0.05)
+		var jv: float = v + rng.randf_range(-0.05, 0.05)
+		var st2: int = stage
+		if stage >= 2 and rng.randf() < 0.18:
+			st2 = stage - 1                                # a few younger/older trees
+		_tree(ci, l + ex * ju + ey * jv + Vector2(0, rng.randf_range(-1.0, 1.0)), st2, season)
+	# Back rows (everything but the frontmost rank) — drawn before the shed.
 	for vi in range(slots.size() - 1):
-		var v: float = slots[vi]
 		for u in slots:
-			if not _clear.call(u, v):
-				_tree(ci, l + ex * u + ey * v, stage, season)
+			_plant.call(u, slots[vi])
 	# Rail fence along the two front edges (the enclosure reads as a kept plot).
 	_fence(ci, l, b)
 	_fence(ci, b, r)
-	# Central timber shed with a thatched gable + door (the orchard's store/press).
-	var shed := _box(ci, ctr.lerp(t, 0.30), ctr.lerp(r, 0.30), ctr.lerp(b, 0.30), ctr.lerp(l, 0.30), 9.0, WOOD, TEX_PLANK)
-	_gable(ci, shed, 5.0, THATCH_D)
-	_door(ci, ctr.lerp(l, 0.30), ctr.lerp(b, 0.30), 9.0, Color(0.30, 0.20, 0.12))
-	# Stacked apple crates by the shed door.
-	var crate: Vector2 = ctr.lerp(b, 0.52)
+	# Central timber shed (store/press), nudged a little within the yard per plot.
+	var sc: Vector2 = ctr + ex * rng.randf_range(-0.06, 0.06) + ey * rng.randf_range(-0.06, 0.06)
+	var shed := _box(ci, sc.lerp(t, 0.30), sc.lerp(r, 0.30), sc.lerp(b, 0.30), sc.lerp(l, 0.30), rng.randf_range(8.0, 10.5), WOOD, TEX_PLANK)
+	_gable(ci, shed, rng.randf_range(4.5, 5.8), THATCH_D)
+	_door(ci, sc.lerp(l, 0.30), sc.lerp(b, 0.30), 9.0, Color(0.30, 0.20, 0.12))
+	# Stacked apple crates by the shed door (count varies).
+	var crate: Vector2 = sc.lerp(b, 0.52)
 	ci.draw_rect(Rect2(crate.x - 4.0, crate.y - 3.0, 8.0, 5.0), WOOD_D)
-	ci.draw_rect(Rect2(crate.x - 3.0, crate.y - 7.0, 6.0, 4.0), WOOD)
-	for k in range(3):
-		ci.draw_circle(crate + Vector2(-2.0 + float(k) * 2.0, -7.0), 1.0, RED)
-	# Frontmost rank of trees, drawn last so it correctly overlaps the shed/yard.
-	var vf: float = slots[slots.size() - 1]
+	if rng.randf() < 0.7:
+		ci.draw_rect(Rect2(crate.x - 3.0, crate.y - 7.0, 6.0, 4.0), WOOD)
+		for k in range(rng.randi_range(2, 4)):
+			ci.draw_circle(crate + Vector2(-2.0 + float(k) * 2.0, -7.0), 1.0, RED)
+	# Frontmost rank, drawn last so it correctly overlaps the shed/yard.
 	for u in slots:
-		_tree(ci, l + ex * u + ey * vf, stage, season)
+		_plant.call(u, slots[slots.size() - 1])
 
 # One tree at its seasonal growth stage. 0 bare, 1 budding, 2 leafy, 3 fruiting.
 static func _tree(ci: CanvasItem, base: Vector2, stage: int, season: int) -> void:

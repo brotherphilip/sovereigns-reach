@@ -44,7 +44,7 @@ const BUILDINGS: Dictionary = {
 	# ── §5.1 Civic ──────────────────────────────────────────────────────────
 	"village_hall": {
 		"name": "Village Hall", "category": Category.CIVIC,
-		"width": 3, "height": 3,
+		"width": 4, "height": 4,
 		"cost": {"wood": 0},  # Starting building — no cost
 		"max_workers": 0, "worker_slots": 0,
 		"terrain_req": TERRAIN_ANY, "fire_risk": 0.0, "hp": 500,  # seat is fire-hardened: losing it is a SIEGE outcome, not a random drought spark (iter121); fire still threatens other timber buildings
@@ -55,7 +55,7 @@ const BUILDINGS: Dictionary = {
 	},
 	"keep": {
 		"name": "Keep", "category": Category.CIVIC,
-		"width": 3, "height": 3,
+		"width": 4, "height": 4,
 		"cost": {"stone": 150, "wood": 80, "gold": 100},
 		"max_workers": 0, "worker_slots": 0,
 		"terrain_req": TERRAIN_FLAT, "fire_risk": 0.0, "hp": 1000,
@@ -77,7 +77,7 @@ const BUILDINGS: Dictionary = {
 	},
 	"market": {
 		"name": "Market", "category": Category.CIVIC,
-		"width": 2, "height": 2,
+		"width": 4, "height": 3,
 		"cost": {"wood": 20, "gold": 10},
 		"max_workers": 2, "worker_slots": 2,
 		"terrain_req": TERRAIN_FLAT, "fire_risk": 0.01, "hp": 100,
@@ -107,7 +107,7 @@ const BUILDINGS: Dictionary = {
 	},
 	"guildhall": {
 		"name": "Guildhall", "category": Category.CIVIC,
-		"width": 2, "height": 2,
+		"width": 3, "height": 3,
 		"cost": {"wood": 25, "gold": 20},
 		"max_workers": 2, "worker_slots": 4,
 		"terrain_req": TERRAIN_FLAT, "fire_risk": 0.01, "hp": 120,
@@ -118,7 +118,7 @@ const BUILDINGS: Dictionary = {
 	# ── §5.2 Harvesting ─────────────────────────────────────────────────────
 	"woodcutter_camp": {
 		"name": "Woodcutter's Camp", "category": Category.HARVESTING,
-		"width": 2, "height": 2,
+		"width": 2, "height": 3,
 		"cost": {"wood": 4},
 		"max_workers": 3, "worker_slots": 3,
 		"terrain_req": TERRAIN_FOREST, "fire_risk": 0.03, "hp": 50,
@@ -128,7 +128,7 @@ const BUILDINGS: Dictionary = {
 	},
 	"stone_quarry": {
 		"name": "Stone Quarry", "category": Category.HARVESTING,
-		"width": 2, "height": 2,
+		"width": 3, "height": 3,
 		"cost": {"wood": 15},
 		"max_workers": 4, "worker_slots": 4,
 		"terrain_req": TERRAIN_ROCK, "fire_risk": 0.0, "hp": 120,
@@ -138,7 +138,7 @@ const BUILDINGS: Dictionary = {
 	},
 	"iron_mine": {
 		"name": "Iron Mine", "category": Category.HARVESTING,
-		"width": 2, "height": 2,
+		"width": 3, "height": 3,
 		"cost": {"wood": 20, "stone": 10},
 		"max_workers": 4, "worker_slots": 4,
 		"terrain_req": TERRAIN_ORE, "fire_risk": 0.0, "hp": 150,
@@ -158,7 +158,7 @@ const BUILDINGS: Dictionary = {
 	},
 	"stockpile": {
 		"name": "Stockpile", "category": Category.HARVESTING,
-		"width": 1, "height": 1,
+		"width": 2, "height": 2,
 		"cost": {"wood": 2},
 		"max_workers": 0, "worker_slots": 0,
 		"terrain_req": TERRAIN_ANY, "fire_risk": 0.01, "hp": 40,
@@ -171,7 +171,7 @@ const BUILDINGS: Dictionary = {
 	# ── §5.3 Food & Agriculture ──────────────────────────────────────────────
 	"apple_orchard": {
 		"name": "Apple Orchard", "category": Category.FOOD,
-		"width": 3, "height": 3, "field": true,
+		"width": 4, "height": 4, "field": true,
 		"cost": {"wood": 8},
 		"max_workers": 2, "worker_slots": 2,
 		"terrain_req": TERRAIN_GRASS | TERRAIN_VALLEY, "fire_risk": 0.02, "hp": 55,
@@ -181,7 +181,7 @@ const BUILDINGS: Dictionary = {
 	},
 	"pig_farm": {
 		"name": "Pig Farm", "category": Category.FOOD,
-		"width": 2, "height": 2, "field": true,
+		"width": 3, "height": 3, "field": true,
 		"cost": {"wood": 10},
 		"max_workers": 2, "worker_slots": 2,
 		"terrain_req": TERRAIN_GRASS, "fire_risk": 0.02, "hp": 50,
@@ -191,7 +191,7 @@ const BUILDINGS: Dictionary = {
 	},
 	"dairy_farm": {
 		"name": "Dairy Farm", "category": Category.FOOD,
-		"width": 2, "height": 2, "field": true,
+		"width": 3, "height": 3, "field": true,
 		"cost": {"wood": 10},
 		"max_workers": 2, "worker_slots": 2,
 		"terrain_req": TERRAIN_GRASS, "fire_risk": 0.01, "hp": 50,
@@ -201,7 +201,7 @@ const BUILDINGS: Dictionary = {
 	},
 	"wheat_farm": {
 		"name": "Wheat Farm", "category": Category.FOOD,
-		"width": 3, "height": 3, "field": true,
+		"width": 5, "height": 4, "field": true,
 		"cost": {"wood": 8},
 		"max_workers": 4, "worker_slots": 4,
 		"terrain_req": TERRAIN_GRASS | TERRAIN_VALLEY, "fire_risk": 0.04, "hp": 40,
@@ -211,7 +211,7 @@ const BUILDINGS: Dictionary = {
 	},
 	"hops_farm": {
 		"name": "Hops Farm", "category": Category.FOOD,
-		"width": 2, "height": 2, "field": true,
+		"width": 4, "height": 3, "field": true,
 		"cost": {"wood": 8},
 		"max_workers": 2, "worker_slots": 2,
 		"terrain_req": TERRAIN_GRASS | TERRAIN_VALLEY, "fire_risk": 0.03, "hp": 40,
@@ -231,7 +231,7 @@ const BUILDINGS: Dictionary = {
 	},
 	"bakery": {
 		"name": "Bakery", "category": Category.FOOD,
-		"width": 2, "height": 2,
+		"width": 2, "height": 3,
 		"cost": {"wood": 10},
 		"max_workers": 1, "worker_slots": 1,
 		"terrain_req": TERRAIN_ANY, "fire_risk": 0.04, "hp": 60,
@@ -241,7 +241,7 @@ const BUILDINGS: Dictionary = {
 	},
 	"brewery": {
 		"name": "Brewery", "category": Category.FOOD,
-		"width": 2, "height": 2,
+		"width": 3, "height": 2,
 		"cost": {"wood": 15},
 		"max_workers": 2, "worker_slots": 2,
 		"terrain_req": TERRAIN_FLAT, "fire_risk": 0.03, "hp": 80,
@@ -251,7 +251,7 @@ const BUILDINGS: Dictionary = {
 	},
 	"inn": {
 		"name": "Inn", "category": Category.FOOD,
-		"width": 2, "height": 2,
+		"width": 3, "height": 3,
 		"cost": {"wood": 20},
 		"max_workers": 1, "worker_slots": 1,
 		"terrain_req": TERRAIN_ANY, "fire_risk": 0.02, "hp": 80,
@@ -261,7 +261,7 @@ const BUILDINGS: Dictionary = {
 	},
 	"granary": {
 		"name": "Granary", "category": Category.FOOD,
-		"width": 2, "height": 2,
+		"width": 3, "height": 3,
 		"cost": {"wood": 15},
 		"max_workers": 1, "worker_slots": 1,
 		"terrain_req": TERRAIN_ANY, "fire_risk": 0.02, "hp": 100,
@@ -273,7 +273,7 @@ const BUILDINGS: Dictionary = {
 	},
 	"church": {
 		"name": "Church", "category": Category.CIVIC,
-		"width": 2, "height": 2,
+		"width": 3, "height": 4,
 		"cost": {"stone": 25},
 		"max_workers": 2, "worker_slots": 2,
 		"terrain_req": TERRAIN_FLAT, "fire_risk": 0.0, "hp": 200,
@@ -284,7 +284,7 @@ const BUILDINGS: Dictionary = {
 	},
 	"cathedral": {
 		"name": "Cathedral", "category": Category.CIVIC,
-		"width": 4, "height": 4,
+		"width": 5, "height": 5,
 		"cost": {"stone": 200, "gold": 100},
 		"max_workers": 4, "worker_slots": 4,
 		"terrain_req": TERRAIN_FLAT, "fire_risk": 0.0, "hp": 800,
@@ -296,7 +296,7 @@ const BUILDINGS: Dictionary = {
 	# ── §5.4 Military Production ─────────────────────────────────────────────
 	"barracks": {
 		"name": "Barracks", "category": Category.MILITARY,
-		"width": 3, "height": 3,
+		"width": 4, "height": 3,
 		"cost": {"wood": 20, "stone": 10, "gold": 10},
 		"max_workers": 0, "worker_slots": 0,
 		"terrain_req": TERRAIN_FLAT, "fire_risk": 0.01, "hp": 150,
@@ -306,7 +306,7 @@ const BUILDINGS: Dictionary = {
 	},
 	"armory": {
 		"name": "Armory", "category": Category.MILITARY,
-		"width": 2, "height": 2,
+		"width": 3, "height": 2,
 		"cost": {"wood": 10, "stone": 5},
 		"max_workers": 0, "worker_slots": 0,
 		"terrain_req": TERRAIN_ANY, "fire_risk": 0.0, "hp": 150,
@@ -318,7 +318,7 @@ const BUILDINGS: Dictionary = {
 	},
 	"fletcher": {
 		"name": "Fletcher", "category": Category.MILITARY,
-		"width": 2, "height": 2,
+		"width": 2, "height": 3,
 		"cost": {"wood": 12},
 		"max_workers": 1, "worker_slots": 1,
 		"terrain_req": TERRAIN_ANY, "fire_risk": 0.02, "hp": 60,
@@ -328,7 +328,7 @@ const BUILDINGS: Dictionary = {
 	},
 	"poleturner": {
 		"name": "Poleturner", "category": Category.MILITARY,
-		"width": 2, "height": 2,
+		"width": 2, "height": 3,
 		"cost": {"wood": 8},
 		"max_workers": 1, "worker_slots": 1,
 		"terrain_req": TERRAIN_ANY, "fire_risk": 0.02, "hp": 50,
@@ -338,7 +338,7 @@ const BUILDINGS: Dictionary = {
 	},
 	"blacksmith": {
 		"name": "Blacksmith", "category": Category.MILITARY,
-		"width": 2, "height": 2,
+		"width": 2, "height": 3,
 		"cost": {"wood": 15, "stone": 10},
 		"max_workers": 1, "worker_slots": 1,
 		"terrain_req": TERRAIN_ANY, "fire_risk": 0.01, "hp": 120,
@@ -348,7 +348,7 @@ const BUILDINGS: Dictionary = {
 	},
 	"tannery": {
 		"name": "Tannery", "category": Category.MILITARY,
-		"width": 2, "height": 2,
+		"width": 2, "height": 3,
 		"cost": {"wood": 10},
 		"max_workers": 1, "worker_slots": 1,
 		"terrain_req": TERRAIN_ANY, "fire_risk": 0.03, "hp": 60,
@@ -358,7 +358,7 @@ const BUILDINGS: Dictionary = {
 	},
 	"armorer": {
 		"name": "Armorer", "category": Category.MILITARY,
-		"width": 2, "height": 2,
+		"width": 2, "height": 3,
 		"cost": {"wood": 15, "stone": 10},
 		"max_workers": 1, "worker_slots": 1,
 		"terrain_req": TERRAIN_ANY, "fire_risk": 0.01, "hp": 120,
@@ -368,7 +368,7 @@ const BUILDINGS: Dictionary = {
 	},
 	"crossbow_workshop": {
 		"name": "Crossbow Workshop", "category": Category.MILITARY,
-		"width": 2, "height": 2,
+		"width": 2, "height": 3,
 		"cost": {"wood": 14, "iron": 4},
 		"max_workers": 1, "worker_slots": 1,
 		"terrain_req": TERRAIN_ANY, "fire_risk": 0.02, "hp": 60,
@@ -441,7 +441,7 @@ const BUILDINGS: Dictionary = {
 	},
 	"trading_post": {
 		"name": "Trading Post", "category": Category.CIVIC,
-		"width": 2, "height": 2,
+		"width": 3, "height": 2,
 		"cost": {"wood": 40, "gold": 50},
 		"max_workers": 2, "worker_slots": 2,
 		"terrain_req": TERRAIN_FLAT, "fire_risk": 0.05, "hp": 100,
@@ -451,7 +451,7 @@ const BUILDINGS: Dictionary = {
 	},
 	"siege_workshop": {
 		"name": "Siege Workshop", "category": Category.MILITARY,
-		"width": 2, "height": 2,
+		"width": 3, "height": 3,
 		"cost": {"wood": 60, "iron": 30},
 		"max_workers": 3, "worker_slots": 3,
 		"terrain_req": TERRAIN_FLAT, "fire_risk": 0.08, "hp": 150,

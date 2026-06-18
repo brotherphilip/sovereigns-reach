@@ -170,7 +170,7 @@ func _draw_building(b: Dictionary, is_enemy: bool) -> void:
 		else:
 			BuildingModels.draw_finished(self, btype, cat, w, h, top, right, bot, left,
 				wall_col, roof_base, trim_col, Time.get_ticks_msec() * 0.001,
-				int(GameState.world.get("season", 2)))
+				int(GameState.world.get("season", 2)), int(b.get("id", 0)))
 		draw_polyline(PackedVector2Array([top, right, bot, left, top]),
 			Color(0, 0, 0, 0.16), 0.6)
 	else:
