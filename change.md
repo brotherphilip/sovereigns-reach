@@ -90,13 +90,12 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
-## Live Backlog & Resolved Index  (compacted iter192 — Phase 1 reads THIS; the per-iteration `### Active Backlog` blocks in Run History below are historical snapshots, superseded here)
+## Live Backlog & Resolved Index  (compacted iter192, re-verified iter196 — Phase 1 reads THIS; the per-iteration `### Active Backlog` blocks in Run History below are historical snapshots, superseded here)
 
 ### Active Backlog (Base Game) — deduplicated
 - **Phase 2 (deferred, user-agreed): physical AI cities** — prototype ONE AI city running CitizenSystem hauling; measure FPS/tick cost before committing.
 - **Visual polish (POLISH):** WALL colours still cluster (tan-timber / grey-stone / wood-plank); `market` reads sparse and `well` is tiny at play-zoom. (Roofs diversified iter175; villager tunics iter191; watchtower rebuilt iter193.)
 - **OBSERVATION — night dead-space (taste, needs USER call, NOT a bug):** deep-night `NightLayer.MAX_DARK = 0.92` (near-black away from lamps) + depopulated night (skeleton crew) ⇒ ~5 min/cycle dark+empty. Soften MAX_DARK or add night ambient life only if the user wants less dead time.
-- **Milestone tooling:** SR_AUTOPLAY is deterministic (fixed seed 42) → repeated FLOOR runs are identical, so they can't constitute "3 independent clean runs" to raise the bar. Add an SR_SEED env hook to CityViewScene autoplay (vary the map/economy seed) so on-screen FLOOR runs can be varied; until then, rely on the headless 5-seed coverage for robustness.
 - **OBSERVATION — peaceful 100-day life (from the 10-cycle peace, user-directed):** the FLOOR run (iter194) reached day 114 with NO siege (King's Peace until day 750) while the standing objective still says "ready your defences — build a Barracks, Wall or Tower." The defence prompt is premature now; consider deferring it (or the King's-Peace-ending telegraph) closer to when threats actually arrive. Stems from the user's calm-realm directive — needs a user call before changing.
 - **Deathmatch "Empires of Ages":** `deathmatch.md` absent; no active work. Create only when that mode is built.
 
@@ -112,6 +111,7 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 - **TestSiege silent regression (iter194):** 5 siege assertions had been failing since iter187 (grace 90→750) — fresh test factions couldn't siege within the 100-260d windows, leaving the FLOOR's siege-survival guarantees untested. Fixed: age hostile factions to `days_alive=PLAYER_GRACE_DAYS` at setup (tests POST-peace mechanics). Now TestSiege 9/0.
 - **King's Peace intro units (iter195):** the onboarding toast said "shields your realm for 750 days" (raw PLAYER_GRACE_DAYS, economic days) while the HUD counts CALENDAR days — confusing. Now derives calendar days from clock constants → "for its first 50 days". Ev: on-screen render of the toast reads "first 50 days".
 - **Xvfb on-screen harness (iter189):** detached background-subshell launch renders + self-screenshots reliably (foreground = exit 144). Logs are real evidence too.
+- **SR_SEED autoplay hook (iter196):** `CityViewScene._init_simulation` honours SR_SEED to vary the map/economy seed (seeds weather/disease/fire/social/wildlife/citizen RNGs), so on-screen FLOOR runs can be INDEPENDENT (autoplay was deterministic at seed 42). Enables real "3 varied clean runs" milestone evidence.
 - **(Durable, older — see Current Targets):** Day-100 FLOOR multi-seed survival; Reeve→King climb on 5 seeds ≤113d; late-game coalition-vs-leader; on-screen in-city FLOOR survival (iter158).
 
 ---
