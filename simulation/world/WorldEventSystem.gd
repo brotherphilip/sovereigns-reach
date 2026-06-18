@@ -178,6 +178,44 @@ const EVENTS: Array = [
 			{"label": "Sell it to a collector (+55 gold, −4 popularity)", "effect": {"gold": 55, "popularity": -4}},
 		],
 	},
+	# ── Expanded content (iter169): more decisions + flavour, modern admin tone ──────
+	{
+		"id": "veteran_officer", "tone": "good", "weight": 7, "min_day": 9,
+		"title": "Officer Seeks Commission",
+		"text": "A decorated officer from a disbanded company offers to drill your garrison and stiffen its discipline.",
+		"choices": [
+			{"label": "Commission the officer (−35 gold, +18 prestige, +3 popularity)", "effect": {"gold": -35, "prestige": 18, "popularity": 3}},
+			{"label": "Decline — the levy will do", "effect": {}},
+		],
+	},
+	{
+		"id": "smugglers_cache", "tone": "good", "weight": 8, "min_day": 5,
+		"title": "Contraband Seized",
+		"text": "A patrol intercepted a smuggling run and impounded the goods; the proceeds go to the treasury.",
+		"effect": {"gold": 55},
+	},
+	{
+		"id": "well_fouled", "tone": "bad", "weight": 6, "min_day": 10,
+		"title": "Water Supply Fouled",
+		"text": "The main well has been fouled overnight; stores drawn from it must be discarded.",
+		"effect": {"food": -24},
+	},
+	{
+		"id": "guild_petition", "tone": "neutral", "weight": 7, "min_day": 11,
+		"title": "Tradesmen's Petition",
+		"text": "The tradesmen petition for a public-works grant — costly now, but it would lift confidence in your administration.",
+		"choices": [
+			{"label": "Fund the works (−45 gold, +8 popularity)", "effect": {"gold": -45, "popularity": 8}},
+			{"label": "Table the petition (−3 popularity)", "effect": {"popularity": -3}},
+		],
+	},
+	{
+		"id": "envoy_gift", "tone": "good", "weight": 6, "min_day": 14,
+		"title": "Diplomatic Gift",
+		"text": "A neighbouring power sent an envoy bearing a gift of grain and coin as a gesture of goodwill.",
+		"effect": {"gold": 35, "food": 25},
+	},
+
 	{
 		"id": "midwinter_want", "tone": "bad", "weight": 7, "min_day": 36,
 		"season": SeasonSystem.Season.WINTER,
