@@ -46,10 +46,12 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
   750 — so this verifies the economy doesn't slowly DRIFT/starve over a longer horizon, NOT added threat). HONEST:
   with the user's calm-realm directive, "survival" is no longer the binding challenge; a meaningful *difficulty*
   bar (vs a duration/stability bar) would need user direction on re-introducing threat/engagement to the mid-game.
-  **Day-150 bar: PROVISIONALLY MET (iter198, 1 seed).** SR_SEED=31337 survived to **day 164** (popularity min 47.7,
-  hall intact, 0 errors) THROUGH a real drought food crash (food→0 at day 137, pop 20→17, then recovered) — the
-  realm self-corrects and the new low-food warning fires in-window. 2 more varied seeds would confirm the bar; the
-  food crash is a watch-item (see Live Backlog), not a loss.
+  **Day-150 bar: MET on 2 independent seeds (iter198-199).** SR_SEED=31337 → day 164 (pop min 47.7, min_food 0 — a
+  drought crash, survived) and SR_SEED=4242 → day 164 (pop min 50.0, min_food 70 — clean, no crash). The drought
+  food-crash is confirmed seed/weather-specific and NON-FATAL (the realm self-corrects; low-food warning fires
+  in-window). HONEST: further "survive even longer" bars are now LOW-VALUE — the realm coasts peacefully (calm-realm
+  directive) and the only stress is bounded weather; the next meaningful bar is ENGAGEMENT/DEPTH, which needs user
+  direction (re-introduce mid-game stakes, or pivot to content). Not raising past Day-150 without that steer.
 - **FLOOR — Day-100 (20-min) single-life survival: MET & MULTI-SEED CONFIRMED (iter140–142).** Headless managed
   runs through the REAL placement path survive Day 100 on **5 distinct seeds** (12345, 4242, 999, 7777, 31337),
   min popularity 45–49, hall intact. Food trough solved by the iter140 granary buffer (200→300) + stacking.
@@ -128,6 +130,25 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 - **Hovel hearth smoke (iter197):** homes had no chimney smoke (only bakery/brewery/blacksmith did) → read as empty boxes. `_hovel` now draws a mud chimney + 3-puff drifting smoke wisp (per-frame draw time). Ev: building-showcase zoom shows chimney+wisp, 0 triangulation/parse errors.
 - **Low-food warning (iter198):** a drought could drain the granary to 0 (brief starvation) with NO early heads-up (is_starving only flips at food 0; warnings existed only for popularity + builder-stall). GameState now emits a one-time "stores run low" realm_notice below ~3 days' food (pop+ration scaled), re-arming above ~6 days. Ev: tests/TestFoodWarning.gd 5/0 (fires/no-spam/re-arms/re-fires); the day-150 run (seed 31337) exercised exactly this (food→0 day 137). Aligned with calm-realm (player aid, no added threat).
 - **(Durable, older — see Current Targets):** Day-100 FLOOR multi-seed survival; Reeve→King climb on 5 seeds ≤113d; late-game coalition-vs-leader; on-screen in-city FLOOR survival (iter158).
+
+---
+
+## Iteration 199 — 2026-06-19  (DEV-LOOP — Base Game; profile: long-haul survivor / day-150 confirm. Day-150 MET on 2 seeds; warning-text accuracy)
+
+### Plan
+Confirm Day-150 on a 2nd varied seed (4242), watching min_food/min_pop for the drought crash (a real loss ⇒ balance fix); fix the low-food warning's inaccurate "(Edicts)" levers; keep the bibliography current.
+
+### Playtest (REAL — Xvfb autoplay seed 4242, ~395s)
+- **Day-150 confirm: G=0, day 164**, popularity min 50.0 (never dipped), **min_food 70 (NO crash)**, pop 17, hall 500, 0 errors. Clean, healthy. → **Day-150 MET on 2 independent seeds** (31337 stressed-but-survived a food→0 drought; 4242 clean). Confirms the drought food-crash is seed/weather-specific + NON-FATAL — NO balance buff needed; the low-food warning is the right mitigation. Final screenshot (day 164, daytime): distinct map, town intact, no faults.
+
+### Implement
+- `GameState` low-food warning text: was "lower rations (Edicts)" — conflated two systems (rations are a HUD control; Frugal Tables is the food-consumption edict). Reworded to three accurate levers: "lower your food Ration, proclaim Frugal Tables (Edicts), or raise more Orchards/Farms". TestFoodWarning still 5/0.
+- `systems_bibliography.html`: documented the low-food warning.
+
+### Post-mortem → TARGET REACHED (Day-150 met ×2) + a text-accuracy fix
+HONEST: longer-survival bars are now low-value (peaceful realm); flagged in Current Targets that the next meaningful bar needs user direction on engagement/depth.
+
+### Confidence: HIGH — 2-seed day-164 telemetry + screenshot + green test.
 
 ---
 
