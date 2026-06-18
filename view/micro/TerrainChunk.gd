@@ -51,12 +51,31 @@ func _draw() -> void:
 		for gx in range(_x0, _x1):
 			var t: int = GameState.get_terrain_at(gx, gy)
 			var fill: Color = _season_fill(t, TERRAIN_COLORS[mini(t, TERRAIN_COLORS.size() - 1)], season)
+			fill = _vary(fill, t, gx, gy)
 			var cx: float = (gx - gy) * HALF_W
 			var cy: float = (gx + gy) * HALF_H
 			draw_colored_polygon(PackedVector2Array([
 				Vector2(cx, cy - HALF_H), Vector2(cx + HALF_W, cy),
 				Vector2(cx, cy + HALF_H), Vector2(cx - HALF_W, cy),
 			]), fill)
+
+# Subtle, deterministic per-tile variation so open ground reads as living grass instead of a
+# flat colour void: soft large-scale meadow mottling + a fine per-tile grain + a gentle warm/cool
+# hue drift. Deterministic from coords (stable across repaints — no shimmer). Water/road stay clean.
+func _vary(base: Color, t: int, gx: int, gy: int) -> Color:
+	if t == 3 or t == 8 or t == 9:   # RIVER / COASTAL / ROAD — keep crisp
+		return base
+	# Soft patches (meadow clumps) — two low-freq waves blended.
+	var patch: float = 0.5 * sin(gx * 0.37 + gy * 0.21) + 0.5 * sin((gx + gy) * 0.17 + 1.3)
+	# Fine per-tile grain — deterministic hash in [-0.5, 0.5].
+	var h: int = ((gx * 73856093) ^ (gy * 19349663)) & 0xffff
+	var grain: float = float(h) / 65535.0 - 0.5
+	var amt: float = patch * 0.05 + grain * 0.055        # ±~0.07 brightness
+	var c: Color = base.lightened(amt) if amt >= 0.0 else base.darkened(-amt)
+	# Gentle hue drift: brighter patches lean warm/yellow-green, darker lean cool/blue-green.
+	c = c.lerp(Color(c.r * 1.06, c.g * 1.02, c.b * 0.90, c.a), clampf(patch, 0.0, 1.0) * 0.18)
+	c = c.lerp(Color(c.r * 0.92, c.g * 0.99, c.b * 1.08, c.a), clampf(-patch, 0.0, 1.0) * 0.18)
+	return Color(clampf(c.r, 0.0, 1.0), clampf(c.g, 0.0, 1.0), clampf(c.b, 0.0, 1.0), base.a)
 
 # Recolour a tile for the season: vegetation greens up in spring, deepens in summer,
 # turns gold in autumn and is blanketed pale in winter; rock/water barely shift.
