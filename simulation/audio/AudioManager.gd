@@ -43,6 +43,9 @@ func play(event: SoundEvent) -> void:
 		# Synthesize the effect once and cache it on the player (zero asset files).
 		player.stream = SfxGen.for_event(player_name)
 		player.volume_db = float(_GAIN_DB.get(player_name, -6.0))
+		# Route to the SFX bus (player-controllable, separate from Music/Master) when it exists.
+		if AudioServer.get_bus_index("SFX") >= 0:
+			player.bus = "SFX"
 		add_child(player)
 
 	if player.stream != null:

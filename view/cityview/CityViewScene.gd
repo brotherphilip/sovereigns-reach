@@ -616,8 +616,8 @@ func _toggle_pause_menu() -> void:
 	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_pause_menu.add_child(dim)
 	var panel := Panel.new()
-	panel.position = Vector2(490, 190)
-	panel.size = Vector2(300, 360)
+	panel.position = Vector2(490, 140)
+	panel.size = Vector2(300, 450)
 	var sty := StyleBoxFlat.new()
 	sty.bg_color = Color(0.08, 0.10, 0.07, 0.98)
 	sty.set_border_width_all(2)
@@ -632,26 +632,35 @@ func _toggle_pause_menu() -> void:
 	title.add_theme_font_size_override("font_size", 20)
 	title.add_theme_color_override("font_color", Color(0.97, 0.85, 0.42))
 	panel.add_child(title)
-	# Music volume slider (persists via MusicPlayer settings). Maps to the music bus's resting
-	# dB so the player can keep the bed as subtle (or loud) as they like.
+	# Audio mixer (persists via MusicPlayer settings) — Master / Music / SFX, so the player
+	# tunes the whole mix to taste (the user's "not overwhelming" requirement, in their hands).
 	var mp = get_node_or_null("/root/MusicPlayer")
+	var sy: float = 52.0
 	if mp != null:
-		var mlabel := Label.new()
-		mlabel.position = Vector2(40, 54); mlabel.size = Vector2(220, 22)
-		mlabel.add_theme_font_size_override("font_size", 13)
-		mlabel.add_theme_color_override("font_color", Color(0.86, 0.82, 0.62))
-		var _cur_db: float = mp.get_music_volume_db()
-		mlabel.text = "♪ Music: %s" % ("Off" if _cur_db <= mp.MUSIC_DB_MIN + 0.5 else "%d dB" % int(round(_cur_db)))
-		panel.add_child(mlabel)
-		var slider := HSlider.new()
-		slider.position = Vector2(40, 78); slider.size = Vector2(220, 20)
-		slider.min_value = mp.MUSIC_DB_MIN; slider.max_value = 0.0; slider.step = 1.0
-		slider.value = clampf(_cur_db, mp.MUSIC_DB_MIN, 0.0)
-		slider.value_changed.connect(func(v: float):
-			var db: float = mp.MUTE_DB if v <= mp.MUSIC_DB_MIN + 0.5 else v
-			mp.set_music_volume_db(db)
-			mlabel.text = "♪ Music: %s" % ("Off" if v <= mp.MUSIC_DB_MIN + 0.5 else "%d dB" % int(round(v))))
-		panel.add_child(slider)
+		var rows: Array = [
+			["⚙ Master", mp.get_master_volume_db(), func(db): mp.set_master_volume_db(db)],
+			["♪ Music",  mp.get_music_volume_db(),  func(db): mp.set_music_volume_db(db)],
+			["⚔ SFX",    mp.get_sfx_volume_db(),    func(db): mp.set_sfx_volume_db(db)],
+		]
+		for row in rows:
+			var lbl := Label.new()
+			lbl.position = Vector2(40, sy); lbl.size = Vector2(220, 18)
+			lbl.add_theme_font_size_override("font_size", 12)
+			lbl.add_theme_color_override("font_color", Color(0.86, 0.82, 0.62))
+			var cur: float = clampf(float(row[1]), mp.MUSIC_DB_MIN, 0.0)
+			lbl.text = "%s: %s" % [row[0], ("Off" if cur <= mp.MUSIC_DB_MIN + 0.5 else "%d dB" % int(round(cur)))]
+			panel.add_child(lbl)
+			var sl := HSlider.new()
+			sl.position = Vector2(40, sy + 18.0); sl.size = Vector2(220, 16)
+			sl.min_value = mp.MUSIC_DB_MIN; sl.max_value = 0.0; sl.step = 1.0
+			sl.value = cur
+			var setter: Callable = row[2]
+			var name0: String = row[0]
+			sl.value_changed.connect(func(v: float):
+				setter.call(mp.MUTE_DB if v <= mp.MUSIC_DB_MIN + 0.5 else v)
+				lbl.text = "%s: %s" % [name0, ("Off" if v <= mp.MUSIC_DB_MIN + 0.5 else "%d dB" % int(round(v)))])
+			panel.add_child(sl)
+			sy += 40.0
 	var items: Array = [
 		["Resume", func(): _close_pause_menu()],
 		["Save Game", func(): _do_save(); _hud.show_notification("Game saved.", 3.0, Color(0.6, 0.9, 0.5)); _close_pause_menu()],
@@ -659,7 +668,7 @@ func _toggle_pause_menu() -> void:
 		["Main Menu", func(): get_tree().change_scene_to_file("res://view/menu/MainMenuScene.tscn")],
 		["Quit Game", func(): get_tree().quit()],
 	]
-	var y: float = 112.0
+	var y: float = sy + 8.0
 	for it in items:
 		var b := Button.new()
 		b.text = String(it[0])

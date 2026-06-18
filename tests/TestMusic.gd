@@ -93,3 +93,15 @@ func _run(mp) -> void:
 	mp._load_settings()
 	ok("setting reloads on next session", absf(mp.get_music_volume_db() - (-24.0)) < 0.01)
 	mp.set_music_volume_db(MusicPlayer.MUSIC_BUS_DB)   # restore default for other runs
+
+	# Full mixer: an SFX bus exists (SFX route separately from Music/Master), and Master/SFX
+	# volumes persist like Music does.
+	ok("SFX bus exists", AudioServer.get_bus_index(MusicPlayer.SFX_BUS) >= 0)
+	mp.set_master_volume_db(-15.0)
+	mp.set_sfx_volume_db(-9.0)
+	ok("master bus reflects setting", absf(AudioServer.get_bus_volume_db(0) - (-15.0)) < 0.01)
+	ok("sfx bus reflects setting", absf(AudioServer.get_bus_volume_db(AudioServer.get_bus_index(MusicPlayer.SFX_BUS)) - (-9.0)) < 0.01)
+	mp._master_db = 0.0; mp._sfx_db = 0.0
+	mp._load_settings()
+	ok("master + sfx persist across sessions", absf(mp.get_master_volume_db() - (-15.0)) < 0.01 and absf(mp.get_sfx_volume_db() - (-9.0)) < 0.01)
+	mp.set_master_volume_db(0.0); mp.set_sfx_volume_db(0.0)   # restore defaults

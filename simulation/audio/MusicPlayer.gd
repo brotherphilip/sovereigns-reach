@@ -21,12 +21,17 @@ const MUSIC_BUS: String = "Music"
 const MUSIC_BUS_DB: float = -13.0          # default resting level — gentle, not overwhelming
 const EXTS: PackedStringArray = [".mp3", ".ogg", ".wav"]
 
-# Player-facing volume control persists across sessions (a pause-menu slider writes it).
+# Player-facing volume controls persist across sessions (pause-menu sliders write them).
+# MusicPlayer owns the whole audio mix: Music + SFX (own buses) + Master (bus 0).
 const SETTINGS_PATH: String = "user://settings.cfg"
 const SETTINGS_SECTION: String = "audio"
 const SETTINGS_KEY: String = "music_db"
+const SFX_BUS: String = "SFX"
 const MUSIC_DB_MIN: float = -40.0          # slider floor; below this we treat it as muted
 const MUTE_DB: float = -80.0
+
+var _master_db: float = 0.0
+var _sfx_db: float = 0.0
 
 # Ducking: while the herald narration speaks, fade the music down so the voice stays clear,
 # then fade it back up. Smooth (no abrupt jump) via a per-frame dB glide.
@@ -41,6 +46,8 @@ var _duck_cur: float = 0.0                  # current duck offset (0 = not ducke
 
 func _ready() -> void:
 	_load_settings()
+	_ensure_sfx_bus()
+	_apply_master_sfx()
 	_setup_bus()
 	_player = AudioStreamPlayer.new()
 	_player.name = "MusicStream"
@@ -181,14 +188,47 @@ func get_music_volume_db() -> float:
 func track_count() -> int:
 	return _playlist.size()
 
-# ── Persistence (a pause-menu slider writes the resting level) ────────────────────
+# ── SFX bus + Master/SFX volume (the rest of the mix) ────────────────────────────
+func _ensure_sfx_bus() -> void:
+	if AudioServer.get_bus_index(SFX_BUS) == -1:
+		AudioServer.add_bus()
+		var i: int = AudioServer.bus_count - 1
+		AudioServer.set_bus_name(i, SFX_BUS)
+		AudioServer.set_bus_send(i, "Master")
+
+func _apply_master_sfx() -> void:
+	AudioServer.set_bus_volume_db(0, _master_db)   # bus 0 is always Master
+	var sidx: int = AudioServer.get_bus_index(SFX_BUS)
+	if sidx >= 0:
+		AudioServer.set_bus_volume_db(sidx, _sfx_db)
+
+func set_master_volume_db(db: float) -> void:
+	_master_db = clampf(db, MUTE_DB, 6.0)
+	AudioServer.set_bus_volume_db(0, _master_db)
+	_save_settings()
+
+func set_sfx_volume_db(db: float) -> void:
+	_sfx_db = clampf(db, MUTE_DB, 6.0)
+	var sidx: int = AudioServer.get_bus_index(SFX_BUS)
+	if sidx >= 0:
+		AudioServer.set_bus_volume_db(sidx, _sfx_db)
+	_save_settings()
+
+func get_master_volume_db() -> float: return _master_db
+func get_sfx_volume_db() -> float: return _sfx_db
+
+# ── Persistence (pause-menu sliders write these) ─────────────────────────────────
 func _load_settings() -> void:
 	var cfg := ConfigFile.new()
 	if cfg.load(SETTINGS_PATH) == OK:
 		_base_db = clampf(float(cfg.get_value(SETTINGS_SECTION, SETTINGS_KEY, MUSIC_BUS_DB)), MUTE_DB, 6.0)
+		_master_db = clampf(float(cfg.get_value(SETTINGS_SECTION, "master_db", 0.0)), MUTE_DB, 6.0)
+		_sfx_db = clampf(float(cfg.get_value(SETTINGS_SECTION, "sfx_db", 0.0)), MUTE_DB, 6.0)
 
 func _save_settings() -> void:
 	var cfg := ConfigFile.new()
 	cfg.load(SETTINGS_PATH)   # preserve any other settings already in the file
 	cfg.set_value(SETTINGS_SECTION, SETTINGS_KEY, _base_db)
+	cfg.set_value(SETTINGS_SECTION, "master_db", _master_db)
+	cfg.set_value(SETTINGS_SECTION, "sfx_db", _sfx_db)
 	cfg.save(SETTINGS_PATH)
