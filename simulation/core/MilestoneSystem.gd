@@ -11,18 +11,18 @@ const PRESTIGE_BONUS: float = 50.0
 # game, the rest fill the mid/late session so the reward loop never goes quiet.
 const DEFINITIONS: Dictionary = {
 	# ── Early game ──
-	"first_woodcutter": "First lumber operation online — timber production has begun.",
-	"first_farm":       "First farm operational — the population's food supply is secured.",
-	"population_50":    "Population reaches 50 — your settlement is growing.",
-	"first_edict":      "First directive issued — your policy is now in effect.",
-	"three_shires":     "Three territories under your control — a region takes shape.",
+	"first_woodcutter": "Your first woodcutter is at work — the timber has begun to flow.",
+	"first_farm":       "Your first farm is sown — your people's bread is secured.",
+	"population_50":    "Fifty souls now live under your rule — your village is growing.",
+	"first_edict":      "Your first decree is proclaimed — your word is now law.",
+	"three_shires":     "Three lands answer to you now — a realm begins to take shape.",
 	# ── Mid / late game (pace the long middle of the run) ──
-	"first_watchtower": "First watchtower built — your headquarters can withstand an assault.",
-	"town_of_ten":      "Ten structures built — your settlement is now a town.",
-	"treasury_300":     "Treasury reaches 300 — your administration is financially stable.",
-	"standing_army":    "Five soldiers under arms — a standing unit is mustered.",
-	"reign_day_50":     "Fifty days in command — the territory is holding steady.",
-	"reign_day_75":     "Seventy-five days in command — enemy pressure is easing and the territory still stands.",
+	"first_watchtower": "Your first watchtower stands — your hall can weather an attack.",
+	"town_of_ten":      "Ten buildings raised — your village has grown into a town.",
+	"treasury_300":     "Your treasury holds 300 gold — your rule rests on firm coin.",
+	"standing_army":    "Five men now bear arms for you — a standing guard is mustered.",
+	"reign_day_50":     "Fifty days you have ruled — the realm holds steady.",
+	"reign_day_75":     "Seventy-five days you have ruled — the enemy's pressure eases, and the realm still stands.",
 }
 
 # A standing army of this many living soldiers earns the standing_army milestone — a

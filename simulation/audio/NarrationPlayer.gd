@@ -81,21 +81,21 @@ func _connect_tutorial() -> void:
 # (matched by a stable keyword) rather than a generic sting. Falls back to the generic
 # tutorial_hint clip if a hint isn't recognised.
 const _TUTORIAL_VO: Array = [
-	["Welcome, commander",         "tut_hall"],
-	["Your Village Hall stands",   "tut_farm"],
+	["Welcome",                    "tut_hall"],
+	["Your hall stands",           "tut_farm"],
 	["Now store your food",        "tut_granary"],
-	["Grow your population",       "tut_housing"],
+	["Grow your people",           "tut_housing"],
 	["Trade with your neighbours", "tut_market"],
 	["Guard your people's health", "tut_apothecary"],
-	["Raise a fighting force",     "tut_barracks"],
-	["Fortify your seat",          "tut_defense"],
-	["ceasefire ends",             "tut_defense"],
-	["Issue an Edict",             "tut_edict"],
-	["Research new advances",      "tut_research"],
-	["Tutorial complete",          "tut_done"],
-	["demanding tribute",          "tut_tribute"],
-	["Approval is critically low", "tut_low_pop"],
-	["outbreak is spreading",      "tut_disease"],
+	["Raise fighting men",         "tut_barracks"],
+	["Fortify your hall",          "tut_defense"],
+	["peace ends",                 "tut_defense"],
+	["Proclaim a decree",          "tut_edict"],
+	["Seek new learning",          "tut_research"],
+	["The lesson is done",         "tut_done"],
+	["demands tribute",            "tut_tribute"],
+	["faith is dangerously low",   "tut_low_pop"],
+	["sickness is spreading",      "tut_disease"],
 ]
 
 func _on_tutorial_hint(msg: String) -> void:

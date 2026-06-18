@@ -21,25 +21,25 @@ const CAT_DEFENSE: int  = 4
 # The curriculum. kind: "build" (place `build` in tab `cat`) | "edict" | "research".
 const STEPS: Array = [
 	{"kind": "build", "cat": CAT_CIVIC, "build": "village_hall",
-		"hint": "Welcome, commander. Open the Build menu, Civic tab, and place your Village Hall to establish the settlement."},
+		"hint": "Welcome, my lord. Open the Build menu, the Civic tab, and place your Village Hall to found your settlement."},
 	{"kind": "build", "cat": CAT_FOOD, "build": "apple_orchard",
-		"hint": "Your Village Hall stands. Build an Apple Orchard from the Food tab to feed the population — they consume food every day."},
+		"hint": "Your hall stands. Build an Apple Orchard from the Food tab to feed your people — they eat every day."},
 	{"kind": "build", "cat": CAT_FOOD, "build": "granary",
-		"hint": "Now store your food: build a Granary. Food only banks once you have storage for it."},
+		"hint": "Now store your food: build a Granary. Food only keeps once you have somewhere to put it."},
 	{"kind": "build", "cat": CAT_CIVIC, "build": "hovel",
-		"hint": "Grow your population: build a Hovel from the Civic tab. Housing plus a food surplus lets new people be born to work your realm."},
+		"hint": "Grow your people: build a Hovel from the Civic tab. Homes and spare food let new folk be born to work your land."},
 	{"kind": "build", "cat": CAT_CIVIC, "build": "market",
-		"hint": "Trade with your neighbours: build a Market, then use the trade panel on the bottom bar to buy and sell resources."},
+		"hint": "Trade with your neighbours: build a Market, then use the trade panel below to buy and sell goods."},
 	{"kind": "build", "cat": CAT_CIVIC, "build": "apothecary",
-		"hint": "Guard your people's health: build an Apothecary from the Civic tab to treat disease before it spreads."},
+		"hint": "Guard your people's health: build an Apothecary from the Civic tab to treat sickness before it spreads."},
 	{"kind": "build", "cat": CAT_MILITARY, "build": "barracks",
-		"hint": "Raise a fighting force: build a Barracks from the Military tab so you can train soldiers and a garrison."},
+		"hint": "Raise fighting men: build a Barracks from the Military tab to train soldiers and a guard."},
 	{"kind": "build", "cat": CAT_DEFENSE, "build": "lookout_tower",
-		"hint": "Fortify your seat: build a Watchtower from the Defense tab. Rival factions will march on you once the ceasefire ends."},
+		"hint": "Fortify your hall: build a Watchtower from the Defence tab. Rival houses will march on you once the peace ends."},
 	{"kind": "edict",
-		"hint": "Issue an Edict from the policy button to boost the territory — choose a Feast, a Tax Holiday, or a Morale campaign."},
+		"hint": "Proclaim a decree from the policy button to aid your realm — choose a Feast, a Tax Holiday, or a call to raise spirits."},
 	{"kind": "research",
-		"hint": "Research new advances: open the Tech tree and research an upgrade to unlock stronger buildings and bonuses."},
+		"hint": "Seek new learning: open the Tech tree and study an advance to unlock stronger buildings and boons."},
 ]
 
 var index: int = -1            # -1 inert; 0..STEPS.size()-1 active; STEP_DONE complete
@@ -104,7 +104,7 @@ func _advance() -> void:
 		index = STEP_DONE
 		GameState.world["tutorial_index"] = STEP_DONE
 		GameState.world["tutorial_active"] = false   # resume enemy AI
-		tutorial_hint.emit("Tutorial complete. Your settlement stands. To grow your domain, open the World Map, develop your village, raise an army, and capture a neighbouring village — climb from Reeve to King. Good luck, commander.")
+		tutorial_hint.emit("The lesson is done. Your settlement stands. To grow your realm, open the World Map, develop your village, raise an army, and take a neighbouring village — climb from Reeve to King. Good fortune, my lord.")
 		tutorial_step_changed.emit(STEP_DONE)
 		return
 	_emit_step()
@@ -146,7 +146,7 @@ func _on_envoy_sent(_fid: int, _demand: Dictionary) -> void:
 	# Don't interrupt the guided sequence; the post-tutorial player still gets the warning.
 	if is_active():
 		return
-	tutorial_hint.emit("A rival faction is demanding tribute. Accept to maintain peace, or refuse and prepare your defenses.")
+	tutorial_hint.emit("A rival house demands tribute. Pay to keep the peace, or refuse and ready your walls.")
 
 func _on_tick(tick: int) -> void:
 	# Research step has no dedicated signal — detect a newly-unlocked tech.
@@ -160,7 +160,7 @@ func _on_tick(tick: int) -> void:
 		var day: int = tick / 240
 		if day >= 22 and not GameState.is_siege_ready(GameState.players[0]):
 			_defense_hint_given = true
-			tutorial_hint.emit("The ceasefire ends near Day 30 — after that, rival factions may move on your headquarters. Build walls and a watchtower (Build, Defense) and station a garrison, or your base will fall.")
+			tutorial_hint.emit("The peace ends near Day 30 — after that, rival houses may march on your hall. Build walls and a watchtower (Build, Defence) and station a guard, or your hall will fall.")
 			return
 	if tick - _last_edict_hint_tick < 4800:
 		return
@@ -173,8 +173,8 @@ func _on_tick(tick: int) -> void:
 	for ae in p.get("active_edicts", []):
 		if ae is Dictionary: active_edict_ids.append(ae.get("id", ""))
 	if pop < 35.0 and "festival_decree" not in active_edict_ids:
-		tutorial_hint.emit("Approval is critically low. The Festival Decree gives an instant +8 popularity boost.")
+		tutorial_hint.emit("Your people's faith is dangerously low. The Festival Decree will lift their spirits at once (+8).")
 		_last_edict_hint_tick = tick
 	elif diseased:
-		tutorial_hint.emit("An outbreak is spreading. Build more Apothecaries to increase coverage and contain it.")
+		tutorial_hint.emit("A sickness is spreading. Build more Apothecaries to widen your care and contain it.")
 		_last_edict_hint_tick = tick

@@ -51,7 +51,7 @@ func _ready() -> void:
 		if OS.get_environment("SR_AUTOPLAY") != "":
 			_dev_autoplay()
 		else:
-			_hud.show_notification("⚜ A ceasefire shields your realm for %d days — raise farms and defenses before rival factions march." % AIFactionRef.PLAYER_GRACE_DAYS, 10.0)
+			_hud.show_notification("⚜ A King's Peace shields your realm for %d days — raise farms and walls before rival houses march." % AIFactionRef.PLAYER_GRACE_DAYS, 10.0)
 			_show_tutorial_choice()
 	print("[CityView] Game initialized. Player: %s at (%d,%d)" % [PLAYER_NAME, _keep_x, _keep_y])
 
