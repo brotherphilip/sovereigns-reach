@@ -90,6 +90,46 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 167 — 2026-06-18  (DEV-LOOP — visuals/sound #4: full audio mixer + MainMenu assessed; COMPACT)
+
+### Plan
+Continue presentation polish. Assess the MainMenu visuals; ship a coherent audio-mix control (the user's
+"not overwhelming" concern → give them the whole mix). Compact change.md (due, 5 loops since iter162).
+
+### Finding (REAL — code read)
+- The MainMenu is ALREADY a polished cinematic showcase: a cross-fading animated background of 6 hand-drawn
+  medieval vignettes (dawn keep / village / market / harvest / night festival / siege) with Ken Burns, a vignette
+  + parchment frame, storybook captions, and a breathing gold title. No visual work needed — left as-is (re-polishing
+  would be wasted/риsky work).
+
+### Implement (audio mixer)
+- `MusicPlayer` now owns the whole mix: creates an **SFX bus**, loads/applies/saves **master_db + sfx_db** (plus
+  the existing music_db) in `user://settings.cfg`; `set_master_volume_db` / `set_sfx_volume_db` + getters.
+- `AudioManager` routes its synthesized SFX players to the **SFX** bus (so SFX is controllable separately).
+- `CityViewScene` pause menu: a 3-row mixer — **Master / Music / SFX** sliders (−40 dB..0, floor = Off), each
+  wired to the persisted setter; panel resized.
+
+### Playtest (REAL — headless tests + Xvfb boot)
+- **`tests/TestMusic.gd` 20/0** (+4): SFX bus exists; master + sfx volumes apply to their buses and persist across
+  a simulated reload. **`tests/TestAudio.gd` 36/0** (SFX routing didn't break event sounds).
+- City scene boots clean (SR_AUTOPLAY Xvfb): no parse/script errors with the 3-slider pause menu.
+- HONEST LIMIT: the sliders' on-screen RENDER isn't captured (pause menu needs an ESC keypress; headless Xvfb has
+  no WM so keyboard input doesn't register). Buses + persistence are tested; render + audible mix = user check.
+
+### COMPACT (5-loop checkpoint; last compact iter162)
+- Current Targets current (start-as-village→King fully built+verified+coalition; visuals/sound focus iter164-168).
+  Active Backlog tight (below). Resolved across iters cite real evidence; nothing in both Active+Resolved; Run
+  History untouched.
+
+### Active Backlog
+- **Visuals/Sound focus (iter164-168):** user ear-check + try the pause-menu mixer (Master/Music/SFX); 1 loop left
+  (iter168) — candidate: ambient/weather soundscape (subtle, own bus) OR a targeted visual pass on a plain area.
+  (Unverified-on-screen: pause-menu sliders render — needs real input.)
+- **Design Iteration (deferred):** independents deplete late-game; spatial index ~15k+ units; coalition tuning.
+
+### Confidence: HIGH on mixer buses + persistence (TestMusic 20/0, TestAudio 36/0) + clean boot; render/audio = user check.
+Iterations since last command/compact: 0 (COMPACTED this iteration, iter167).
+
 ## Iteration 166 — 2026-06-18  (DEV-LOOP — visuals/sound #3: persistent music-volume slider)
 
 ### Plan
