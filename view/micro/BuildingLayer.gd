@@ -17,6 +17,7 @@ const CAT_COLORS: Array = [
 const BuildingRegistry = preload("res://simulation/buildings/BuildingRegistry.gd")
 const BuildingRenderer  = preload("res://view/micro/BuildingRenderer.gd")
 const BuildingModels    = preload("res://view/micro/BuildingModels.gd")
+const StorageSystem     = preload("res://simulation/economy/StorageSystem.gd")
 
 var _buildings:       Array = []
 var _enemy_buildings: Array = []
@@ -162,9 +163,14 @@ func _draw_building(b: Dictionary, is_enemy: bool) -> void:
 
 	if built:
 		# ── Finished: bespoke per-type model that looks like the thing it is ────
-		BuildingModels.draw_finished(self, btype, cat, w, h, top, right, bot, left,
-			wall_col, roof_base, trim_col, Time.get_ticks_msec() * 0.001,
-			int(GameState.world.get("season", 2)))
+		if btype == "stockpile":
+			# Stockpiles are a blank platform whose goods PILES grow/shrink with the realm's
+			# stored stock (and vanish when empty). The initial (founding) stockpile is bigger.
+			_draw_stockpile(b, is_enemy, top, right, bot, left)
+		else:
+			BuildingModels.draw_finished(self, btype, cat, w, h, top, right, bot, left,
+				wall_col, roof_base, trim_col, Time.get_ticks_msec() * 0.001,
+				int(GameState.world.get("season", 2)))
 		draw_polyline(PackedVector2Array([top, right, bot, left, top]),
 			Color(0, 0, 0, 0.16), 0.6)
 	else:
@@ -344,6 +350,40 @@ func _draw_building_topper(btype: String, cat: int, w: int, h: int, base_color: 
 					draw_rect(Rect2(mp.x - 3.0, mp.y - 5.0, 6.0, 5.0), base_color.lightened(0.3))
 			elif cat == 1:  # harvesting — a small chimney/marker
 				draw_rect(Rect2(ridge_apex.x - 2.0, ridge_apex.y - 6.0, 4.0, 8.0), Color(0.30, 0.25, 0.20))
+
+# A stockpile is a blank plank platform; GOODS PILES sit on it in proportion to the realm's
+# stored raw stock (none when empty, filling up as stock arrives, gone when it's drawn down).
+# The founding ("initial") stockpile is built taller/bigger with a banner so it reads as the
+# primary store the AI delivers to.
+func _draw_stockpile(b: Dictionary, is_enemy: bool, top: Vector2, right: Vector2, bot: Vector2, left: Vector2) -> void:
+	var initial: bool = b.get("initial", false)
+	var deck_h: float = 9.0 if initial else 5.0
+	var deck: Color = Color(0.50, 0.40, 0.26) if not is_enemy else Color(0.46, 0.32, 0.30)
+	var c: PackedVector2Array = BuildingModels._box(self, top, right, bot, left, deck_h, deck, BuildingModels.TEX_PLANK)
+	var tu: Vector2 = c[0]; var ru: Vector2 = c[1]; var bu: Vector2 = c[2]; var lu: Vector2 = c[3]
+	if initial:
+		# corner banner post marking the primary store
+		draw_line(lu, lu + Vector2(0, -15), Color(0.40, 0.30, 0.18), 2.0)
+		draw_colored_polygon(PackedVector2Array([lu + Vector2(0, -15), lu + Vector2(9, -12), lu + Vector2(0, -9)]), Color(0.70, 0.20, 0.18))
+	# Fill ratio from the realm's shared raw-goods pool.
+	var ratio: float = 0.0
+	if not is_enemy and GameState.players.size() > 0:
+		var p: Dictionary = GameState.players[0]
+		ratio = clampf(float(StorageSystem.get_stored(p)) / maxf(1.0, float(StorageSystem.get_capacity(p))), 0.0, 1.0)
+	var uv: Array = [Vector2(0.3,0.3), Vector2(0.7,0.3), Vector2(0.3,0.7), Vector2(0.7,0.7),
+		Vector2(0.5,0.5), Vector2(0.5,0.28), Vector2(0.28,0.5), Vector2(0.72,0.5), Vector2(0.5,0.72)]
+	var slots: int = uv.size() if initial else 6
+	var n: int = mini(int(round(ratio * float(slots))), slots)
+	var goods: Array = [Color(0.60,0.45,0.25), Color(0.64,0.62,0.56), Color(0.72,0.60,0.36)]  # wood / stone / sacks
+	for i in range(n):
+		var sp: Vector2 = _bilerp(tu, ru, bu, lu, uv[i].x, uv[i].y)
+		var s: float = 1.3 if initial else 1.0
+		var col: Color = goods[i % goods.size()]
+		draw_colored_polygon(PackedVector2Array([sp+Vector2(-5*s,1*s), sp+Vector2(5*s,1*s), sp+Vector2(3*s,-4*s), sp+Vector2(-3*s,-4*s)]), col)
+		draw_colored_polygon(PackedVector2Array([sp+Vector2(-3*s,-4*s), sp+Vector2(3*s,-4*s), sp+Vector2(0,-7*s)]), col.lightened(0.12))
+
+func _bilerp(tu: Vector2, ru: Vector2, bu: Vector2, lu: Vector2, u: float, v: float) -> Vector2:
+	return tu*(1.0-u)*(1.0-v) + ru*u*(1.0-v) + bu*u*v + lu*(1.0-u)*v
 
 func _draw_ghost() -> void:
 	var pulse: float = 0.45 + 0.20 * sin(Time.get_ticks_msec() * 0.006)

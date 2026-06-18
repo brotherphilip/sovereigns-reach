@@ -1973,7 +1973,60 @@ func _cmd_place_building(cmd: Dictionary) -> bool:
 	building["build_mat_delivered"] = 0
 	player["buildings"].append(building)
 	EventBus.building_placed.emit(pid, btype, gx, gy, bid)
+	# Founding a hall lays down the realm's INITIAL stockpile beside it — a ready delivery
+	# point so haulers (and the AI) know where to drop goods. It adds NO storage capacity
+	# (the keep's base cellar already counts it) and is drawn larger to read as the main store.
+	if btype == "village_hall" and not _has_initial_stockpile(player):
+		_spawn_initial_stockpile(player, gx, gy)
 	return true
+
+func _has_initial_stockpile(player: Dictionary) -> bool:
+	for b in player.get("buildings", []):
+		if b is Dictionary and b.get("type", "") == "stockpile" and b.get("initial", false):
+			return true
+	return false
+
+# Place a pre-built INITIAL stockpile on the first free tile around the hall. Flagged
+# "initial" (renderer draws it bigger) with storage_max 0 (no capacity added — RAW_BASE
+# already covers the base cellar). It exists purely as the primary delivery point.
+func _spawn_initial_stockpile(player: Dictionary, hx: int, hy: int) -> void:
+	if _grid == null:
+		return
+	var hd: Dictionary = BuildingRegistry.lookup("village_hall")
+	var hw: int = int(hd.get("width", 3))
+	var hh: int = int(hd.get("height", 3))
+	var cands: Array = []
+	for dy in range(-1, hh + 1):
+		cands.append(Vector2i(hx + hw, hy + dy))
+		cands.append(Vector2i(hx - 1, hy + dy))
+	for dx in range(0, hw):
+		cands.append(Vector2i(hx + dx, hy + hh))
+		cands.append(Vector2i(hx + dx, hy - 1))
+	for c in cands:
+		var sx: int = c.x
+		var sy: int = c.y
+		if sx < 2 or sy < 2 or sx > 197 or sy > 197:
+			continue
+		if _grid.get_building_at(sx, sy) != 0:
+			continue
+		if _grid.get_terrain(sx, sy) in [2, 3, 5, 8]:   # skip mountain/river/rock/coast
+			continue
+		var bid: int = _next_building_id
+		_next_building_id += 1
+		var sb: Dictionary = BuildingState.create("stockpile", int(player.get("id", 0)), sx, sy, bid)
+		if sb.is_empty():
+			return
+		sb["built"] = true
+		sb["build_progress"] = 100.0
+		sb["build_required"] = 1.0
+		sb["build_mat_total"] = 0
+		sb["build_mat_delivered"] = 0
+		sb["initial"] = true       # drawn larger; StorageSystem ignores its (0) capacity
+		sb["storage_max"] = 0
+		_grid.set_building_at(sx, sy, bid)
+		player["buildings"].append(sb)
+		EventBus.building_placed.emit(int(player.get("id", 0)), "stockpile", sx, sy, bid)
+		return
 
 func _cmd_demolish_building(cmd: Dictionary) -> bool:
 	var pid: int = cmd["player_id"]
