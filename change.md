@@ -90,6 +90,35 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 190 — 2026-06-19  (DEV-LOOP — Base Game; profile: unattended on-screen QA. Visual audit of iter188/189 + fixed dead SR_SEASON hook)
+
+### Plan
+Use the now-working Xvfb harness to (a) visually confirm the iter188 night skeleton-crew and the iter189 gable fix across building types/scenes, and (b) sweep render logs for more draw errors. Fix anything real the renders surface.
+
+### Playtest (REAL — Xvfb on-screen, multiple scenes/states)
+- **iter189 gable fix holds everywhere:** SR_AUTOPLAY, SR_WORKERS (17-building roster: orchard/wheat/woodcutter/blacksmith/brewery/bakery/church/watchtower/iron_mine/market/hall/keep/inn/mill), day, night, autumn, winter, + WorldMapScene — **0 triangulation errors** in every log (was 102+/frame).
+- **iter188 night skeleton-crew CONFIRMED ON-SCREEN:** SR_WORKERS+SR_NIGHT screenshot (telemetry game_day 37 ≈ deep night) shows the town DARK with warm lamp-glow at the houses and the **streets emptied** of the day-shot worker crowd — most villagers indoors asleep, only a skeleton crew out. Matches the headless probe.
+- **WorldMapScene:** renders clean (G=0, 0 errors).
+- **MainMenuScene:** no SR_SHOT hook → can't self-capture (not a bug; noted). A concurrent 2×`xvfb-run -a` collision produced an "X connection broken" cascade once — harness artifact, fixed by running renders one at a time.
+
+### Post-mortem → found a real DEV-HOOK bug (blocks seasonal visual QA)
+SR_SEASON=2/3 rendered IDENTICAL to summer (green). Root cause: the hook only set `world.calendar_offset_ticks`, consumed solely by `simulate_tick`'s day-boundary season propagation (GameState:1224); the preview clock doesn't advance a full game-day, so `world.season` (what `TerrainChunk._season_fill` reads) never updated.
+
+### Implement
+- `CityViewScene` SR_SEASON: set `world.season` directly + emit `season_changed` (immediate repaint), park `current_tick` at noon of that season's first day (HUD/sim agree), clear the stale offset. SR_NIGHT now moves only WITHIN the day so it composes with a season.
+- **Verified before/after:** autumn now renders golden/russet foliage, winter renders pale/snowy ground + bare trees (both were green before). 0 triangulation/parse errors.
+
+### Confidence: HIGH — every claim backed by a captured screenshot or render-log line. Pure dev-tooling + view fix; no sim/gameplay change.
+
+### Active Backlog (Base Game)
+- OBSERVATION (taste call, not changed): deepest-night wash is `NightLayer.MAX_DARK = 0.92` (near-black away from lamps) AND the town is now depopulated at night (skeleton crew) — atmospheric but ~5 min/cycle of dark+empty. If the user finds night too dark/dead, soften MAX_DARK or add nighttime ambient life.
+- Phase 2 (deferred, user-agreed): full physical AI cities prototype + FPS/tick cost.
+- Visual polish (optional): WALL colours cluster; small buildings read as plain blobs at play-zoom. (Seasonal terrain now QA-able via the fixed SR_SEASON.)
+- Deathmatch: `deathmatch.md` still absent; create only when that mode is worked on.
+- COMPACT due ~iter192 (every ~5 loops); Run History is large but must not be deleted.
+
+---
+
 ## Iteration 189 — 2026-06-19  (DEV-LOOP — Base Game; profile: unattended autoplay / on-screen. Fixed per-frame render-error spam; Xvfb harness UNBLOCKED)
 
 ### Plan
