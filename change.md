@@ -90,6 +90,35 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 175 — 2026-06-18  (USER-DIRECTED — buildings too similar: roof palette diversification)
+
+### Task (user)
+"Redo the buildings — they are all FAR too similar. Need more definition, features, and color/texture differences."
+
+### Finding (REAL — code read + sprite-sheet render on :99)
+- The bespoke SHAPES/features already exist (~40 per-type models: porches, merlons, market cross, windmill sails,
+  cow barn, mine entrance…). The samey look was the PALETTE: roofs collapsed into ~3-5 colours (TILE red / THATCH
+  gold / SLATE grey / WOOD brown), and the roof is the dominant top-down iso surface → town clustered into a few
+  look-alike families.
+- Built `view/micro/_BuildingShowcase.{gd,tscn}` (dev sprite-sheet of all types) + `SR_ZOOM` camera hook to make
+  building visuals inspectable. Confirmed the cluster + then the fix via a 28-type grid render.
+
+### Implement (BuildingModels.gd)
+- Added 7 distinct roof hues (ROOF_COPPER/RUST/MOSS/BLUE/PALE/RUSSET/LEATHER) and reassigned: guildhall=copper,
+  trading_post=blue, inn+brewery=moss-green, bakery=russet-orange, blacksmith=iron-rust, tannery=leather-brown
+  (on top of hall=red, keep/church/military=slate, farms/hovel=thatch, mill=white, apothecary=green).
+
+### Playtest (REAL — Xvfb sprite-sheet on :99)
+- 28-type grid renders cleanly (no script errors); roofs now span ~10 distinct colours — buildings read apart at
+  a glance. Verified live on the user's :99 viewer.
+
+### HONEST remaining weaknesses (next passes if wanted)
+- WALL colours still cluster (tan-timber / grey-stone / wood-plank) — less varied than roofs now.
+- Several small buildings (well, hovel, granary, market, watchtower, quarry, mine) read as plain little blobs at
+  play-zoom — could use a size/feature boost.
+
+### Confidence: HIGH that roofs are now diversified (sprite-sheet evidence); the timbre of "enough" is the user's call.
+
 ## Iteration 174 — 2026-06-18  (DEV-LOOP — broad regression sweep; backlog genuinely empty)
 
 ### Plan
