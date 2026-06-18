@@ -90,6 +90,34 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 178 — 2026-06-18  (USER-DIRECTED — retone ALL text + VO: plain timeless kingdom voice)
+
+### Task (user)
+Pull the writing back from "modern warfare" tone — but NOT archaic. Keep "King"/"my lord"; drop "liege/sire" AND
+modern words (commander/administration/perimeter/personnel/reserves/ceasefire-jargon). Then re-record all VO with
+the same settings as the last batch.
+
+### Implement — TEXT (matched on-screen ↔ VO)
+- Retoned ALL player-facing text: 52 world events (titles/text/some choice labels), 11 milestones, 10 tutorial
+  step hints + 4 dynamic tutorial emits, the King's-Peace notice, and the NarrationPlayer keyword→clip map.
+  Events retoned by script from the new VO manifest (preserving all mechanics).
+- TTS manifests rewritten to match: `sr_revoice_boosh.py` (74) + `sr_tutorial_v2_boosh.py` (14 tutorial + the 5
+  iter169 events that had no VO).
+
+### Implement — VOICE (same settings as last batch)
+- Re-rendered every clip: chatterbox / voice=boosh / style=excited / intensity=0.8 / rate=0.95 → ffmpeg "v1 mild
+  cartoon" (pitch+formant lift + nasal EQ) → 24k mono PCM into audio/narration/. **94 clips installed (0 failed).**
+
+### Playtest (REAL — headless)
+- TestNarration 82/0 (was 77/5 — the 5 iter169 events are now voiced; every clip loads + has real audio signal).
+  TestWorldEvents 46/0, TestTutorial 15/0 (updated the defence-hint matcher garrison→guard to follow the new text).
+
+### HONEST LIMIT
+- Headless can't judge the AUDIBLE result — the user should ear-check the new tone in-game; any line is a quick
+  re-render (`sr_revoice_boosh.py` / `sr_tutorial_v2_boosh.py` then `sr_cartoonize_install.sh`).
+
+### Confidence: HIGH on text + clip integrity (tests green, 94 clips installed); audible tone = user ear-check.
+
 ## Iteration 177 — 2026-06-18  (USER-DIRECTED — AI starts with the SAME limited pile as the player)
 
 ### Task (user)

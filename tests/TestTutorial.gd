@@ -32,7 +32,7 @@ func ok(label: String, cond: bool) -> void:
 func _last_is_defense_hint() -> bool:
 	if _hints.is_empty(): return false
 	var m: String = String(_hints[-1])
-	return ("walls" in m) and ("garrison" in m)
+	return ("walls" in m) and ("guard" in m)
 
 func _bare_player() -> Dictionary:
 	return {"id": 0, "is_alive": true, "buildings": [], "units": []}
