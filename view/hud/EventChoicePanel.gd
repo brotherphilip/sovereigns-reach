@@ -60,6 +60,16 @@ func _on_world_event(ev: Dictionary) -> void:
 	var choices: Array = ev.get("choices", [])
 	if not (choices is Array) or choices.is_empty():
 		return   # plain events are handled by the notification feed, not this panel
+	# Autoplay/headless survival harness: there is no player to decide, so presenting the
+	# modal would PAUSE the sim forever (the run freezes at the event's day). Auto-resolve
+	# with the conservative LAST option (usually decline/pass — no resource drain) and keep
+	# running, so unattended FLOOR runs survive a choice event instead of stalling.
+	if OS.get_environment("SR_AUTOPLAY") != "":
+		CommandQueue.enqueue(CT_RESOLVE_EVENT_CHOICE, {
+			"event_id": ev.get("id", ""),
+			"choice_index": maxi(0, choices.size() - 1),
+		}, 0)
+		return
 	# Only one blocking modal at a time — queue behind any open popup.
 	if visible or ModalGate.other_visible(self):
 		_pending.append(ev)
