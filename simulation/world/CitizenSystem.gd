@@ -151,7 +151,11 @@ static func tick(citizens: Array, player, rng: RandomNumberGenerator,
 	var night: bool = day_night and SeasonSystem.is_night(_tick_count)
 	if night:
 		_assign_homes(citizens, buildings, grid)
-		_reconcile_workers(citizens, buildings, rng, grid)   # keep existing workers at post
+		# Send the town home to sleep, keeping only a SKELETON night shift on essential
+		# (food) buildings so the larder still trickles overnight — everyone else is freed
+		# to bed down (the streets visibly empty after dark). Workers re-staff at dawn via
+		# the day-branch reconcile. (Was: keep the FULL crew on → nobody ever slept.)
+		_night_shift(citizens, buildings, grid)
 		var nseason: int = SeasonSystem.season_at_tick(_tick_count)
 		for c in citizens:
 			if c is Dictionary and c.get("is_alive", false):
@@ -262,6 +266,42 @@ static func _reconcile_workers(citizens: Array, buildings: Array, rng: RandomNum
 			c["state"] = STATE_WALK
 			slot += 1
 			need -= 1
+
+# Goods that count as "food" for keeping a skeleton crew on overnight (so the larder
+# doesn't flatline while the town sleeps). Mirrors ResourceTick's food outputs.
+const _NIGHT_FOOD_GOODS: Array = ["apples", "meat", "cheese", "wheat", "hops", "flour", "bread", "ale"]
+
+# A built building is "essential overnight" if it produces a food good — those keep a
+# 1-worker skeleton crew at night; all other buildings stand empty until dawn.
+static func _is_essential_night(b: Dictionary) -> bool:
+	if not WorkerJobs.employs_workers(b.get("type", "")):
+		return false
+	var outs: Dictionary = ResourceTick.PRODUCTION_OUTPUTS.get(b.get("type", ""), {})
+	for g in outs:
+		if g in _NIGHT_FOOD_GOODS:
+			return true
+	return false
+
+# Night labour: release the workforce home to sleep, keeping only a skeleton crew (1 per
+# essential food building) at post. Does NOT pull idle pawns into jobs (unlike the day
+# reconcile) — night is for sleeping. Released workers become peasants walking home; the
+# night _tick_citizen then steps them INSIDE. The day reconcile re-staffs everyone at dawn.
+static func _night_shift(citizens: Array, buildings: Array, grid: Object = null) -> void:
+	var bmap: Dictionary = {}
+	for b in buildings:
+		if b is Dictionary and b.get("built", true) and b.get("is_active", true):
+			bmap[int(b.get("id", -1))] = b
+	var kept: Dictionary = {}   # building_id -> skeleton workers kept on
+	for c in citizens:
+		if not (c is Dictionary and c.get("is_alive", false)) or c.get("role", "") != "worker":
+			continue
+		var jb: int = int(c.get("job", -1))
+		var b: Dictionary = bmap.get(jb, {})
+		var cap: int = 1 if (not b.is_empty() and _is_essential_night(b)) else 0
+		if _is_working_age(c) and int(kept.get(jb, 0)) < cap:
+			kept[jb] = int(kept.get(jb, 0)) + 1   # stays on the night shift
+		else:
+			_release_worker(c, grid)              # heads home to bed down
 
 # Convert the builder who just finished `b` into that building's worker, on the spot —
 # it becomes the building's 'person' and starts the job immediately (chain workers begin

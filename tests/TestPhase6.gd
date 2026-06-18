@@ -412,13 +412,18 @@ func _test_ai_factions() -> void:
 		AIFaction.should_attack(sf, player_stub, t_now).get("attack") == true)
 	ok("siege musters in a short telegraph (~days, not 48)", AIFaction.SIEGE_ASSEMBLY_TICKS <= 240 * 7)
 
-	# 9. Ashen tribute demands after 14+ game-days
+	# 9. Ashen tribute demands are HELD OFF entirely during the King's Peace, then fire
+	#    once it ends (peace must stay quiet — no sieges AND no tribute/ransom demands).
 	var ab2: Dictionary = AshenBarony.make(8, 0, 0)
 	var player_stub2 := [{"id": 0, "is_alive": true, "keep_x": 5, "keep_y": 5}]
-	for tday in range(1, 16):
-		AshenBarony.tick(ab2, player_stub2, {}, tday * 240)
-	var demands: Array = AIFaction.get_pending_demands(ab2, 0)
-	ok("AshenBarony sends tribute demands after 14 days", demands.size() > 0)
+	ab2["days_alive"] = 10                       # well inside the King's Peace
+	AshenBarony.tick(ab2, player_stub2, {}, 10 * 240)
+	ok("no tribute demands during the King's Peace", AIFaction.get_pending_demands(ab2, 0).is_empty())
+	# Past the peace + demand cooldown: a demand now fires.
+	var pday: int = AIFaction.PLAYER_GRACE_DAYS + AshenBarony.DEMAND_COOLDOWN_DAYS
+	ab2["days_alive"] = pday
+	AshenBarony.tick(ab2, player_stub2, {}, pday * 240)
+	ok("AshenBarony sends tribute demands once the peace ends", AIFaction.get_pending_demands(ab2, 0).size() > 0)
 
 # ─── GameState integration tests (10) ───────────────────────────────────────
 
