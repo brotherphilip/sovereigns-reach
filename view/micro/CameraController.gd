@@ -17,6 +17,11 @@ var _track_id: int = -1   # wildlife id the camera is following (-1 = none)
 
 func _ready() -> void:
 	enabled = true
+	# Dev hook: SR_ZOOM=<f> sets the initial zoom (for close-up visual inspection / screenshots).
+	if OS.get_environment("SR_ZOOM") != "":
+		var z: float = clampf(float(OS.get_environment("SR_ZOOM")), ZOOM_MIN, ZOOM_MAX)
+		if z > 0.0:
+			zoom = Vector2(z, z)
 
 # Begin following a wildlife animal by id; the cursor becomes a threat to it.
 func track_animal(animal_id: int) -> void:

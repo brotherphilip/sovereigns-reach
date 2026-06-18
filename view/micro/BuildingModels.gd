@@ -33,6 +33,17 @@ const WATER   := Color(0.18, 0.42, 0.66)
 const RED     := Color(0.74, 0.20, 0.18)
 const EDGE    := Color(0.0, 0.0, 0.0, 0.28)
 
+# Distinct roof hues so building TYPES read apart at a glance from the top-down iso view
+# (the roof is the dominant surface). Previously ~everything was TILE/THATCH/SLATE, so the
+# town clustered into a few look-alike groups (iter175).
+const ROOF_COPPER := Color(0.34, 0.56, 0.50)   # weathered copper-green — civic landmarks (guildhall)
+const ROOF_RUST   := Color(0.52, 0.23, 0.15)   # dark iron-red — smith/forge
+const ROOF_MOSS   := Color(0.36, 0.48, 0.28)   # painted/mossy green — inn/brewery
+const ROOF_BLUE   := Color(0.28, 0.40, 0.62)   # painted blue — trade/market
+const ROOF_PALE   := Color(0.82, 0.82, 0.76)   # whitewashed — apothecary/healing
+const ROOF_RUSSET := Color(0.78, 0.46, 0.20)   # warm clay — bakery/oven
+const ROOF_LEATHER:= Color(0.46, 0.32, 0.20)   # tan leather-brown — tannery
+
 # Wall surface textures (passed to _box so masonry/timber/plank lift every box-building).
 const TEX_NONE   := 0
 const TEX_STONE  := 1   # ashlar courses + staggered joints
@@ -440,7 +451,7 @@ static func _market(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vecto
 static func _trading_post(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vector2, ctr: Vector2) -> void:
 	var c := _box(ci, t, r, b, l, 18.0, WOOD, TEX_PLANK)
 	_door(ci, l, b, 18.0)
-	_gable(ci, c, 11.0, WOOD_D)
+	_gable(ci, c, 11.0, ROOF_BLUE)
 	# hanging coin sign
 	var sp := b.lerp(r, 0.5) + Vector2(0, -16)
 	ci.draw_line(sp, sp + Vector2(6, 0), WOOD_D, 1.2)
@@ -465,7 +476,7 @@ static func _guildhall(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Ve
 		var bp: Vector2 = l.lerp(b, f)
 		_post(ci, bp, 24.0, STONE_D, 2.2)
 	_door(ci, l, b, 24.0)
-	_gable(ci, c, 10.0, TILE)
+	_gable(ci, c, 10.0, ROOF_COPPER)
 	# pediment sign
 	ci.draw_circle((c[0] + c[2]) * 0.5 + Vector2(0, -6), 3.0, GOLD)
 
@@ -668,7 +679,7 @@ static func _windmill(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vec
 static func _bakery(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vector2, ctr: Vector2, time: float) -> void:
 	var c := _box(ci, t, r, b, l, 18.0, Color(0.78, 0.70, 0.55))
 	_door(ci, l, b, 18.0)
-	_gable(ci, c, 11.0, TILE)
+	_gable(ci, c, 11.0, ROOF_RUSSET)
 	# big chimney with smoke + oven glow at door
 	var ch := c[1].lerp(c[2], 0.5) + Vector2(0, -2)
 	ci.draw_rect(Rect2(ch.x - 2.5, ch.y - 12, 5, 12), STONE_D)
@@ -678,7 +689,7 @@ static func _bakery(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vecto
 
 static func _brewery(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vector2, ctr: Vector2) -> void:
 	var c := _box(ci, t.lerp(ctr, 0.2), r.lerp(ctr, 0.2), b.lerp(ctr, 0.2), l.lerp(ctr, 0.2), 16.0, WOOD, TEX_PLANK)
-	_gable(ci, c, 8.0, THATCH_D)
+	_gable(ci, c, 8.0, ROOF_MOSS)
 	# big barrels out front
 	_barrel(ci, b.lerp(l, 0.5) + Vector2(0, 3), 5.0)
 	_barrel(ci, b.lerp(r, 0.5) + Vector2(0, 5), 5.0)
@@ -689,7 +700,7 @@ static func _inn(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vector2,
 	_door(ci, l, b, 24.0)
 	for p in [l.lerp(b, 0.3), b.lerp(r, 0.7)]:
 		_win(ci, (p as Vector2) + Vector2(0, -7)); _win(ci, (p as Vector2) + Vector2(0, -18))
-	_gable(ci, c, 12.0, THATCH)
+	_gable(ci, c, 12.0, ROOF_MOSS)
 	# Hero detail: a stone chimney through the roof with drifting smoke.
 	var ch := c[1].lerp(c[2], 0.4) + Vector2(0, -12)
 	ci.draw_rect(Rect2(ch.x - 2.5, ch.y - 8, 5, 13), STONE_D)
@@ -759,7 +770,7 @@ static func _church(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vecto
 
 static func _barracks(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vector2, ctr: Vector2) -> void:
 	var c := _box(ci, t, r, b, l, 18.0, WOOD_D.lightened(0.05), TEX_PLANK)
-	_gable(ci, c, 9.0, SLATE)
+	_gable(ci, c, 9.0, ROOF_LEATHER)
 	_door(ci, l, b, 18.0, Color(0.18, 0.12, 0.08))
 	# war banners
 	for f in [0.3, 0.7]:
@@ -788,7 +799,7 @@ static func _siege(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vector
 
 static func _forge(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vector2, ctr: Vector2, time: float) -> void:
 	var c := _box(ci, t, r, b, l, 14.0, STONE_D, TEX_STONE)
-	_gable(ci, c, 7.0, SLATE)
+	_gable(ci, c, 7.0, ROOF_RUST)
 	# stone chimney with glowing forge
 	var ch := c[1].lerp(c[2], 0.5)
 	ci.draw_rect(Rect2(ch.x - 3, ch.y - 14, 6, 14), STONE)
