@@ -1356,6 +1356,22 @@ func simulate_tick(tick: int) -> void:
 			elif not stalled and world.get("builders_warned", false):
 				world["builders_warned"] = false
 
+			# Low-food warning: a drought or off-season can drain the granary toward
+			# starvation. Warn once while there's still a buffer to act on (rations/farms),
+			# re-arm only after it recovers — so a famine is never silent until it's too late
+			# (is_starving only flips at food 0). Threshold scales with population + ration.
+			var ration: int = int(players[0].get("food_ration", 2))
+			var rmult: float = float(ResourceTick.RATION_CONSUMPTION_MULTIPLIERS.get(ration, 1.0))
+			var daily_need: float = maxf(1.0, float(players[0].get("population", 0)) * ResourceTick.FOOD_CONSUMPTION_PER_PEASANT_PER_DAY * rmult)
+			var total_food: int = FoodSystem.get_total_food(players[0])
+			if total_food > 0 and float(total_food) < daily_need * 3.0 and not world.get("food_low_warned", false):
+				world["food_low_warned"] = true
+				EventBus.realm_notice.emit(
+					"⚠ Your stores run low — raise more Orchards or Farms, or lower rations (Edicts) until the harvest recovers.",
+					"bad")
+			elif float(total_food) >= daily_need * 6.0 and world.get("food_low_warned", false):
+				world["food_low_warned"] = false
+
 		# Realm events: a flavourful daily happening (merchant, foraging, wolves…) that
 		# keeps the kingdom alive between the big beats. Player's own seat only.
 		if not spectator_mode and not _ai_paused():
