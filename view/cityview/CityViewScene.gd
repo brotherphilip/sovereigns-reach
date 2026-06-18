@@ -51,7 +51,10 @@ func _ready() -> void:
 		if OS.get_environment("SR_AUTOPLAY") != "":
 			_dev_autoplay()
 		else:
-			_hud.show_notification("⚜ A King's Peace shields your realm for %d days — raise farms and walls before rival houses march." % AIFactionRef.PLAYER_GRACE_DAYS, 10.0)
+			# Quote the grace in CALENDAR days (the HUD's "Day N"), not raw economic days —
+			# PLAYER_GRACE_DAYS is in economic days (15 per calendar day), so 750 → ~50 on-screen.
+			var grace_cal: int = AIFactionRef.PLAYER_GRACE_DAYS * SimulationClock.TICKS_PER_GAME_DAY / SimulationClock.TICKS_PER_CALENDAR_DAY
+			_hud.show_notification("⚜ A King's Peace shields your realm for its first %d days — raise farms and walls before rival houses march." % grace_cal, 10.0)
 			_show_tutorial_choice()
 	print("[CityView] Game initialized. Player: %s at (%d,%d)" % [PLAYER_NAME, _keep_x, _keep_y])
 
