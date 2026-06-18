@@ -46,12 +46,13 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
   750 — so this verifies the economy doesn't slowly DRIFT/starve over a longer horizon, NOT added threat). HONEST:
   with the user's calm-realm directive, "survival" is no longer the binding challenge; a meaningful *difficulty*
   bar (vs a duration/stability bar) would need user direction on re-introducing threat/engagement to the mid-game.
-  **Day-150 bar: MET on 2 independent seeds (iter198-199).** SR_SEED=31337 → day 164 (pop min 47.7, min_food 0 — a
-  drought crash, survived) and SR_SEED=4242 → day 164 (pop min 50.0, min_food 70 — clean, no crash). The drought
-  food-crash is confirmed seed/weather-specific and NON-FATAL (the realm self-corrects; low-food warning fires
-  in-window). HONEST: further "survive even longer" bars are now LOW-VALUE — the realm coasts peacefully (calm-realm
-  directive) and the only stress is bounded weather; the next meaningful bar is ENGAGEMENT/DEPTH, which needs user
-  direction (re-introduce mid-game stakes, or pivot to content). Not raising past Day-150 without that steer.
+  **Day-150 bar: MET on 4 independent seeds (iter198-201), 0 losses.** day 164 each: 31337 (min_pop 47.7, drought
+  crash food→0, recovered), 4242 (min_pop 50, clean), 12345 (min_pop 27.9, drought crash — stressed but survived),
+  7777 (min_pop 50, clean). The drought food-crash hits ~half the seeds and can erode a PASSIVE autoplay to ~28, but
+  NEVER caused a revolt (threshold 10) or hall loss across 4 seeds → confirmed bounded/non-fatal; no food buff.
+  (Autoplay choice-event FREEZE fixed iter200 — game_day now advances through events.) HONEST: further "survive even
+  longer" bars are LOW-VALUE — the realm coasts peacefully (calm-realm directive), only bounded weather stress; the
+  next meaningful bar is ENGAGEMENT/DEPTH, which needs user direction. Not raising past Day-150 without that steer.
 - **FLOOR — Day-100 (20-min) single-life survival: MET & MULTI-SEED CONFIRMED (iter140–142).** Headless managed
   runs through the REAL placement path survive Day 100 on **5 distinct seeds** (12345, 4242, 999, 7777, 31337),
   min popularity 45–49, hall intact. Food trough solved by the iter140 granary buffer (200→300) + stacking.
@@ -128,6 +129,25 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 - **Autoplay choice-event FREEZE (iter200):** SR_AUTOPLAY seed 12345 froze at day 9 (game_day stuck the whole run; render/telemetry alive) — a choice event fired and `EventChoicePanel` paused the sim (SPEED_PAUSED) awaiting a click autoplay never gives. Prior FLOOR runs were clean only by luck (didn't roll a choice event; 225-day cooldown ⇒ ≤1 event/run). Fix: under SR_AUTOPLAY the panel auto-resolves with the conservative last option (decline/pass) and never pauses. Ev: seed 12345 re-run reached day 164 (was frozen at 9). Real-player flow unchanged.
 - **Low-food warning (iter198):** a drought could drain the granary to 0 (brief starvation) with NO early heads-up (is_starving only flips at food 0; warnings existed only for popularity + builder-stall). GameState now emits a one-time "stores run low" realm_notice below ~3 days' food (pop+ration scaled), re-arming above ~6 days. Ev: tests/TestFoodWarning.gd 5/0 (fires/no-spam/re-arms/re-fires); the day-150 run (seed 31337) exercised exactly this (food→0 day 137). Aligned with calm-realm (player aid, no added threat).
 - **(Durable, older — see Current Targets):** Day-100 FLOOR multi-seed survival; Reeve→King climb on 5 seeds ≤113d; late-game coalition-vs-leader; on-screen in-city FLOOR survival (iter158).
+
+---
+
+## Iteration 201 — 2026-06-19  (DEV-LOOP — Base Game; profile: long-haul survivor / 4th seed + COMPACT. Day-150 firmed to 4 seeds, freeze fix validated)
+
+### Plan
+COMPACT (due); bank a 4th Day-150 seed (7777) watching for an ACTUAL revolt (min_pop<10 ⇒ buff food); broad sweep.
+
+### COMPACT (done)
+Resolved Index tightened ~16→~12 lines: collapsed the 3 scattered art items (tunics/watchtower/hovel smoke) → one line, and SR_SEASON+SR_SEED dev hooks → one line. No same-root-cause dups otherwise; verified no Active/Resolved overlap; Run History untouched.
+
+### Playtest (REAL — Xvfb autoplay seed 7777 + 13-file headless sweep)
+- **Day-150 confirm seed 7777: G=0, day 164** (game_day ADVANCED — freeze fix validated on another seed), **min_pop 50.0, min_food 70** (clean, no crash), hall 500, 0 errors. → **Day-150 now MET on 4 seeds, 0 losses** (31337/4242/12345/7777). The drought food-crash hits ~half the seeds, worst min_pop 27.9 (seed 12345), but NEVER revolts (threshold 10) → confirmed bounded/non-fatal. NO food buff (per criterion: only on an actual loss). Screenshot (day 164): healthy realm, no faults.
+- **Full sweep GREEN:** 13 files, 501 assertions, 0 failures.
+
+### Post-mortem → TARGET REACHED (Day-150 ×4, robust) + clean compact
+No fault. The freeze fix (iter200) holds. The realm is robustly survivable across seeds; the drought crash is real but bounded.
+
+### Confidence: HIGH — 4-seed day-164 telemetry + screenshot + green sweep. HONEST: autonomous survival work is now thoroughly done; the meaningful next direction (engagement/depth vs the calm directive) needs user steer.
 
 ---
 
