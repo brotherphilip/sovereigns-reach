@@ -90,6 +90,42 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 168 — 2026-06-18  (DEV-LOOP — visuals/sound #5 (LAST): textured grass terrain; live on :99)
+
+### Plan
+Final focus loop. With the user's live viewer now mirroring display :99, do a VISIBLE visual pass (audio wouldn't
+show in the viewer). Rendered the city to :99 to find the weakest area honestly.
+
+### Finding (REAL — Xvfb SR_SHOT on :99)
+- The city's open ground was a FLAT, uniform green void (`TerrainChunk` painted each grass tile a single flat
+  colour); the textured town sat on a plain green field. Clear highest-impact target.
+
+### Implement
+- `TerrainChunk._vary()`: subtle, DETERMINISTIC per-tile variation — soft low-freq meadow mottling + a fine
+  per-tile hash grain (±~0.07 brightness) + a gentle warm/cool hue drift (bright patches lean yellow-green, dark
+  lean blue-green). Deterministic from coords so it's stable across repaints (no shimmer); river/coast/road kept
+  crisp; chunks still paint once (no perf cost).
+
+### Playtest (REAL — before/after Xvfb screenshots rendered on the live :99)
+- Before: flat green field (PNG 166 KB). After: visibly mottled living-meadow grass (PNG 252 KB — more detail),
+  town still reads clearly. Clean boot, no script errors. Confidence HIGH (real before/after captured on-screen).
+
+### Docs
+- Updated `systems_bibliography.html` (Presentation: textured terrain + header).
+
+### 5-LOOP VISUALS/SOUND FOCUS COMPLETE (iter164-168)
+- iter164 music playlist (auto-update + old/distant/lo-fi bus) · iter165 ducking under narration · iter166 music
+  volume slider · iter167 full Master/Music/SFX mixer (persisted) + MainMenu confirmed already-polished · iter168
+  textured grass terrain. Plus (user request, mid-focus): live desktop viewer restored (ffplay mirrors :99 → :0).
+
+### Active Backlog
+- **Awaiting user direction (next focus):** ear-check audio levels + try the pause-menu mixer; optional ambient/
+  weather soundscape (deferred — risky-blind timbre); further visual passes if wanted.
+- **Design Iteration (deferred):** independents deplete late-game; spatial index ~15k+ units; coalition tuning.
+
+### Confidence: HIGH — real before/after on-screen (flat→textured grass); clean boot.
+Iterations since last command/compact: 1 (last compact iter167).
+
 ## Iteration 167 — 2026-06-18  (DEV-LOOP — visuals/sound #4: full audio mixer + MainMenu assessed; COMPACT)
 
 ### Plan
