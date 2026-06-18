@@ -220,9 +220,14 @@ func initialize_player(player_id: int, player_name: String, start_x: int, start_
 			_citizen_rng.seed = server_config.get("map_seed", 12345) ^ 0xC1721E
 		citizens = []
 		_next_citizen_id = 1
+		# Spawn EXACTLY the intended starting population (20 — matches AIFaction.START_WORKFORCE
+		# symmetry and the "reach population 20" objective). Was 14, while population read 20, so
+		# day-1 living_count sync dropped 20→14 — a phantom "6 villagers lost" on the first day.
 		_next_citizen_id = CitizenSystem.spawn(
-			citizens, 14, float(start_x), float(start_y), _citizen_rng, _next_citizen_id)
+			citizens, 20, float(start_x), float(start_y), _citizen_rng, _next_citizen_id)
 		_snap_citizens_to_grass()
+		# Sync the headline population to the ACTUAL living villagers so it's consistent from day 0.
+		players[player_id]["population"] = PeopleSystem.living_count(citizens)
 
 func _assign_starting_shire(player_id: int, start_x: int, start_y: int) -> void:
 	var best_id: int   = -1
