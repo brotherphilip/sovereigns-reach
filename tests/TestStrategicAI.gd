@@ -43,6 +43,7 @@ func _init() -> void:
 	_test_ai_building_economy()
 	_test_distance_scaled_travel()
 	_test_coalition()
+	_test_secession()
 	print("\n=== Strategic AI Results: %d passed, %d failed ===" % [_pass, _fail])
 	quit(0 if _fail == 0 else 1)
 
@@ -161,6 +162,43 @@ func _test_coalition() -> void:
 	for i in range(8):
 		cities[i]["development"] = 1   # score now 8×2 = 16 < 62
 	ok("coalition stands down when nobody is dominant", KingdomAI._coalition_target(world) == -1)
+
+# Secession (iter172): neglected AI frontier cities revolt back to INDEPENDENT, but player /
+# developed / capital cities never do, and a faction is never stripped below 3 holdings.
+func _test_secession() -> void:
+	print("\n[Secession — neglected AI frontier reverts to independent; exemptions hold]")
+	var IND: int = CampaignMap.INDEPENDENT_FACTION_ID
+	var PF: int = CampaignMap.PLAYER_FACTION_ID
+	var cities: Array = []
+	# Independent hub everything borders (makes the test cities "frontier").
+	for i in range(6):  # 0-5: eligible AI dev-0 frontier cities
+		cities.append({"id": i, "owner_faction_id": 0, "development": 0, "garrison": 8, "connected_to": [100]})
+	cities.append({"id": 6, "owner_faction_id": 0, "development": 5, "garrison": 8, "connected_to": [100]})   # developed — exempt
+	cities.append({"id": 7, "owner_faction_id": 0, "development": 0, "is_capital": true, "garrison": 8, "connected_to": [100]})  # capital — exempt
+	cities.append({"id": 8, "owner_faction_id": PF, "development": 0, "garrison": 8, "connected_to": [100]})   # player — exempt
+	cities.append({"id": 100, "owner_faction_id": IND, "development": 0, "garrison": 6, "connected_to": [0,1,2,3,4,5,6,7,8]})
+	var world: Dictionary = {"world_map": {
+		"strategic_init": true, "player_faction_id": PF, "player_seat_city_id": 8,
+		"kingdoms": [
+			{"id": 0, "is_alive": true, "is_player": false},
+			{"id": PF, "is_alive": true, "is_player": true},
+		],
+		"cities": cities,
+	}}
+	var min_holdings: int = 1 << 30
+	for tick in range(1, 600):
+		StrategicSim._process_secessions(world, tick)
+		min_holdings = mini(min_holdings, CampaignMap.faction_city_count(world, 0))
+
+	var seceded_eligible: int = 0
+	for i in range(6):
+		if CampaignMap.owner_of(CampaignMap.city_by_id(world, i)) == IND:
+			seceded_eligible += 1
+	ok("an eligible AI dev-0 frontier city seceded", seceded_eligible >= 1)
+	ok("the player's city never secedes (exempt)", CampaignMap.owner_of(CampaignMap.city_by_id(world, 8)) == PF)
+	ok("a developed city never secedes", CampaignMap.owner_of(CampaignMap.city_by_id(world, 6)) == 0)
+	ok("a capital never secedes", CampaignMap.owner_of(CampaignMap.city_by_id(world, 7)) == 0)
+	ok("a faction is never stripped below 3 holdings", min_holdings >= 3)
 
 func ok(label: String, cond: bool) -> void:
 	if cond:
