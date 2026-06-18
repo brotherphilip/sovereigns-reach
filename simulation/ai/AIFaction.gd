@@ -60,11 +60,12 @@ const SIEGE_ASSEMBLY_TICKS: int = TICKS_PER_DAY * 6
 const SIEGE_COOLDOWN_DAYS: int = 30
 
 # "King's Peace" — establishment grace, in ECONOMIC days. A freshly-arrived faction
-# won't besiege the player for its first PLAYER_GRACE_DAYS. Set so the peace ends around
-# CALENDAR day 4 (60 economic days = 4 sun-aligned days), matching the on-screen warning.
+# won't besiege the player for its first PLAYER_GRACE_DAYS. Paced in SUN CYCLES (the
+# visible day↔night cycle): 1 sun cycle = 75 economic-days = 5 on-screen calendar days.
+# The peace must last AT LEAST 10 sun cycles, so the realm has a long, calm establishment
+# before any rival lord may march — no sieges AND no tribute/ransom demands until it ends.
 # Long-lived world factions are unaffected (their days_alive is far past this).
-# A long peace (≈ calendar Day 6) — no sieges AND no tribute/ransom demands until it ends.
-const PLAYER_GRACE_DAYS: int = 90
+const PLAYER_GRACE_DAYS: int = 750  # = 10 sun cycles (10 × 75 economic-days)
 
 # Diplomacy depth: refusing a tribute demand adds a PERSISTENT grievance that raises
 # the faction's threat (escalating toward a siege) and cools slowly; paying tribute

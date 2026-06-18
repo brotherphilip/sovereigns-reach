@@ -96,16 +96,18 @@ func _test_event_fires_and_applies() -> void:
 	var world := {}
 	var fired_count := 0
 	var saw_summary := false
-	# Run a long stretch; events should fire periodically.
-	for d in range(1, 400):
+	# Run a long stretch (scaled to the now-3-sun-cycle cooldown) so several events fire
+	# and at least one is a plain (non-choice) event carrying a summary.
+	var horizon: int = WorldEventSystem.COOLDOWN_DAYS * 12
+	for d in range(1, horizon):
 		var ev := WorldEventSystem.tick(p, world, rng, d)
 		if not ev.is_empty():
 			fired_count += 1
 			if String(ev.get("summary", "")) != "": saw_summary = true
 	ok("events fire over time", fired_count > 0)
 	ok("a fired event carries a human-readable summary", saw_summary)
-	# With ~COOLDOWN spacing over 400 days they shouldn't fire more than once per cooldown.
-	ok("events respect roughly the cooldown spacing", fired_count <= 400 / WorldEventSystem.COOLDOWN_DAYS)
+	# Events are paced ~once per cooldown (3 sun cycles); never denser than that.
+	ok("events respect roughly the cooldown spacing", fired_count <= horizon / WorldEventSystem.COOLDOWN_DAYS)
 
 func _test_effects_are_bounded() -> void:
 	print("\n[Effects are bounded — never below 0 / never instant-revolt]")

@@ -150,7 +150,7 @@ static func tick(citizens: Array, player, rng: RandomNumberGenerator,
 	# collapse overnight). Construction assignment pauses; day resumes it below.
 	var night: bool = day_night and SeasonSystem.is_night(_tick_count)
 	if night:
-		_assign_homes(citizens, buildings)
+		_assign_homes(citizens, buildings, grid)
 		_reconcile_workers(citizens, buildings, rng, grid)   # keep existing workers at post
 		var nseason: int = SeasonSystem.season_at_tick(_tick_count)
 		for c in citizens:
@@ -614,6 +614,12 @@ static func _tick_citizen(c: Dictionary, buildings: Array, citizens: Array,
 						c["work_phase"] = PH_SEEK
 						c["src_set"] = false
 						c["carry"] = ""
+				elif night:
+					# Reached the home door after dark — step INSIDE to sleep (not drawn),
+					# rather than _go_home (which re-targets the home centre and bounces the
+					# pawn back out the door, leaving it pacing the wall all night).
+					c["state"] = STATE_INSIDE
+					c["vx"] = 0.0; c["vy"] = 0.0
 				else:
 					_go_home(c, rng, grid)
 			else:
@@ -928,7 +934,7 @@ const RESIDENTIAL: Array = ["hovel", "village_hall", "keep"]
 
 # Assign each living villager an allotted house (round-robin over built homes) so they
 # return to a real dwelling at night. Falls back to the home anchor when no homes exist.
-static func _assign_homes(citizens: Array, buildings: Array) -> void:
+static func _assign_homes(citizens: Array, buildings: Array, grid: Object = null) -> void:
 	var homes: Array = []
 	for b in buildings:
 		if b is Dictionary and b.get("built", true) and String(b.get("type", "")) in RESIDENTIAL:
@@ -942,11 +948,14 @@ static func _assign_homes(citizens: Array, buildings: Array) -> void:
 			var ctr: Vector2 = _site_center(hb)
 			c["home_bx"] = ctr.x
 			c["home_by"] = ctr.y
-			# Door of the home: the front (l→b) face, one tile outside the footprint —
-			# where pawns walk to and step INSIDE for the night.
+			# Door of the home: the front face, just outside the footprint — where pawns
+			# walk to and step INSIDE for the night. Snap it to the nearest free, reachable
+			# tile so the approach point is never buried in a wall (else they'd pace the
+			# wall, unable to "arrive", and never get indoors).
 			var dh: int = BuildingRegistry.lookup(hb.get("type", "")).get("height", 1)
-			c["home_dx"] = ctr.x
-			c["home_dy"] = ctr.y + dh * 0.5 + 0.5
+			var door := _snap_to_free(grid, Vector2(ctr.x, ctr.y + dh * 0.5 + 0.5))
+			c["home_dx"] = door.x
+			c["home_dy"] = door.y
 			i += 1
 
 static func _go_home(c: Dictionary, rng: RandomNumberGenerator, grid: Object = null) -> void:

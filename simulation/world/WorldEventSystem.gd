@@ -20,8 +20,14 @@ extends RefCounted
 const CitizenSystem = preload("res://simulation/world/CitizenSystem.gd")
 const SeasonSystem  = preload("res://simulation/world/SeasonSystem.gd")
 
-const COOLDOWN_DAYS: int = 45    # minimum economic-days between events — events are now rare (was 14)
-const DAILY_CHANCE: float = 0.05 # per-day chance an event fires once off cooldown (was 0.10) — WAY fewer events
+# Events are paced in SUN CYCLES (the visible day↔night cycle), not economic-days. One
+# sun cycle = SeasonSystem.DAY_NIGHT_TICKS (18000t) = 75 economic-days = 5 on-screen
+# calendar days. The old 45-day cooldown + 0.05 chance fired roughly once PER sun cycle
+# (≈ "every 5 days" as the player saw it). Target now: one event every 3–5 sun cycles.
+#   COOLDOWN = 3 sun cycles (225 economic-days) hard floor between events; then a small
+#   per-day chance adds ~1 more sun cycle on average, landing the cadence at ~3–5 cycles.
+const COOLDOWN_DAYS: int = 225   # = 3 sun cycles (3 × 75 economic-days) — hard minimum gap
+const DAILY_CHANCE: float = 0.013 # per-day chance once off cooldown (~1 extra sun cycle mean)
 
 # tone: "good" | "bad" | "neutral" — drives the notification colour.
 # effect keys: food, gold, wood, stone, iron, popularity, prestige (signed deltas);
