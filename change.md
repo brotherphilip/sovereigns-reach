@@ -90,6 +90,30 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 170 — 2026-06-18  (DEV-LOOP — verify iter169 events fire in a real sim)
+
+### Plan
+Honest Phase-3 follow-up: confirm the 5 new events (iter169) actually FIRE in play, not just validate as defs.
+(User set the loop heartbeat to 2 min.)
+
+### Playtest (REAL — WorldEventSystem.tick over 60 realms × 120 days, seed 777)
+- 315 events fired; **44 / 52** defined ids appeared (the 8 absentees are season-gated — the run sat in one season).
+- **All 5 iter169 events fired**: veteran_officer 7, smugglers_cache 6, well_fouled 8, guild_petition 9, envoy_gift 4.
+  The new content is live and well-distributed in actual simulation, behind the 14-day cooldown + weighted pick.
+
+### Post-Mortem (TARGET REACHED — content verified in play)
+- The event pipeline + the new additions work end-to-end in a real sim. No code change needed.
+
+### No game code change (real verification of iter169 content).
+
+### Active Backlog
+- **VO for new events (user TTS):** event_veteran_officer / _smugglers_cache / _well_fouled / _guild_petition / _envoy_gift.
+- **Design Iteration (deferred):** independents deplete late-game (secession/founding mechanic); spatial index
+  ~15k+ units; coalition tuning; ambient soundscape.
+
+### Confidence: HIGH — real sim fire-counts show all 5 new events appear in play.
+Iterations since last command/compact: 3 (last compact iter167).
+
 ## Iteration 169 — 2026-06-18  (DEV-LOOP — autonomous resumed: +5 world events, content depth)
 
 ### Plan
