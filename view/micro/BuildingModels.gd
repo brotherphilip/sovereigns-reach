@@ -994,16 +994,43 @@ static func _gatehouse(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Ve
 	ci.draw_rect(Rect2((c[1] as Vector2).x - 2, (c[1] as Vector2).y - 6, 4, 6), STONE_L)
 
 static func _watchtower(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vector2, ctr: Vector2) -> void:
-	# timber tower on legs with a roofed platform
-	var g := ctr + Vector2(0, 3)
-	for off in [Vector2(-6, 2), Vector2(6, 2), Vector2(0, 5)]:
-		_post(ci, g + off, 22.0, WOOD_D, 1.8)
-	var plat := g + Vector2(0, -20)
-	ci.draw_colored_polygon(PackedVector2Array([plat + Vector2(0, -3), plat + Vector2(9, 1), plat + Vector2(0, 5), plat + Vector2(-9, 1)]), WOOD_L)
-	var rc := [plat + Vector2(0, -3), plat + Vector2(9, 1), plat + Vector2(0, 5), plat + Vector2(-9, 1)]
-	var apex := plat + Vector2(0, -11)
-	ci.draw_colored_polygon(PackedVector2Array([rc[3], rc[0], apex]), THATCH_D)
-	ci.draw_colored_polygon(PackedVector2Array([rc[0], rc[1], apex]), THATCH)
+	# A substantial braced timber lookout: four splayed legs with X cross-bracing on the
+	# front faces, a railed platform, a thatch cap and a pennant — reads as a real tower
+	# (was a spindly 3-post stub that looked like a flagpole at play-zoom).
+	var H: float = 27.0
+	var platc: Vector2 = ctr + Vector2(0, 3.0 - H)
+	# Leg bases pulled in from the footprint corners; platform corners are a tighter diamond.
+	var bs := [l.lerp(ctr, 0.28), b.lerp(ctr, 0.28), r.lerp(ctr, 0.28), t.lerp(ctr, 0.28)]
+	var pw: float = 10.0
+	var ph: float = 5.5
+	var plat := [platc + Vector2(0, -ph), platc + Vector2(pw, 0.5), platc + Vector2(0, ph), platc + Vector2(-pw, 0.5)]
+	# Legs, back-to-front so nearer timber overlaps the far.
+	for i in [3, 0, 2, 1]:
+		ci.draw_line(bs[i], plat[i], WOOD_D, 2.6)
+		ci.draw_line(bs[i], plat[i], WOOD_L, 1.1)
+	# X cross-bracing on the two FRONT faces (left l↔b, right b↔r) — the watchtower signature.
+	for pair in [[0, 1], [1, 2]]:
+		ci.draw_line(bs[pair[0]], plat[pair[1]], WOOD_D, 1.2)
+		ci.draw_line(bs[pair[1]], plat[pair[0]], WOOD_D, 1.2)
+	# Platform deck + rim.
+	ci.draw_colored_polygon(PackedVector2Array(plat), WOOD_L)
+	ci.draw_polyline(PackedVector2Array([plat[0], plat[1], plat[2], plat[3], plat[0]]), WOOD_D, 1.2)
+	# Railing posts + top rail.
+	var rail := []
+	for p in plat:
+		var rp: Vector2 = p + Vector2(0, -4.5)
+		ci.draw_line(p, rp, WOOD_D, 1.0)
+		rail.append(rp)
+	ci.draw_polyline(PackedVector2Array([rail[0], rail[1], rail[2], rail[3], rail[0]]), WOOD_D, 0.9)
+	# Thatch hip cap over the platform.
+	var apex: Vector2 = platc + Vector2(0, -15)
+	ci.draw_colored_polygon(PackedVector2Array([rail[3], rail[0], apex]), THATCH_D)
+	ci.draw_colored_polygon(PackedVector2Array([rail[0], rail[1], apex]), THATCH)
+	ci.draw_colored_polygon(PackedVector2Array([rail[1], rail[2], apex]), THATCH_D.darkened(0.06))
+	ci.draw_colored_polygon(PackedVector2Array([rail[2], rail[3], apex]), THATCH_D)
+	# Pennant on the apex.
+	ci.draw_line(apex, apex + Vector2(0, -6), WOOD_D, 1.0)
+	ci.draw_colored_polygon(PackedVector2Array([apex + Vector2(0, -6), apex + Vector2(6, -4), apex + Vector2(0, -2)]), Color(0.66, 0.22, 0.20))
 
 static func _great_tower(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vector2, ctr: Vector2) -> void:
 	var c := _box(ci, t, r, b, l, 38.0, STONE, TEX_STONE)
