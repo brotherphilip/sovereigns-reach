@@ -80,6 +80,12 @@ func _setup(defended: bool, two_factions: bool = false) -> Dictionary:
 		# Mirror the LIVE world (CityViewScene spawns bandit_king + ashen_barony): TWO besiegers
 		# deal ~8 strikes over 100 days, which a defended seat must still survive (iter118).
 		_gs.add_ai_faction(AIFaction.ARCHETYPE_ASHEN_BARONY, 30, 70)
+	# The King's Peace is now 10 sun cycles (PLAYER_GRACE_DAYS=750, iter187). This test exercises
+	# the POST-peace siege MECHANICS, so age the hostile factions past the grace — otherwise
+	# nothing assembles within the run window and the siege chain is left untested.
+	for f in _gs.ai_factions:
+		if f is Dictionary:
+			f["days_alive"] = AIFaction.PLAYER_GRACE_DAYS
 	return p
 
 func _run_days(days: int) -> void:
