@@ -90,6 +90,34 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 189 — 2026-06-19  (DEV-LOOP — Base Game; profile: unattended autoplay / on-screen. Fixed per-frame render-error spam; Xvfb harness UNBLOCKED)
+
+### Plan
+Retry the Xvfb on-screen capture (2nd attempt per the INFRA protocol). If it works, do the visual audit I promised (workers hauling, night sleep) and fix anything the real render reveals.
+
+### Playtest (REAL — Xvfb on-screen, NOW WORKING)
+**Harness correction:** Xvfb render is NOT hard-blocked. Last loop's exit-144 was the *foreground/blocking command structure*; launching in a **background subshell** (`( timeout … xvfb-run … SR_SHOT=… godot … > log 2>&1; echo G=$? ) >/dev/null 2>&1 &`) renders cleanly and saves the PNG (G=0). Captured 2 real screenshots (263 KB, 247 KB) of `CityViewScene` SR_AUTOPLAY + their full logs.
+- **Screenshot:** town renders correctly (red-roofed hall, granary, orchards, woodcutter, wheat farm, terrain, HUD, minimap). Daytime, small starting village.
+- **Render LOG (the real find):** `ERROR: Invalid polygon data, triangulation failed` repeated **~102×/frame** from `BuildingModels._gable` (199-200) via `_woodcutter` and `_wheat` — i.e. EVERY gable-roofed building spams it every frame. The line-work still draws (buildings look fine), but the log floods and the GPU does wasted triangulation work.
+
+### Post-mortem → classify: render-correctness ERROR (not a crash; higher priority than visuals/polish)
+Each gable slope was filled as a concave PENTAGON whose ridge points (`tu, rback, rfront, bu`) are vertically collinear on the depth axis → `draw_colored_polygon` triangulates a self-overlapping sliver and fails.
+
+### Implement
+- `BuildingModels._slope_fan`: draw each roof slope as a triangle fan from the off-axis eave corner (`lu`/`ru`) — always a valid decomposition, identical fill. **Re-render: triangulation errors 102+/frame → 0; town unchanged (screenshot).**
+- **Correction to iter188:** the probe's wood "plateau at ~53" was the 5-tile TEST forest depleting, NOT a storage cap — `StorageSystem.RAW_BASE = 500`. There is NO early wood storage bug; the probe forest was just tiny. (Honest amend; no code change needed there.)
+
+### Confidence: HIGH — error count is a hard, captured before/after (102→0); scene render verified by screenshot; no parse/script errors.
+
+### Active Backlog (Base Game)
+- Xvfb on-screen harness WORKS via background-subshell launch (see above) — use it for visual audits going forward. INFRA concern from iter188 RESOLVED.
+- NEXT visual audit (not yet done): capture a NIGHT screenshot (SR_NIGHT=1) to visually confirm the iter188 skeleton-crew (streets empty, skeleton crew on food buildings) and a worker mid-haul.
+- Phase 2 (deferred, user-agreed): full physical AI cities prototype + FPS/tick cost measurement.
+- Visual polish (optional): WALL colours still cluster; several small buildings read as plain blobs at play-zoom.
+- Deathmatch: `deathmatch.md` still absent; create only when that mode is worked on.
+
+---
+
 ## Iteration 188 — 2026-06-19  (DEV-LOOP — Base Game; profile: Casual Novice / unattended-town. Night skeleton crew + real economy probe)
 
 ### Plan
