@@ -33,16 +33,22 @@ static func decide(world: Dictionary, kingdom: Dictionary, players: Array, tick:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = (tick * 2246822519) ^ (kingdom.get("id", 0) * 3266489917)
 
-	# 1) Economy — invest in development. Richer/more-economic factions invest more.
-	var invest_budget: int = int(80.0 * (1.3 - p.get("economy", 0.6)))
-	var invests: int = 1 + int(p.get("economy", 0.6) * 2.0)
-	for _i in range(invests):
-		if kingdom.get("treasury", 0) < invest_budget:
-			break
-		var dev_target: int = KingdomEconomy.lowest_dev_city(world, kingdom)
-		if dev_target < 0 or not KingdomEconomy.develop_city(world, kingdom, dev_target):
-			break
-		events.append("city_developed")
+	# 1) Economy — invest in development as eagerly as the realm can afford. A fed realm
+	#    pours its surplus into GROWTH (so stores don't just pile up and the realm keeps
+	#    expanding); a starving one tightens its belt and builds nothing until it recovers.
+	if not kingdom.get("food_starving", false):
+		var econ: float = p.get("economy", 0.6)
+		var expand: float = p.get("expansion", 0.6)
+		# Spend down toward a small war-chest reserve; growth-minded houses keep less in reserve.
+		var invest_budget: int = int(60.0 * (1.2 - econ))
+		var invests: int = 2 + int((econ + expand) * 2.0)   # was 1 + econ*2 — grow harder
+		for _i in range(invests):
+			if kingdom.get("treasury", 0) < invest_budget:
+				break
+			var dev_target: int = KingdomEconomy.lowest_dev_city(world, kingdom)
+			if dev_target < 0 or not KingdomEconomy.develop_city(world, kingdom, dev_target):
+				break  # can't afford the next level (gold/wood/stone) — stores gate growth honestly
+			events.append("city_developed")
 
 	# 2) Military — find the weakest reachable enemy city and, if we can muster a
 	#    force strong enough, raise an army at the staging city and march at once.
@@ -88,8 +94,8 @@ static func decide(world: Dictionary, kingdom: Dictionary, players: Array, tick:
 				events.append("campaign_launched")
 
 	# 3) Build standing defence when there's nothing worth attacking but coffers
-	#    are full — defensive factions especially keep garrisons strong.
-	elif kingdom.get("treasury", 0) > 200 and rng.randf() < p.get("defense", 0.6):
+	#    are full — defensive factions especially keep garrisons strong (not while starving).
+	elif not kingdom.get("food_starving", false) and kingdom.get("treasury", 0) > 200 and rng.randf() < p.get("defense", 0.6):
 		var dev_target2: int = KingdomEconomy.lowest_dev_city(world, kingdom)
 		if dev_target2 >= 0 and KingdomEconomy.develop_city(world, kingdom, dev_target2):
 			events.append("city_developed")

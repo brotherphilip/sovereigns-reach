@@ -16,6 +16,29 @@ const PLAYER_INCOME_MULT: float = 4.0
 # land becomes defensible over time instead of being trivially retaken the next day (iter145).
 const GARRISON_REGEN_PER_DAY: int = 2
 
+# ── Honest AI economy (iter204) ──────────────────────────────────────────────────
+# Previously AI kingdoms GAINED food/wood/stone/iron every day but only ever SPENT
+# gold (upkeep) + wood/stone (development) — so food & iron grew without bound (the
+# realm was "getting food for free; people weren't eating"), and wood ballooned past
+# what development drew. These constants give AI kingdoms a real consume-and-cap
+# economy: their people EAT food daily, and every store is capped to the realm's
+# holdings (overflow discarded, exactly like the player's granary/stockpiles). All of
+# this is AI-ONLY (gated on `not is_player`) so the verified player King-climb economy
+# is untouched.
+# Upkeep sits BELOW a settled city's food output (gain = 2 + dev), so a well-governed
+# realm keeps a growing surplus (capped) — but a freshly-conquered city's output is
+# unrest-suppressed (×0.25–1.0) while its mouths still eat in full, so an over-extended
+# conqueror's buffer drains and it starves. Food becomes a brake on reckless expansion,
+# not a constant famine.
+const FOOD_UPKEEP_BASE: float    = 1.0   # mouths fed per city per day…
+const FOOD_UPKEEP_PER_DEV: float = 0.6   # …plus this per development level (bigger city eats more)
+# Storage caps scale with how many cities the realm holds (more holdings = more barns).
+const FOOD_CAP_BASE: int     = 150
+const FOOD_CAP_PER_CITY: int = 60
+const RAW_CAP_BASE: int      = 200       # per raw good (wood / stone / iron)
+const RAW_CAP_PER_CITY: int  = 80
+const RAW_GOODS: Array       = ["wood", "stone", "iron"]
+
 # ── Daily tick ─────────────────────────────────────────────────────────────────
 
 # Collect income from every owned city, pay army upkeep, and decay occupation
@@ -74,6 +97,10 @@ static func tick_day(world: Dictionary, kingdom: Dictionary, _tick: int) -> Arra
 	res["food"]  = res.get("food", 0)  + food_gain
 	kingdom["resources"] = res
 
+	# AI kingdoms run an honest consume-and-cap economy (player strategic stores untouched).
+	if not kingdom.get("is_player", false):
+		_consume_and_cap(world, kingdom, events)
+
 	# Army upkeep: 1 gold per 4 soldiers per day. If the treasury can't cover it,
 	# unpaid armies suffer attrition (desertion) — mirrors the player's gold crunch.
 	var total_size: int = 0
@@ -96,6 +123,60 @@ static func _apply_attrition(kingdom: Dictionary) -> void:
 	for a in kingdom.get("armies", []):
 		if a is Dictionary:
 			a["size"] = maxi(0, int(float(a.get("size", 0)) * 0.9))
+
+# AI-only: the realm's people EAT (food upkeep scaling with city development), then every
+# store is clamped to the realm's holdings-based capacity (overflow discarded, like the
+# player's granary/stockpiles). Sets `food_starving` for the brain to read: a realm that
+# can't feed itself can't grow and bleeds garrison as people drift away. This bounds the
+# runaway food/iron/wood hoards and makes over-expansion (many unrest-suppressed cities)
+# a real strain instead of free surplus.
+static func _consume_and_cap(world: Dictionary, kingdom: Dictionary, events: Array) -> void:
+	var fid: int = kingdom.get("id", -1)
+	var res: Dictionary = kingdom.get("resources", {})
+	var cids: Array = CampaignMap.faction_city_ids(world, fid)
+	var n_cities: int = cids.size()
+
+	# Food upkeep — every city's mouths eat, bigger (more-developed) cities eat more.
+	var demand: float = 0.0
+	for cid in cids:
+		var c: Dictionary = CampaignMap.city_by_id(world, cid)
+		demand += FOOD_UPKEEP_BASE + FOOD_UPKEEP_PER_DEV * float(c.get("development", c.get("tier", 0)))
+	var food: int = int(res.get("food", 0))
+	var need: int = int(ceil(demand))
+	if food >= need:
+		food -= need
+		kingdom["food_starving"] = false
+	else:
+		# Not enough to feed the realm — eat what there is and starve.
+		food = 0
+		kingdom["food_starving"] = true
+		events.append("kingdom_starving")
+		# People drift from the hungriest holding: shed garrison from the least-defended city.
+		_shed_starving_garrison(world, fid)
+	res["food"] = food
+
+	# Storage caps — stores can't balloon past what the realm can hold; overflow is lost.
+	var food_cap: int = FOOD_CAP_BASE + FOOD_CAP_PER_CITY * n_cities
+	res["food"] = mini(int(res.get("food", 0)), food_cap)
+	var raw_cap: int = RAW_CAP_BASE + RAW_CAP_PER_CITY * n_cities
+	for g in RAW_GOODS:
+		res[g] = mini(int(res.get(g, 0)), raw_cap)
+	kingdom["resources"] = res
+
+# Remove a point of garrison from the realm's least-defended owned city (hunger drives
+# people away). Keeps a floor of 0 and never touches other realms.
+static func _shed_starving_garrison(world: Dictionary, fid: int) -> void:
+	var worst_id: int = -1
+	var worst_g: int = 1 << 30
+	for cid in CampaignMap.faction_city_ids(world, fid):
+		var c: Dictionary = CampaignMap.city_by_id(world, cid)
+		var g: int = int(c.get("garrison", 0))
+		if g > 0 and g < worst_g:
+			worst_g = g
+			worst_id = cid
+	if worst_id >= 0:
+		var c2: Dictionary = CampaignMap.city_by_id(world, worst_id)
+		c2["garrison"] = maxi(0, int(c2.get("garrison", 0)) - 1)
 
 # ── City development (the build/grow/manage primitive) ──────────────────────────
 

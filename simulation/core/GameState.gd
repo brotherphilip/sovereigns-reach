@@ -5,6 +5,7 @@ const WeatherSystem    = preload("res://simulation/world/WeatherSystem.gd")
 const PopularityEngine = preload("res://simulation/economy/PopularityEngine.gd")
 const ResourceTick     = preload("res://simulation/economy/ResourceTick.gd")
 const FoodSystem       = preload("res://simulation/economy/FoodSystem.gd")
+const StorageSystem    = preload("res://simulation/economy/StorageSystem.gd")
 const AleSystem        = preload("res://simulation/economy/AleSystem.gd")
 const ReligionSystem   = preload("res://simulation/economy/ReligionSystem.gd")
 const TaxSystem        = preload("res://simulation/economy/TaxSystem.gd")
@@ -771,6 +772,19 @@ func has_stalled_construction(player: Dictionary) -> bool:
 			return false  # an idle villager can be tasked to build
 	return true
 
+# True if the player has a built building that produces a raw (stockpile-stored) good —
+# i.e. something whose output is blocked when the raw pool is full. Used to gate the
+# stores-full warning so it only fires when production is actually being throttled.
+func _has_raw_producer(player: Dictionary) -> bool:
+	for b in player.get("buildings", []):
+		if not (b is Dictionary) or not b.get("built", true) or not b.get("is_active", true):
+			continue
+		var outs: Dictionary = ResourceTick.PRODUCTION_OUTPUTS.get(b.get("type", ""), {})
+		for g in outs:
+			if StorageSystem.store_for(g) == "stockpile":
+				return true
+	return false
+
 # All hostile deployable units a given player can fight (AI factions + rivals).
 func _enemies_of_player(pid: int) -> Array:
 	var out: Array = []
@@ -1371,6 +1385,22 @@ func simulate_tick(tick: int) -> void:
 					"bad")
 			elif float(total_food) >= daily_need * 6.0 and world.get("food_low_warned", false):
 				world["food_low_warned"] = false
+
+			# Stores-full warning: the raw pool (wood/stone/ore/intermediates) is shared, so
+			# once it fills, gatherers can't deposit and freeze CARRYING their load — the
+			# woodcutter keeps cutting but the realm gets no more wood, with no obvious cause.
+			# Warn once (telling the player to build a Stockpile) while there's still a raw
+			# producer being throttled; re-arm only after room opens back up. (iter204 — fixes
+			# the reported "woodcutters keep cutting but I get no more wood".)
+			if StorageSystem.room(players[0]) <= 0 and _has_raw_producer(players[0]):
+				if not world.get("stores_full_warned", false):
+					world["stores_full_warned"] = true
+					EventBus.realm_notice.emit(
+						"⚠ Your stores are full — wood, stone and ore have nowhere to go, so your woodcutters and miners stand idle. Build a Stockpile (or process raw goods, e.g. a Windmill for wheat) to keep production flowing.",
+						"bad")
+			elif StorageSystem.room(players[0]) > int(float(StorageSystem.get_capacity(players[0])) * 0.1) \
+					and world.get("stores_full_warned", false):
+				world["stores_full_warned"] = false
 
 		# Realm events: a flavourful daily happening (merchant, foraging, wolves…) that
 		# keeps the kingdom alive between the big beats. Player's own seat only.
