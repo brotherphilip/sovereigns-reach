@@ -128,7 +128,32 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 - **Xvfb on-screen harness (iter189):** detached background-subshell launch renders + self-screenshots reliably (foreground = exit 144). Logs are real evidence too.
 - **Autoplay choice-event FREEZE (iter200):** SR_AUTOPLAY seed 12345 froze at day 9 (game_day stuck the whole run; render/telemetry alive) — a choice event fired and `EventChoicePanel` paused the sim (SPEED_PAUSED) awaiting a click autoplay never gives. Prior FLOOR runs were clean only by luck (didn't roll a choice event; 225-day cooldown ⇒ ≤1 event/run). Fix: under SR_AUTOPLAY the panel auto-resolves with the conservative last option (decline/pass) and never pauses. Ev: seed 12345 re-run reached day 164 (was frozen at 9). Real-player flow unchanged.
 - **Low-food warning (iter198):** a drought could drain the granary to 0 (brief starvation) with NO early heads-up (is_starving only flips at food 0; warnings existed only for popularity + builder-stall). GameState now emits a one-time "stores run low" realm_notice below ~3 days' food (pop+ration scaled), re-arming above ~6 days. Ev: tests/TestFoodWarning.gd 5/0 (fires/no-spam/re-arms/re-fires); the day-150 run (seed 31337) exercised exactly this (food→0 day 137). Aligned with calm-realm (player aid, no added threat).
+- **Painted building sprites (iter203):** buildings can now wear hand-painted iso art over the procedural model (`view/micro/BuildingSpriteOverlay.gd`, additive — finished buildings only, auto procedural fallback). First asset: a detailed **Village Hall** replacing the flat procedural roof-diamond. Local ComfyUI art pipeline in `tools/artgen/`; raw candidate renders (multi-GB) git-ignored, only chosen source + keyed sprite committed. Ev: before/after `_SpriteTrial.tscn` render + in-world placement (Xvfb), TestSurvival 6/0.
 - **(Durable, older — see Current Targets):** Day-100 FLOOR multi-seed survival; Reeve→King climb on 5 seeds ≤113d; late-game coalition-vs-leader; on-screen in-city FLOOR survival (iter158).
+
+---
+
+## Iteration 203 — 2026-06-19  (DEV-LOOP — Base Game; profile: VISUAL polish. Promoted the painted-sprite overlay to a real feature; shipped the Village Hall)
+
+### Plan
+The last two loops reported "honest exhaustion" on *autonomous QA* — but the tree held uncommitted, near-finished VISUAL work (an iter203 painted-sprite TRIAL for the Village Hall + a local ComfyUI art pipeline). Visual enhancement is squarely in scope (Phase 2 "Graphical & Visual Enhancements"). Audit it, and if it holds up, promote it from TRIAL to a committed feature.
+
+### Audit (REAL — Xvfb renders)
+- **`_SpriteTrial.tscn` before/after** (procedural vs procedural+sprite, true 4×4 footprint): the painted hall is a dramatic upgrade over the flat red roof-diamond — keyed cleanly (transparent bg), warm painterly render, correct anchor/scale. Captured.
+- **Live `CityViewScene` (SR_AUTOPLAY seed 4242):** the hall renders in-world among procedural neighbours, anchored on its footprint, scaled right (`width_k 1.30`), no faults — reads instantly as the village seat. Captured.
+- Hall footprint is 4×4 (BuildingRegistry) = the trial's footprint, so placement maps 1:1 to the real BuildingLayer.
+
+### Changes made this iteration
+- **`view/micro/BuildingSpriteOverlay.gd`** — promoted from TRIAL to a documented subsystem: clear header on how it's additive (finished buildings only; auto procedural fallback on missing/failed sprite) and a step-by-step "to add a building" recipe.
+- **`view/micro/BuildingLayer.gd`** — reworded the hook comment from TRIAL to a real feature; behaviour unchanged (draw sprite on top of `draw_finished` where `has_sprite`).
+- **`.gitignore`** — exclude the multi-GB AI candidate renders (`Sprites/Buildings/raw/`, `raw_i2i/`, `refs/` = ~2.7 GB) and pycache; commit only the chosen source (`Sprites/Buildings/Village_Hall.png`) + keyed game sprite (`view/micro/sprites/village_hall.png`) + the `tools/artgen/` pipeline (no secrets — local ComfyUI @127.0.0.1, scanned).
+- Kept `_SpriteTrial.{gd,tscn}` as a dev tool for tuning future sprites' anchor/width.
+
+### Verified
+- TestSurvival 6/0 (sim integrity); project compiles + live-renders clean with the overlay active (proven by both renders above). Changes are view-only + comments + new additive files — no sim logic touched.
+
+### Honest status
+Un-sticks the iter201/202 "exhaustion": the next clear arc is **more painted building sprites** (keep + economy buildings), one at a time, each before/after-verified. The art pipeline + overlay make this a repeatable, high-impact visual track that doesn't need user steer to continue.
 
 ---
 

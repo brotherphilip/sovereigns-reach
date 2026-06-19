@@ -17,6 +17,7 @@ const CAT_COLORS: Array = [
 const BuildingRegistry = preload("res://simulation/buildings/BuildingRegistry.gd")
 const BuildingRenderer  = preload("res://view/micro/BuildingRenderer.gd")
 const BuildingModels    = preload("res://view/micro/BuildingModels.gd")
+const BuildingSpriteOverlay = preload("res://view/micro/BuildingSpriteOverlay.gd")  # painted sprite on top, where art exists
 const StorageSystem     = preload("res://simulation/economy/StorageSystem.gd")
 
 var _buildings:       Array = []
@@ -171,6 +172,11 @@ func _draw_building(b: Dictionary, is_enemy: bool) -> void:
 			BuildingModels.draw_finished(self, btype, cat, w, h, top, right, bot, left,
 				wall_col, roof_base, trim_col, Time.get_ticks_msec() * 0.001,
 				int(GameState.world.get("season", 2)), int(b.get("id", 0)))
+			# Painted sprite drawn ON TOP of the procedural model, where hand-painted art
+			# exists for this type. Additive only — the procedural building still renders
+			# underneath, so a type without a sprite (or a failed load) keeps its old look.
+			if BuildingSpriteOverlay.has_sprite(btype):
+				BuildingSpriteOverlay.draw(self, btype, top, right, bot, left)
 		draw_polyline(PackedVector2Array([top, right, bot, left, top]),
 			Color(0, 0, 0, 0.16), 0.6)
 	else:

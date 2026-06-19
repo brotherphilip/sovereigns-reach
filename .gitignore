@@ -10,3 +10,10 @@
 # Omniscience RAG index (regenerated locally)
 addons/omniscience/rag/index.json
 __pycache__/
+
+# AI building-sprite pipeline: raw candidate renders are huge (GBs) and regenerable.
+# We commit only the chosen source (Sprites/Buildings/<Name>.png) and the keyed game
+# sprite (view/micro/sprites/<btype>.png) — never the candidate/reference scratch.
+Sprites/Buildings/raw/
+Sprites/Buildings/raw_i2i/
+Sprites/Buildings/refs/
