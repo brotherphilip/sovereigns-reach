@@ -10,11 +10,17 @@ const KingdomEconomy = preload("res://simulation/strategic/KingdomEconomy.gd")
 const TPD: int = 240
 
 func _init() -> void:
-	var world: Dictionary = {"world_map": WorldMapData.generate(4242)}
+	var seed_v: int = 4242
+	if OS.get_environment("SR_SEED") != "":
+		seed_v = int(OS.get_environment("SR_SEED"))
+	var horizon: int = 200
+	if OS.get_environment("SR_DAYS") != "":
+		horizon = int(OS.get_environment("SR_DAYS"))
+	var world: Dictionary = {"world_map": WorldMapData.generate(seed_v)}
 	CampaignMap.ensure_initialized(world, [])
 	var fid: int = 0   # watch faction 0 (Crimson Throne, aggressive)
 	print("day | cities | totaldev | gold | wood | stone | iron | food | army")
-	for day in range(1, 201):
+	for day in range(1, horizon + 1):
 		StrategicSim.tick_day(world, [], day * TPD)
 		if day % 20 == 0 or day == 1:
 			var k: Dictionary = CampaignMap.kingdom_by_id(world, fid)
