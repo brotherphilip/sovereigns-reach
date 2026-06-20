@@ -108,6 +108,13 @@ func _ready() -> void:
 	EventBus.blessing_bestowed.connect(func(_pid, _spent): show_notification(
 		"A Blessing is bestowed upon your realm — popularity rises and your buildings are warded against fire.",
 		5.0, Color(0.85, 0.9, 1.0)))
+	# Populate the panels ONCE from the real state now — the HUD otherwise only refreshes on a
+	# sim tick, but a fresh game opens PAUSED on the tutorial prompt (no ticks), so the player's
+	# very first screen would show hardcoded placeholders (e.g. "Population: 0" with 20 villagers).
+	if not GameState.players.is_empty():
+		_refresh_top_bar()
+		_refresh_right_panel()
+		_refresh_build_menu()
 
 # Tutorial advanced: point the build menu at the step's category (pulsing the tab) so the
 # highlighted target building is on screen, ready to press.

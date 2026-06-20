@@ -137,6 +137,39 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 241 — 2026-06-20  (ANALYSIS LOOP — broadened to the fresh new-player opening; HUD-init bug fixed)
+
+Stepped off the forest track (its remaining item needs a user pick) to play the **real fresh new-player
+opening** (no autoplay/demo, seed 42) and analyse the first 30 seconds a human actually experiences.
+
+### What the opening does well (verified on-screen)
+- **Tutorial modal first** ("Begin the Tutorial? / Skip"), enemy AI paused — clean onboarding entry.
+- **Clear, Hall-first objective** in the right panel: "Found your seat — build a Village Hall."
+- **Build menu defaults to the Civic tab** with **Village Hall visible as the 2nd card, 0 wood** — the
+  old "menu defaults to Food, Hall hidden under Civic" wart is GONE. Objective + menu + tutorial agree.
+- **Old fictions re-verified RESOLVED:** Population reads **20** (not the legacy "50" with 8 pawns —
+  iter192), and **Health reads 100** at start (not the old "locked at 25 from day 1"). Top bar shows
+  Day·Spring / Clear / Prestige 0 / Faith 0 / Health 100; "Variety +2 pop: apples".
+
+### BUG FOUND & FIXED — first-screen HUD shows placeholder zeros
+The right panel renders **"Population: 0"** (and other hardcoded placeholders) on the opening screen
+even though the realm has 20 villagers. Root cause: `HUDNode` only calls `_refresh_right_panel()` on a
+**sim tick** (every 20 ticks) — but a fresh game opens **PAUSED on the tutorial prompt**
+(`CityViewScene` line 961 `set_speed(SPEED_PAUSED)`), so **no ticks fire** and the labels keep their
+construction-time defaults. The very first thing every new player sees is therefore a dead-looking
+"Population: 0". Fix: `HUDNode._ready` now does a one-time `_refresh_top_bar/right_panel/build_menu`
+from the real state right after building the panels (guarded on non-empty players). Re-render confirms
+the paused opening now reads **Population: 20**, popularity **"50% (Fair)"**, **"Variety +2 pop:
+apples"** — the panel is alive instead of zeroed. TestPhase7 104/0, TestSurvival 6/0.
+
+### Map-usage / aesthetics note (opening view)
+The start frames a **lake to the west and forest to the east** with the ~20 villagers milling on open
+grass (no buildings until the player builds the Hall). Reads pleasant; the only oddity is people
+standing idle on bare grass for the first beat — expected pre-Hall, but a tiny bit of starting
+structure (or villagers gathered around a campfire/cart) would make turn-one feel less empty. Minor.
+
+---
+
 ## Iteration 240 — 2026-06-20  (ANALYSIS LOOP — capture the felling on-screen; legibility finding)
 
 Acted on iter239's one remaining forest follow-up: actually watch the chop/topple/barrow on screen.
