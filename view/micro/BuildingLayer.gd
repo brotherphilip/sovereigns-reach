@@ -176,7 +176,7 @@ func _draw_building(b: Dictionary, is_enemy: bool) -> void:
 			# exists for this type. Additive only — the procedural building still renders
 			# underneath, so a type without a sprite (or a failed load) keeps its old look.
 			if BuildingSpriteOverlay.has_sprite(btype):
-				BuildingSpriteOverlay.draw(self, btype, top, right, bot, left)
+				BuildingSpriteOverlay.draw(self, btype, top, right, bot, left, int(b.get("id", 0)))
 		draw_polyline(PackedVector2Array([top, right, bot, left, top]),
 			Color(0, 0, 0, 0.16), 0.6)
 	else:

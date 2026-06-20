@@ -49,6 +49,18 @@ const RAW_SOURCES := {
 	"village_hall": "res://Sprites/Buildings/Village_Hall.png",
 }
 
+# Multi-variant types: a building (e.g. the common hovel) picks one of several painted
+# sprites by its id, so a row of hovels stays VARIED (the procedural model's strength)
+# while still being hand-painted. One PLACEMENT entry covers all variants (same footprint).
+const VARIANTS := {
+	"hovel": [
+		"res://view/micro/sprites/hovel_0.png",
+		"res://view/micro/sprites/hovel_1.png",
+		"res://view/micro/sprites/hovel_2.png",
+		"res://view/micro/sprites/hovel_3.png",
+	],
+}
+
 # ── Per-sprite placement tuning ───────────────────────────────────────────────
 # Each sprite was painted with its grass plot filling most of the canvas. We map the
 # image's ground-diamond centre (ANCHOR_U/V, as fractions of the image) onto the tile's
@@ -84,16 +96,30 @@ const PLACEMENT := {
 	"gatehouse":    {"width_k": 1.35, "anchor": Vector2(0.500, 0.705)},
 	"pig_farm":     {"width_k": 1.25, "anchor": Vector2(0.500, 0.740)},
 	"dairy_farm":   {"width_k": 1.25, "anchor": Vector2(0.500, 0.740)},
+	"hovel":        {"width_k": 1.30, "anchor": Vector2(0.500, 0.730)},
 }
 
 # Cache: btype -> Texture2D (keyed). Null entry = tried & failed (don't retry).
 static var _cache: Dictionary = {}
 
 static func has_sprite(btype: String) -> bool:
-	return SPRITES.has(btype)
+	return SPRITES.has(btype) or VARIANTS.has(btype)
 
 # Returns the keyed texture for a btype, loading (and keying a raw source if needed) once.
-static func _texture(btype: String) -> Texture2D:
+# For a multi-variant type, `bid` selects which variant (stable per building id).
+static func _texture(btype: String, bid: int = 0) -> Texture2D:
+	if VARIANTS.has(btype):
+		var paths: Array = VARIANTS[btype]
+		var idx: int = (absi(bid) % paths.size()) if paths.size() > 0 else 0
+		var key: String = "%s:%d" % [btype, idx]
+		if _cache.has(key):
+			return _cache[key]
+		var vtex: Texture2D = null
+		var vp: String = String(paths[idx])
+		if ResourceLoader.exists(vp):
+			vtex = load(vp) as Texture2D
+		_cache[key] = vtex
+		return vtex
 	if _cache.has(btype):
 		return _cache[btype]
 	var tex: Texture2D = null
@@ -148,8 +174,8 @@ static func _load_and_key(path: String) -> Texture2D:
 
 # Draws the painted sprite on top of the procedural building, scaled & anchored to the
 # footprint given by its iso corners (screen space).
-static func draw(ci: CanvasItem, btype: String, t: Vector2, r: Vector2, b: Vector2, l: Vector2) -> void:
-	var tex := _texture(btype)
+static func draw(ci: CanvasItem, btype: String, t: Vector2, r: Vector2, b: Vector2, l: Vector2, bid: int = 0) -> void:
+	var tex := _texture(btype, bid)
 	if tex == null:
 		return
 	var place: Dictionary = PLACEMENT.get(btype, {"width_k": 1.0, "anchor": Vector2(0.5, 0.8)})

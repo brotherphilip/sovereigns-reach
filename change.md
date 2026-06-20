@@ -136,6 +136,21 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 222 — 2026-06-20  (USER-STEERED — painted Hovels with per-id variety; multi-variant overlay system)
+
+### Decision (resolved with evidence)
+With the town fully painted, the gray procedural hovels (the most common building) stood out. Rather than choose painted-but-identical vs varied-but-gray, added a **multi-variant** path: a hovel picks one of **4 painted sprites by its id** — so a row of hovels is hand-painted AND varied (keeping the procedural model's one strength).
+
+### Change
+- **`BuildingSpriteOverlay`**: new `VARIANTS` map (`hovel` → 4 sprites); `_texture(btype, bid)` selects `bid % count` (cached per `btype:idx`); `has_sprite` & `draw(…, bid)` updated. One PLACEMENT entry covers all variants (same 2×2 footprint). Non-variant types unaffected.
+- **`BuildingLayer`**: passes the building id to `draw()`.
+- 4 hovel sprites (`view/micro/sprites/hovel_0..3.png`).
+
+### Verified
+- SR_SPECTATE full-town render: hovels now painted with visible variety; town reads as a fully hand-painted settlement (only the stockpile's dynamic goods-platform + walls remain procedural by design). No script errors; existing 28 sprites unchanged.
+
+---
+
 ## Iteration 221 — 2026-06-20  (USER-STEERED — Well candidate hunt + final full-town showcase)
 
 ### Well: no good candidate
