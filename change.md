@@ -114,6 +114,7 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 - **WATCH-ITEM — late-game drought food crash (strengthened iter200):** food can crash to 0 mid-late game on a drought seed (a prolonged drought + a thin food workforce as a worker ages out). Now seen on **2 of 3 Day-150 seeds** — 31337 (min_pop 47.7, recovered) and 12345 (min_pop **27.9** — a PASSIVE autoplay eroded much closer to the revolt threshold of 10). 4242 was clean (min_food 70). NO seed has actually revolted/lost, and a real player has the low-food warning + ration control to cope (the passive autoplay can't react, so 27.9 is a worst case). NOT fixed (no loss; user wants calm, not easier). IF a future seed actually revolts, OR if the user wants drought-robustness, buff the drought-time food buffer (bigger granary base, deeper off-season/drought trickle, or auto-lower rations under famine).
 - **OBSERVATION — peaceful 100-day life (from the 10-cycle peace, user-directed):** the FLOOR run (iter194) reached day 114 with NO siege (King's Peace until day 750) while the standing objective still says "ready your defences — build a Barracks, Wall or Tower." The defence prompt is premature now; consider deferring it (or the King's-Peace-ending telegraph) closer to when threats actually arrive. Stems from the user's calm-realm directive — needs a user call before changing.
 - **FOREST TRACK (iter238–239 — overhaul landed & guarded, one follow-up open):** the living-forest + woodcutter work-cycle + tree-visuals overhaul is implemented & verified. ✅ iter239 added `tests/TestForest.gd` (**22/0**: seed-from-grid, only-adults-fellable, fell→stump→regrow, sapling maturation, spread-only-onto-open-grass, JSON-key survival). ✅ The "stray magenta tile" was root-caused to a **ROCK terrain tile** (boulder, e.g. (128,160) on seed 42) — benign intentional decor, NOT an artifact (its grey tint just reads slightly purple at high zoom; a minor palette nit if anything). ✅ iter240 built the **`SR_FELLDEMO` dev hook** (parks a woodcutter + stockpile beside a registered adult grove at the keep, runs 2×) and used a deterministic delay-sweep to watch the cycle on the real scene: the woodcutter reaches the grove, **fells (the grove visibly thins, gaps/stumps appear over ~45s)**, and workers haul back. NEW FINDING (player-aesthetics): at the game's **max zoom (`ZOOM_MAX = 3.0`)** a worker is ~20px tall amid ~40px tree canopies, so the **chop-shake & topple animations are under-legible** — felling reads as "trees gradually thin out + workers mill at the tree line" rather than the intended "axe bites the trunk, tree TOPPLES" drama. The *functional* cycle is proven (ProbeForestGame + TestForest); the *visual drama* is the weak point. ✅ iter244 RAISED `ZOOM_MAX` 3.0→5.0 so players can now zoom in close enough to actually SEE the felling/workers (verified: grove + woodcutter read with real presence at 5.0) — this resolves the *can't-get-close-enough* half. REMAINING (needs a pick): the felling *theatre* itself — a bigger/slower topple + a "timber!" cue/dust puff — to make the fell dramatic even at a glance.
+- **ENGAGEMENT — events nearly invisible per life (iter246):** the realm-events catalog is rich (~30 auto + choice events) but the calm-realm cadence (`COOLDOWN 225` + `0.013`/econ-day) surfaces only **~1 event per 20-min life, ~27% see none** — so most of the hand-written content is unseen in any single playthrough. INTENDED (user calm directive iter187), flagged not fixed. Possible non-hectic middle ground if wanted: guarantee the FIRST event earlier (one-time elevated early chance / "first happening by ~day 20" floor) so every player meets the system once. Needs a user pick.
 - **ONBOARDING — no world-map tutorial (iter243):** the strategic `WorldMapScene` (where the Reeve→King title climb happens) has **no onboarding** — a new player sees a whole continent and must find their single gold village with no "this is you / start here" callout, and nothing teaches Develop / Raise Army / March / Diplomacy or *why* to switch from the in-city seat to the strategic map. The climb is mechanically proven (TestKingClimb + on-screen Reeve·1→King·15); the gap is purely that its depth is untaught. Candidate: a short world-map tutorial / first-visit callout. Needs a user pick on scope.
 - **TOOLING — autoplay under-shows the game (iter242):** the SR_AUTOPLAY survival baseline builds a fixed 7-building plan with **no hovels and no market trade**, so over a run **population stays flat (20)** and **gold stays flat (120)** — the *growth* and *gold/trade* thirds of the economy never appear on screen, and the town reads sparse. The food loop + survival are well proven; consider a richer "managed growth" autoplay variant (adds hovels + a couple market trades) so on-screen captures actually show growth and the gold loop. Tooling only; no balance implication.
 - **Deathmatch "Empires of Ages":** `deathmatch.md` absent; no active work. Create only when that mode is built.
@@ -136,6 +137,41 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 - **Intermediate-clog PREVENTION (iter205, follow-up):** the deeper root of the woodcutter freeze — a `wheat_farm`/`hops_farm` with no `mill`/`brewery` banks an intermediate that's useless and only clogs the shared raw pool. Now such a farm TENDS its rows but banks nothing until its processor exists (`CitizenSystem._farm_output_blocked`), so a new player's wheat farm can't silently strangle their wood/stone economy. Ev: ProbeWoodcutter — wood now flows continuously (0→465 climbing, wheat stays 0) where it previously froze at 113; TestEconomy 18/0.
 - **Painted building sprites (iter203):** buildings can now wear hand-painted iso art over the procedural model (`view/micro/BuildingSpriteOverlay.gd`, additive — finished buildings only, auto procedural fallback). First asset: a detailed **Village Hall** replacing the flat procedural roof-diamond. Local ComfyUI art pipeline in `tools/artgen/`; raw candidate renders (multi-GB) git-ignored, only chosen source + keyed sprite committed. Ev: before/after `_SpriteTrial.tscn` render + in-world placement (Xvfb), TestSurvival 6/0.
 - **(Durable, older — see Current Targets):** Day-100 FLOOR multi-seed survival; Reeve→King climb on 5 seeds ≤113d; late-game coalition-vs-leader; on-screen in-city FLOOR survival (iter158).
+
+---
+
+## Iteration 246 — 2026-06-20  (ANALYSIS LOOP — world-events / diplomacy: content depth vs. cadence)
+
+Analysed the realm-events subsystem (`WorldEventSystem` + `EventChoicePanel`) — the flavour/decision
+content that's meant to keep a single life engaging.
+
+### Verified HEALTHY — strong content + sound UI
+- **Rich catalog (~30 events):** auto-resolving flavour (Merchant's Caravan, Good Foraging, Minstrels,
+  Harvest Home…) AND **player-choice decisions** (A Baron's Offer, Bandits on the Road, Refugees at the
+  Gate, Winter Want, Veteran Captain, Holy Relic…), with **seasonal gating** (spring fairs, summer dry
+  spells, autumn harvest, winter want), tone variety (good/bad/neutral), and **bounded** food/gold/
+  popularity deltas. Well-written medieval voice.
+- **Choice UI is clean** (`EventChoicePanel`): gold title + text + a button per option; **pauses the sim**
+  for the decision; queues events behind an open modal; and under autoplay auto-resolves the conservative
+  last option (iter200) so unattended runs don't stall. Hostile/extortion events are gated OFF during the
+  King's Peace.
+
+### CRITICAL FINDING — most of the catalog is UNSEEN in a single 20-min life
+The cadence is `COOLDOWN_DAYS = 225` + `DAILY_CHANCE = 0.013`/day, and `day` is the **economic day**
+(`tick / TICKS_PER_GAME_DAY`), which reaches ~100 in a 20-min life. The first event isn't cooldown-gated
+(initial `last_event_day = -999`), so P(≥1 event in a 100-day life) ≈ **1 − 0.987¹⁰⁰ ≈ 73%** — and the
+225-day cooldown prevents a *second*. So a single life shows **~1 world event, and ~27% of lives see
+NONE.** 30+ hand-written events, but a given playthrough surfaces at most one of them.
+- This is the **user's deliberate calm-realm pacing** (iter187: "events every 3–5 sun cycles"), NOT a
+  bug — so it's NOT changed here. But it's a real tension: heavy content investment vs. a cadence that
+  hides almost all of it per life. **Flagged for a possible user re-evaluation.**
+- A non-hectic middle ground IF the user ever wants events more present: guarantee the **first** event
+  earlier (e.g. a one-time elevated early-game chance, or a "first happening by ~day 20" floor) so every
+  player meets the system at least once, while keeping the realm calm thereafter. Needs a user pick.
+
+### Net
+The events system is well-made and the decisions are good; its only issue is that the calm cadence makes
+its depth nearly invisible in the 20-minute target life. Documented; no code/balance changed.
 
 ---
 
