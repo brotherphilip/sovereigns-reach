@@ -163,6 +163,12 @@ This addresses **decision item #1** (events too rare per life) in the conservati
 recommended — turning "maybe-never" into "early and guaranteed" without making the realm hectic. Item #2
 (world-map onboarding) remains the bigger engagement lever and a genuine design/scope call left for the user.
 
+**Verified in-context (iter253):** ran the REAL `GameState.simulate_tick` path across 8 seeds and read
+when `world["last_event_day"]` first gets set → first-event econ-days **[7, 14, 2, 12, 18, 46, 10, 2]**
+(7 of 8 by day 18, all within the life, mean ≈14). The fix holds through the full game loop, not just the
+unit test. (A seed-42 autoplay telemetry pass showed no visible stat bump — expected: under autoplay a
+choice event auto-resolves to the conservative *decline* option, iter200, so it lands invisibly.)
+
 ---
 
 ## Iteration 251 — 2026-06-21  (HOLISTIC PLAYTHROUGH — the moment-to-moment 20-min experience)
