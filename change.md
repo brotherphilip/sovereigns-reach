@@ -136,6 +136,18 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 232 — 2026-06-20  (USER-STEERED — ATMOSPHERE OVERHAUL phase 1: textured ground)
+
+User requested a big atmosphere system: textured ground, wind-sway shader, a rain mode (overlay + wet look), drifting cloud shadows (density varying by day), weather BUILD-UP over the sun-cycle (rain the day before; snow starts the day before winter), and storms. Building it in phases.
+
+### Phase 1 — textured ground (this iter)
+The flat colour terrain now wears real grass-blade texture. Imported the user's grass photo → `view/micro/textures/grass_detail.png` (512², seamless-ish). New `grass_detail.gdshader` (blend_mul) samples it by WORLD position and multiplies its luminance detail (centred on 1.0, `strength 0.7`) onto the ground — so the season/biome TINT still shows through, just textured. New `GrassDetailLayer` draws the green tiles (GRASS/MARSH/VALLEY) with it, above the flat terrain and below water/decor/buildings (static mesh, GPU-sampled, ~free per frame). Wired into `CityViewScene`. Verified: ground reads as turf; painted building plots now sit on matching textured grass.
+
+### Next phases (queued)
+cloud shadows → rain mode + wet tint → weather build-up over the sun-cycle (+ snow-eve) → storms → wind-sway.
+
+---
+
 ## Iteration 231 — 2026-06-20  (USER-STEERED visual track — harmonize VALLEY terrain with the muted grass)
 
 The iter229 grass-muting (GRASS → 0.45,0.62,0.32) left the bright **VALLEY** tiles (0.58,0.82,0.40) popping as light-green squares against it — a checkerboard regression. Muted VALLEY → **(0.50,0.67,0.35)** (toward grass, kept a touch lusher so the biome still reads). Live render: the ground now reads as one cohesive warm-green sward instead of patchy squares. One-line terrain-color change.

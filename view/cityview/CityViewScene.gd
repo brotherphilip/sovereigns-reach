@@ -181,6 +181,12 @@ func _build_scene() -> void:
 	_world_root.add_child(_iso_grid)
 	_iso_grid.set_camera(_camera)
 
+	# Grass-blade texture multiplied onto the green ground tiles (above the flat terrain,
+	# below water/decor/buildings) so the turf reads as real grass, not a solid colour.
+	var grass_detail := preload("res://view/micro/GrassDetailLayer.gd").new()
+	grass_detail.name = "GrassDetailLayer"
+	_world_root.add_child(grass_detail)
+
 	# Animated river/water surface (light GPU-driven flow shader over water tiles).
 	var water_layer := preload("res://view/micro/WaterFlowLayer.gd").new()
 	water_layer.name = "WaterFlowLayer"
