@@ -257,6 +257,9 @@ func _build_scene() -> void:
 
 	if _spectator:
 		_add_spectator_banner()
+		# Hide the player-economy HUD — while watching another faction's city its static,
+		# uncontrollable resource/popularity numbers would read as a frozen economy.
+		_hud.set_spectator_chrome(true)
 
 	# Dev/headless hook: spawn a showcase army + an approaching enemy warband to
 	# verify unit bodies, animations, pathfinding and auto-combat in the real game.

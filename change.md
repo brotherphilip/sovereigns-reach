@@ -136,6 +136,20 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 208 — 2026-06-20  (DEV-LOOP — autonomous continue. Live playtest audit → hide the misleading economy HUD while spectating)
+
+### Audit (REAL — Xvfb live renders)
+Rendered the autoplay city + a spectator view. The game reads well (painted hall is a highlight; all 41 building types have bespoke procedural models — no render gaps; farm fields/economy flow). One concrete UX flaw, and it lines up with the user's earlier report: **while SPECTATING another faction's city, the player-economy HUD still showed** — the resource top-bar (gold/wood/food), the popularity/tax/ration panel, the objective panel and the build menu. But a spectated town runs NO live economy (`GameState` skips `_tick_player_economy` for it), so those numbers are static and uncontrollable — they read as a frozen economy ("the wood/food never changes... on food and others too").
+
+### Change (view-only)
+- **`HUDNode.set_spectator_chrome(spectating)`**: hides `_top_bar` / `_right_panel` / `_objective_panel` / `_build_menu` while spectating (keeps the bottom bar's speed + Macro-return controls). Null-guarded.
+- **`CityViewScene`**: calls it on the spectator branch (alongside the existing spectator banner, which conveys the city's REAL state — faction, development, garrison, siege).
+
+### Verified
+- Spectator render (SR_SPECTATE): the economy chrome is GONE — clean city view + banner + speed/return controls. Normal (non-spectator) HUD unchanged (method only called on the spectator path; clean autoplay boot, no errors).
+
+---
+
 ## Iteration 207 — 2026-06-20  (DEV-LOOP — autonomous continue. Full 40-suite sweep → restored the ENTIRE suite to GREEN)
 
 ### Audit

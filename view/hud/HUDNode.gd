@@ -191,6 +191,17 @@ func _spawn_gold_flash(delta: int) -> void:
 
 # ── Panel construction ────────────────────────────────────────────────────────
 
+# When watching ANOTHER faction's city (spectator), the player-economy chrome — the resource
+# top-bar, the popularity/tax/ration panel, the standing-objective panel and the build menu —
+# represents the player's OWN realm, not the spectated town (which runs no live economy). Left
+# visible it shows static, uncontrollable numbers that read as a frozen economy ("the wood/food
+# never changes"). Hide it while spectating; the spectator banner conveys the city's real state.
+# The bottom bar (speed controls + Macro return) stays so the watcher can still pace the view.
+func set_spectator_chrome(spectating: bool) -> void:
+	for p in [_top_bar, _right_panel, _objective_panel, _build_menu]:
+		if p != null:
+			p.visible = not spectating
+
 func _build_all_panels() -> void:
 	var vp: Vector2 = get_viewport().get_visible_rect().size
 	if vp == Vector2.ZERO:
