@@ -80,7 +80,7 @@ func _test_hud_controller() -> void:
 		"units": [], "buildings": [],
 	}
 	var weather: Dictionary = {"current": 4, "popularity_delta": -2.0}  # WeatherType.FOG = 4
-	var hud: Dictionary = HUDController.get_hud_data(player, weather, 1440)
+	var hud: Dictionary = HUDController.get_hud_data(player, weather, 6 * 3600)  # day 6 on the sun-aligned calendar (TICKS_PER_CALENDAR_DAY)
 
 	# 1. Gold and prestige present
 	ok("hud gold = 1200", int(hud.get("gold", 0)) == 1200)
@@ -98,8 +98,8 @@ func _test_hud_controller() -> void:
 	# 5. food_ration_label index 2 → "Normal"
 	ok("food_ration_label=Normal", hud.get("food_ration_label") == "Normal")
 
-	# 6. game_day = 1440/240 = 6
-	ok("game_day=6 at tick 1440", int(hud.get("game_day", -1)) == 6)
+	# 6. game_day = 21600/3600 = 6 (HUD day is the sun-aligned CALENDAR day, not the 240t economic day)
+	ok("game_day=6 at tick 21600 (calendar day)", int(hud.get("game_day", -1)) == 6)
 
 	# 7. total food = 90
 	ok("food_total=90", int(hud.get("food_total", 0)) == 90)
@@ -141,8 +141,8 @@ func _test_hud_controller() -> void:
 	ok("ale fx with inn, none(0) hurts", HUDController.get_ale_ration_effect(0, 1.0).get("tone") == "bad")
 	ok("ale fx with inn, normal(2) helps", HUDController.get_ale_ration_effect(2, 1.0).get("tone") == "good")
 
-	# 11. format_tick_time
-	ok("format tick day 1", HUDController.format_tick_time(240).begins_with("Day 1"))
+	# 11. format_tick_time — one CALENDAR day is TICKS_PER_CALENDAR_DAY (3600t), not 240t
+	ok("format tick day 1 at 3600t", HUDController.format_tick_time(3600).begins_with("Day 1"))
 
 	# 11b. Day/night phase clock (cycle = SeasonSystem.DAY_NIGHT_TICKS; noon at 0, midnight at half).
 	var _mid: int = int(SeasonSystem.DAY_NIGHT_TICKS / 2)

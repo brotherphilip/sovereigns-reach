@@ -113,7 +113,6 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 - **OBSERVATION — night dead-space (taste, needs USER call, NOT a bug):** deep-night `NightLayer.MAX_DARK = 0.92` (near-black away from lamps) + depopulated night (skeleton crew) ⇒ ~5 min/cycle dark+empty. Soften MAX_DARK or add night ambient life only if the user wants less dead time.
 - **WATCH-ITEM — late-game drought food crash (strengthened iter200):** food can crash to 0 mid-late game on a drought seed (a prolonged drought + a thin food workforce as a worker ages out). Now seen on **2 of 3 Day-150 seeds** — 31337 (min_pop 47.7, recovered) and 12345 (min_pop **27.9** — a PASSIVE autoplay eroded much closer to the revolt threshold of 10). 4242 was clean (min_food 70). NO seed has actually revolted/lost, and a real player has the low-food warning + ration control to cope (the passive autoplay can't react, so 27.9 is a worst case). NOT fixed (no loss; user wants calm, not easier). IF a future seed actually revolts, OR if the user wants drought-robustness, buff the drought-time food buffer (bigger granary base, deeper off-season/drought trickle, or auto-lower rations under famine).
 - **OBSERVATION — peaceful 100-day life (from the 10-cycle peace, user-directed):** the FLOOR run (iter194) reached day 114 with NO siege (King's Peace until day 750) while the standing objective still says "ready your defences — build a Barracks, Wall or Tower." The defence prompt is premature now; consider deferring it (or the King's-Peace-ending telegraph) closer to when threats actually arrive. Stems from the user's calm-realm directive — needs a user call before changing.
-- **[TEST DEBT] TestPhase7 2 stale assertions** (found iter205): `game_day=6 at tick 1440` + `format tick day 1` fail on clean HEAD — stale expectations from the sun-aligned-calendar rework (milestone moved to Day 12). Not a gameplay bug; update the test's expected day/format values to the current calendar constants when convenient.
 - **Deathmatch "Empires of Ages":** `deathmatch.md` absent; no active work. Create only when that mode is built.
 
 ### Resolved Index (recent, real evidence) — collapsed
@@ -134,6 +133,16 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 - **Intermediate-clog PREVENTION (iter205, follow-up):** the deeper root of the woodcutter freeze — a `wheat_farm`/`hops_farm` with no `mill`/`brewery` banks an intermediate that's useless and only clogs the shared raw pool. Now such a farm TENDS its rows but banks nothing until its processor exists (`CitizenSystem._farm_output_blocked`), so a new player's wheat farm can't silently strangle their wood/stone economy. Ev: ProbeWoodcutter — wood now flows continuously (0→465 climbing, wheat stays 0) where it previously froze at 113; TestEconomy 18/0.
 - **Painted building sprites (iter203):** buildings can now wear hand-painted iso art over the procedural model (`view/micro/BuildingSpriteOverlay.gd`, additive — finished buildings only, auto procedural fallback). First asset: a detailed **Village Hall** replacing the flat procedural roof-diamond. Local ComfyUI art pipeline in `tools/artgen/`; raw candidate renders (multi-GB) git-ignored, only chosen source + keyed sprite committed. Ev: before/after `_SpriteTrial.tscn` render + in-world placement (Xvfb), TestSurvival 6/0.
 - **(Durable, older — see Current Targets):** Day-100 FLOOR multi-seed survival; Reeve→King climb on 5 seeds ≤113d; late-game coalition-vs-leader; on-screen in-city FLOOR survival (iter158).
+
+---
+
+## Iteration 206 — 2026-06-20  (DEV-LOOP — autonomous continue. Cleared the TestPhase7 stale-calendar test-debt)
+
+### Change
+Fixed the 2 pre-existing TestPhase7 failures flagged in iter205. They asserted the OLD 240-tick economic-day basis for the HUD clock, but `HUDController.get_hud_data`/`format_tick_time` correctly key off the **sun-aligned calendar day** (`TICKS_PER_CALENDAR_DAY = 3600`) since the calendar rework. Updated the expectations to the calendar basis: `game_day=6` now at tick 21600 (was 1440), `format_tick_time` "Day 1" at 3600t (was 240). Pure test fix — no gameplay code touched.
+
+### Verified
+- **TestPhase7 104/0** (was 102/2). No other assertion depends on the changed ticks (gold/prestige/popularity/tax/food/weather at the same call are tick-independent).
 
 ---
 
