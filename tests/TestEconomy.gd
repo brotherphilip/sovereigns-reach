@@ -20,6 +20,7 @@ func _init() -> void:
 	_test_woodcutter_chain()
 	_test_stop_when_full()
 	_test_processor_chain()
+	_test_intermediate_clog_guard()
 	print("\n=== Economy Results: %d passed, %d failed ===" % [_pass, _fail])
 	quit(0 if _fail == 0 else 1)
 
@@ -128,3 +129,17 @@ func _test_processor_chain() -> void:
 	_run(citizens, player, grid, 2600)
 	ok("flour was produced and delivered", int(player["resources"].get("flour", 0)) > 0)
 	ok("wheat was consumed", int(player["resources"].get("wheat", 0)) < 12)
+
+# ── 5. Intermediate-clog guard: a raw farm idles when its processor is absent ─────
+# wheat/hops are useless (and shared-pool-clogging) until a mill/brewery exists. The farm
+# should TEND the rows but bank nothing — so a new player's wheat farm can't silently
+# strangle their wood/stone economy (iter205, follow-up to the iter204 stores-full warning).
+
+func _test_intermediate_clog_guard() -> void:
+	print("\n[Raw farm idles without its processor — no clog]")
+	ok("wheat_farm blocked when no mill", CitizenSystem._farm_output_blocked("wheat_farm", []))
+	ok("hops_farm blocked when no brewery", CitizenSystem._farm_output_blocked("hops_farm", []))
+	var mill := _bld("mill", 5, 5, 1)
+	ok("wheat_farm unblocked once a mill exists", not CitizenSystem._farm_output_blocked("wheat_farm", [mill]))
+	ok("woodcutter is never gated (wood is a building material)", not CitizenSystem._farm_output_blocked("woodcutter_camp", []))
+	ok("apple_orchard is never gated (food, no processor needed)", not CitizenSystem._farm_output_blocked("apple_orchard", []))

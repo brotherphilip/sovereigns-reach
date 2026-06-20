@@ -368,6 +368,23 @@ static func _chain_source(btype: String) -> String:
 		return "field"
 	return "fetch"
 
+# Raw farms whose harvest is a PROCESSING INTERMEDIATE — useless (and storage-clogging)
+# until the matching processor exists. wheat is milled to flour, hops brewed to ale; with
+# no mill/brewery the wheat/hops just pile up in the shared raw pool and strangle wood/stone
+# (iter205, follow-up to the iter204 stores-full warning). When the consumer is absent the
+# farmer TENDS the rows but banks nothing — no clog forms — exactly like off-season.
+const _RAW_FARM_CONSUMER: Dictionary = {"wheat_farm": "mill", "hops_farm": "brewery"}
+
+static func _farm_output_blocked(btype: String, buildings: Array) -> bool:
+	var consumer: String = String(_RAW_FARM_CONSUMER.get(btype, ""))
+	if consumer == "":
+		return false
+	for b in buildings:
+		if b is Dictionary and b.get("built", true) and b.get("is_active", true) \
+				and String(b.get("type", "")) == consumer:
+			return false   # a processor exists — farm normally
+	return true
+
 static func _node_terrain(btype: String) -> int:
 	match btype:
 		"woodcutter_camp": return WorldGrid.Terrain.FOREST
@@ -460,6 +477,13 @@ static func _tick_hauler(c: Dictionary, wb: Dictionary, buildings: Array, citize
 			c["facing"] = 1.0 if pc.x >= c["x"] else -1.0
 			c["phase_ticks"] = int(c.get("phase_ticks", 0)) - 1
 			if int(c["phase_ticks"]) <= 0:
+				# Don't bank a processing intermediate (wheat/hops) when its processor
+				# (mill/brewery) is missing — it would only clog the shared raw pool and
+				# strangle wood/stone. Tend the rows instead (no output), like off-season.
+				if _farm_output_blocked(btype, buildings):
+					c["carry"] = ""
+					c["work_phase"] = PH_SEEK; c["src_set"] = false
+					return
 				var outputs := ResourceTick.per_worker_output(wb, player, season, farm_mult)
 				if outputs.is_empty():
 					c["carry"] = ""
