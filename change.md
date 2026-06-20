@@ -136,6 +136,18 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 228 — 2026-06-20  (USER-STEERED — villager polish: presence over detail)
+
+User picked "villager/unit polish". Built a reusable **`_PawnShowcase.tscn`** (renders a row of varied villagers at 6× via the real CitizenLayer) to inspect the figures up close.
+
+### Finding: pawn DETAIL doesn't pay off at play zoom
+Tried per-person period **headwear** (flat caps, hoods, straw hats, women's coifs). At 6× it read as muddy blobs merging with the hair; at play zoom (pawns are ~16px) it was imperceptible. Reverted it — a marginal/messy change isn't worth shipping (the same anti-churn discipline that keeps the codebase clean). Detail that reads on buildings does NOT read on 16px pawns.
+
+### Ship: PRESENCE, the lever that does read
+The figures felt undersized against the new large painted buildings. Nudged `PAWN_SCALE` 0.82 → **0.92** (+12%) so villagers hold their own while staying clearly smaller than buildings. Reads at play scale; one-line, reversible, tunable via `_PawnShowcase`. Verified in a zoomed live render.
+
+---
+
 ## Iteration 227 — 2026-06-20  (DEV-LOOP — full regression sweep: session certified GREEN)
 
 Ran all 40 test suites after the session's ~24 iterations of changes (economy honesty, 29 painted buildings + variant system, fields polish, test-debt fixes). **Every suite GREEN, 0 failures** — incl. the touched ones: TestEconomy 18/0, TestStrategicAI 91/0, TestPhase3 88/0, TestPhase7 104/0, TestUnitAI 23/0, TestSpectatorTroops 10/0, TestStoresWarning 6/0, TestSurvival 6/0, TestSaveLoad 13/0. No regressions from any of the session's work. No code change (certification).

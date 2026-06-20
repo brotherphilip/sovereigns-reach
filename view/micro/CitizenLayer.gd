@@ -37,8 +37,12 @@ const PEASANT_TUNICS: Array = [
 	Color(0.42, 0.32, 0.30),
 ]
 
-# People are drawn a little smaller so buildings read at a realistic scale.
-const PAWN_SCALE: float = 0.82
+# People are drawn a little smaller than buildings so the architecture reads at a realistic
+# scale. Nudged up (0.82 → 0.92) once buildings became large hand-painted sprites: at the old
+# size the villagers felt lost against them; +12% gives them presence while still reading as
+# clearly smaller than the buildings. (Detail on the figures doesn't pay off at play zoom —
+# they're ~16px — so PRESENCE, not detail, is the lever here. Tune via _PawnShowcase.tscn.)
+const PAWN_SCALE: float = 0.92
 
 # ── Transient impact effects ─────────────────────────────────────────────────
 # Each: {pos:Vector2, vel:Vector2, life:float, max:float, col:Color, r:float, grav:float, kind:String}
