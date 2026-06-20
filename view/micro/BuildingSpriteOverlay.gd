@@ -34,6 +34,8 @@ const SPRITES := {
 	"armory":       "res://view/micro/sprites/armory.png",
 	"guildhall":    "res://view/micro/sprites/guildhall.png",
 	"trading_post": "res://view/micro/sprites/trading_post.png",
+	"cathedral":    "res://view/micro/sprites/cathedral.png",
+	"watchtower":   "res://view/micro/sprites/watchtower.png",
 }
 # Raw (black background) source, used only if the keyed file is missing.
 const RAW_SOURCES := {
@@ -66,6 +68,8 @@ const PLACEMENT := {
 	"armory":       {"width_k": 1.26, "anchor": Vector2(0.500, 0.735)},
 	"guildhall":    {"width_k": 1.26, "anchor": Vector2(0.500, 0.740)},
 	"trading_post": {"width_k": 1.26, "anchor": Vector2(0.500, 0.735)},
+	"cathedral":    {"width_k": 1.28, "anchor": Vector2(0.500, 0.760)},
+	"watchtower":   {"width_k": 1.45, "anchor": Vector2(0.500, 0.680)},
 }
 
 # Cache: btype -> Texture2D (keyed). Null entry = tried & failed (don't retry).

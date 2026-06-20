@@ -136,6 +136,16 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 218 — 2026-06-20  (USER-STEERED sprite track — Cathedral + Watchtower)
+
+Painted buildings now **21**. `_SpriteTrial` before/after:
+- **cathedral** (5×5): a magnificent Gothic cathedral (spires, buttresses, rose windows) — stunning upgrade over the gray pyramid.
+- **watchtower** (1×1): timber lookout with roofed platform + banner — clean.
+- **tower**: skipped — no art candidate exists in the pipeline (`tower_0.png` absent).
+Keyed sprites committed; raw git-ignored.
+
+---
+
 ## Iteration 217 — 2026-06-20  (USER-STEERED — full-town cohesion check + Armory/Guildhall/Trading Post)
 
 ### Cohesion check (REAL — SR_SPECTATE full-town render)
