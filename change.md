@@ -136,6 +136,16 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 216 — 2026-06-20  (USER-STEERED sprite track — Mill + Tannery; Well candidate rejected)
+
+Painted buildings now **16**. `_SpriteTrial` before/after:
+- **mill** (2×2): a proper windmill with sails + stone-timber base — excellent (procedural was a tiny mill).
+- **tannery** (2×3): timber workshop with hide-drying racks + barrels — good.
+- **well** (1×1): REJECTED — candidate 0 art is a cottage, not a well; dropped + files removed. Try other well candidates in a later pass.
+Keyed sprites committed; raw git-ignored.
+
+---
+
 ## Iteration 215 — 2026-06-20  (USER-STEERED sprite track — harvesters: Woodcutter, Quarry, Mine)
 
 Batched the 3 harvesters (one import scan). Painted buildings now **14**. `_SpriteTrial` before/after each, all clear upgrades over the near-flat procedural pits/camps:
