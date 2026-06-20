@@ -39,6 +39,10 @@ const SPRITES := {
 	"fletcher":     "res://view/micro/sprites/fletcher.png",
 	"poleturner":   "res://view/micro/sprites/poleturner.png",
 	"crossbow_workshop": "res://view/micro/sprites/crossbow_workshop.png",
+	"armorer":      "res://view/micro/sprites/armorer.png",
+	"gatehouse":    "res://view/micro/sprites/gatehouse.png",
+	"pig_farm":     "res://view/micro/sprites/pig_farm.png",
+	"dairy_farm":   "res://view/micro/sprites/dairy_farm.png",
 }
 # Raw (black background) source, used only if the keyed file is missing.
 const RAW_SOURCES := {
@@ -76,6 +80,10 @@ const PLACEMENT := {
 	"fletcher":     {"width_k": 1.25, "anchor": Vector2(0.500, 0.740)},
 	"poleturner":   {"width_k": 1.25, "anchor": Vector2(0.500, 0.740)},
 	"crossbow_workshop": {"width_k": 1.25, "anchor": Vector2(0.500, 0.740)},
+	"armorer":      {"width_k": 1.25, "anchor": Vector2(0.500, 0.740)},
+	"gatehouse":    {"width_k": 1.35, "anchor": Vector2(0.500, 0.705)},
+	"pig_farm":     {"width_k": 1.25, "anchor": Vector2(0.500, 0.740)},
+	"dairy_farm":   {"width_k": 1.25, "anchor": Vector2(0.500, 0.740)},
 }
 
 # Cache: btype -> Texture2D (keyed). Null entry = tried & failed (don't retry).

@@ -136,6 +136,16 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 220 — 2026-06-20  (USER-STEERED sprite track — Armorer, Gatehouse, Pig Farm, Dairy Farm — catalog ~complete)
+
+Final available-candidate batch (4). Painted buildings now **28** — essentially the whole catalog. `_SpriteTrial` before/after each:
+- **armorer** (2×3): forge workshop. **gatehouse** (1×2): twin-towered fortified gate.
+- **pig_farm** (3×3): twin barns + muddy pen with pigs — excellent.
+- **dairy_farm** (3×3): classic red gambrel barn + weathervane + paddock — excellent.
+Still procedural (intentional or blocked): **hovel/wall/stockpile** (variety / tiling / own render branch), **tower** (no art candidate), **well** (candidate 0 was a cottage — needs a different candidate). Keyed sprites committed; raw git-ignored.
+
+---
+
 ## Iteration 219 — 2026-06-20  (USER-STEERED sprite track — arms workshops: Fletcher, Poleturner, Crossbow Workshop)
 
 Batched the 3 arms workshops (all 2×3). Painted buildings now **24**. `_SpriteTrial` before/after each, all good (timber workshops with weapon-making detail):
