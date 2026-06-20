@@ -136,6 +136,16 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 215 — 2026-06-20  (USER-STEERED sprite track — harvesters: Woodcutter, Quarry, Mine)
+
+Batched the 3 harvesters (one import scan). Painted buildings now **14**. `_SpriteTrial` before/after each, all clear upgrades over the near-flat procedural pits/camps:
+- **woodcutter_camp** (2×3): timber lodge, log piles, chopping yard, fence.
+- **stone_quarry** (3×3): quarry face with cut stone, ladder, timber works.
+- **iron_mine** (3×3): timber-and-stone mine with reinforced doorway + ore cart.
+Keyed sprites committed; raw git-ignored.
+
+---
+
 ## Iteration 214 — 2026-06-20  (USER-STEERED sprite track — Inn, Granary, Apothecary)
 
 Batched 3 more (one import scan). Painted buildings now **11**. `_SpriteTrial` before/after each, all strong:
