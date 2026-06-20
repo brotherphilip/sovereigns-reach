@@ -141,6 +141,46 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 251 — 2026-06-21  (HOLISTIC PLAYTHROUGH — the moment-to-moment 20-min experience)
+
+Ran a FULL single life end-to-end (autoplay, seed 42, 5×) with 1 Hz telemetry and read the whole arc —
+the analysis the loop is actually about: *is a 20-minute single life engaging, minute to minute?*
+
+### The arc of a passive single life (day 0 → 78), every number:
+- **popularity 50.0 → 57.5** (a gentle, monotonic +7.5 creep — never near the revolt floor of 10)
+- **food 90 → 299** (rises to the ~300 cap by mid-life and plateaus — solved, never a crisis)
+- **gold 120 → 180** — ONE step, at day 41 (almost certainly the single world event of the life,
+  confirming iter246's ~1-event/life math from the live arc)
+- **buildings 9 → 9, units 12 → 12, hall 500 → 500, population 20 → 20** — **completely static.**
+
+### THE finding — a passive life is a calm, near-eventless plateau
+Across an entire 20-minute life, the only things that *change* are popularity (+7) and food (fills up),
+plus a single event. No threats (King's Peace gates sieges to day 750), no growth (no hovels built), no
+construction, no decisions forced, no risk. By the calm-realm directive this is *exactly as designed* —
+and it does prove rock-solid stability — but as a moment-to-moment **experience** it is a flat plateau:
+nothing is at stake and almost nothing happens.
+
+### So where IS the fun? — the engagement engine is the EXPANSION / TITLE CLIMB, not in-city survival
+The in-city layer is deliberately calm, so the pull-through MUST come from the player *proactively*
+driving the strategic loop — build up → grow population → trade → research → **raise armies, capture
+independents, climb Reeve→King** (which is genuinely rich and proven, iter243). The autoplay is passive,
+so it shows none of that and looks flat; an ACTIVE player has a full game.
+- **The synthesis of this whole session:** the game is engaging *if and only if* the player engages the
+  expansion/climb loop — but (a) there's **no in-city pressure** nudging them to (calm realm), and (b)
+  the strategic climb has **no onboarding** teaching them it exists or how (iter243). A player who
+  doesn't self-start the climb gets the flat plateau above. **The single highest-leverage engagement
+  lever is therefore the world-map onboarding (decision item #2)** — it's what connects a new player to
+  the part of the game that's actually dynamic. The events-cadence (item #1) is the second lever (more
+  in-city beats per life). Both are already logged; this playthrough is the evidence for *why they matter*.
+
+### Net
+The 20-minute life is SAFE and STABLE (floor comprehensively met) but, passively, EVENTLESS. The fun is
+real but lives in the expansion/climb the player must find on their own. No code/balance changed — this
+is the human-perspective verdict the loop was for, and it points squarely at the onboarding + event-
+cadence decisions already on the table.
+
+---
+
 ## Iteration 250 — 2026-06-21  (SESSION CERTIFICATION — full regression sweep GREEN)
 
 Ran the **entire test suite** to certify that this analysis session's shipped changes (the living-forest
