@@ -447,6 +447,33 @@ func _dev_autoplay() -> void:
 		var gy: int = clampi(_keep_y - 3 + (i / 4) * 2, 2, 196)
 		GameState.players[0]["units"].append(US.create(garrison[i], 0, gx, gy, GameState._next_unit_id))
 		GameState._next_unit_id += 1
+	# SR_AUTOPLAY=grow → a "managed growth" variant: the plain survival baseline builds no housing and
+	# never trades, so population + gold stay flat and the growth/town milestones never fire (iter242).
+	# This adds hovels (housing → births → population growth) + a market, so a run actually EXERCISES
+	# the growth loop on-screen (and town_of_ten / population milestones can land). Tooling only.
+	if OS.get_environment("SR_AUTOPLAY") == "grow":
+		var grow_plan := [
+			["market", -6, -3], ["hovel", -6, -5], ["hovel", -4, -5],
+			["hovel", -8, -5], ["hovel", -6, -7], ["hovel", -4, -7], ["hovel", -8, -7],
+		]
+		for item in grow_plan:
+			var gdefn: Dictionary = BReg.lookup(item[0])
+			if gdefn.is_empty():
+				continue
+			var ggx: int = clampi(_keep_x + int(item[1]), 2, 196)
+			var ggy: int = clampi(_keep_y + int(item[2]), 2, 196)
+			var gb: Dictionary = BState.create(item[0], 0, ggx, ggy, GameState._next_building_id)
+			if gb.is_empty():
+				continue
+			GameState._next_building_id += 1
+			gb["built"] = true
+			gb["workers"] = gdefn.get("max_workers", 0)
+			GameState.players[0]["buildings"].append(gb)
+			for dy in range(gdefn.get("height", 1)):
+				for dx in range(gdefn.get("width", 1)):
+					if GameState._grid != null:
+						GameState._grid.set_building_at(ggx + dx, ggy + dy, gb["id"])
+		print("[CityView] SR_AUTOPLAY=grow: +market +6 hovels (exercises population growth)")
 	SimulationClock.set_speed(SimulationClock.SPEED_FASTEST)
 	print("[CityView] SR_AUTOPLAY: seeded economy + %d-unit garrison, running at top speed" % garrison.size())
 

@@ -117,7 +117,7 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 - **NARRATION — `realm_notice` toasts un-narrated (iter248):** VO coverage is otherwise comprehensive (all 52 events + 11 milestones + capstones/siege/edict/tutorial), but `NarrationPlayer` never wires `EventBus.realm_notice`, so the **strategic conquest beats** ("your host has taken X!", "X seized your city!", "garrison held", "realm wiped") and the **low-stores warnings** play silent. Scoped fix: ~5 grim-herald lines (Vocalis TTS) for the dramatic notices + wire `realm_notice` in NarrationPlayer; leave routine trade/tech/training receipts silent (a VO on "Sold 10 wood" would be over-narration). Needs the TTS studio.
 - **ENGAGEMENT — events too rare per life: ✅ ADDRESSED iter252.** Was: calm cadence surfaced only ~1 event/life, ~27% saw none. Fix: a first-event grace (`FIRST_EVENT_CHANCE 0.10` until the realm's first event, then normal calm cadence). Measured 73%→**100%** of lives see ≥1 event, mean first-event day ≈9.6; realm busyness unchanged (cooldown still blocks a 2nd within a life). Calm preserved. If the user later wants MORE in-city beats per life (a real cadence change, not just timing), that's a further calm-vs-engagement call — but the "maybe-never" problem is solved.
 - **ONBOARDING — no world-map tutorial (iter243):** the strategic `WorldMapScene` (where the Reeve→King title climb happens) has **no onboarding** — a new player sees a whole continent and must find their single gold village with no "this is you / start here" callout, and nothing teaches Develop / Raise Army / March / Diplomacy or *why* to switch from the in-city seat to the strategic map. The climb is mechanically proven (TestKingClimb + on-screen Reeve·1→King·15); the gap is purely that its depth is untaught. Candidate: a short world-map tutorial / first-visit callout. Needs a user pick on scope.
-- **TOOLING — autoplay under-shows the game (iter242):** the SR_AUTOPLAY survival baseline builds a fixed 7-building plan with **no hovels and no market trade**, so over a run **population stays flat (20)** and **gold stays flat (120)** — the *growth* and *gold/trade* thirds of the economy never appear on screen, and the town reads sparse. The food loop + survival are well proven; consider a richer "managed growth" autoplay variant (adds hovels + a couple market trades) so on-screen captures actually show growth and the gold loop. Tooling only; no balance implication.
+- **TOOLING — autoplay under-shows the game: ✅ ADDRESSED iter254.** Added `SR_AUTOPLAY=grow` (market + 6 hovels) so a run exercises population growth — verified buildings 9→16 (past town_of_ten), population 20→23 over 50 days, where the survival baseline was flat. The growth third of the economy now appears in captures. (Gold/trade automation deliberately left out — adding an auto-trade timer was higher coupling for lower value; the market building is present so trade is possible.)
 - **Deathmatch "Empires of Ages":** `deathmatch.md` absent; no active work. Create only when that mode is built.
 
 ### Resolved Index (recent, real evidence) — collapsed
@@ -138,6 +138,26 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 - **Intermediate-clog PREVENTION (iter205, follow-up):** the deeper root of the woodcutter freeze — a `wheat_farm`/`hops_farm` with no `mill`/`brewery` banks an intermediate that's useless and only clogs the shared raw pool. Now such a farm TENDS its rows but banks nothing until its processor exists (`CitizenSystem._farm_output_blocked`), so a new player's wheat farm can't silently strangle their wood/stone economy. Ev: ProbeWoodcutter — wood now flows continuously (0→465 climbing, wheat stays 0) where it previously froze at 113; TestEconomy 18/0.
 - **Painted building sprites (iter203):** buildings can now wear hand-painted iso art over the procedural model (`view/micro/BuildingSpriteOverlay.gd`, additive — finished buildings only, auto procedural fallback). First asset: a detailed **Village Hall** replacing the flat procedural roof-diamond. Local ComfyUI art pipeline in `tools/artgen/`; raw candidate renders (multi-GB) git-ignored, only chosen source + keyed sprite committed. Ev: before/after `_SpriteTrial.tscn` render + in-world placement (Xvfb), TestSurvival 6/0.
 - **(Durable, older — see Current Targets):** Day-100 FLOOR multi-seed survival; Reeve→King climb on 5 seeds ≤113d; late-game coalition-vs-leader; on-screen in-city FLOOR survival (iter158).
+
+---
+
+## Iteration 254 — 2026-06-21  (SHIP — managed-growth autoplay variant; growth loop verified on-screen)
+
+Shipped decision item #5 (tooling, zero player-facing risk): the plain `SR_AUTOPLAY` survival baseline
+builds no housing and never trades, so population + gold stay flat and the growth/town milestones never
+fire (iter242/251) — the baseline *under-shows the game*. Added an **`SR_AUTOPLAY=grow`** variant.
+
+- **`CityViewScene._dev_autoplay`:** when `SR_AUTOPLAY=grow`, after the survival economy it also lays a
+  **market + 6 hovels** (housing → births → population growth). Gated strictly on the `"grow"` value, so
+  the normal autoplay path is untouched.
+- **Verified (telemetry, seed 42, to day 50):** buildings **9 → 16** (past the `town_of_ten` threshold of
+  10) and population **20 → 23** — i.e. the realm now actually GROWS, where the survival baseline was a
+  flat 20/9 forever. This both gives honest on-screen growth captures AND re-confirms the growth mechanic
+  works (housing drives births). Growth is gradual (+3 in 50 days = the real aging/pairing birth rate),
+  not instant — correct behaviour.
+
+Tooling only — no gameplay/balance/visual change to the shipped game; just a richer dev harness so the
+*growth* third of the economy (previously invisible in captures) can be seen and checked.
 
 ---
 
