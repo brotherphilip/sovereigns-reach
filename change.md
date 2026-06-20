@@ -114,6 +114,7 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 - **WATCH-ITEM — late-game drought food crash (strengthened iter200):** food can crash to 0 mid-late game on a drought seed (a prolonged drought + a thin food workforce as a worker ages out). Now seen on **2 of 3 Day-150 seeds** — 31337 (min_pop 47.7, recovered) and 12345 (min_pop **27.9** — a PASSIVE autoplay eroded much closer to the revolt threshold of 10). 4242 was clean (min_food 70). NO seed has actually revolted/lost, and a real player has the low-food warning + ration control to cope (the passive autoplay can't react, so 27.9 is a worst case). NOT fixed (no loss; user wants calm, not easier). IF a future seed actually revolts, OR if the user wants drought-robustness, buff the drought-time food buffer (bigger granary base, deeper off-season/drought trickle, or auto-lower rations under famine).
 - **OBSERVATION — peaceful 100-day life (from the 10-cycle peace, user-directed):** the FLOOR run (iter194) reached day 114 with NO siege (King's Peace until day 750) while the standing objective still says "ready your defences — build a Barracks, Wall or Tower." The defence prompt is premature now; consider deferring it (or the King's-Peace-ending telegraph) closer to when threats actually arrive. Stems from the user's calm-realm directive — needs a user call before changing.
 - **FOREST TRACK (iter238–239 — overhaul landed & guarded, one follow-up open):** the living-forest + woodcutter work-cycle + tree-visuals overhaul is implemented & verified. ✅ iter239 added `tests/TestForest.gd` (**22/0**: seed-from-grid, only-adults-fellable, fell→stump→regrow, sapling maturation, spread-only-onto-open-grass, JSON-key survival). ✅ The "stray magenta tile" was root-caused to a **ROCK terrain tile** (boulder, e.g. (128,160) on seed 42) — benign intentional decor, NOT an artifact (its grey tint just reads slightly purple at high zoom; a minor palette nit if anything). ✅ iter240 built the **`SR_FELLDEMO` dev hook** (parks a woodcutter + stockpile beside a registered adult grove at the keep, runs 2×) and used a deterministic delay-sweep to watch the cycle on the real scene: the woodcutter reaches the grove, **fells (the grove visibly thins, gaps/stumps appear over ~45s)**, and workers haul back. NEW FINDING (player-aesthetics): at the game's **max zoom (`ZOOM_MAX = 3.0`)** a worker is ~20px tall amid ~40px tree canopies, so the **chop-shake & topple animations are under-legible** — felling reads as "trees gradually thin out + workers mill at the tree line" rather than the intended "axe bites the trunk, tree TOPPLES" drama. The *functional* cycle is proven (ProbeForestGame + TestForest); the *visual drama* is the weak point. ✅ iter244 RAISED `ZOOM_MAX` 3.0→5.0 so players can now zoom in close enough to actually SEE the felling/workers (verified: grove + woodcutter read with real presence at 5.0) — this resolves the *can't-get-close-enough* half. REMAINING (needs a pick): the felling *theatre* itself — a bigger/slower topple + a "timber!" cue/dust puff — to make the fell dramatic even at a glance.
+- **NARRATION — `realm_notice` toasts un-narrated (iter248):** VO coverage is otherwise comprehensive (all 52 events + 11 milestones + capstones/siege/edict/tutorial), but `NarrationPlayer` never wires `EventBus.realm_notice`, so the **strategic conquest beats** ("your host has taken X!", "X seized your city!", "garrison held", "realm wiped") and the **low-stores warnings** play silent. Scoped fix: ~5 grim-herald lines (Vocalis TTS) for the dramatic notices + wire `realm_notice` in NarrationPlayer; leave routine trade/tech/training receipts silent (a VO on "Sold 10 wood" would be over-narration). Needs the TTS studio.
 - **ENGAGEMENT — events nearly invisible per life (iter246):** the realm-events catalog is rich (~30 auto + choice events) but the calm-realm cadence (`COOLDOWN 225` + `0.013`/econ-day) surfaces only **~1 event per 20-min life, ~27% see none** — so most of the hand-written content is unseen in any single playthrough. INTENDED (user calm directive iter187), flagged not fixed. Possible non-hectic middle ground if wanted: guarantee the FIRST event earlier (one-time elevated early chance / "first happening by ~day 20" floor) so every player meets the system once. Needs a user pick.
 - **ONBOARDING — no world-map tutorial (iter243):** the strategic `WorldMapScene` (where the Reeve→King title climb happens) has **no onboarding** — a new player sees a whole continent and must find their single gold village with no "this is you / start here" callout, and nothing teaches Develop / Raise Army / March / Diplomacy or *why* to switch from the in-city seat to the strategic map. The climb is mechanically proven (TestKingClimb + on-screen Reeve·1→King·15); the gap is purely that its depth is untaught. Candidate: a short world-map tutorial / first-visit callout. Needs a user pick on scope.
 - **TOOLING — autoplay under-shows the game (iter242):** the SR_AUTOPLAY survival baseline builds a fixed 7-building plan with **no hovels and no market trade**, so over a run **population stays flat (20)** and **gold stays flat (120)** — the *growth* and *gold/trade* thirds of the economy never appear on screen, and the town reads sparse. The food loop + survival are well proven; consider a richer "managed growth" autoplay variant (adds hovels + a couple market trades) so on-screen captures actually show growth and the gold loop. Tooling only; no balance implication.
@@ -137,6 +138,39 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 - **Intermediate-clog PREVENTION (iter205, follow-up):** the deeper root of the woodcutter freeze — a `wheat_farm`/`hops_farm` with no `mill`/`brewery` banks an intermediate that's useless and only clogs the shared raw pool. Now such a farm TENDS its rows but banks nothing until its processor exists (`CitizenSystem._farm_output_blocked`), so a new player's wheat farm can't silently strangle their wood/stone economy. Ev: ProbeWoodcutter — wood now flows continuously (0→465 climbing, wheat stays 0) where it previously froze at 113; TestEconomy 18/0.
 - **Painted building sprites (iter203):** buildings can now wear hand-painted iso art over the procedural model (`view/micro/BuildingSpriteOverlay.gd`, additive — finished buildings only, auto procedural fallback). First asset: a detailed **Village Hall** replacing the flat procedural roof-diamond. Local ComfyUI art pipeline in `tools/artgen/`; raw candidate renders (multi-GB) git-ignored, only chosen source + keyed sprite committed. Ev: before/after `_SpriteTrial.tscn` render + in-world placement (Xvfb), TestSurvival 6/0.
 - **(Durable, older — see Current Targets):** Day-100 FLOOR multi-seed survival; Reeve→King climb on 5 seeds ≤113d; late-game coalition-vs-leader; on-screen in-city FLOOR survival (iter158).
+
+---
+
+## Iteration 248 — 2026-06-20  (ANALYSIS LOOP — narration VO coverage audit)
+
+Audited narration voice-over coverage (project rule: *every pop-up needs a VO*) by cross-referencing the
+95 `audio/narration/*.wav` clips against the keys the code actually plays.
+
+### RESOLVED — the headline VO gaps are GONE
+- **All 52 world events have a clip** (`event_<id>.wav`) — the old "new events are VO-silent until clips
+  are added" backlog (iter169/204) is **fully closed**. ✓
+- **All 11 milestones** (`milestone_<id>.wav`), the reign capstone, victory/defeat, siege held/breached/
+  incoming, edict proclaimed/lapsed, objective, tutorial hint + welcome, unit-trained, save/load — **all
+  covered.** `NarrationPlayer` wires ~15 signal classes to clips (with generic stings for dynamic-text
+  pop-ups like `objective_updated` / `tutorial_hint`). VO breadth is genuinely comprehensive.
+
+### NEW GAP — `realm_notice` toasts are un-narrated
+`NarrationPlayer` connects ~15 signals but **NOT `EventBus.realm_notice`**, which drives a whole class of
+on-screen toasts. The notable SILENT ones:
+- **Strategic conquest beats (the strongest gap):** "⚔ Your host has taken X!", "💥 X has seized your city
+  of Y!", "🛡 Your garrison at X held", "⚑ X wiped from the map" — these are the biggest *emotional* moments
+  in the title climb and they pass without a herald line.
+- **Low-stores / stores-full warnings** (iter198/204) — important player alerts, silent.
+- (Also silent but arguably SHOULD stay silent: routine receipts — trade "Sold 10 wood", "Researched X",
+  "began training", objective-complete ✓. A grim-herald intoning a trade receipt would be over-narration.)
+
+### Recommendation (scoped, needs TTS work + a small wiring add)
+Voice the **dramatic** realm_notices only — conquest won/lost, garrison held, realm wiped, stores-low —
+via the existing generic-sting pattern (a tone-keyed `realm_alert_{good,bad}` or per-beat clips in the
+grim-herald voice), and leave routine receipts silent. This needs clip generation in the Vocalis TTS
+studio (external) + connecting `realm_notice` in `NarrationPlayer`, so it's logged rather than half-wired
+(wiring without clips just plays nothing). Turns the vague "every pop-up needs a VO" rule into a precise
+task: ~5 herald lines for the conquest/warning beats.
 
 ---
 
