@@ -136,6 +136,14 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 223 — 2026-06-20  (DEV-LOOP — general audit + performance verification after the visual overhaul)
+
+Returned to general mode now the visual track is complete. Live-gameplay audit of the painted city: looks great, no faults. Verified the 29-sprite overlay is **performance-neutral**: autoplay FPS under Xvfb is ~10-13 both on the current build AND at the pre-sprite base commit `0ad7750` (identical) — the low number is the headless "No DRI3 / required for presentation" readback artifact, not the game's real GPU performance, and the sprites added no measurable cost (9 cached `draw_texture_rect` calls/frame). No code change (no-churn).
+
+**Honest status:** the high-value autonomous backlog is complete — economy honesty (eat/cap/grow + woodcutter clog + stores warning), full 40-suite test green, spectator HUD fix, and a complete hand-painted building catalog (29 types, hovels varied). Remaining work needs USER STEER: regenerate well/tower art (aesthetic), or pivot to a new focus (mid-game engagement / night dead-space are still open design calls from the iter202 backlog).
+
+---
+
 ## Iteration 222 — 2026-06-20  (USER-STEERED — painted Hovels with per-id variety; multi-variant overlay system)
 
 ### Decision (resolved with evidence)
