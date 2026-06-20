@@ -17,6 +17,7 @@ extends RefCounted
 const SPRITES := {
 	"village_hall": "res://view/micro/sprites/village_hall.png",
 	"market":       "res://view/micro/sprites/market.png",
+	"keep":         "res://view/micro/sprites/keep.png",
 }
 # Raw (black background) source, used only if the keyed file is missing.
 const RAW_SOURCES := {
@@ -32,6 +33,7 @@ const RAW_SOURCES := {
 const PLACEMENT := {
 	"village_hall": {"width_k": 1.30, "anchor": Vector2(0.500, 0.760)},
 	"market":       {"width_k": 1.28, "anchor": Vector2(0.500, 0.730)},
+	"keep":         {"width_k": 1.30, "anchor": Vector2(0.500, 0.760)},
 }
 
 # Cache: btype -> Texture2D (keyed). Null entry = tried & failed (don't retry).

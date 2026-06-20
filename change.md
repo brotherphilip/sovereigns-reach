@@ -136,6 +136,12 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 210 — 2026-06-20  (USER-STEERED sprite track — the Keep)
+
+Third painted building. Keyed keep candidate 0 → `view/micro/sprites/keep.png` (1337×1400), wired into `BuildingSpriteOverlay` (4×4, `width_k 1.30, anchor (0.5, 0.76)` — same framing as the hall). `_SpriteTrial` before/after: a fortified stone keep (gatehouse, tower, red roofs, grass plot) replacing the flat procedural gray box — well-anchored. Only the 2.0 MB keyed sprite committed; raw candidate git-ignored.
+
+---
+
 ## Iteration 209 — 2026-06-20  (USER-STEERED — next painted sprite: the Market)
 
 ### Steer
