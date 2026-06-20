@@ -298,6 +298,10 @@ func _build_scene() -> void:
 	# Dev/headless hook: a staffed town to verify job workers walking to buildings.
 	if OS.get_environment("SR_WORKERS") != "":
 		_dev_spawn_workers()
+	# Dev/headless hook: park a woodcutter next to a registered ADULT grove so the
+	# fell→prep→barrow work cycle + chop-shake/topple animations can be captured on-screen.
+	if OS.get_environment("SR_FELLDEMO") != "":
+		_dev_fell_demo()
 	# Dev hook: pop the "20 minutes reached" reign-milestone overlay shortly after boot.
 	if OS.get_environment("SR_REIGN") != "":
 		_dev_reign_preview()
@@ -493,6 +497,50 @@ func _dev_spawn_workers() -> void:
 	GameState._next_citizen_id = 1
 	GameState._next_citizen_id = preload("res://simulation/world/CitizenSystem.gd").spawn(
 		GameState.citizens, 40, float(_keep_x), float(_keep_y), GameState._citizen_rng, GameState._next_citizen_id)
+
+# Dev hook: a tight woodcutter + stockpile + ADULT grove cluster right at the keep, so a
+# deterministic screenshot delay-sweep can catch the fell→prep→barrow cycle and the
+# chop-shake / topple animations on screen (the woodcutter's grove is autoplay-dependent
+# otherwise, so a swing/topple is hard to freeze-frame). Camera: SR_CAM_DX/DY (aim ~+6,0).
+func _dev_fell_demo() -> void:
+	var BState = preload("res://simulation/buildings/BuildingState.gd")
+	var FS = preload("res://simulation/world/ForestSystem.gd")
+	var grid = GameState._grid
+	GameState.prepare_starting_area(_keep_x, _keep_y, 10)
+	if grid == null:
+		return
+	if not GameState.world.has("trees"):
+		GameState.world["trees"] = {}
+	# A compact adult grove a few tiles EAST of the keep (re-registered AFTER the area was
+	# flattened, so it stays forest and is the nearest fellable timber).
+	var rng := RandomNumberGenerator.new(); rng.seed = 4242
+	const FOREST_TERRAIN := 1   # WorldGrid.Terrain.FOREST
+	for gx in range(_keep_x + 5, _keep_x + 9):
+		for gy in range(_keep_y - 2, _keep_y + 2):
+			grid.set_terrain(gx, gy, FOREST_TERRAIN)
+			GameState.world["trees"][FS.key_for(grid, gx, gy)] = [FS.ADULT, 1.0, rng.randf_range(FS.GROW_MIN, FS.GROW_MAX), 0]
+	# Woodcutter's camp just west of the grove, a stockpile beside the keep.
+	var camp := BState.create("woodcutter_camp", 0, _keep_x + 2, _keep_y, GameState._next_building_id)
+	GameState._next_building_id += 1
+	camp["built"] = true; camp["workers"] = 3
+	GameState.players[0]["buildings"].append(camp)
+	for dy in range(3):
+		for dx in range(2):
+			grid.set_building_at(_keep_x + 2 + dx, _keep_y + dy, camp["id"])
+	var sp := BState.create("stockpile", 0, _keep_x - 2, _keep_y, GameState._next_building_id)
+	GameState._next_building_id += 1
+	sp["built"] = true
+	GameState.players[0]["buildings"].append(sp)
+	grid.set_building_at(_keep_x - 2, _keep_y, sp["id"])
+	# Villagers right at the camp so they're pulled into woodcutter jobs immediately.
+	GameState.citizens = []
+	GameState._next_citizen_id = preload("res://simulation/world/CitizenSystem.gd").spawn(
+		GameState.citizens, 6, float(_keep_x + 2), float(_keep_y), GameState._citizen_rng, 1)
+	GameState.players[0]["resources"]["wood"] = 60
+	# Moderate speed — fast enough to reach the grove quickly, slow enough that the brief
+	# chop/topple frames land in a delay-sweep (NORMAL swings are catchable).
+	SimulationClock.set_speed(SimulationClock.SPEED_FAST)
+	print("[CityView] SR_FELLDEMO: woodcutter + grove parked at keep, running at 2x")
 
 func _dev_spawn_units() -> void:
 	var US = preload("res://simulation/units/UnitState.gd")

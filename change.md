@@ -113,7 +113,7 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 - **OBSERVATION — night dead-space (taste, needs USER call, NOT a bug):** deep-night `NightLayer.MAX_DARK = 0.92` (near-black away from lamps) + depopulated night (skeleton crew) ⇒ ~5 min/cycle dark+empty. Soften MAX_DARK or add night ambient life only if the user wants less dead time.
 - **WATCH-ITEM — late-game drought food crash (strengthened iter200):** food can crash to 0 mid-late game on a drought seed (a prolonged drought + a thin food workforce as a worker ages out). Now seen on **2 of 3 Day-150 seeds** — 31337 (min_pop 47.7, recovered) and 12345 (min_pop **27.9** — a PASSIVE autoplay eroded much closer to the revolt threshold of 10). 4242 was clean (min_food 70). NO seed has actually revolted/lost, and a real player has the low-food warning + ration control to cope (the passive autoplay can't react, so 27.9 is a worst case). NOT fixed (no loss; user wants calm, not easier). IF a future seed actually revolts, OR if the user wants drought-robustness, buff the drought-time food buffer (bigger granary base, deeper off-season/drought trickle, or auto-lower rations under famine).
 - **OBSERVATION — peaceful 100-day life (from the 10-cycle peace, user-directed):** the FLOOR run (iter194) reached day 114 with NO siege (King's Peace until day 750) while the standing objective still says "ready your defences — build a Barracks, Wall or Tower." The defence prompt is premature now; consider deferring it (or the King's-Peace-ending telegraph) closer to when threats actually arrive. Stems from the user's calm-realm directive — needs a user call before changing.
-- **FOREST TRACK (iter238–239 — overhaul landed & guarded, one follow-up open):** the living-forest + woodcutter work-cycle + tree-visuals overhaul is implemented & verified. ✅ iter239 added `tests/TestForest.gd` (**22/0**: seed-from-grid, only-adults-fellable, fell→stump→regrow, sapling maturation, spread-only-onto-open-grass, JSON-key survival). ✅ The "stray magenta tile" was root-caused to a **ROCK terrain tile** (boulder, e.g. (128,160) on seed 42) — benign intentional decor, NOT an artifact (its grey tint just reads slightly purple at high zoom; a minor palette nit if anything). REMAINING: the chop-shake / topple / barrow **animations are still unverified on-screen mid-motion** (verified in code + sim-state only — `carry_mode="barrow"`, `PH_PREP`, `tree_falls`); needs a targeted live capture (the woodcutter's forest target is autoplay-dependent, so freeze-framing a swing is the hard part).
+- **FOREST TRACK (iter238–239 — overhaul landed & guarded, one follow-up open):** the living-forest + woodcutter work-cycle + tree-visuals overhaul is implemented & verified. ✅ iter239 added `tests/TestForest.gd` (**22/0**: seed-from-grid, only-adults-fellable, fell→stump→regrow, sapling maturation, spread-only-onto-open-grass, JSON-key survival). ✅ The "stray magenta tile" was root-caused to a **ROCK terrain tile** (boulder, e.g. (128,160) on seed 42) — benign intentional decor, NOT an artifact (its grey tint just reads slightly purple at high zoom; a minor palette nit if anything). ✅ iter240 built the **`SR_FELLDEMO` dev hook** (parks a woodcutter + stockpile beside a registered adult grove at the keep, runs 2×) and used a deterministic delay-sweep to watch the cycle on the real scene: the woodcutter reaches the grove, **fells (the grove visibly thins, gaps/stumps appear over ~45s)**, and workers haul back. NEW FINDING (player-aesthetics): at the game's **max zoom (`ZOOM_MAX = 3.0`)** a worker is ~20px tall amid ~40px tree canopies, so the **chop-shake & topple animations are under-legible** — felling reads as "trees gradually thin out + workers mill at the tree line" rather than the intended "axe bites the trunk, tree TOPPLES" drama. The *functional* cycle is proven (ProbeForestGame + TestForest); the *visual drama* is the weak point. CANDIDATE POLISH (needs a pick): a bigger/slower topple + a "timber!" cue/dust puff, OR a closer inspection zoom (raise ZOOM_MAX or an SR-style focus mode) so players can actually see the felling they're causing.
 - **Deathmatch "Empires of Ages":** `deathmatch.md` absent; no active work. Create only when that mode is built.
 
 ### Resolved Index (recent, real evidence) — collapsed
@@ -134,6 +134,37 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 - **Intermediate-clog PREVENTION (iter205, follow-up):** the deeper root of the woodcutter freeze — a `wheat_farm`/`hops_farm` with no `mill`/`brewery` banks an intermediate that's useless and only clogs the shared raw pool. Now such a farm TENDS its rows but banks nothing until its processor exists (`CitizenSystem._farm_output_blocked`), so a new player's wheat farm can't silently strangle their wood/stone economy. Ev: ProbeWoodcutter — wood now flows continuously (0→465 climbing, wheat stays 0) where it previously froze at 113; TestEconomy 18/0.
 - **Painted building sprites (iter203):** buildings can now wear hand-painted iso art over the procedural model (`view/micro/BuildingSpriteOverlay.gd`, additive — finished buildings only, auto procedural fallback). First asset: a detailed **Village Hall** replacing the flat procedural roof-diamond. Local ComfyUI art pipeline in `tools/artgen/`; raw candidate renders (multi-GB) git-ignored, only chosen source + keyed sprite committed. Ev: before/after `_SpriteTrial.tscn` render + in-world placement (Xvfb), TestSurvival 6/0.
 - **(Durable, older — see Current Targets):** Day-100 FLOOR multi-seed survival; Reeve→King climb on 5 seeds ≤113d; late-game coalition-vs-leader; on-screen in-city FLOOR survival (iter158).
+
+---
+
+## Iteration 240 — 2026-06-20  (ANALYSIS LOOP — capture the felling on-screen; legibility finding)
+
+Acted on iter239's one remaining forest follow-up: actually watch the chop/topple/barrow on screen.
+
+- **Built `SR_FELLDEMO` dev hook** (`CityViewScene._dev_fell_demo`): parks a woodcutter's camp + a
+  stockpile beside a freshly-registered ADULT grove right at the keep, spawns villagers at the camp,
+  and runs at 2× — so the fell→prep→barrow cycle plays out in a known spot a screenshot can frame
+  (the woodcutter's grove is autoplay-dependent otherwise). Pairs with `SR_CAM_DX/DY`. Durable harness
+  for any future forest-visual work. Boot-safe (env-gated; TestSurvival 6/0).
+- **Watched it on the real scene** (deterministic delay-sweep, seed 42, zoom up to the cap): the
+  woodcutter reaches the grove, **fells it — the grove visibly THINS, gaps/stumps open over ~45s** —
+  and workers haul back toward the stockpile. The cycle plainly runs on-screen.
+- **KEY FINDING (human-player aesthetics):** at the game's **max zoom (`ZOOM_MAX = 3.0`)** a worker is
+  ~20px tall amid ~40px tree canopies, so the **chop-shake and topple animations are under-legible**.
+  What a player actually sees is "trees gradually thin out + figures milling at the tree line," NOT the
+  intended "axe bites the trunk → tree TOPPLES" drama. The felling's *correctness* is solid (probes +
+  TestForest); its *theatre* is the weak point — the nicely-coded topple/shake barely reads at the only
+  zoom the player has. This is the honest gap between "implemented" and "feels good."
+- **Did NOT change balance/zoom unprompted** (analysis loop). Logged the candidate polish: a bigger /
+  slower topple + a "timber!" cue or dust puff, and/or a closer inspection zoom, so players can see the
+  felling they cause. Needs a user pick before implementing.
+
+### Map-usage note (observed while staging the demo)
+The keep's `prepare_starting_area` flattens a 16-tile radius to grass, so the *natural* forest a player
+sees near their starting village is pushed out — combined with the woodcutter now walking ANYWHERE
+(iter237), early timber comes from off-screen treks. Fine functionally, but it means the starting view
+is grass+buildings with the forest as a distant backdrop; a small managed copse left near spawn could
+make the woodland feel present from turn one. (Observation, not a defect.)
 
 ---
 
