@@ -114,6 +114,7 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 - **WATCH-ITEM — late-game drought food crash (strengthened iter200):** food can crash to 0 mid-late game on a drought seed (a prolonged drought + a thin food workforce as a worker ages out). Now seen on **2 of 3 Day-150 seeds** — 31337 (min_pop 47.7, recovered) and 12345 (min_pop **27.9** — a PASSIVE autoplay eroded much closer to the revolt threshold of 10). 4242 was clean (min_food 70). NO seed has actually revolted/lost, and a real player has the low-food warning + ration control to cope (the passive autoplay can't react, so 27.9 is a worst case). NOT fixed (no loss; user wants calm, not easier). IF a future seed actually revolts, OR if the user wants drought-robustness, buff the drought-time food buffer (bigger granary base, deeper off-season/drought trickle, or auto-lower rations under famine).
 - **OBSERVATION — peaceful 100-day life (from the 10-cycle peace, user-directed):** the FLOOR run (iter194) reached day 114 with NO siege (King's Peace until day 750) while the standing objective still says "ready your defences — build a Barracks, Wall or Tower." The defence prompt is premature now; consider deferring it (or the King's-Peace-ending telegraph) closer to when threats actually arrive. Stems from the user's calm-realm directive — needs a user call before changing.
 - **FOREST TRACK (iter238–239 — overhaul landed & guarded, one follow-up open):** the living-forest + woodcutter work-cycle + tree-visuals overhaul is implemented & verified. ✅ iter239 added `tests/TestForest.gd` (**22/0**: seed-from-grid, only-adults-fellable, fell→stump→regrow, sapling maturation, spread-only-onto-open-grass, JSON-key survival). ✅ The "stray magenta tile" was root-caused to a **ROCK terrain tile** (boulder, e.g. (128,160) on seed 42) — benign intentional decor, NOT an artifact (its grey tint just reads slightly purple at high zoom; a minor palette nit if anything). ✅ iter240 built the **`SR_FELLDEMO` dev hook** (parks a woodcutter + stockpile beside a registered adult grove at the keep, runs 2×) and used a deterministic delay-sweep to watch the cycle on the real scene: the woodcutter reaches the grove, **fells (the grove visibly thins, gaps/stumps appear over ~45s)**, and workers haul back. NEW FINDING (player-aesthetics): at the game's **max zoom (`ZOOM_MAX = 3.0`)** a worker is ~20px tall amid ~40px tree canopies, so the **chop-shake & topple animations are under-legible** — felling reads as "trees gradually thin out + workers mill at the tree line" rather than the intended "axe bites the trunk, tree TOPPLES" drama. The *functional* cycle is proven (ProbeForestGame + TestForest); the *visual drama* is the weak point. CANDIDATE POLISH (needs a pick): a bigger/slower topple + a "timber!" cue/dust puff, OR a closer inspection zoom (raise ZOOM_MAX or an SR-style focus mode) so players can actually see the felling they're causing.
+- **TOOLING — autoplay under-shows the game (iter242):** the SR_AUTOPLAY survival baseline builds a fixed 7-building plan with **no hovels and no market trade**, so over a run **population stays flat (20)** and **gold stays flat (120)** — the *growth* and *gold/trade* thirds of the economy never appear on screen, and the town reads sparse. The food loop + survival are well proven; consider a richer "managed growth" autoplay variant (adds hovels + a couple market trades) so on-screen captures actually show growth and the gold loop. Tooling only; no balance implication.
 - **Deathmatch "Empires of Ages":** `deathmatch.md` absent; no active work. Create only when that mode is built.
 
 ### Resolved Index (recent, real evidence) — collapsed
@@ -134,6 +135,43 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 - **Intermediate-clog PREVENTION (iter205, follow-up):** the deeper root of the woodcutter freeze — a `wheat_farm`/`hops_farm` with no `mill`/`brewery` banks an intermediate that's useless and only clogs the shared raw pool. Now such a farm TENDS its rows but banks nothing until its processor exists (`CitizenSystem._farm_output_blocked`), so a new player's wheat farm can't silently strangle their wood/stone economy. Ev: ProbeWoodcutter — wood now flows continuously (0→465 climbing, wheat stays 0) where it previously froze at 113; TestEconomy 18/0.
 - **Painted building sprites (iter203):** buildings can now wear hand-painted iso art over the procedural model (`view/micro/BuildingSpriteOverlay.gd`, additive — finished buildings only, auto procedural fallback). First asset: a detailed **Village Hall** replacing the flat procedural roof-diamond. Local ComfyUI art pipeline in `tools/artgen/`; raw candidate renders (multi-GB) git-ignored, only chosen source + keyed sprite committed. Ev: before/after `_SpriteTrial.tscn` render + in-world placement (Xvfb), TestSurvival 6/0.
 - **(Durable, older — see Current Targets):** Day-100 FLOOR multi-seed survival; Reeve→King climb on 5 seeds ≤113d; late-game coalition-vs-leader; on-screen in-city FLOOR survival (iter158).
+
+---
+
+## Iteration 242 — 2026-06-20  (ANALYSIS LOOP — the mid-game build→economy→growth loop + developed-town aesthetics)
+
+Played past the Hall into the running economy: a ~100s autoplay session (seed 42, 5×) with 1 Hz
+telemetry, plus daytime + night screenshots of the developed town. No new bugs; findings are about
+what the *survival baseline* does and doesn't exercise.
+
+### Telemetry (real, 1 Hz) — to day 26
+- **Food economy WORKS:** food **90 → 245** over 26 days, **popularity 50.0 → 52.5** (slow healthy
+  rise), **hall 500/500**, no starvation. The granary buffer + orchards sustain comfortably.
+- **Population FLAT at 20** for 26 days — the autoplay plan builds **no hovels**, so there's no housing
+  to grow into (births need rooms). Growth is real with active play (memory: live run 14→23 with
+  hovels) but the survival baseline never shows it. → the **growth** third of the loop is unexercised
+  by autoplay; consider a "managed growth" autoplay variant that adds hovels, for honest on-screen
+  growth capture.
+- **Gold FLAT at 120** — autoplay never trades at the market, so the **gold/trade economy is dormant**
+  in the baseline. Survival doesn't need it, but it means market/trade visuals never get exercised here.
+- FPS 6–7 is the **llvmpipe software renderer** on Xvfb, not a real perf signal.
+
+### Developed-town aesthetics (day 50–62, daytime + night)
+- **Cohesive painterly look:** the **painted Village Hall** (iter203) anchors the town, with the
+  stockpile+banner, granary, orchard tree-rows and the living forest all in the muted palette. Reads
+  as a believable little settlement. The TreeLayer forest integrates cleanly beside the orchards.
+- **Night (day 26 frame):** the hill-town glows with warm torch/window light — atmospheric, NOT the
+  "dead-empty night" the backlog worried about, at least where lamps reach. (Deep-night AWAY from lamps
+  is still dark per `NightLayer.MAX_DARK 0.92`, unchanged — a taste call awaiting user steer.)
+- **OBSERVATION — baseline town reads SPARSE:** ~9 buildings spread with path-spacing gaps over open
+  grass, so "day 50" looks like a hamlet, not a developed town. That's the fixed autoplay plan, not a
+  game cap (active play builds more). Aesthetic potential is bigger than the baseline shows.
+
+### Net
+The mid-game is healthy and pretty; the binding limitation is that the **passive survival baseline
+under-shows the game** (no growth, no trade, sparse town). Not a defect — but the on-screen "proof" of
+the full economy would benefit from a richer autoplay (hovels + a market trade or two) so growth and
+the gold loop are actually visible. Logged as a tooling backlog item; no balance changed.
 
 ---
 
