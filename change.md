@@ -136,6 +136,12 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 230 — 2026-06-20  (USER-STEERED visual track — mute the water to the painterly palette)
+
+After the grass/keying fixes, the **water** became the most jarring element — vivid cobalt blue with busy sweeping flow-highlights, clashing with the warm muted buildings/grass. Tuned `water_flow.gdshader` defaults: muted/desaturated blue-teal (`river_lite` 0.20,0.52,0.90 → 0.27,0.48,0.60; `river_deep`/coast similarly), and calmed the highlight bands (smoothstep 0.55→0.62, intensity 0.22→0.14) so the current reads as gentle ripples not busy squiggles. Live town render: water now sits with the palette, scene reads cohesively. Shader-only change.
+
+---
+
 ## Iteration 229 — 2026-06-20  (USER FEEDBACK — fix sprite keying knockouts + grass-plot contrast)
 
 User flagged two real issues from a live screenshot: (1) the keying knocked transparent holes out of some buildings; (2) the building sprites' grass plots clashed with the flatter, brighter terrain grass.

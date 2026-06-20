@@ -6,10 +6,12 @@ render_mode blend_mix;
 // follows the river's bends, and a water-type flag (b: 0=river, 1=coastal).
 
 uniform float flow_speed = 0.35;
-uniform vec4 river_deep  : source_color = vec4(0.07, 0.28, 0.62, 1.0);
-uniform vec4 river_lite  : source_color = vec4(0.20, 0.52, 0.90, 1.0);
-uniform vec4 coast_deep  : source_color = vec4(0.16, 0.46, 0.66, 1.0);
-uniform vec4 coast_lite  : source_color = vec4(0.40, 0.74, 0.90, 1.0);
+// Muted, slightly desaturated blue-teal so the water sits with the warm painterly
+// buildings/grass instead of glaring as vivid cobalt (iter230, user palette feedback).
+uniform vec4 river_deep  : source_color = vec4(0.11, 0.28, 0.42, 1.0);
+uniform vec4 river_lite  : source_color = vec4(0.27, 0.48, 0.60, 1.0);
+uniform vec4 coast_deep  : source_color = vec4(0.20, 0.44, 0.54, 1.0);
+uniform vec4 coast_lite  : source_color = vec4(0.40, 0.64, 0.70, 1.0);
 
 varying vec2 world_pos;
 varying vec3 flow_info;
@@ -44,7 +46,7 @@ void fragment() {
 	// Highlight bands sweeping along the current.
 	float along = dot(world_pos, fdir) * 0.06;
 	float bands = sin(along * 6.2831 - t * 2.2 + n * 4.0);
-	float hl = smoothstep(0.55, 1.0, bands) * 0.22;
+	float hl = smoothstep(0.62, 1.0, bands) * 0.14;   // calmer, less busy flow highlights
 
 	vec4 deep = mix(river_deep, coast_deep, flow_info.b);
 	vec4 lite = mix(river_lite, coast_lite, flow_info.b);
