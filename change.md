@@ -136,6 +136,19 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 217 — 2026-06-20  (USER-STEERED — full-town cohesion check + Armory/Guildhall/Trading Post)
+
+### Cohesion check (REAL — SR_SPECTATE full-town render)
+Rendered a generated dev-8 town to see the 16 sprites TOGETHER (not just isolated trials): consistent warm painterly style, correct depth-ordering, cohesive — no z-fighting or broken overlap. Confirmed the remaining **gray procedural buildings** (cathedral/guildhall/armory/towers) now stand out, motivating completion.
+
+### Then added 3 prominent civic/military (painted buildings now **19**)
+- **guildhall** (3×3): grand columned civic hall — excellent (was a teal pyramid).
+- **armory** (3×2): stone arsenal, arched entrance, weapon racks — good.
+- **trading_post** (3×2): merchant shop with storefront + goods — good.
+Keyed sprites committed; raw git-ignored.
+
+---
+
 ## Iteration 216 — 2026-06-20  (USER-STEERED sprite track — Mill + Tannery; Well candidate rejected)
 
 Painted buildings now **16**. `_SpriteTrial` before/after:
