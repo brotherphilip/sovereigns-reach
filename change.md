@@ -136,6 +136,12 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 231 — 2026-06-20  (USER-STEERED visual track — harmonize VALLEY terrain with the muted grass)
+
+The iter229 grass-muting (GRASS → 0.45,0.62,0.32) left the bright **VALLEY** tiles (0.58,0.82,0.40) popping as light-green squares against it — a checkerboard regression. Muted VALLEY → **(0.50,0.67,0.35)** (toward grass, kept a touch lusher so the biome still reads). Live render: the ground now reads as one cohesive warm-green sward instead of patchy squares. One-line terrain-color change.
+
+---
+
 ## Iteration 230 — 2026-06-20  (USER-STEERED visual track — mute the water to the painterly palette)
 
 After the grass/keying fixes, the **water** became the most jarring element — vivid cobalt blue with busy sweeping flow-highlights, clashing with the warm muted buildings/grass. Tuned `water_flow.gdshader` defaults: muted/desaturated blue-teal (`river_lite` 0.20,0.52,0.90 → 0.27,0.48,0.60; `river_deep`/coast similarly), and calmed the highlight bands (smoothstep 0.55→0.62, intensity 0.22→0.14) so the current reads as gentle ripples not busy squiggles. Live town render: water now sits with the palette, scene reads cohesively. Shader-only change.

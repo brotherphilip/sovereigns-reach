@@ -20,7 +20,7 @@ const TERRAIN_COLORS: Array = [
 	Color(0.44, 0.52, 0.24),  # 4 MARSH
 	Color(0.43, 0.43, 0.48),  # 5 ROCK
 	Color(0.66, 0.43, 0.26),  # 6 ORE_VEIN
-	Color(0.58, 0.82, 0.40),  # 7 VALLEY
+	Color(0.50, 0.67, 0.35),  # 7 VALLEY — muted toward GRASS (was a bright 0.58,0.82,0.40 that popped as light squares against the warmed grass); kept a touch lighter/lusher so the biome still reads
 	Color(0.33, 0.73, 0.88),  # 8 COASTAL
 	Color(0.84, 0.71, 0.47),  # 9 ROAD
 	Color(0.41, 0.33, 0.28),  # 10 RUIN
