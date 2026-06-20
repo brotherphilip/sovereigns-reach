@@ -136,6 +136,16 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 213 — 2026-06-20  (USER-STEERED sprite track — workshops batch: Blacksmith, Bakery, Brewery)
+
+Batched 3 common workshops (one editor-import scan for all). Painted buildings now 8 (Hall, Market, Keep, Church, Barracks, + these). `_SpriteTrial` before/after each:
+- **blacksmith** (2×3): stone forge, glowing furnace, anvil, smoking chimney — excellent.
+- **brewery** (3×2): timber-frame + tiled roof, brewing vats/barrels, chimney — excellent.
+- **bakery** (2×3): domed brick bread-oven — valid, a touch abstract (candidate 0; swap if the user prefers another).
+Keyed sprites committed; raw candidates git-ignored.
+
+---
+
 ## Iteration 212 — 2026-06-20  (USER-STEERED sprite track — the Barracks)
 
 Fifth painted building (Hall, Market, Keep, Church, Barracks). Keyed barracks candidate 0 → `view/micro/sprites/barracks.png` (4×3, `width_k 1.28, anchor (0.5, 0.73)`). `_SpriteTrial` before/after: a military compound (twin gabled halls, red war-banners, palisade, cobbled path) replacing the plain procedural hut — well-anchored. Keyed sprite committed; raw git-ignored.
