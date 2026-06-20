@@ -16,6 +16,7 @@ extends RefCounted
 # btype -> keyed sprite path (preferred) ; raw fallback handled below.
 const SPRITES := {
 	"village_hall": "res://view/micro/sprites/village_hall.png",
+	"market":       "res://view/micro/sprites/market.png",
 }
 # Raw (black background) source, used only if the keyed file is missing.
 const RAW_SOURCES := {
@@ -30,6 +31,7 @@ const RAW_SOURCES := {
 #   anchor  : Vector2(u, v) ground-centre as a fraction of the source image
 const PLACEMENT := {
 	"village_hall": {"width_k": 1.30, "anchor": Vector2(0.500, 0.760)},
+	"market":       {"width_k": 1.28, "anchor": Vector2(0.500, 0.730)},
 }
 
 # Cache: btype -> Texture2D (keyed). Null entry = tried & failed (don't retry).

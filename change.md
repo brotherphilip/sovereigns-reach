@@ -136,6 +136,22 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 209 — 2026-06-20  (USER-STEERED — next painted sprite: the Market)
+
+### Steer
+With the safe autonomous backlog exhausted, asked the user to pick the next direction → "Next painted sprite" → "Market" (candidate of their montage). The market was also the known "reads sparse" procedural weak point, so this doubles as a polish fix.
+
+### Change
+- Keyed market candidate 0 (`tools/artgen/key.py market 0`) → `view/micro/sprites/market.png` (1400×1389, black-bg flooded to transparent; verified corner alpha = 0, alpha mean 0.62).
+- Wired `market` into `BuildingSpriteOverlay` (SPRITES + PLACEMENT `width_k 1.28, anchor (0.5, 0.73)` for the 4×3 footprint).
+- Generalized `_SpriteTrial` to any building via `SR_TRIAL_BTYPE/_W/_H` (was hard-coded to the 4×4 hall) — reusable for all future sprites.
+- Generated the Godot `.import` for the new PNG (load() needs it; first render showed nothing until imported).
+
+### Verified
+- `_SpriteTrial` before/after (market, 4×3): the painted market hall — awnings, barrels, produce, cobblestone plot — is a dramatic upgrade over the sparse procedural stalls, correctly anchored & scaled to the footprint. Additive/safe (procedural still underneath; only finished buildings). Committed the 2.1 MB keyed sprite only (13 MB raw candidate stays git-ignored).
+
+---
+
 ## Iteration 208 — 2026-06-20  (DEV-LOOP — autonomous continue. Live playtest audit → hide the misleading economy HUD while spectating)
 
 ### Audit (REAL — Xvfb live renders)

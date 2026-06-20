@@ -29,19 +29,24 @@ func _footprint(cx: float, cy: float, w: int, h: int) -> Array:
 
 func _draw() -> void:
 	# LEFT: procedural only.   RIGHT: procedural + painted sprite overlay.
+	# Configurable so any building can be tuned: SR_TRIAL_BTYPE / SR_TRIAL_W / SR_TRIAL_H.
+	var btype := OS.get_environment("SR_TRIAL_BTYPE")
+	if btype == "": btype = "village_hall"
+	var fw := int(OS.get_environment("SR_TRIAL_W")) if OS.get_environment("SR_TRIAL_W") != "" else 4
+	var fh := int(OS.get_environment("SR_TRIAL_H")) if OS.get_environment("SR_TRIAL_H") != "" else 4
 	var labelf := ThemeDB.fallback_font
 	for variant in range(2):
 		var cx := 320.0 + float(variant) * 760.0
 		var cy := 300.0
-		var fp := _footprint(cx, cy, 4, 4)
+		var fp := _footprint(cx, cy, fw, fh)
 		var top: Vector2 = fp[0]; var right: Vector2 = fp[1]; var bot: Vector2 = fp[2]; var left: Vector2 = fp[3]
 		# Tile diamond outline so the footprint is visible.
 		draw_polyline(PackedVector2Array([top, right, bot, left, top]), Color(1, 1, 1, 0.25), 1.0)
-		BuildingModels.draw_finished(self, "village_hall", 0, 4, 4, top, right, bot, left,
+		BuildingModels.draw_finished(self, btype, 0, fw, fh, top, right, bot, left,
 			Color(0.82, 0.77, 0.66), Color(0.74, 0.34, 0.24), Color(0.45, 0.32, 0.20),
 			Time.get_ticks_msec() * 0.001, 2, 1)
 		if variant == 1:
-			BuildingSpriteOverlay.draw(self, "village_hall", top, right, bot, left)
+			BuildingSpriteOverlay.draw(self, btype, top, right, bot, left)
 		var lbl := "procedural" if variant == 0 else "procedural + painted sprite"
 		draw_string(labelf, Vector2(cx - 90, cy + 230), lbl, HORIZONTAL_ALIGNMENT_CENTER, 200, 18, Color.WHITE)
 
