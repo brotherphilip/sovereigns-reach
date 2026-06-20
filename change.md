@@ -136,6 +136,14 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 235 — 2026-06-20  (USER FEEDBACK — rework rain + cloud shaders for quality)
+
+User: rain looked bad and clouds STILL had sharp edges. Both rewritten:
+- **Clouds** (`cloud_shadow.gdshader`): replaced value noise (grid/axis artefacts → the "sharp edges") with **quintic gradient (Perlin-style) noise**, 4 rotated octaves + a **domain warp**, and a wide SOFT density ramp instead of a threshold. Now billowy, organic, edge-free gradients. Verified zoomed-out.
+- **Rain** (`rain_overlay.gdshader`): was sparse bright "scratches"; now a **dense curtain of fine short semi-transparent streaks across 3 parallax depth layers** + the cool wet wash. Reads as real rain (light shower at RAIN 0.62, heavy at STORM 1.0). Verified rain + storm renders.
+
+---
+
 ## Iteration 234 — 2026-06-20  (USER-STEERED — ATMOSPHERE OVERHAUL phase 3: rain + storm visuals, clouds coupled to weather)
 
 The game already had a `WeatherSystem` state machine (CLEAR/RAIN/DROUGHT/SNOW/FOG/STORM) in `GameState.weather` — wired the visuals to it.
