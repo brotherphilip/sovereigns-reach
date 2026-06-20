@@ -136,6 +136,16 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 214 — 2026-06-20  (USER-STEERED sprite track — Inn, Granary, Apothecary)
+
+Batched 3 more (one import scan). Painted buildings now **11**. `_SpriteTrial` before/after each, all strong:
+- **inn** (3×3): cozy two-storey timber tavern, lit windows, hanging lantern.
+- **granary** (3×3): thatched timber-and-stone barn + fenced yard (procedural was tiny).
+- **apothecary** (2×2): herb cottage with potted plants + garden.
+Keyed sprites committed; raw git-ignored.
+
+---
+
 ## Iteration 213 — 2026-06-20  (USER-STEERED sprite track — workshops batch: Blacksmith, Bakery, Brewery)
 
 Batched 3 common workshops (one editor-import scan for all). Painted buildings now 8 (Hall, Market, Keep, Church, Barracks, + these). `_SpriteTrial` before/after each:
