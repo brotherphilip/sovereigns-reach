@@ -44,7 +44,11 @@ func _run() -> void:
 	var cid: int = _first_city_id()
 	ok("found a world-map city", cid >= 0)
 	var city: Dictionary = CampaignMap.city_by_id(_gs.world, cid)
-	ok("the city has a seeded garrison (>=4)", int(city.get("garrison", 0)) >= 4)
+	# Cities now START with an empty garrison and raise troops over time (iter187), so model
+	# a DEFENDED holding by giving it a garrison — that's the precondition this feature needs
+	# (a garrisoned city must render visible defenders when spectated).
+	city["garrison"] = 8
+	ok("a defended city has a garrison (>=4)", int(city.get("garrison", 0)) >= 4)
 
 	# Spectate it — the garrison should now be VISIBLE defenders (no besiegers yet).
 	_gs.enter_spectator_city(cid, 100, 100, 12345)

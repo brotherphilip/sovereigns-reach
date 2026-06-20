@@ -5,6 +5,7 @@ extends SceneTree
 
 const UnitState    = preload("res://simulation/units/UnitState.gd")
 const UnitRegistry = preload("res://simulation/units/UnitRegistry.gd")
+const AIFaction    = preload("res://simulation/ai/AIFaction.gd")
 
 const CT_ISSUE_MOVE_ORDER = 12
 
@@ -218,7 +219,8 @@ func _test_ai_faction_march() -> void:
 	_gs.add_ai_faction("bandit_king", 66, 50)
 	# The King's Peace (AIFaction.PLAYER_GRACE_DAYS) blocks sieges against a fresh
 	# faction; this test validates the post-grace march, so age the faction past it.
-	_gs.ai_factions[0]["days_alive"] = 60
+	# Reference the constant directly so a future grace-length change can't re-stale this.
+	_gs.ai_factions[0]["days_alive"] = AIFaction.PLAYER_GRACE_DAYS + 10
 	var raider := _mk_enemy_unit("militia", 66, 50, 0)   # far from keep (50,50)
 	var start_dx: int = abs(raider.get("pos_x", 0) - 50)
 	_run(600)

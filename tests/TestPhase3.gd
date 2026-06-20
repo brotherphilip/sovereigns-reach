@@ -154,8 +154,8 @@ func test_registry_coverage_radius_church() -> void:
 
 func test_registry_wheat_farm_size() -> void:
 	var defn = BuildingRegistry.lookup("wheat_farm")
-	expect("wheat_farm width=3", defn.get("width", 1) == 3)
-	expect("wheat_farm height=3", defn.get("height", 1) == 3)
+	expect("wheat_farm width=5", defn.get("width", 1) == 5)
+	expect("wheat_farm height=4", defn.get("height", 1) == 4)
 
 func test_registry_cathedral_immune_to_fire() -> void:
 	var defn = BuildingRegistry.lookup("cathedral")
@@ -296,11 +296,11 @@ func test_validator_wrong_terrain_quarry_on_grass() -> void:
 	expect("wrong terrain code", result["code"] == VR_WRONG_TERRAIN)
 
 func _set_rock_2x2(grid: Object, gx: int, gy: int) -> void:
-	# stone_quarry is 2×2 — all tiles must match terrain_req
-	grid.set_terrain(gx,   gy,   WorldGrid.Terrain.ROCK)
-	grid.set_terrain(gx+1, gy,   WorldGrid.Terrain.ROCK)
-	grid.set_terrain(gx,   gy+1, WorldGrid.Terrain.ROCK)
-	grid.set_terrain(gx+1, gy+1, WorldGrid.Terrain.ROCK)
+	# stone_quarry is 3×3 — EVERY footprint tile must match terrain_req (ROCK), or the
+	# terrain check fails before tech is even evaluated. Lay a full 3×3 rock patch.
+	for dy in range(3):
+		for dx in range(3):
+			grid.set_terrain(gx + dx, gy + dy, WorldGrid.Terrain.ROCK)
 
 func test_validator_correct_terrain_quarry_on_rock() -> void:
 	var grid = _make_grass_grid()

@@ -136,6 +136,21 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 207 — 2026-06-20  (DEV-LOOP — autonomous continue. Full 40-suite sweep → restored the ENTIRE suite to GREEN)
+
+### Audit
+Ran every `tests/Test*.gd` (40 suites). Found pre-existing red (confirmed via a `0ad7750` base-commit worktree that ALL of it predates this session — my iter203–206 caused zero regressions): TestPhase3 (5), TestSpectatorTroops (4), TestUnitAI (1). The prior "sweep green" only covered 13 named suites, so these had rotted unnoticed. All were stale tests left behind by intentional design changes — not gameplay bugs.
+
+### Fixes (test-only)
+- **TestPhase3 (now 88/0):** `wheat_farm` is 5×4 now (was 3×3, fields overhaul) — updated the size assertion; `stone_quarry` is 3×3 (was 2×2) so the test's 2×2 rock patch failed the terrain check before tech — `_set_rock_2x2` now lays a full 3×3 rock patch.
+- **TestUnitAI (now 23/0):** the raider-march test aged the faction to `days_alive=60`, but `PLAYER_GRACE_DAYS` was lengthened to 750 (King's Peace = 10 sun cycles) — so it was still in grace and never marched. Now ages to `AIFaction.PLAYER_GRACE_DAYS + 10` (references the constant so it can't re-stale).
+- **TestSpectatorTroops (now 10/0):** assumed cities spawn with a seeded garrison, but every realm now STARTS empty and raises troops over time (iter187). Set the city's garrison explicitly (model a defended holding) — the actual precondition the feature needs.
+
+### Result
+**All 40 test suites GREEN** (TestPhase1/2/9 use a "✓ ALL N PASSED" format — green, not blank). Pure test maintenance; no gameplay code touched.
+
+---
+
 ## Iteration 206 — 2026-06-20  (DEV-LOOP — autonomous continue. Cleared the TestPhase7 stale-calendar test-debt)
 
 ### Change
