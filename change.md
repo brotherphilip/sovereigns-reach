@@ -114,6 +114,7 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 - **WATCH-ITEM — late-game drought food crash (strengthened iter200):** food can crash to 0 mid-late game on a drought seed (a prolonged drought + a thin food workforce as a worker ages out). Now seen on **2 of 3 Day-150 seeds** — 31337 (min_pop 47.7, recovered) and 12345 (min_pop **27.9** — a PASSIVE autoplay eroded much closer to the revolt threshold of 10). 4242 was clean (min_food 70). NO seed has actually revolted/lost, and a real player has the low-food warning + ration control to cope (the passive autoplay can't react, so 27.9 is a worst case). NOT fixed (no loss; user wants calm, not easier). IF a future seed actually revolts, OR if the user wants drought-robustness, buff the drought-time food buffer (bigger granary base, deeper off-season/drought trickle, or auto-lower rations under famine).
 - **OBSERVATION — peaceful 100-day life (from the 10-cycle peace, user-directed):** the FLOOR run (iter194) reached day 114 with NO siege (King's Peace until day 750) while the standing objective still says "ready your defences — build a Barracks, Wall or Tower." The defence prompt is premature now; consider deferring it (or the King's-Peace-ending telegraph) closer to when threats actually arrive. Stems from the user's calm-realm directive — needs a user call before changing.
 - **FOREST TRACK (iter238–239 — overhaul landed & guarded, one follow-up open):** the living-forest + woodcutter work-cycle + tree-visuals overhaul is implemented & verified. ✅ iter239 added `tests/TestForest.gd` (**22/0**: seed-from-grid, only-adults-fellable, fell→stump→regrow, sapling maturation, spread-only-onto-open-grass, JSON-key survival). ✅ The "stray magenta tile" was root-caused to a **ROCK terrain tile** (boulder, e.g. (128,160) on seed 42) — benign intentional decor, NOT an artifact (its grey tint just reads slightly purple at high zoom; a minor palette nit if anything). ✅ iter240 built the **`SR_FELLDEMO` dev hook** (parks a woodcutter + stockpile beside a registered adult grove at the keep, runs 2×) and used a deterministic delay-sweep to watch the cycle on the real scene: the woodcutter reaches the grove, **fells (the grove visibly thins, gaps/stumps appear over ~45s)**, and workers haul back. NEW FINDING (player-aesthetics): at the game's **max zoom (`ZOOM_MAX = 3.0`)** a worker is ~20px tall amid ~40px tree canopies, so the **chop-shake & topple animations are under-legible** — felling reads as "trees gradually thin out + workers mill at the tree line" rather than the intended "axe bites the trunk, tree TOPPLES" drama. The *functional* cycle is proven (ProbeForestGame + TestForest); the *visual drama* is the weak point. CANDIDATE POLISH (needs a pick): a bigger/slower topple + a "timber!" cue/dust puff, OR a closer inspection zoom (raise ZOOM_MAX or an SR-style focus mode) so players can actually see the felling they're causing.
+- **ONBOARDING — no world-map tutorial (iter243):** the strategic `WorldMapScene` (where the Reeve→King title climb happens) has **no onboarding** — a new player sees a whole continent and must find their single gold village with no "this is you / start here" callout, and nothing teaches Develop / Raise Army / March / Diplomacy or *why* to switch from the in-city seat to the strategic map. The climb is mechanically proven (TestKingClimb + on-screen Reeve·1→King·15); the gap is purely that its depth is untaught. Candidate: a short world-map tutorial / first-visit callout. Needs a user pick on scope.
 - **TOOLING — autoplay under-shows the game (iter242):** the SR_AUTOPLAY survival baseline builds a fixed 7-building plan with **no hovels and no market trade**, so over a run **population stays flat (20)** and **gold stays flat (120)** — the *growth* and *gold/trade* thirds of the economy never appear on screen, and the town reads sparse. The food loop + survival are well proven; consider a richer "managed growth" autoplay variant (adds hovels + a couple market trades) so on-screen captures actually show growth and the gold loop. Tooling only; no balance implication.
 - **Deathmatch "Empires of Ages":** `deathmatch.md` absent; no active work. Create only when that mode is built.
 
@@ -135,6 +136,44 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 - **Intermediate-clog PREVENTION (iter205, follow-up):** the deeper root of the woodcutter freeze — a `wheat_farm`/`hops_farm` with no `mill`/`brewery` banks an intermediate that's useless and only clogs the shared raw pool. Now such a farm TENDS its rows but banks nothing until its processor exists (`CitizenSystem._farm_output_blocked`), so a new player's wheat farm can't silently strangle their wood/stone economy. Ev: ProbeWoodcutter — wood now flows continuously (0→465 climbing, wheat stays 0) where it previously froze at 113; TestEconomy 18/0.
 - **Painted building sprites (iter203):** buildings can now wear hand-painted iso art over the procedural model (`view/micro/BuildingSpriteOverlay.gd`, additive — finished buildings only, auto procedural fallback). First asset: a detailed **Village Hall** replacing the flat procedural roof-diamond. Local ComfyUI art pipeline in `tools/artgen/`; raw candidate renders (multi-GB) git-ignored, only chosen source + keyed sprite committed. Ev: before/after `_SpriteTrial.tscn` render + in-world placement (Xvfb), TestSurvival 6/0.
 - **(Durable, older — see Current Targets):** Day-100 FLOOR multi-seed survival; Reeve→King climb on 5 seeds ≤113d; late-game coalition-vs-leader; on-screen in-city FLOOR survival (iter158).
+
+---
+
+## Iteration 243 — 2026-06-20  (ANALYSIS LOOP — the strategic WORLD-MAP layer + the title climb)
+
+Shifted to an untouched subsystem: the `WorldMapScene` strategic layer (the Reeve→King climb). Captured
+day-0 and a `SR_CLIMB=130` state, read the HUD.
+
+### Verified HEALTHY & visually current (no regressions)
+- **The climb is on-screen-proven:** the title HUD reads **"Reeve · 1 village"** at day 0 and
+  **"King · 15 villages"** after the campaign climb — matches the headless TestKingClimb guarantee and
+  the iter157 capture. The dev `SR_CLIMB` hook still drives it cleanly.
+- **Map usage is strong:** a full hex-tile continent with varied biomes (plains / deep forest / slate
+  mountains / golden hills / coastal shelf), roads as a legible network, and faction territories. Early
+  independents render as small dots; **developed cities grow into full faction-coloured CASTLES** — a
+  nice visual reflection of development. The climbed map is dense with gold (player) castles dominating
+  a region among blue/green/red/violet rivals.
+- **Legible chrome (the iter128–138 map-overhaul holds):** city labels carry a dark halo and read on any
+  terrain (Jasperfield / Kingsholm / Vexwatch); the **Kingdoms legend** names all five realms with the
+  player's "Your Domain (You)" gold-highlighted; faction power scores shown (~700 each at the balanced
+  start).
+
+### Critical findings (onboarding, from a new-player lens)
+- **No world-map onboarding.** A first-time player who opens the strategic map sees a whole continent of
+  independents + four great houses and must hunt for their **single gold village** — there's a gold
+  marker but no "this is you / start here" callout, and no tutorial step explaining Develop / Raise Army
+  / March / Diplomacy. The CityView has a tutorial; the **strategic layer does not**. This is the most
+  meaningful gap on this screen — the climb mechanics are proven, but a new player isn't *taught* them.
+- **Layer-switch legibility.** Nothing on either screen tells the player *why/when* to move between their
+  in-city seat (CityView) and the strategic map, or that the title climb even happens there. A structural
+  UX question, not a bug — flagged for a possible onboarding pass.
+- Action buttons (Develop/Raise Army/March/Diplomacy) appear contextually (no city selected at day 0 →
+  no action bar), which is reasonable but compounds the "what do I do here?" for a newcomer.
+
+### Net
+The strategic layer is mechanically proven and looks great; its weak point is **teaching** — it has no
+onboarding, so its depth is invisible to a new player until they stumble into it. Logged as a backlog
+candidate (needs a user pick on scope before building a world-map tutorial). No code/balance changed.
 
 ---
 
