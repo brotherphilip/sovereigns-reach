@@ -141,6 +141,35 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 256 — 2026-06-21  (INVESTIGATION — `setup_world` re-entry semantics; broad reset reverted, iter255 confirmed safe)
+
+Followed the iter255 forest-leak thread: did the same leak hit `last_event_day` (would break my iter252
+events fix on a 2nd game) and `milestones`? Tried a broad fix — `world.clear()` + reset milestones/weather
+at the top of `setup_world`. **The full suite caught it: `TestSeatPersistence` 6/6→failed.**
+
+### What the test taught (the important part)
+`setup_world` is overloaded and its re-entry semantics are subtle:
+- **First entry (new game):** `world` is already `{}` (fresh autoload) → no leak. A *subsequent* new game
+  resets `world` **by assignment** in the caller (the `seat_established` flag flips the path), NOT via
+  `setup_world` — so setup_world must NOT blanket-clear.
+- **Return to your seat:** `CityViewScene` **returns early WITHOUT calling `setup_world`** (the seat ticked
+  live in the background) — except after a spectator detour, where `restore_seat_snapshot()` rebuilds it.
+- **Spectating / displaced seat:** `stash`/`restore_seat_snapshot` round-trips the seat through `world`.
+So the seat-snapshot + world-map keys (`player_seat_city_id`, `seat_displaced`, the snapshots…) MUST
+survive a `setup_world`. My blanket `world.clear()` wiped them → broke return-to-seat. **Reverted.**
+- Conclusion: `last_event_day` / `milestones` do **not** actually leak in real play (the new-game caller
+  resets `world`; return-to-seat doesn't re-run setup_world). No fix needed there — a false alarm the test
+  correctly prevented from shipping.
+
+### Net
+Kept ONLY the **targeted** iter255 forest-state erase (trees/trees_init/tree_falls), which touches no
+seat/world-map keys and is the one real fix (the grid IS rebuilt on new-game/spectate, so the forest must
+re-seed to match it). Improved its comment to flag the seat-safety constraint. **Full suite GREEN (all 41
+suites, incl. TestSeatPersistence + TestForest).** A good reminder: blanket resets of shared core state are
+exactly what the persistence tests exist to catch — targeted is correct.
+
+---
+
 ## Iteration 255 — 2026-06-21  (BUG FOUND & FIXED — forest leaked across `setup_world` re-runs)
 
 A multi-seed robustness pass on the headline deliverable surfaced a **real bug** (the value of actually

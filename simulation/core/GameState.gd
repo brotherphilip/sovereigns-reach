@@ -165,11 +165,11 @@ func setup_world(seed_value: int = 12345, shire_count: int = 8) -> void:
 	world["shires"] = _shire_map.serialize().get("shires", [])
 	MarketSystem.initialize_prices(world)
 	_spawn_wildlife(seed_value)
-	# Seed the living forest from the map's wooded tiles (all start as mature adults).
-	# Clear any prior forest first: init_from_grid early-returns on the trees_init flag, so a
-	# re-setup_world on the same GameState (e.g. starting a NEW game / changing seed without a
-	# fresh autoload) would otherwise LEAK the previous map's trees onto this one. setup_world
-	# establishes a fresh world, so the forest must re-seed for the new grid.
+	# Seed the living forest from the map's wooded tiles (all start as mature adults). init_from_grid
+	# early-returns on the trees_init flag, so clear the forest state first — setup_world rebuilds the
+	# GRID (new game / spectated city), so the forest must re-seed to match it instead of leaking the
+	# previous grid's trees. (Targeted to forest keys only; seat-snapshot/world-map state is untouched,
+	# so return-to-seat persistence is unaffected — see TestSeatPersistence.) RNG re-seeded per map.
 	world.erase("trees")
 	world.erase("trees_init")
 	world.erase("tree_falls")
