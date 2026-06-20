@@ -113,7 +113,7 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 - **OBSERVATION — night dead-space (taste, needs USER call, NOT a bug):** deep-night `NightLayer.MAX_DARK = 0.92` (near-black away from lamps) + depopulated night (skeleton crew) ⇒ ~5 min/cycle dark+empty. Soften MAX_DARK or add night ambient life only if the user wants less dead time.
 - **WATCH-ITEM — late-game drought food crash (strengthened iter200):** food can crash to 0 mid-late game on a drought seed (a prolonged drought + a thin food workforce as a worker ages out). Now seen on **2 of 3 Day-150 seeds** — 31337 (min_pop 47.7, recovered) and 12345 (min_pop **27.9** — a PASSIVE autoplay eroded much closer to the revolt threshold of 10). 4242 was clean (min_food 70). NO seed has actually revolted/lost, and a real player has the low-food warning + ration control to cope (the passive autoplay can't react, so 27.9 is a worst case). NOT fixed (no loss; user wants calm, not easier). IF a future seed actually revolts, OR if the user wants drought-robustness, buff the drought-time food buffer (bigger granary base, deeper off-season/drought trickle, or auto-lower rations under famine).
 - **OBSERVATION — peaceful 100-day life (from the 10-cycle peace, user-directed):** the FLOOR run (iter194) reached day 114 with NO siege (King's Peace until day 750) while the standing objective still says "ready your defences — build a Barracks, Wall or Tower." The defence prompt is premature now; consider deferring it (or the King's-Peace-ending telegraph) closer to when threats actually arrive. Stems from the user's calm-realm directive — needs a user call before changing.
-- **FOREST TRACK (iter238 — overhaul landed, follow-ups open):** the living-forest + woodcutter work-cycle + tree-visuals overhaul is implemented & verified (probes + live renders), but (a) **no `tests/TestForest.gd` regression** yet — only throwaway probes guard a substantial new sim system (only-adults-fellable, fell→stump→regrow, sapling maturation, spread/new-seed, JSON-key survival); (b) the chop-shake / topple / barrow **animations are unverified on-screen mid-motion** (code + sim-state only); (c) glance to confirm a stray magenta tile seen in a grove is benign decor (wildflower/deer), not an artifact. Top item: add TestForest.gd.
+- **FOREST TRACK (iter238–239 — overhaul landed & guarded, one follow-up open):** the living-forest + woodcutter work-cycle + tree-visuals overhaul is implemented & verified. ✅ iter239 added `tests/TestForest.gd` (**22/0**: seed-from-grid, only-adults-fellable, fell→stump→regrow, sapling maturation, spread-only-onto-open-grass, JSON-key survival). ✅ The "stray magenta tile" was root-caused to a **ROCK terrain tile** (boulder, e.g. (128,160) on seed 42) — benign intentional decor, NOT an artifact (its grey tint just reads slightly purple at high zoom; a minor palette nit if anything). REMAINING: the chop-shake / topple / barrow **animations are still unverified on-screen mid-motion** (verified in code + sim-state only — `carry_mode="barrow"`, `PH_PREP`, `tree_falls`); needs a targeted live capture (the woodcutter's forest target is autoplay-dependent, so freeze-framing a swing is the hard part).
 - **Deathmatch "Empires of Ages":** `deathmatch.md` absent; no active work. Create only when that mode is built.
 
 ### Resolved Index (recent, real evidence) — collapsed
@@ -134,6 +134,34 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 - **Intermediate-clog PREVENTION (iter205, follow-up):** the deeper root of the woodcutter freeze — a `wheat_farm`/`hops_farm` with no `mill`/`brewery` banks an intermediate that's useless and only clogs the shared raw pool. Now such a farm TENDS its rows but banks nothing until its processor exists (`CitizenSystem._farm_output_blocked`), so a new player's wheat farm can't silently strangle their wood/stone economy. Ev: ProbeWoodcutter — wood now flows continuously (0→465 climbing, wheat stays 0) where it previously froze at 113; TestEconomy 18/0.
 - **Painted building sprites (iter203):** buildings can now wear hand-painted iso art over the procedural model (`view/micro/BuildingSpriteOverlay.gd`, additive — finished buildings only, auto procedural fallback). First asset: a detailed **Village Hall** replacing the flat procedural roof-diamond. Local ComfyUI art pipeline in `tools/artgen/`; raw candidate renders (multi-GB) git-ignored, only chosen source + keyed sprite committed. Ev: before/after `_SpriteTrial.tscn` render + in-world placement (Xvfb), TestSurvival 6/0.
 - **(Durable, older — see Current Targets):** Day-100 FLOOR multi-seed survival; Reeve→King climb on 5 seeds ≤113d; late-game coalition-vs-leader; on-screen in-city FLOOR survival (iter158).
+
+---
+
+## Iteration 239 — 2026-06-20  (ANALYSIS LOOP — close the forest track's open gaps)
+
+Acted on iter238's logged follow-ups (the planned works the docs now list for the forest track).
+
+- **Added `tests/TestForest.gd` — 22/0** (was: a substantial new sim system guarded only by throwaway
+  probes). Locks the invariants: init seeds one ADULT per FOREST tile + is idempotent; only adults are
+  fellable (sapling/empty → 0 wood); fell yields `FELL_WOOD`, leaves a STUMP, reverts terrain to GRASS,
+  and the stump regrows to a SAPLING + re-forests after `STUMP_REGROW_DAYS`; a lone sapling matures
+  monotone sapling→young→adult within 60 days; spread/new-seed only ever sprouts onto OPEN GRASS (never
+  a building tile, every standing tree sits on FOREST); and the `world["trees"]` JSON round-trip keeps
+  String keys + stages so `is_adult` still resolves (no save/load orphaning).
+- **Root-caused the "stray magenta tile."** Probed the real grid at the suspect spot: it's a **ROCK
+  terrain tile** (boulder — e.g. (128,160) on seed 42), drawn by `DecorChunk._draw_rock`. Benign,
+  intentional terrain; its grey reads slightly purple at high zoom. Not a tree/forest artifact. Closed.
+- **Remaining forest follow-up:** an on-screen freeze-frame of the chop-shake / topple / barrow
+  mid-motion (still code + sim-state verified only). Hard because the woodcutter's forest target is
+  autoplay-dependent and the persistent-pan harness exits 144 here — likely needs a small dev hook that
+  parks a woodcutter beside a known grove, or a follow-camera, to catch the brief swing/topple frames.
+
+### Critical analysis (this loop)
+The forest system is now genuinely *production-grade* on the sim side: regression-guarded, save-safe,
+and economically sound (managed-woodland rotation). The only un-nailed-down claim is the **visual
+motion** of felling — the static art is confirmed good, the animation code is reviewed and the
+sim-state transitions are tested, but a human hasn't watched an axe-swing/topple/barrow on screen yet.
+That's the honest edge of "done" for this track.
 
 ---
 
