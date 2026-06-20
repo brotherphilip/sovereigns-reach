@@ -141,6 +141,28 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 255 — 2026-06-21  (BUG FOUND & FIXED — forest leaked across `setup_world` re-runs)
+
+A multi-seed robustness pass on the headline deliverable surfaced a **real bug** (the value of actually
+re-checking across seeds). Probing the living forest on seeds 777/999/31337 via the same GameState
+autoload, seeds 999 & 31337 **kept the PREVIOUS map's trees** (tree count = the prior run's, all 1836
+adults identical) instead of seeding their own (3832 / 4062 forest tiles).
+
+- **Root cause:** `ForestSystem.init_from_grid` early-returns on the `trees_init` flag (a within-session
+  optimisation), but `GameState.setup_world` never cleared it — so a **re-`setup_world` on the same
+  GameState** (exactly what happens when a player starts a NEW game / changes seed without a fresh
+  autoload) leaked the old forest onto the new map. The same class as the known in-process GameState
+  leak, but this one bites the *real* "new game" path, not just test harnesses.
+- **Fix:** `setup_world` now `erase`s `trees` / `trees_init` / `tree_falls` and re-seeds the forest RNG
+  deterministically per seed before `init_from_grid`, so the forest always matches the freshly-built grid.
+- **Verified:** re-ran the probe → every seed now seeds its own forest exactly (777→1836, 999→3832,
+  31337→4062, all adults, growth proceeding). TestForest 22/0, TestSurvival 6/0, TestPeople 21/0.
+
+A correctness fix (not visual/design/balance), so squarely in scope — and a good reminder that
+multi-seed re-verification earns its keep.
+
+---
+
 ## Iteration 254 — 2026-06-21  (SHIP — managed-growth autoplay variant; growth loop verified on-screen)
 
 Shipped decision item #5 (tooling, zero player-facing risk): the plain `SR_AUTOPLAY` survival baseline

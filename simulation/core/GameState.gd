@@ -166,9 +166,16 @@ func setup_world(seed_value: int = 12345, shire_count: int = 8) -> void:
 	MarketSystem.initialize_prices(world)
 	_spawn_wildlife(seed_value)
 	# Seed the living forest from the map's wooded tiles (all start as mature adults).
+	# Clear any prior forest first: init_from_grid early-returns on the trees_init flag, so a
+	# re-setup_world on the same GameState (e.g. starting a NEW game / changing seed without a
+	# fresh autoload) would otherwise LEAK the previous map's trees onto this one. setup_world
+	# establishes a fresh world, so the forest must re-seed for the new grid.
+	world.erase("trees")
+	world.erase("trees_init")
+	world.erase("tree_falls")
 	if _forest_rng == null:
 		_forest_rng = RandomNumberGenerator.new()
-		_forest_rng.seed = seed_value ^ 0xF0235711
+	_forest_rng.seed = seed_value ^ 0xF0235711
 	ForestSystem.init_from_grid(world, _grid, _forest_rng)
 
 # Scatter a few deer herds across open grass/valley terrain.
