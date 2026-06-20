@@ -136,6 +136,12 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 227 — 2026-06-20  (DEV-LOOP — full regression sweep: session certified GREEN)
+
+Ran all 40 test suites after the session's ~24 iterations of changes (economy honesty, 29 painted buildings + variant system, fields polish, test-debt fixes). **Every suite GREEN, 0 failures** — incl. the touched ones: TestEconomy 18/0, TestStrategicAI 91/0, TestPhase3 88/0, TestPhase7 104/0, TestUnitAI 23/0, TestSpectatorTroops 10/0, TestStoresWarning 6/0, TestSurvival 6/0, TestSaveLoad 13/0. No regressions from any of the session's work. No code change (certification).
+
+---
+
 ## Iteration 226 — 2026-06-20  (USER-STEERED — fields polish #3: in-context verification, track complete)
 
 Live SR_SPECTATE town render: the wheat field's ridge-and-furrow banding reads clearly in-context, the orchard/hops grass-floor texture holds up, and the base grass terrain (mottled since iter168) reads as living ground — the painted buildings + textured fields + flowing water are cohesive and rich. Decided the base grass needs nothing more (per-tile tufts would risk clutter at map scale). **Fields-polish track complete** (wheat ridge-and-furrow, orchard + hops grass-floor; base grass already mottled). No code change (verification).
