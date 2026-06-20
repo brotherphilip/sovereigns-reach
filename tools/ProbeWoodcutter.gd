@@ -14,8 +14,7 @@ func _init() -> void:
 	_rng.seed = 7
 	var grid := WorldGrid.new(200, 200)
 	var kx := 100; var ky := 100
-	var plan := [["village_hall", 0, 0], ["granary", -3, 0],
-		["apple_orchard", 3, 0], ["wheat_farm", -3, 3], ["woodcutter_camp", 0, 4]]
+	var plan := [["village_hall", 0, 0], ["stockpile", -3, 0], ["stockpile", -3, 2], ["woodcutter_camp", 0, 4]]
 	var buildings: Array = []
 	var bid := 1
 	for item in plan:

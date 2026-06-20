@@ -136,6 +136,18 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 236 — 2026-06-20  (USER FEEDBACK — AI economy: fix stockpile-spam freeze; verify player hauling)
+
+User: woodcutters still not delivering; AI builds without woodcutters / wrong costs.
+
+### Player woodcutter → stockpile: VERIFIED WORKING (`tools/ProbeWoodcutter.gd`)
+Real CitizenSystem, woodcutter + 2 stockpiles + forest: wood climbs 0→611, past the 500 RAW_BASE cap into the +200 stockpile capacity — delivered correctly to the shared pool that the stockpile's goods-piles render. So the pipeline + capacity are sound. The real-game symptom is situational: a woodcutter with **no forest in range** can't gather, or with **no stockpile** the pool caps at 500 and gatherers stall (build a Stockpile — the iter204 stores-full warning prompts this).
+
+### AI economy: real bug found + fixed (`tools/ProbeAIFaction.gd`, `AIFaction.gd`)
+The city-view AI (the besiegers) DOES build woodcutters and pay wood — but it **spammed stockpiles** (raised one whenever a store hit 85%; woodcutters kept refilling) until it hit MAX_FACTION_BUILDINGS (22) with **11 stockpiles**, then **froze**: wood ballooned to 1317 and stuck, gold stuck at 120, population stuck at 20. Fix: cap storage buildings (`MAX_STOCKPILES 3`, `MAX_GRANARIES 2`). Now it builds a balanced realm (3 orchards / 5 woodcutters / 5 hovels / 3 farms / trading post), **population grows 20→28**, **gold grows 120→376** (funds armies → real threat), wood stays bounded. Building costs are paid from its own stores (verified). Tests green: TestAIEconomy 6/0, TestStrategicAI 91/0, TestSiege 9/0, TestPhase6 104/0.
+
+---
+
 ## Iteration 235 — 2026-06-20  (USER FEEDBACK — rework rain + cloud shaders for quality)
 
 User: rain looked bad and clouds STILL had sharp edges. Both rewritten:

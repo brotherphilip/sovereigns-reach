@@ -22,6 +22,12 @@ const BUILD_PRIORITY: Dictionary = {
 	"ashen_barony":  ["apple_orchard", "woodcutter_camp", "hovel", "iron_mine", "trading_post", "hovel", "stone_quarry"],
 }
 const MAX_FACTION_BUILDINGS: int = 22
+# Storage buildings are capped so the AI doesn't blow its whole build budget on stockpiles
+# (it was raising one whenever a store hit 85%, and with woodcutters constantly refilling it
+# spammed ~11 stockpiles, hit MAX_FACTION_BUILDINGS, and froze its economy). A few is plenty;
+# the rest of the budget goes to productive buildings + housing.
+const MAX_STOCKPILES: int = 3
+const MAX_GRANARIES:  int = 2
 
 # Food/gold routing for abstract faction stores.
 const _FOOD_GOODS: Array = ["apples", "bread", "cheese", "meat", "ale"]
@@ -278,6 +284,15 @@ static func _ai_housing_cap(faction: Dictionary) -> int:
 			cap += HOVEL_ROOMS
 	return cap
 
+# How many of a given building type the faction has built.
+static func _count_type(faction: Dictionary, btype: String) -> int:
+	var n: int = 0
+	for b in faction.get("buildings", []):
+		var bt: String = b if b is String else (b.get("type", "") if b is Dictionary else "")
+		if bt == btype:
+			n += 1
+	return n
+
 # Erect one production building per day if affordable, following the archetype's
 # priority cycle. Buildings cost the standard BuildingRegistry resources.
 static func _build_economy(faction: Dictionary) -> void:
@@ -287,10 +302,12 @@ static func _build_economy(faction: Dictionary) -> void:
 	# STORAGE FIRST (symmetry): if a store is nearly full, the AI raises another stockpile/
 	# granary so production can keep flowing — "stockpiles multiplied when full", exactly as
 	# the player must. Only when storage has headroom does it return to its economy cycle.
-	if _raw_stored(faction) >= int(float(_raw_capacity(faction)) * STORAGE_FULL_FRAC):
+	if _count_type(faction, "stockpile") < MAX_STOCKPILES \
+			and _raw_stored(faction) >= int(float(_raw_capacity(faction)) * STORAGE_FULL_FRAC):
 		if _try_build(faction, "stockpile"):
 			return
-	if _food_stored(faction) >= int(float(_food_capacity(faction)) * STORAGE_FULL_FRAC):
+	if _count_type(faction, "granary") < MAX_GRANARIES \
+			and _food_stored(faction) >= int(float(_food_capacity(faction)) * STORAGE_FULL_FRAC):
 		if _try_build(faction, "granary"):
 			return
 	var order: Array = BUILD_PRIORITY.get(faction.get("archetype", ""), [])
