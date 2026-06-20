@@ -136,6 +136,18 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 237 — 2026-06-20  (USER-STEERED — woodcutter overhaul phase 1: walk to forest ANYWHERE)
+
+Root cause of "built a woodcutter + stockpile, wood never moved" (proven via `tools/ProbeRealWood.gd` on the real GameState): the gatherer only searched a 16-tile radius for trees, so a hut not adjacent to forest produced nothing, silently. User wants the woodcutter to walk to forest wherever it is (placement-independent) — first phase of a bigger living-forest + work-cycle overhaul.
+- **`_find_node`** now searches the WHOLE map (expanding rings from the hut → nearest tree first); placement no longer matters.
+- **Travel budget**: the SEEK abort (`HAUL_TIMEOUT`, meant for unreachable targets) would cut off long treks, so the budget now scales with distance (`seek_max = HAUL_TIMEOUT + dist·SEEK_TICKS_PER_TILE`).
+- Verified: forest ~40 tiles from the hut → wood 100→127 (worker walks there, fells, hauls back); no forest anywhere → no wood (expected). TestEconomy 18/0, TestWorkers 21/0, TestPathfinding 17/0.
+
+### Remaining phases (queued)
+living forest (3 growth stages sapling→young→adult at varied rates, spread to neighbours, rare new seeds, regrowth, only adults felled) → full work cycle (fell → prep → wheelbarrow logs to stockpile → unload → return) → tree visuals (bigger detailed 3-phase morph + falling animation, axe strikes land on the tree with a shake).
+
+---
+
 ## Iteration 236 — 2026-06-20  (USER FEEDBACK — AI economy: fix stockpile-spam freeze; verify player hauling)
 
 User: woodcutters still not delivering; AI builds without woodcutters / wrong costs.

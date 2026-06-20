@@ -28,7 +28,8 @@ const PH_PROCESS  = "process"    # work the raw into output (dwell)
 const PH_HAUL_OUT = "haul_out"   # carry the output to a store
 const PH_WAIT     = "wait"       # store full / no node — pause and retry
 
-const NODE_RADIUS: int = 16       # how far a gatherer ranges for a resource node
+const NODE_RADIUS: int = 16       # legacy ring step (kept for other callers)
+const SEEK_TICKS_PER_TILE: int = 70  # travel budget per tile to a distant resource node
 const HARVEST_TICKS: int = 90     # dwell felling/digging/picking
 const PROCESS_TICKS: int = 70     # dwell working raw into output
 const HARVEST_DEPLETE: int = 20   # resource_density removed per harvest
@@ -416,8 +417,8 @@ static func _tick_hauler(c: Dictionary, wb: Dictionary, buildings: Array, citize
 			if _arrived(c):
 				c["work_phase"] = PH_GATHER
 				c["phase_ticks"] = HARVEST_TICKS
-			elif int(c["haul_ticks"]) > HAUL_TIMEOUT:
-				c["src_set"] = false   # unreachable — pick another source
+			elif int(c["haul_ticks"]) > int(c.get("seek_max", HAUL_TIMEOUT)):
+				c["src_set"] = false   # genuinely unreachable (beyond travel budget) — re-pick
 		PH_GATHER:
 			c["vx"] = 0.0; c["vy"] = 0.0
 			c["work_anim"] = job_anim
@@ -538,6 +539,10 @@ static func _hauler_pick_source(c: Dictionary, wb: Dictionary, buildings: Array,
 		c["node_x"] = int(node.x); c["node_y"] = int(node.y)
 		var stand := _snap_to_free(grid, node)
 		c["tx"] = stand.x; c["ty"] = stand.y; c["ptx"] = -99999
+		# A distant tree means a long walk — budget the travel time by distance so the worker
+		# isn't aborted mid-trek by the fixed HAUL_TIMEOUT (which is for UNREACHABLE targets).
+		var trek: float = Vector2(c["x"], c["y"]).distance_to(stand)
+		c["seek_max"] = HAUL_TIMEOUT + int(trek * SEEK_TICKS_PER_TILE)
 		return true
 	else:  # fetch (processor)
 		if not _has_inputs(wb, player):
@@ -547,13 +552,18 @@ static func _hauler_pick_source(c: Dictionary, wb: Dictionary, buildings: Array,
 		c["tx"] = t.x; c["ty"] = t.y; c["ptx"] = -99999
 		return true
 
-# Nearest harvestable node tile of `terrain` within NODE_RADIUS of the building.
+# NEAREST harvestable node tile of `terrain`, searched across the WHOLE map (expanding rings
+# from the hut, so the closest is returned first). The woodcutter/quarry/mine will walk to the
+# nearest forest/rock/ore wherever it is — placement of the hut no longer matters. The ring
+# search exits at the first hit, so a nearby resource costs little; only a resource-less map
+# scans far. (Called once per gather trip, not per frame.)
 static func _find_node(wb: Dictionary, terrain: int, grid: Object) -> Vector2:
 	if terrain < 0 or grid == null:
 		return Vector2(-1, -1)
 	var center := _site_center(wb)
 	var cx: int = int(round(center.x)); var cy: int = int(round(center.y))
-	for r in range(1, NODE_RADIUS + 1):
+	var max_r: int = maxi(grid.width, grid.height)
+	for r in range(1, max_r + 1):
 		for dy in range(-r, r + 1):
 			for dx in range(-r, r + 1):
 				if maxi(absi(dx), absi(dy)) != r:
