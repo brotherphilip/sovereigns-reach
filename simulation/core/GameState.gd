@@ -51,6 +51,7 @@ const FeudalRank       = preload("res://simulation/strategic/FeudalRank.gd")
 const WorldMapData     = preload("res://simulation/world/WorldMapData.gd")
 const CityGenerator    = preload("res://simulation/world/CityGenerator.gd")
 const SeasonSystem     = preload("res://simulation/world/SeasonSystem.gd")
+const ForestSystem     = preload("res://simulation/world/ForestSystem.gd")
 # All fields are plain Dictionary/Array/int/float/bool — JSON-serializable.
 # Never stores Godot objects (Vector2, Node, etc.) to ensure network/save readiness.
 # The View layer reads from here; it never writes here directly.
@@ -78,6 +79,7 @@ var _next_unit_id: int = 1     # Phase 6: monotonically increasing unit id
 var wildlife: Array = []
 var _next_animal_id: int = 1
 var _wildlife_rng: RandomNumberGenerator = null
+var _forest_rng: RandomNumberGenerator = null
 # Transient (not serialized): a cursor position (grid coords) the deer flee from
 # while the player is tracking one. Vector2.INF = no cursor threat.
 var wildlife_cursor_threat: Vector2 = Vector2.INF
@@ -126,6 +128,8 @@ func _init_default_state() -> void:
 	_social_rng.seed = server_config["map_seed"] ^ 0xBEEF1234
 	_wildlife_rng = RandomNumberGenerator.new()
 	_wildlife_rng.seed = server_config["map_seed"] ^ 0x0DEE12
+	_forest_rng = RandomNumberGenerator.new()
+	_forest_rng.seed = server_config["map_seed"] ^ 0xF0235711
 	wildlife = []
 	_next_animal_id = 1
 	_citizen_rng = RandomNumberGenerator.new()
@@ -161,6 +165,11 @@ func setup_world(seed_value: int = 12345, shire_count: int = 8) -> void:
 	world["shires"] = _shire_map.serialize().get("shires", [])
 	MarketSystem.initialize_prices(world)
 	_spawn_wildlife(seed_value)
+	# Seed the living forest from the map's wooded tiles (all start as mature adults).
+	if _forest_rng == null:
+		_forest_rng = RandomNumberGenerator.new()
+		_forest_rng.seed = seed_value ^ 0xF0235711
+	ForestSystem.init_from_grid(world, _grid, _forest_rng)
 
 # Scatter a few deer herds across open grass/valley terrain.
 func _spawn_wildlife(seed_value: int) -> void:
@@ -1247,6 +1256,14 @@ func simulate_tick(tick: int) -> void:
 		world["season_day"] = SeasonSystem.sky_day_of(cal_tick)
 		EventBus.season_changed.emit(season_now, SeasonSystem.season_name(season_now))
 
+	# The living forest grows once per calendar day: saplings mature, stumps regrow,
+	# adults seed neighbours, and a rare new sapling sprouts somewhere fresh.
+	if _grid != null and tick % SimulationClock.TICKS_PER_CALENDAR_DAY == 0:
+		if _forest_rng == null:
+			_forest_rng = RandomNumberGenerator.new()
+			_forest_rng.seed = int(server_config.get("map_seed", 1)) ^ 0xF0235711
+		ForestSystem.tick(world, _grid, _forest_rng)
+
 	for player in players:
 		if not player.get("is_alive", false):
 			continue
@@ -1293,7 +1310,7 @@ func simulate_tick(tick: int) -> void:
 	# economy for player 0. Felled/spent resource tiles come back so we repaint them.
 	if not citizens.is_empty() and not players.is_empty():
 		var farm_mult: float = weather.get("effects", {}).get("farm_yield_mult", 1.0)
-		var felled: Array = CitizenSystem.tick(citizens, players[0], _citizen_rng, tick, _grid, farm_mult, true)
+		var felled: Array = CitizenSystem.tick(citizens, players[0], _citizen_rng, tick, _grid, farm_mult, true, world)
 		for t in felled:
 			EventBus.terrain_painted.emit(t.x, t.y)
 		# A finished path-site becomes ROAD terrain and the placeholder building is removed.
@@ -3085,6 +3102,14 @@ func ensure_forest_near(cx: int, cy: int, reach: int = 14, want: int = 8) -> voi
 						var ty: int = ay + gy
 						if _grid.in_bounds(tx, ty) and _grid.get_terrain(tx, ty) == WorldGrid.Terrain.GRASS:
 							_grid.set_terrain(tx, ty, WorldGrid.Terrain.FOREST)
+							# Register the new tile as a mature tree so the living forest (and the
+							# woodcutter, which only fells ADULTS) recognises it.
+							if _forest_rng == null:
+								_forest_rng = RandomNumberGenerator.new()
+							if not world.has("trees"):
+								world["trees"] = {}
+							world["trees"][ForestSystem.key_for(_grid, tx, ty)] = \
+								[ForestSystem.ADULT, 1.0, _forest_rng.randf_range(ForestSystem.GROW_MIN, ForestSystem.GROW_MAX), 0]
 							planted += 1
 				if planted >= want:
 					return

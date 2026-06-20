@@ -113,6 +113,7 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 - **OBSERVATION — night dead-space (taste, needs USER call, NOT a bug):** deep-night `NightLayer.MAX_DARK = 0.92` (near-black away from lamps) + depopulated night (skeleton crew) ⇒ ~5 min/cycle dark+empty. Soften MAX_DARK or add night ambient life only if the user wants less dead time.
 - **WATCH-ITEM — late-game drought food crash (strengthened iter200):** food can crash to 0 mid-late game on a drought seed (a prolonged drought + a thin food workforce as a worker ages out). Now seen on **2 of 3 Day-150 seeds** — 31337 (min_pop 47.7, recovered) and 12345 (min_pop **27.9** — a PASSIVE autoplay eroded much closer to the revolt threshold of 10). 4242 was clean (min_food 70). NO seed has actually revolted/lost, and a real player has the low-food warning + ration control to cope (the passive autoplay can't react, so 27.9 is a worst case). NOT fixed (no loss; user wants calm, not easier). IF a future seed actually revolts, OR if the user wants drought-robustness, buff the drought-time food buffer (bigger granary base, deeper off-season/drought trickle, or auto-lower rations under famine).
 - **OBSERVATION — peaceful 100-day life (from the 10-cycle peace, user-directed):** the FLOOR run (iter194) reached day 114 with NO siege (King's Peace until day 750) while the standing objective still says "ready your defences — build a Barracks, Wall or Tower." The defence prompt is premature now; consider deferring it (or the King's-Peace-ending telegraph) closer to when threats actually arrive. Stems from the user's calm-realm directive — needs a user call before changing.
+- **FOREST TRACK (iter238 — overhaul landed, follow-ups open):** the living-forest + woodcutter work-cycle + tree-visuals overhaul is implemented & verified (probes + live renders), but (a) **no `tests/TestForest.gd` regression** yet — only throwaway probes guard a substantial new sim system (only-adults-fellable, fell→stump→regrow, sapling maturation, spread/new-seed, JSON-key survival); (b) the chop-shake / topple / barrow **animations are unverified on-screen mid-motion** (code + sim-state only); (c) glance to confirm a stray magenta tile seen in a grove is benign decor (wildflower/deer), not an artifact. Top item: add TestForest.gd.
 - **Deathmatch "Empires of Ages":** `deathmatch.md` absent; no active work. Create only when that mode is built.
 
 ### Resolved Index (recent, real evidence) — collapsed
@@ -136,6 +137,60 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 238 — 2026-06-20  (ANALYSIS LOOP — verify + document the forest overhaul's actual state)
+
+This loop's job: check planned works vs the game's real state, play, critically analyse, and update the
+docs to match. The planned works were the iter237 "Remaining phases (queued)" — **living forest, full
+work cycle, tree visuals**. Finding: **all three are now IMPLEMENTED** (working-tree, uncommitted at the
+start of this loop) and they hold up under both headless probes and live on-screen inspection.
+
+### What's actually in the game now (was "queued")
+- **Living forest** — `simulation/world/ForestSystem.gd`: every FOREST tile is a tree `[stage, growth,
+  rate, regrow]` in `world["trees"]` (string keys → JSON-safe), ticked once per calendar day from
+  `GameState.simulate_tick`. Saplings→young→adult mature at per-tree rates; adults seed neighbours
+  (2%/day), a rare lone sapling sprouts (25%/day realm-wide), a felled tile is a STUMP that regrows
+  after 8 days. Seeded from the map's existing FOREST tiles as adults; `ensure_forest_near` registers
+  its planted tiles too.
+- **Work cycle** — `CitizenSystem`: the woodcutter fells ONLY adults, then a new `PH_PREP` phase
+  (buck the trunk into logs at the stump, 60t) → `carry_mode="barrow"` → haul to stockpile → unload
+  (barrow parked). Falls back to the legacy `resource_density` gather when no forest model (tests).
+- **Tree visuals** — `view/micro/TreeLayer.gd` owns ALL forest rendering (DecorChunk's `_draw_forest`
+  is now a no-op for FOREST tiles): 3-stage canopy morph, chop-SHAKE while felling, topple-on-fell
+  (from `world["tree_falls"]`), seasonal palettes + winter snow-caps; `CitizenLayer._draw_barrow`
+  draws the loaded wheelbarrow + the axe now reaches the ACTUAL trunk (`act_x/act_y`).
+
+### Verified this iteration
+- **ProbeForestGame** (real GameState, woodcutter + stockpile + a grove ~40 tiles off): wood **100→129**,
+  adult grove felled down with **stumps left (11)** and **regrowing**, `tree_falls` recorded, and the
+  `world["trees"]` JSON round-trip preserves all keys/stages (no orphaning on save/load).
+- **ProbeForest**: saplings mature 0→sapling→young across days; only adults fellable; keys are Strings.
+- **Live Xvfb renders** (seed 42, new `SR_CAM_DX/DY` camera-offset hook + `SR_ZOOM`): a forest grove
+  reads as **green layered iso canopies with real size variety** (growth stages) at play zoom (1.0) and
+  detailed crowns+trunks+shadow up close (3.2). The forest is abundant (3797 tiles), sparse-edged near
+  the keep, dense interiors farther out — fine now the woodcutter reaches anywhere.
+- **Tests green**: TestEconomy 18/0, TestWorkers 21/0, TestPathfinding 17/0.
+
+### Critical analysis (human-player lens)
+- **Depth win:** forestry now has a *sustainability* dimension — clear-cut a grove and it slowly
+  regrows/rotates; this is a genuine, legible system, not a flat resource tile. Good.
+- **Aesthetics:** trees look like trees and vary by age. At medium/far zoom a grove can read as a
+  darker mass, and a drifting **cloud-shadow** (iter233) can tint a grove blue-grey for a few seconds —
+  cosmetic/transient, NOT a tree bug (it briefly looked alarming in a first screenshot).
+- **GAP — no regression test:** a substantial new sim system ships with only throwaway probe scripts.
+  `tests/TestForest.gd` should assert: only-adults-fellable, fell→stump→regrow, sapling maturation,
+  spread/new-seed, and JSON key survival. **Top backlog item for the forest track.**
+- **Not yet captured live:** chop-shake / topple / barrow are verified in code + sim-state (carry_mode,
+  PH_PREP, tree_falls) but I did not freeze-frame one mid-swing on-screen (woodcutter location is
+  autoplay-dependent). Worth a targeted capture next.
+- **Minor:** a stray magenta/purple tile appeared once inside a grove (likely a violet-wildflower decor
+  cluster or a deer, not a tree) — glance to confirm it's benign decor.
+
+### Status note
+The forest work was code-complete but **uncommitted**; this loop commits it (iter238) after verifying
+green, per the per-iteration commit convention, plus the `SR_CAM_DX/DY` dev hook added for inspection.
+
+---
+
 ## Iteration 237 — 2026-06-20  (USER-STEERED — woodcutter overhaul phase 1: walk to forest ANYWHERE)
 
 Root cause of "built a woodcutter + stockpile, wood never moved" (proven via `tools/ProbeRealWood.gd` on the real GameState): the gatherer only searched a 16-tile radius for trees, so a hut not adjacent to forest produced nothing, silently. User wants the woodcutter to walk to forest wherever it is (placement-independent) — first phase of a bigger living-forest + work-cycle overhaul.
@@ -143,8 +198,8 @@ Root cause of "built a woodcutter + stockpile, wood never moved" (proven via `to
 - **Travel budget**: the SEEK abort (`HAUL_TIMEOUT`, meant for unreachable targets) would cut off long treks, so the budget now scales with distance (`seek_max = HAUL_TIMEOUT + dist·SEEK_TICKS_PER_TILE`).
 - Verified: forest ~40 tiles from the hut → wood 100→127 (worker walks there, fells, hauls back); no forest anywhere → no wood (expected). TestEconomy 18/0, TestWorkers 21/0, TestPathfinding 17/0.
 
-### Remaining phases (queued)
-living forest (3 growth stages sapling→young→adult at varied rates, spread to neighbours, rare new seeds, regrowth, only adults felled) → full work cycle (fell → prep → wheelbarrow logs to stockpile → unload → return) → tree visuals (bigger detailed 3-phase morph + falling animation, axe strikes land on the tree with a shake).
+### Remaining phases (queued) — ✅ ALL IMPLEMENTED in iter238 (see above)
+living forest (3 growth stages sapling→young→adult at varied rates, spread to neighbours, rare new seeds, regrowth, only adults felled) → full work cycle (fell → prep → wheelbarrow logs to stockpile → unload → return) → tree visuals (bigger detailed 3-phase morph + falling animation, axe strikes land on the tree with a shake). **Done & verified iter238; remaining: a TestForest.gd regression + an on-screen capture of the chop/topple/barrow mid-motion.**
 
 ---
 

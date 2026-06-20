@@ -542,8 +542,12 @@ func _draw_worker(sx: float, sy: float, c: Dictionary) -> void:
 	if working:
 		_draw_job(c, j, anim, style, t)
 	elif hauling:
-		_limb2(j.sh, Vector2(j.sh.x + face * 3.0 * s, j.hip.y + 1.0 * s), face * 1.0, skin, 1.7 * s)
-		_draw_carry_load(j.sh.x, j.sh.y, s, c.get("carry", ""))
+		if String(c.get("carry_mode", "")) == "barrow":
+			# Trundling a loaded wheelbarrow: both arms reach down-forward to the handles.
+			_draw_barrow(sx, sy, j, s, face, skin, c.get("carry", ""))
+		else:
+			_limb2(j.sh, Vector2(j.sh.x + face * 3.0 * s, j.hip.y + 1.0 * s), face * 1.0, skin, 1.7 * s)
+			_draw_carry_load(j.sh.x, j.sh.y, s, c.get("carry", ""))
 	else:
 		_limb2(j.sh, j.hand, j.arm_bend, skin, 1.7 * s)
 		_limb2(j.sh, j.back_hand, j.back_bend, skin, 1.6 * s)
@@ -573,7 +577,12 @@ func _draw_job(c: Dictionary, j: Dictionary, anim: String, style: Dictionary, t:
 	match anim:
 		"chop":   # axe swings down along the aim into the trunk
 			var sw: float = _swing01(t, 7.0)                    # 0 raised … 1 struck (fast down)
-			var reach: float = (3.0 + sw * 4.0) * s
+			# Reach most of the way to the actual trunk so the blade lands ON the tree, not in
+			# mid-air beside it (the worker stands a tile off the impassable forest tile).
+			var trunk_d: float = 6.0 * s
+			if c.has("act_x"):
+				trunk_d = clampf((_to_screen(c["act_x"], c["act_y"]) - shp).length() - 4.0 * s, 6.0 * s, 22.0 * s)
+			var reach: float = (3.0 * s) + sw * (trunk_d - 3.0 * s)
 			var hand: Vector2 = shp + aim * reach + Vector2(0, -4.0 * s + sw * 5.0 * s)
 			_limb2(shp, hand, -face * 1.2, skin, 1.8 * s)
 			var bit: Vector2 = hand + aim * 5.0 * s + Vector2(0, sw * 2.5 * s)
@@ -678,6 +687,33 @@ func _draw_carry_load(sx: float, sh: float, s: float, good: String) -> void:
 	var top := sh + 1.0 * s
 	draw_rect(Rect2(sx - 3.0 * s, top, 6.0 * s, 5.0 * s), col)
 	draw_rect(Rect2(sx - 3.0 * s, top, 6.0 * s, 5.0 * s), col.darkened(0.3), false, 0.8)
+
+# A pushed wheelbarrow piled with logs, ahead of the pawn in its facing direction. Both hands
+# grip the handles. A small jolt makes it look heavy (the worker struggles, but keeps pace).
+func _draw_barrow(sx: float, sy: float, j: Dictionary, s: float, face: float, skin: Color, good: String) -> void:
+	var jolt: float = sin(_anim_time * 9.0) * 0.6 * s
+	var fwd: float = face * 9.0 * s
+	var wheel := Vector2(sx + fwd + face * 3.0 * s, sy + 1.0 * s + jolt)
+	var tray := Vector2(sx + fwd, sy - 4.0 * s + jolt)
+	# Wheel.
+	draw_circle(wheel, 2.6 * s, Color(0.20, 0.16, 0.12))
+	draw_circle(wheel, 1.1 * s, Color(0.40, 0.30, 0.20))
+	# Tray (a slanted wooden tub) + leg.
+	draw_colored_polygon(PackedVector2Array([
+		tray + Vector2(-face * 4.5 * s, -1.0 * s), tray + Vector2(face * 4.5 * s, -1.0 * s),
+		tray + Vector2(face * 3.0 * s, 4.0 * s), tray + Vector2(-face * 3.0 * s, 4.0 * s)]),
+		Color(0.46, 0.33, 0.19))
+	draw_line(tray + Vector2(-face * 3.0 * s, 4.0 * s), tray + Vector2(-face * 3.0 * s, 8.0 * s), Color(0.34, 0.24, 0.14), 1.4 * s)
+	# Logs heaped in the tub.
+	var logc := Color(0.50, 0.36, 0.20) if good != "stone" else Color(0.60, 0.60, 0.64)
+	for i in range(3):
+		var lx: float = tray.x + (float(i) - 1.0) * 2.4 * s
+		draw_circle(Vector2(lx, tray.y - 1.6 * s), 1.7 * s, logc)
+		draw_circle(Vector2(lx, tray.y - 1.6 * s), 0.7 * s, logc.lightened(0.25))
+	# Handles back to the hands.
+	var handle := Vector2(sx + face * 3.0 * s, j.hip.y + 1.0 * s)
+	draw_line(handle, tray + Vector2(-face * 3.5 * s, 0.0), Color(0.40, 0.29, 0.17), 1.4 * s)
+	_limb2(j.sh, handle, face * 0.8, skin, 1.7 * s)
 
 func _draw_shouldered_tool(sx: float, sh: float, s: float, face: float, anim: String, style: Dictionary) -> void:
 	match anim:

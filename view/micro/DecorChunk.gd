@@ -48,7 +48,7 @@ func _draw_decor(gx: int, gy: int) -> void:
 	var cx: float = (gx - gy) * HALF_W
 	var cy: float = (gx + gy) * HALF_H
 	match terrain:
-		T_FOREST:   _draw_forest(cx, cy, gx, gy)
+		T_FOREST:   pass  # trees are drawn by the animated TreeLayer (living forest), not here
 		T_MOUNTAIN: _draw_mountain(cx, cy, gx, gy)
 		T_ROCK:     _draw_rock(cx, cy, gx, gy)
 		T_RIVER:    _draw_river(cx, cy)

@@ -16,6 +16,13 @@ const WorldGrid        = preload("res://simulation/world/WorldGrid.gd")
 const ResourceTick     = preload("res://simulation/economy/ResourceTick.gd")
 const StorageSystem    = preload("res://simulation/economy/StorageSystem.gd")
 const FoodSystem       = preload("res://simulation/economy/FoodSystem.gd")
+const ForestSystem     = preload("res://simulation/world/ForestSystem.gd")
+
+# Tick-scoped handle to the live world dict (set at the top of tick()). Lets the
+# woodcutter consult the living forest — fell ONLY adult trees, regrow stumps — without
+# threading `world` through every hauler signature. Empty {} → no forest model (tests):
+# the woodcutter falls back to the old resource_density gathering.
+static var _world: Dictionary = {}
 
 # ── Hauler (gather → process → deliver) ─────────────────────────────────────────
 # Chain workers physically fetch raw goods from a map node (or a stockpile), process
@@ -25,8 +32,11 @@ const PH_SEEK     = "seek"       # walk to source (node / input stockpile / fiel
 const PH_GATHER   = "gather"     # harvest a node or fetch an input (dwell)
 const PH_HAUL_IN  = "haul_in"    # carry the raw load back to the workplace
 const PH_PROCESS  = "process"    # work the raw into output (dwell)
+const PH_PREP     = "prep"       # woodcutter: buck the felled trunk into logs (dwell at stump)
 const PH_HAUL_OUT = "haul_out"   # carry the output to a store
 const PH_WAIT     = "wait"       # store full / no node — pause and retry
+
+const PREP_TICKS: int = 60        # dwell bucking the felled trunk into haulable logs
 
 const NODE_RADIUS: int = 16       # legacy ring step (kept for other callers)
 const SEEK_TICKS_PER_TILE: int = 70  # travel budget per tile to a distant resource node
@@ -136,7 +146,8 @@ static func _is_working_age(c: Dictionary) -> bool:
 # ore/rock) so the caller can repaint them (GameState emits EventBus.terrain_painted).
 static func tick(citizens: Array, player, rng: RandomNumberGenerator,
 		_tick_count: int, grid: Object = null, farm_mult: float = 1.0,
-		day_night: bool = false) -> Array:
+		day_night: bool = false, world: Dictionary = {}) -> Array:
+	_world = world
 	var pdict: Dictionary = player if player is Dictionary else {"buildings": player}
 	# Ensure the economy sub-dicts exist so the hauler can read/credit without crashing.
 	if not pdict.has("resources"): pdict["resources"] = {}
@@ -433,11 +444,21 @@ static func _tick_hauler(c: Dictionary, wb: Dictionary, buildings: Array, citize
 			if int(c["phase_ticks"]) <= 0:
 				if int(c.get("node_x", -1)) >= 0 and grid != null:
 					var nx: int = int(c["node_x"]); var ny: int = int(c["node_y"])
-					var dens: int = grid.get_resource_density(nx, ny) - HARVEST_DEPLETE
-					grid.set_resource_density(nx, ny, maxi(0, dens))
-					if dens <= 0:
-						grid.set_terrain(nx, ny, WorldGrid.Terrain.GRASS)
+					var is_forest: bool = grid.get_terrain(nx, ny) == WorldGrid.Terrain.FOREST
+					var forest_model: bool = is_forest and not _world.is_empty() and _world.has("trees")
+					if forest_model:
+						# Living forest: fell the whole ADULT tree — it topples, leaves a stump
+						# that will regrow, and the worker bucks it into logs (PREP) before
+						# barrowing them to the store.
+						ForestSystem.fell(_world, grid, nx, ny)
+						_record_tree_fall(nx, ny)
 						changed.append(Vector2i(nx, ny))
+					else:
+						var dens: int = grid.get_resource_density(nx, ny) - HARVEST_DEPLETE
+						grid.set_resource_density(nx, ny, maxi(0, dens))
+						if dens <= 0:
+							grid.set_terrain(nx, ny, WorldGrid.Terrain.GRASS)
+							changed.append(Vector2i(nx, ny))
 					# NODE harvest (woodcutter/quarry/mine): nothing to "process" — carry the
 					# felled goods STRAIGHT to a stockpile, no detour back to the camp, so the
 					# worker is plainly seen hauling its wood/stone/ore to the store.
@@ -450,8 +471,13 @@ static func _tick_hauler(c: Dictionary, wb: Dictionary, buildings: Array, citize
 					var nstore := _pick_store(buildings, String(c["carry"]), Vector2(c["x"], c["y"]))
 					var nspot: Vector2 = _work_spot(nstore, int(c.get("work_slot", 0)), rng, grid) if not nstore.is_empty() else _work_spot(wb, 0, rng, grid)
 					c["tx"] = nspot.x; c["ty"] = nspot.y; c["ptx"] = -99999
-					c["work_phase"] = PH_HAUL_OUT
-					c["haul_ticks"] = 0
+					if forest_model:
+						# Buck the trunk into logs at the stump, then barrow them out.
+						c["work_phase"] = PH_PREP
+						c["phase_ticks"] = PREP_TICKS
+					else:
+						c["work_phase"] = PH_HAUL_OUT
+						c["haul_ticks"] = 0
 					return
 				elif _chain_source(btype) == "fetch":
 					if not _consume_inputs(wb, player):
@@ -461,6 +487,18 @@ static func _tick_hauler(c: Dictionary, wb: Dictionary, buildings: Array, citize
 				var spot := _work_spot(wb, int(c.get("work_slot", 0)), rng, grid)
 				c["tx"] = spot.x; c["ty"] = spot.y; c["ptx"] = -99999
 				c["work_phase"] = PH_HAUL_IN
+				c["haul_ticks"] = 0
+		PH_PREP:
+			# Stand at the stump bucking the felled trunk into logs, then load the wheelbarrow
+			# and trundle it to the store (the view draws a barrow; movement pace is unchanged).
+			c["vx"] = 0.0; c["vy"] = 0.0
+			c["work_anim"] = job_anim
+			if int(c.get("node_x", -1)) >= 0:
+				c["act_x"] = float(c["node_x"]); c["act_y"] = float(c["node_y"])
+			c["phase_ticks"] = int(c.get("phase_ticks", 0)) - 1
+			if int(c["phase_ticks"]) <= 0:
+				c["carry_mode"] = "barrow"
+				c["work_phase"] = PH_HAUL_OUT
 				c["haul_ticks"] = 0
 		PH_HAUL_IN:
 			c["work_anim"] = "carry"
@@ -503,6 +541,7 @@ static func _tick_hauler(c: Dictionary, wb: Dictionary, buildings: Array, citize
 			c["haul_ticks"] = int(c.get("haul_ticks", 0)) + 1
 			if _arrived(c) or int(c["haul_ticks"]) > HAUL_TIMEOUT:
 				if _hauler_deposit(c, wb, player, season, farm_mult):
+					c["carry_mode"] = ""   # barrow emptied and parked
 					c["work_phase"] = PH_SEEK; c["src_set"] = false
 				else:
 					c["work_phase"] = PH_WAIT; c["phase_ticks"] = WAIT_TICKS   # store full
@@ -569,9 +608,32 @@ static func _find_node(wb: Dictionary, terrain: int, grid: Object) -> Vector2:
 				if maxi(absi(dx), absi(dy)) != r:
 					continue
 				var x: int = cx + dx; var y: int = cy + dy
-				if grid.in_bounds(x, y) and grid.get_terrain(x, y) == terrain and grid.get_resource_density(x, y) > 0:
+				if not grid.in_bounds(x, y) or grid.get_terrain(x, y) != terrain:
+					continue
+				# Living forest: only FULLY-GROWN adult trees are fellable — saplings and young
+				# trees are left to mature, so the woodland rotates. (Other nodes / no forest
+				# model fall back to the resource_density gate.)
+				if terrain == WorldGrid.Terrain.FOREST and not _world.is_empty() and _world.has("trees"):
+					if ForestSystem.is_adult(_world, grid, x, y):
+						return Vector2(x, y)
+					continue
+				if grid.get_resource_density(x, y) > 0:
 					return Vector2(x, y)
 	return Vector2(-1, -1)
+
+# Record a freshly-felled tree so the view can play a topple animation. A small rolling list
+# of {x, y, dir} in world["tree_falls"]; the TreeLayer consumes & clears entries as it starts
+# each fall, so the list stays near-empty (and harmless if the view never reads it).
+static func _record_tree_fall(x: int, y: int) -> void:
+	if _world.is_empty():
+		return
+	var falls: Array = _world.get("tree_falls", [])
+	# Lean fall direction deterministically from the tile so it looks natural, not random churn.
+	var dir: float = 1.0 if ((x * 73 + y * 31) % 2) == 0 else -1.0
+	falls.append({"x": x, "y": y, "dir": dir})
+	if falls.size() > 64:        # safety cap if the view isn't consuming
+		falls = falls.slice(falls.size() - 64)
+	_world["tree_falls"] = falls
 
 static func _nearest_building_of(buildings: Array, types: Array, from: Vector2) -> Dictionary:
 	var best: Dictionary = {}

@@ -170,7 +170,11 @@ func _snap_keep_to_buildable() -> void:
 func _build_scene() -> void:
 	_camera = preload("res://view/micro/CameraController.gd").new()
 	_camera.name     = "Camera"
-	_camera.position = _iso_origin(_keep_x, _keep_y)
+	# Dev hook: SR_CAM_DX / SR_CAM_DY shift the initial camera by a tile offset from the keep,
+	# so screenshots can inspect arbitrary map features (e.g. a forest grove) without a live pan.
+	var cam_x: int = _keep_x + int(OS.get_environment("SR_CAM_DX")) if OS.get_environment("SR_CAM_DX") != "" else _keep_x
+	var cam_y: int = _keep_y + int(OS.get_environment("SR_CAM_DY")) if OS.get_environment("SR_CAM_DY") != "" else _keep_y
+	_camera.position = _iso_origin(cam_x, cam_y)
 	add_child(_camera)
 
 	_world_root = Node2D.new()
@@ -198,6 +202,13 @@ func _build_scene() -> void:
 	_decor_layer.name = "DecorationLayer"
 	_world_root.add_child(_decor_layer)
 	_decor_layer.set_camera(_camera)
+
+	# The living forest — animated trees (growth phases, chop-shake, topple-on-fell), drawn
+	# from world["trees"]. Owns all FOREST-tile rendering (the static decor no longer draws them).
+	var tree_layer := preload("res://view/micro/TreeLayer.gd").new()
+	tree_layer.name = "TreeLayer"
+	_world_root.add_child(tree_layer)
+	tree_layer.set_camera(_camera)
 
 	_bld_layer = preload("res://view/micro/BuildingLayer.gd").new()
 	_bld_layer.name = "BuildingLayer"
