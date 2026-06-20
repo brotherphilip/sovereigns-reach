@@ -136,6 +136,12 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 212 — 2026-06-20  (USER-STEERED sprite track — the Barracks)
+
+Fifth painted building (Hall, Market, Keep, Church, Barracks). Keyed barracks candidate 0 → `view/micro/sprites/barracks.png` (4×3, `width_k 1.28, anchor (0.5, 0.73)`). `_SpriteTrial` before/after: a military compound (twin gabled halls, red war-banners, palisade, cobbled path) replacing the plain procedural hut — well-anchored. Keyed sprite committed; raw git-ignored.
+
+---
+
 ## Iteration 211 — 2026-06-20  (USER-STEERED sprite track — the Church)
 
 Fourth painted building (Hall, Market, Keep, Church). Keyed church candidate 0 → `view/micro/sprites/church.png` (1400×1363), wired into `BuildingSpriteOverlay` (3×4, `width_k 1.26, anchor (0.5, 0.745)`). `_SpriteTrial` before/after: a stone church with spire, red roof, arched doorway + landscaped plot replacing the procedural gray pyramid — well-anchored. Keyed sprite committed; raw candidate git-ignored.

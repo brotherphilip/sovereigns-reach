@@ -19,6 +19,7 @@ const SPRITES := {
 	"market":       "res://view/micro/sprites/market.png",
 	"keep":         "res://view/micro/sprites/keep.png",
 	"church":       "res://view/micro/sprites/church.png",
+	"barracks":     "res://view/micro/sprites/barracks.png",
 }
 # Raw (black background) source, used only if the keyed file is missing.
 const RAW_SOURCES := {
@@ -36,6 +37,7 @@ const PLACEMENT := {
 	"market":       {"width_k": 1.28, "anchor": Vector2(0.500, 0.730)},
 	"keep":         {"width_k": 1.30, "anchor": Vector2(0.500, 0.760)},
 	"church":       {"width_k": 1.26, "anchor": Vector2(0.500, 0.745)},
+	"barracks":     {"width_k": 1.28, "anchor": Vector2(0.500, 0.730)},
 }
 
 # Cache: btype -> Texture2D (keyed). Null entry = tried & failed (don't retry).
