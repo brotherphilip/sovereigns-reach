@@ -141,6 +141,35 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 249 — 2026-06-20  (ANALYSIS LOOP — villager life & day-night micro layer)
+
+Inspected the living-world micro layer up close (now possible thanks to the iter244 `ZOOM_MAX` 5.0):
+a populated `SR_WORKERS` town by day and a forced-midnight scene.
+
+### Healthy
+- **Villagers are detailed, articulated figures** at close zoom (two-segment limbs, per-id tunic
+  colours) — they populate the town, staff buildings, and (verified earlier) sleep indoors at night
+  with a skeleton crew on food buildings. The "living people" layer is genuinely present.
+
+### Reconfirmed observations (both already known / minor — not new bugs)
+- **Idle-villager clustering:** when there are more people than job slots (exaggerated in `SR_WORKERS`'s
+  40-villager spawn), the surplus **clumps tightly at the spawn point** as a blob rather than dispersing
+  or loitering in varied spots. In a real game the surplus is smaller, but idle pawns bunched at one
+  tile read less "alive" than scattered loitering/wandering would. Minor polish candidate (idle wander/
+  gather-points).
+- **Deep-night dead-space (CONFIRMED, existing backlog):** at forced midnight the scene is near-black
+  away from the warm lamp pools (`NightLayer.MAX_DARK 0.92`) with villagers asleep indoors → ~empty dark
+  view for the deep-night stretch (~5 min/sun-cycle). Atmospheric but can read as dead time on the live
+  viewer. Still a **user taste-call** (the calm/atmospheric direction is user-set) — unchanged.
+
+### Net
+The villager/day-night layer is sound; nothing new broke. This was a confirm-healthy pass with two
+minor reconfirmations. **The analysis sweep is now reaching saturation** — the major subsystems are all
+verified healthy and the remaining value is concentrated in the user-decision items consolidated in
+iter247 (+ the iter248 narration gap), not in further "subsystem is fine" passes. No code/balance changed.
+
+---
+
 ## Iteration 248 — 2026-06-20  (ANALYSIS LOOP — narration VO coverage audit)
 
 Audited narration voice-over coverage (project rule: *every pop-up needs a VO*) by cross-referencing the
