@@ -31,6 +31,7 @@ var _bld_layer:     Node2D      = null
 var _unit_layer:    Node2D      = null
 var _animal_layer:  Node2D      = null
 var _citizen_layer: Node2D      = null
+var _cloud_layer:   Node2D      = null
 var _hud:           CanvasLayer = null
 var _macro_view:    CanvasLayer = null
 var _input_handler: Node        = null
@@ -222,6 +223,12 @@ func _build_scene() -> void:
 	_citizen_layer = preload("res://view/micro/CitizenLayer.gd").new()
 	_citizen_layer.name = "CitizenLayer"
 	_world_root.add_child(_citizen_layer)
+
+	# Drifting daytime cloud shadows over the whole scene (above the world content, below the
+	# night wash). Coverage is driven by the weather system; fades out at night.
+	_cloud_layer = preload("res://view/micro/CloudShadowLayer.gd").new()
+	_cloud_layer.name = "CloudShadowLayer"
+	_world_root.add_child(_cloud_layer)
 
 	# Day/night lighting — drawn last so it sits over the world. The darkening wash first,
 	# then the ADDITIVE building lights on top so lamps genuinely brighten the night.

@@ -136,6 +136,12 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 233 — 2026-06-20  (USER-STEERED — ATMOSPHERE OVERHAUL phase 2: drifting cloud shadows)
+
+Daytime cloud shadows now glide over the whole settlement. New `cloud_shadow.gdshader` (blend_mul) scrolls animated fbm noise across a single world-covering quad; where it crosses the `coverage` threshold the scene darkens (soft feathered patches over ground, buildings, people). `coverage` 0→1 goes from a few sparse patches (fine day) to heavy overcast — the weather build-up will drive it. `daylight` (= 1 − `SeasonSystem.night_factor`) fades the shadows out at night so the night wash takes over. New `CloudShadowLayer` (GPU-animated, one static quad), wired above the world content + below the night wash. Verified: soft drifting shadows on a fine day (coverage 0.30).
+
+---
+
 ## Iteration 232 — 2026-06-20  (USER-STEERED — ATMOSPHERE OVERHAUL phase 1: textured ground)
 
 User requested a big atmosphere system: textured ground, wind-sway shader, a rain mode (overlay + wet look), drifting cloud shadows (density varying by day), weather BUILD-UP over the sun-cycle (rain the day before; snow starts the day before winter), and storms. Building it in phases.
