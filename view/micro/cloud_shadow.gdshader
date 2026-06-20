@@ -8,10 +8,10 @@ render_mode blend_mul;
 
 uniform float coverage = 0.30;        // 0 clear … 1 overcast
 uniform float darkness = 0.34;        // how dark a full shadow core gets
-uniform float softness = 0.18;        // edge feather of the shadow patches
+uniform float softness = 0.34;        // edge feather — wide so patches fade in/out softly
 uniform vec2  wind      = vec2(0.7, 0.28);  // drift direction (world)
 uniform float wind_speed = 7.0;       // world px/sec drift
-uniform float scale     = 0.0016;     // noise frequency (per world px)
+uniform float scale     = 0.0012;     // noise frequency (per world px) — larger, rounder blobs
 uniform float daylight  = 1.0;        // 0 at night → no cloud shadows
 
 varying vec2 world_pos;
@@ -29,8 +29,9 @@ float vnoise(vec2 p) {
 	float d = hash(i + vec2(1.0, 1.0));
 	return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
 }
+// Smooth, mostly low-frequency field → big ROUNDED cloud blobs with no jagged high-freq edges.
 float fbm(vec2 p) {
-	return vnoise(p) * 0.6 + vnoise(p * 2.1 + 5.2) * 0.3 + vnoise(p * 4.3 + 11.7) * 0.1;
+	return vnoise(p) * 0.78 + vnoise(p * 2.0 + 5.2) * 0.22;
 }
 
 void fragment() {
