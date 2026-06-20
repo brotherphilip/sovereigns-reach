@@ -136,6 +136,16 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 221 — 2026-06-20  (USER-STEERED — Well candidate hunt + final full-town showcase)
+
+### Well: no good candidate
+Montaged all 6 raw `well` candidates — every one is a COTTAGE (the art prompt generated houses); candidate 5 has only a tiny well-head in the corner of a cottage plot. A wrong sprite is worse than the accurate (if small) procedural well, so the well stays procedural (no sprite wired; orphan PNG removed). Would need a re-generated well-specific asset.
+
+### Final showcase (REAL — SR_SPECTATE full-town render)
+Rendered a generated dev-8 town with the complete 28-building catalog: a rich, cohesive hand-painted medieval town (cathedral spires, village hall, guildhall, church, market, windmill, inn, barns…) in a consistent warm painterly style — a total transformation from the all-procedural look. Only intentional procedural elements remain (stockpile's dynamic goods-platform, hovels' per-id variety). No z-fighting/overlap faults. **Painted-sprite track complete** (28/~31 types; tower lacks art, well lacks a valid candidate, hovel/wall/stockpile intentional).
+
+---
+
 ## Iteration 220 — 2026-06-20  (USER-STEERED sprite track — Armorer, Gatehouse, Pig Farm, Dairy Farm — catalog ~complete)
 
 Final available-candidate batch (4). Painted buildings now **28** — essentially the whole catalog. `_SpriteTrial` before/after each:
