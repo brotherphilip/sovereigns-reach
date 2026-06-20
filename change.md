@@ -140,6 +140,43 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 247 — 2026-06-20  (ANALYSIS LOOP — tech/edicts check + CONSOLIDATED session findings)
+
+### Tech / Edicts — present & reasonably deep (quick assessment)
+- **Tech tree:** 20 techs across 5 branches (Agriculture/Industry/Military/Statecraft + Faith/Statecraft),
+  tiered 1–4, `cost_prestige` 100→600, with prerequisite chains (`requires`). Building unlocks key off
+  `BuildingRegistry.requires_tech`. Researched with **prestige** (earned via milestones).
+- **Edicts:** policy system with categories (Economy/…), ACTIVE vs PASSIVE types, point costs, and real
+  modifiers (food_consumption_reduction, orchard_yield_bonus, instant feast, etc.).
+- **Verdict:** functional and deep. Like the deeper world-events, the **late tiers (400–600 prestige)
+  are a long-horizon goal** not fully reached in one 20-min life — appropriate for a progression system
+  (gives a reason to keep playing), not a defect. The panels open from the bottom bar (Tech / Edicts).
+
+### ⇩ CONSOLIDATED — what this analysis session (iter238–247) found & the DECISIONS it needs ⇩
+**Shipped (verified, committed):** living-forest overhaul phases 2–4 (sim + visuals + work-cycle),
+`TestForest.gd` 22/0, new-player opening HUD-init bug fix, `ZOOM_MAX` 3.0→5.0 (fixed a legibility ceiling
+across felling/units/combat), and dev hooks `SR_CAM_DX/DY` + `SR_FELLDEMO`. Subsystems swept and found
+**mechanically healthy**: forest, new-player opening, mid-game economy, strategic world-map + title climb,
+combat/units, seasons/weather, world-events, tech/edicts.
+
+**Recurring theme:** the MECHANICS are solid; the gaps are all in the **teaching / legibility / content-
+visibility** layer. Five items need a USER PICK before I build them (all logged in Active Backlog):
+1. **Engagement — events nearly invisible per life** (iter246): ~1 event/20-min life, 27% see none, by the
+   calm-pacing design. Biggest call: keep as-is, or guarantee the FIRST event earlier so every player meets
+   the system once?
+2. **World-map onboarding** (iter243): the strategic climb has NO tutorial — a newcomer can't find their
+   village or learn Develop/Raise Army/March/Diplomacy. Build a short world-map tutorial / first-visit callout?
+3. **Felling theatre** (iter240/244): zoom now lets you SEE the fell, but the topple itself is undramatic —
+   bigger/slower topple + a "timber!" cue/dust puff?
+4. **Winter roof snow** (iter245): snow lands on ground+trees but not roofs — small cohesion polish.
+5. **Tooling — managed-growth autoplay** (iter242): the survival baseline builds no hovels/no trade, so
+   growth + the gold loop never appear on-screen. Worth a richer autoplay variant for honest captures?
+
+(No further code changes pending a steer; the loop keeps analysing remaining surface — audio/narration,
+day-night, building catalogue — but the high-value design calls are the five above.)
+
+---
+
 ## Iteration 246 — 2026-06-20  (ANALYSIS LOOP — world-events / diplomacy: content depth vs. cadence)
 
 Analysed the realm-events subsystem (`WorldEventSystem` + `EventChoicePanel`) — the flavour/decision
