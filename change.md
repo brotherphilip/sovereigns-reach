@@ -136,6 +136,20 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 224 — 2026-06-20  (USER-STEERED — fields & terrain polish #1: wheat field ridge-and-furrow)
+
+User picked "polish fields & terrain" (the flat procedural crop plots looked plain next to the painted buildings). Started with the plainest: the **wheat field** was a flat colour diamond with faint furrow lines + a tiny barn.
+
+### Change (`BuildingModels._wheat`)
+- **Ridge-and-furrow**: the plot now fills with alternating lit-ridge / shaded-furrow bands (11–15 rows, per-plot wobble) + a furrow shadow seam, so it reads as ploughed, textured earth with depth — matching the painterly buildings.
+- **Crop texture**: sparse stalk clumps dot the ridges at the growing/ripe stages (green stalks summer, gold autumn; bare in winter/stubble), so it reads as standing grain.
+- **`_SpriteTrial`**: now respects `SR_SEASON` (was hard-coded to season 2) so seasonal field stages can be tuned.
+
+### Verified
+`_SpriteTrial` autumn (gold) + summer (green) renders: clear ridge-and-furrow rows + crop stalks, a big upgrade over the flat diamond. Procedural-only change; no script errors. Next: orchard + hops ground texture.
+
+---
+
 ## Iteration 223 — 2026-06-20  (DEV-LOOP — general audit + performance verification after the visual overhaul)
 
 Returned to general mode now the visual track is complete. Live-gameplay audit of the painted city: looks great, no faults. Verified the 29-sprite overlay is **performance-neutral**: autoplay FPS under Xvfb is ~10-13 both on the current build AND at the pre-sprite base commit `0ad7750` (identical) — the low number is the headless "No DRI3 / required for presentation" readback artifact, not the game's real GPU performance, and the sprites added no measurable cost (9 cached `draw_texture_rect` calls/frame). No code change (no-churn).

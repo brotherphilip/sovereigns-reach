@@ -707,12 +707,35 @@ static func _wheat(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vector
 	ci.draw_colored_polygon(PackedVector2Array([t, r, b, l]), field)
 	var ex := t - l
 	var ey := b - l
-	# Furrow rows (count + spacing wobble per plot).
-	var row_col := field.darkened(0.22)
-	var nrows: int = rng.randi_range(6, 9)
-	for i in range(1, nrows):
-		var f: float = float(i) / float(nrows) + rng.randf_range(-0.01, 0.01)
-		ci.draw_line(l.lerp(t, f), b.lerp(r, f), row_col, 0.8)
+	# RIDGE-AND-FURROW: fill alternating bands across the plot (a lit ridge crest + a shaded
+	# furrow trough) so the field reads as ploughed, textured earth instead of a flat colour —
+	# matches the painterly buildings. Bands run l→b across to t→r; per-plot row count wobbles.
+	var nrows: int = rng.randi_range(11, 15)
+	var ridge_lit := field.lightened(0.06)
+	var furrow_dk := field.darkened(0.10)
+	var furrow_line := field.darkened(0.26)
+	for i in range(nrows):
+		var f0: float = float(i) / float(nrows)
+		var f1: float = float(i + 1) / float(nrows)
+		var a0: Vector2 = l.lerp(t, f0); var a1: Vector2 = l.lerp(t, f1)
+		var c0: Vector2 = b.lerp(r, f0); var c1: Vector2 = b.lerp(r, f1)
+		ci.draw_colored_polygon(PackedVector2Array([a0, a1, c1, c0]),
+			ridge_lit if (i % 2 == 0) else furrow_dk)
+		ci.draw_line(a0, c0, furrow_line, 0.7)            # furrow shadow seam
+	# Crop texture at the growing/ripe stages: sparse stalk clumps dotting the ridges, so the
+	# field reads as standing grain rather than a painted patch (winter/stubble stays bare).
+	if stage >= 1:
+		var stalk := (Color(0.40, 0.58, 0.22) if stage == 1 else
+			(Color(0.34, 0.52, 0.18) if stage == 2 else Color(0.78, 0.62, 0.20)))
+		var n_clumps: int = 26 if stage >= 2 else 14
+		for i in range(n_clumps):
+			var cu: float = rng.randf_range(0.06, 0.94)
+			var cv: float = rng.randf_range(0.06, 0.94)
+			var cp: Vector2 = l + ex * cu + ey * cv
+			var hh: float = rng.randf_range(2.0, 4.0) * (0.6 if stage == 1 else 1.0)
+			ci.draw_line(cp, cp + Vector2(rng.randf_range(-0.6, 0.6), -hh), stalk, 0.9)
+			if stage == 3:
+				ci.draw_line(cp + Vector2(1.4, 0), cp + Vector2(1.4 + rng.randf_range(-0.6, 0.6), -hh * 0.9), stalk, 0.9)
 	# Corner threshing barn (box + gable + door), tucked toward the back.
 	var bc: Vector2 = l + ex * rng.randf_range(0.18, 0.26) + ey * rng.randf_range(0.18, 0.26)
 	var barn := _box(ci, bc.lerp(t, 0.18), bc.lerp(r, 0.18), bc.lerp(b, 0.18), bc.lerp(l, 0.18), rng.randf_range(11.0, 13.0), WOOD_D.lightened(0.06), TEX_PLANK)
