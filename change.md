@@ -136,6 +136,14 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 226 — 2026-06-20  (USER-STEERED — fields polish #3: in-context verification, track complete)
+
+Live SR_SPECTATE town render: the wheat field's ridge-and-furrow banding reads clearly in-context, the orchard/hops grass-floor texture holds up, and the base grass terrain (mottled since iter168) reads as living ground — the painted buildings + textured fields + flowing water are cohesive and rich. Decided the base grass needs nothing more (per-tile tufts would risk clutter at map scale). **Fields-polish track complete** (wheat ridge-and-furrow, orchard + hops grass-floor; base grass already mottled). No code change (verification).
+
+**Honest status:** both user-steered visual tracks (painted buildings, field/terrain polish) are now complete and the game looks cohesive end-to-end. Remaining autonomous-safe visual work is thin; further high-value steps (well/tower art regen, mid-game engagement, night dead-space) need user direction.
+
+---
+
 ## Iteration 225 — 2026-06-20  (USER-STEERED — fields polish #2: orchard + hops grass-floor texture)
 
 Continued the fields polish. The orchard and hops plots had flat green ground (trees/trellises drawn on a single colour). Added a shared **`_grass_floor_texture`** helper (BuildingModels): faint mown bands (every other strip sun-lightened) + a scatter of darker grass tufts, deterministic from plot position. Called from `_orchard` (under the trees) and `_hops` (under the trellises). Subtle, grass-appropriate (vs the wheat's ploughed furrows). `_SpriteTrial` renders confirm both read as tended swards now. No script errors.
