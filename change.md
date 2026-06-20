@@ -109,7 +109,7 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ### Active Backlog (Base Game) — deduplicated
 - **Phase 2 (deferred, user-agreed): physical AI cities** — prototype ONE AI city running CitizenSystem hauling; measure FPS/tick cost before committing.
-- **Visual polish (POLISH):** WALL colours still cluster (tan-timber / grey-stone / wood-plank); `market` reads sparse and `well` is tiny at play-zoom. (Roofs diversified iter175; villager tunics iter191; watchtower rebuilt iter193.)
+- **Visual polish (POLISH):** WALL colours still cluster (tan-timber / grey-stone / wood-plank); `market` reads sparse and `well` is tiny at play-zoom; **winter snow lands on ground+trees but NOT building roofs (iter245)** — a light roof dusting in winter would make the season cohere across the whole town. (Roofs diversified iter175; villager tunics iter191; watchtower rebuilt iter193.)
 - **OBSERVATION — night dead-space (taste, needs USER call, NOT a bug):** deep-night `NightLayer.MAX_DARK = 0.92` (near-black away from lamps) + depopulated night (skeleton crew) ⇒ ~5 min/cycle dark+empty. Soften MAX_DARK or add night ambient life only if the user wants less dead time.
 - **WATCH-ITEM — late-game drought food crash (strengthened iter200):** food can crash to 0 mid-late game on a drought seed (a prolonged drought + a thin food workforce as a worker ages out). Now seen on **2 of 3 Day-150 seeds** — 31337 (min_pop 47.7, recovered) and 12345 (min_pop **27.9** — a PASSIVE autoplay eroded much closer to the revolt threshold of 10). 4242 was clean (min_food 70). NO seed has actually revolted/lost, and a real player has the low-food warning + ration control to cope (the passive autoplay can't react, so 27.9 is a worst case). NOT fixed (no loss; user wants calm, not easier). IF a future seed actually revolts, OR if the user wants drought-robustness, buff the drought-time food buffer (bigger granary base, deeper off-season/drought trickle, or auto-lower rations under famine).
 - **OBSERVATION — peaceful 100-day life (from the 10-cycle peace, user-directed):** the FLOOR run (iter194) reached day 114 with NO siege (King's Peace until day 750) while the standing objective still says "ready your defences — build a Barracks, Wall or Tower." The defence prompt is premature now; consider deferring it (or the King's-Peace-ending telegraph) closer to when threats actually arrive. Stems from the user's calm-realm directive — needs a user call before changing.
@@ -136,6 +136,34 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 - **Intermediate-clog PREVENTION (iter205, follow-up):** the deeper root of the woodcutter freeze — a `wheat_farm`/`hops_farm` with no `mill`/`brewery` banks an intermediate that's useless and only clogs the shared raw pool. Now such a farm TENDS its rows but banks nothing until its processor exists (`CitizenSystem._farm_output_blocked`), so a new player's wheat farm can't silently strangle their wood/stone economy. Ev: ProbeWoodcutter — wood now flows continuously (0→465 climbing, wheat stays 0) where it previously froze at 113; TestEconomy 18/0.
 - **Painted building sprites (iter203):** buildings can now wear hand-painted iso art over the procedural model (`view/micro/BuildingSpriteOverlay.gd`, additive — finished buildings only, auto procedural fallback). First asset: a detailed **Village Hall** replacing the flat procedural roof-diamond. Local ComfyUI art pipeline in `tools/artgen/`; raw candidate renders (multi-GB) git-ignored, only chosen source + keyed sprite committed. Ev: before/after `_SpriteTrial.tscn` render + in-world placement (Xvfb), TestSurvival 6/0.
 - **(Durable, older — see Current Targets):** Day-100 FLOOR multi-seed survival; Reeve→King climb on 5 seeds ≤113d; late-game coalition-vs-leader; on-screen in-city FLOOR survival (iter158).
+
+---
+
+## Iteration 245 — 2026-06-20  (ANALYSIS LOOP — seasons / weather / atmosphere)
+
+Analysed the atmosphere subsystem (the recent iter234–235 focus): captured all four seasons + rain/storm
+over the autoplay town via `SR_SEASON` / `SR_WEATHER`.
+
+### Verified HEALTHY & cohesive
+- **Four distinct seasonal palettes:** autumn turns the living-forest canopies gold/orange with a warm
+  ground tint; winter goes pale + snowy with sparse/bare trees; spring/summer are the muted greens. The
+  `TreeLayer` seasonal palettes + ground tint read clearly apart — you always know the season at a glance.
+- **Storm:** a strong overcast darkening (blue-grey gloom over the whole view) — dramatic, reads as a
+  real storm.
+- **Rain:** subtle — a mild overcast at play zoom, with **faint diagonal streaks** visible on a closer
+  look (zoom ~2.6). This matches the USER's own iter235b feedback to tone the rain DOWN (the earlier
+  oversized streaks were the complaint), so "subtle light rain" is the intended target, not a miss.
+- **Drifting cloud shadows** (iter233) confirmed earlier this session (the transient "blue mass" over a
+  grove was a passing cloud shadow, not a tree bug).
+
+### Minor aesthetic finding (observation, not a bug)
+- **Winter snow is on the GROUND + trees but not on BUILDINGS** — roofs stay their normal colour in
+  winter (e.g. the Hall's red tile), so the town doesn't fully "join" the snowy scene. A light snow
+  dusting on roofs in winter would make the season cohere across the whole view. Candidate polish; small.
+
+### Net
+The atmosphere layer is in good shape and clearly differentiated; the recent rain/storm/cloud work holds
+up. No new bug. The only nit is winter roofs lacking snow. No code/balance changed this iteration.
 
 ---
 
