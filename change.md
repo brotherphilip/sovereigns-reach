@@ -136,6 +136,16 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 219 — 2026-06-20  (USER-STEERED sprite track — arms workshops: Fletcher, Poleturner, Crossbow Workshop)
+
+Batched the 3 arms workshops (all 2×3). Painted buildings now **24**. `_SpriteTrial` before/after each, all good (timber workshops with weapon-making detail):
+- **fletcher**: bowyer's workshop.
+- **poleturner**: pike-shaft workshop (twin chimneys).
+- **crossbow_workshop**: weapon workshop with workbench.
+Keyed sprites committed; raw git-ignored. Remaining: armorer, gatehouse, pig_farm, dairy_farm (+ tower has no candidate, well's candidate 0 was bad).
+
+---
+
 ## Iteration 218 — 2026-06-20  (USER-STEERED sprite track — Cathedral + Watchtower)
 
 Painted buildings now **21**. `_SpriteTrial` before/after:
