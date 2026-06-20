@@ -28,6 +28,14 @@ const SeasonSystem  = preload("res://simulation/world/SeasonSystem.gd")
 #   per-day chance adds ~1 more sun cycle on average, landing the cadence at ~3–5 cycles.
 const COOLDOWN_DAYS: int = 225   # = 3 sun cycles (3 × 75 economic-days) — hard minimum gap
 const DAILY_CHANCE: float = 0.013 # per-day chance once off cooldown (~1 extra sun cycle mean)
+# First-event grace (iter252): with the calm cadence above, the FIRST event takes ~77 econ-days on
+# average, so ~27% of a 100-day single life saw NO realm event at all (the whole rich catalogue
+# invisible that life — measured iter246/251). A player should MEET the event system once, early.
+# So until the realm's first event has fired, use a higher per-day chance (mean ≈ 10 days once the
+# early min_day events are eligible) — then the normal calm cadence resumes. This does NOT raise the
+# realm's overall busyness (still ~1 event per 20-min life); it only guarantees that one lands early
+# instead of maybe-never. Calm-realm directive preserved.
+const FIRST_EVENT_CHANCE: float = 0.10
 
 # tone: "good" | "bad" | "neutral" — drives the notification colour.
 # effect keys: food, gold, wood, stone, iron, popularity, prestige (signed deltas);
@@ -486,10 +494,13 @@ static func resolve(player: Dictionary, event_id: String, choice_index: int) -> 
 static func tick(player: Dictionary, world: Dictionary, rng: RandomNumberGenerator, day: int, in_peace: bool = false) -> Dictionary:
 	if day <= 0 or player.is_empty():
 		return {}
+	# Before the realm's very first event, use the higher first-event chance so the player reliably
+	# MEETS the event system early (instead of ~27% of lives seeing none); afterwards, calm cadence.
+	var first_event: bool = not world.has("last_event_day")
 	var last: int = int(world.get("last_event_day", -999))
 	if day - last < COOLDOWN_DAYS:
 		return {}
-	if rng.randf() >= DAILY_CHANCE:
+	if rng.randf() >= (FIRST_EVENT_CHANCE if first_event else DAILY_CHANCE):
 		return {}
 
 	# Weighted pick among events eligible at this day AND this season. Seasons key off the
