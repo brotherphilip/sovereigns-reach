@@ -23,12 +23,21 @@ def key_one(btype, idx):
     if not os.path.exists(src):
         print(f"  MISSING {src}"); return False
     dst = os.path.join(DEST, f"{btype}.png")
-    # 1px black border guarantees a flood seed at every corner; floodfill black->alpha with
-    # fuzz; shave the helper border; trim transparent margins; cap the long side at MAXDIM.
+    # Keying the AI candidates is tricky: their "black" background is NOISY near-black
+    # (lum up to ~0.10), and the building's own shadows are also near-black — so a plain
+    # luminance floodfill can't cleanly separate them. Low fuzz leaves background islands
+    # (opaque black boxes); high fuzz removes the bg but LEAKS through dark channels and
+    # punches thin transparent slivers into the building.
+    #   Fix: flood at 12% (clears the noisy bg) with `-fill none` (keeps RGB under the new
+    #   alpha), then morphologically CLOSE the alpha — this re-fills the thin leak-slivers
+    #   and any enclosed holes (which then show the real building RGB kept underneath) while
+    #   leaving the large exterior transparent. Result: clean cutout, no holes, no black box.
     cmd = [
         "magick", src, "-alpha", "set", "-bordercolor", "black", "-border", "1",
         "-fill", "none", "-fuzz", "12%",
-        "-draw", "alpha 0,0 floodfill", "-shave", "1x1",
+        "-draw", "alpha 0,0 floodfill",
+        "-channel", "A", "-morphology", "Close", "Disk:4", "+channel",
+        "-shave", "1x1",
         "-trim", "+repage",
         "-resize", f"{MAXDIM}x{MAXDIM}>",
         dst,

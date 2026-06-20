@@ -136,6 +136,18 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 229 — 2026-06-20  (USER FEEDBACK — fix sprite keying knockouts + grass-plot contrast)
+
+User flagged two real issues from a live screenshot: (1) the keying knocked transparent holes out of some buildings; (2) the building sprites' grass plots clashed with the flatter, brighter terrain grass.
+
+### Fix 1 — keying knockouts (`tools/artgen/key.py` + re-keyed all 31 sprites)
+Root cause: the AI candidates' "black" background is NOISY near-black (lum up to ~0.10) and the buildings' own shadows are also near-black, so a luminance floodfill can't cleanly separate them — 12% fuzz cleared the bg but LEAKED through dark channels, punching thin transparent slivers into walls/roofs (and 6% left opaque black-box backgrounds). New keying: flood at 12% with `-fill none` (keeps RGB under the new alpha), then **morphologically CLOSE the alpha (Disk:4)** — re-fills the leak-slivers + enclosed holes (showing the real building RGB kept underneath) while leaving the large exterior transparent. Verified via magenta-composite (market, hovel_3, blacksmith all solid) + live town render: no holes, no black boxes.
+
+### Fix 2 — grass contrast (`TerrainChunk.gd`)
+The terrain GRASS was a bright, cool, flat green (0.38,0.71,0.34) vs the sprites' warm olive plots → plots read as brighter squares. Warmed/muted the terrain grass to **(0.45,0.62,0.32)** (toward the painterly plot tone) and softened the per-tile grain (0.055→0.028) so tiles stop popping as a checkerboard. Live render: plots now blend into the ground.
+
+---
+
 ## Iteration 228 — 2026-06-20  (USER-STEERED — villager polish: presence over detail)
 
 User picked "villager/unit polish". Built a reusable **`_PawnShowcase.tscn`** (renders a row of varied villagers at 6× via the real CitizenLayer) to inspect the figures up close.

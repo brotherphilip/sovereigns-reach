@@ -13,7 +13,7 @@ const SeasonSystem = preload("res://simulation/world/SeasonSystem.gd")
 const VEG_TERRAIN: Array = [0, 1, 4, 7]
 
 const TERRAIN_COLORS: Array = [
-	Color(0.38, 0.71, 0.34),  # 0 GRASS
+	Color(0.45, 0.62, 0.32),  # 0 GRASS — warmed/muted toward the painterly building-plot grass so the sprite plots blend into the ground instead of reading as brighter squares
 	Color(0.12, 0.40, 0.17),  # 1 FOREST
 	Color(0.56, 0.57, 0.64),  # 2 MOUNTAIN
 	Color(0.16, 0.50, 0.93),  # 3 RIVER
@@ -70,7 +70,7 @@ func _vary(base: Color, t: int, gx: int, gy: int) -> Color:
 	# Fine per-tile grain — deterministic hash in [-0.5, 0.5].
 	var h: int = ((gx * 73856093) ^ (gy * 19349663)) & 0xffff
 	var grain: float = float(h) / 65535.0 - 0.5
-	var amt: float = patch * 0.05 + grain * 0.055        # ±~0.07 brightness
+	var amt: float = patch * 0.045 + grain * 0.028       # softer: less per-tile square popping
 	var c: Color = base.lightened(amt) if amt >= 0.0 else base.darkened(-amt)
 	# Gentle hue drift: brighter patches lean warm/yellow-green, darker lean cool/blue-green.
 	c = c.lerp(Color(c.r * 1.06, c.g * 1.02, c.b * 0.90, c.a), clampf(patch, 0.0, 1.0) * 0.18)
