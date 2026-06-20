@@ -6,7 +6,12 @@ extends Camera2D
 const PAN_SPEED: float  = 400.0  # pixels per second at zoom 1.0
 const ZOOM_SPEED: float = 0.12
 const ZOOM_MIN: float   = 0.25
-const ZOOM_MAX: float   = 3.0
+# Raised 3.0 → 5.0 (iter244): the game invests in detailed per-entity animation (articulated
+# people, the woodcutter's axe-bite + tree topple, melee), but at the old 3.0 ceiling a figure
+# was only ~20px tall amid 40px tree canopies, so that work was under-legible. A closer ceiling
+# lets a player actually inspect the felling/combat/villager life they're causing. Vector art
+# scales cleanly and tighter zoom culls MORE tiles, so there's no perf cost.
+const ZOOM_MAX: float   = 5.0
 
 const IsoGrid = preload("res://view/micro/IsometricGrid.gd")
 
