@@ -594,6 +594,31 @@ static func _stockpile(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Ve
 
 # A real grove: trees laid out in rows across the whole footprint, each rendered in
 # its seasonal stage (bare winter → budding spring → leafy summer → fruiting autumn).
+# Painterly GRASS-FLOOR texture for a grassy farm plot (orchard / hops yard): faint mown
+# bands + a scatter of darker grass tufts break up the flat fill so the ground reads as a
+# tended sward, matching the wheat field's ridge-and-furrow and the painted buildings.
+# Deterministic from the plot's screen position (stable, no shimmer). Call right after the
+# base ground fill, before trees/posts are drawn on top.
+static func _grass_floor_texture(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vector2, base: Color) -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = int(absf(t.x * 131.0 + b.y * 977.0 + l.x * 17.0)) + 7
+	var ex := t - l
+	var ey := b - l
+	# Mown bands — every other strip a touch lighter (sun-caught grass).
+	var nb: int = 8
+	for i in range(nb):
+		if i % 2 == 1:
+			continue
+		var f0: float = float(i) / float(nb); var f1: float = float(i + 1) / float(nb)
+		var a0: Vector2 = l.lerp(t, f0); var a1: Vector2 = l.lerp(t, f1)
+		var c0: Vector2 = b.lerp(r, f0); var c1: Vector2 = b.lerp(r, f1)
+		ci.draw_colored_polygon(PackedVector2Array([a0, a1, c1, c0]), base.lightened(0.05))
+	# Grass tufts — small dark blades scattered over the sward.
+	var tuft := base.darkened(0.14)
+	for i in range(12):
+		var p: Vector2 = l + ex * rng.randf_range(0.08, 0.92) + ey * rng.randf_range(0.08, 0.92)
+		ci.draw_line(p, p + Vector2(rng.randf_range(-0.8, 0.8), -2.0), tuft, 0.8)
+
 static func _orchard(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vector2, season: int, seed: int = 0) -> void:
 	# A working FARMSTEAD, not a flat patch — and NO two orchards look alike: a per-plot
 	# RNG (seeded by the building id) jitters every tree, varies the planting density,
@@ -604,6 +629,7 @@ static func _orchard(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vect
 	var gt: float = rng.randf_range(0.93, 1.08)
 	var ground := Color(0.40, 0.56, 0.30).lerp(Color(0.36, 0.52, 0.26), rng.randf()) * SeasonSystem.ground_tint(season) * gt
 	ci.draw_colored_polygon(PackedVector2Array([t, r, b, l]), ground)
+	_grass_floor_texture(ci, t, r, b, l, ground)   # mown bands + tufts under the trees
 	var ctr: Vector2 = (t + r + b + l) * 0.25
 	var stage: int = SeasonSystem.growth_stage(season)
 	var ex := t - l
@@ -755,8 +781,9 @@ static func _wheat(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vector
 
 static func _hops(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vector2, season: int) -> void:
 	var stage: int = SeasonSystem.growth_stage(season)
-	ci.draw_colored_polygon(PackedVector2Array([t, r, b, l]),
-		Color(0.44, 0.56, 0.30) * SeasonSystem.ground_tint(season))
+	var hops_ground: Color = Color(0.44, 0.56, 0.30) * SeasonSystem.ground_tint(season)
+	ci.draw_colored_polygon(PackedVector2Array([t, r, b, l]), hops_ground)
+	_grass_floor_texture(ci, t, r, b, l, hops_ground)   # tended yard under the trellises
 	var bine := SeasonSystem.foliage_tint(season)
 	for f in [0.25, 0.5, 0.75]:
 		var a := l.lerp(t, f); var bb := b.lerp(r, f)

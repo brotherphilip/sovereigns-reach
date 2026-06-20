@@ -136,6 +136,12 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 225 — 2026-06-20  (USER-STEERED — fields polish #2: orchard + hops grass-floor texture)
+
+Continued the fields polish. The orchard and hops plots had flat green ground (trees/trellises drawn on a single colour). Added a shared **`_grass_floor_texture`** helper (BuildingModels): faint mown bands (every other strip sun-lightened) + a scatter of darker grass tufts, deterministic from plot position. Called from `_orchard` (under the trees) and `_hops` (under the trellises). Subtle, grass-appropriate (vs the wheat's ploughed furrows). `_SpriteTrial` renders confirm both read as tended swards now. No script errors.
+
+---
+
 ## Iteration 224 — 2026-06-20  (USER-STEERED — fields & terrain polish #1: wheat field ridge-and-furrow)
 
 User picked "polish fields & terrain" (the flat procedural crop plots looked plain next to the painted buildings). Started with the plainest: the **wheat field** was a flat colour diamond with faint furrow lines + a tiny barn.
