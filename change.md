@@ -141,6 +141,28 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 250 — 2026-06-21  (SESSION CERTIFICATION — full regression sweep GREEN)
+
+Ran the **entire test suite** to certify that this analysis session's shipped changes (the living-forest
+overhaul, `TestForest.gd`, the new-player HUD-init fix, `ZOOM_MAX` 3.0→5.0, and the `SR_CAM_DX/DY` +
+`SR_FELLDEMO` dev hooks) didn't regress anything.
+
+- **41 suites, 0 failures, 1228 assertions passed.** Includes the new **TestForest 22/0**, plus
+  TestEconomy 18/0, TestWorkers 21/0, TestPathfinding 17/0, TestWorldEvents 46/0, TestTutorial 18/0,
+  TestUnitAI 23/0, TestSurvival 6/0, TestPeople 21/0, and the rest — all green.
+- **Session is certified clean.** Every code change made this session (iter238–244) is covered and
+  regression-free; the analysis-only iterations (245–249) touched no code.
+
+### Where the loop stands (honest)
+The forest overhaul is shipped + tested; nine subsystems are swept and verified healthy; the suite is
+green. **Further "analyse subsystem X" passes are now low-value** — the game is mechanically sound and
+thoroughly documented. The remaining high-value work is the **6 user-decision items** (iter247 + the
+iter248 narration gap), which I will NOT build unprompted because each is a design/visual/scope call the
+user (hands-on about presentation) should make. Until a steer arrives, the loop has reached its useful
+floor; it will keep watch and re-certify, but the ball is in the user's court for the next real step.
+
+---
+
 ## Iteration 249 — 2026-06-20  (ANALYSIS LOOP — villager life & day-night micro layer)
 
 Inspected the living-world micro layer up close (now possible thanks to the iter244 `ZOOM_MAX` 5.0):
