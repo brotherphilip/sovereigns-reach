@@ -239,6 +239,12 @@ func _build_scene() -> void:
 	lamp_layer.name = "NightLampLayer"
 	_world_root.add_child(lamp_layer)
 
+	# Screen-space rain (falls across the view during RAIN/STORM weather). Its own CanvasLayer
+	# (layer 9) so it sits over the world but under the HUD (layer 10).
+	var rain_layer := preload("res://view/micro/RainLayer.gd").new()
+	rain_layer.name = "RainLayer"
+	add_child(rain_layer)
+
 	_hud = preload("res://view/hud/HUDNode.gd").new()
 	_hud.name  = "HUD"
 	_hud.layer = 10
@@ -303,6 +309,10 @@ func _build_scene() -> void:
 		var nf: float = clampf(float(OS.get_environment("SR_NIGHT")), 0.0, 1.0)
 		var day_start: int = (SimulationClock.current_tick / SeasonRef.DAY_NIGHT_TICKS) * SeasonRef.DAY_NIGHT_TICKS
 		SimulationClock.current_tick = day_start + int(round(nf * 0.5 * SeasonRef.DAY_NIGHT_TICKS))
+	# Dev hook: force a weather type (0 CLEAR,1 RAIN,2 DROUGHT,3 SNOW,4 FOG,5 STORM) for
+	# previewing the rain/cloud/storm visuals.
+	if OS.get_environment("SR_WEATHER") != "":
+		GameState.weather["current"] = clampi(int(OS.get_environment("SR_WEATHER")), 0, 5)
 	# Dev hook: append a real game-state telemetry row (~1/sec) to the SR_TELEMETRY CSV, so a
 	# live playtest yields an HONEST state-over-time capture (day, popularity, gold, food, unit
 	# & building counts, FPS) read straight from the running sim — not guessed from screenshots.

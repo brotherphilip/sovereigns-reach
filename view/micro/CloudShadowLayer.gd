@@ -8,21 +8,38 @@ extends Node2D
 const HALF_W: float = 32.0
 const HALF_H: float = 16.0
 
-const SeasonSystem = preload("res://simulation/world/SeasonSystem.gd")
+const SeasonSystem  = preload("res://simulation/world/SeasonSystem.gd")
+const WeatherSystem = preload("res://simulation/world/WeatherSystem.gd")
 
 var _mat: ShaderMaterial
+var _coverage: float = 0.28
+var _override: float = -1.0   # set ≥0 to force coverage (weather build-up); -1 = derive from weather
 
 func _ready() -> void:
 	_mat = ShaderMaterial.new()
 	_mat.shader = preload("res://view/micro/cloud_shadow.gdshader")
 	material = _mat
 
-# Cloud coverage 0..1 — the weather system drives this (sparse fine-day → overcast pre-rain).
-func set_coverage(c: float) -> void:
-	if _mat != null:
-		_mat.set_shader_parameter("coverage", clampf(c, 0.0, 1.0))
+# The weather build-up (sun-cycle) can force a coverage; -1 hands control back to the weather type.
+func set_coverage_override(c: float) -> void:
+	_override = c
 
-func _process(_delta: float) -> void:
+# Cloud coverage for the current weather: fine days a few patches, overcast before/under rain.
+func _weather_coverage() -> float:
+	match int(GameState.weather.get("current", 0)):
+		WeatherSystem.WeatherType.CLEAR:   return 0.26
+		WeatherSystem.WeatherType.DROUGHT: return 0.12
+		WeatherSystem.WeatherType.FOG:     return 0.62
+		WeatherSystem.WeatherType.SNOW:    return 0.70
+		WeatherSystem.WeatherType.RAIN:    return 0.85
+		WeatherSystem.WeatherType.STORM:   return 1.0
+	return 0.30
+
+func _process(delta: float) -> void:
+	# Ease coverage toward its target (weather override, else weather type) so skies shift gently.
+	var target: float = _override if _override >= 0.0 else _weather_coverage()
+	_coverage = move_toward(_coverage, target, delta * 0.15)
+	_mat.set_shader_parameter("coverage", _coverage)
 	# Fade the shadows out at night (the night wash takes over then).
 	var day: float = 1.0 - SeasonSystem.night_factor(SimulationClock.current_tick)
 	_mat.set_shader_parameter("daylight", day)

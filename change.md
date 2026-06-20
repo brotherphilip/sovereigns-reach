@@ -136,6 +136,16 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 234 — 2026-06-20  (USER-STEERED — ATMOSPHERE OVERHAUL phase 3: rain + storm visuals, clouds coupled to weather)
+
+The game already had a `WeatherSystem` state machine (CLEAR/RAIN/DROUGHT/SNOW/FOG/STORM) in `GameState.weather` — wired the visuals to it.
+- **Rain** (`rain_overlay.gdshader` + `RainLayer`, screen-space CanvasLayer below the HUD): two parallax sheets of slanted falling streaks + a cool wet wash; `intensity` ramps smoothly (RAIN 0.62, STORM 1.0, else 0). Storm reads as a heavy downpour.
+- **Clouds coupled to weather**: `CloudShadowLayer` now eases its coverage toward a per-weather target (CLEAR 0.26 → FOG/SNOW 0.6–0.7 → RAIN 0.85 → STORM 1.0), plus a `set_coverage_override` hook for the upcoming sun-cycle build-up. Cloud edges softened to rounded gradients (iter233b).
+- **Dev hook** `SR_WEATHER=0..5` to preview each weather.
+Verified: RAIN and STORM renders show streaks + overcast wash; HUD reads the matching weather.
+
+---
+
 ## Iteration 233 — 2026-06-20  (USER-STEERED — ATMOSPHERE OVERHAUL phase 2: drifting cloud shadows)
 
 Daytime cloud shadows now glide over the whole settlement. New `cloud_shadow.gdshader` (blend_mul) scrolls animated fbm noise across a single world-covering quad; where it crosses the `coverage` threshold the scene darkens (soft feathered patches over ground, buildings, people). `coverage` 0→1 goes from a few sparse patches (fine day) to heavy overcast — the weather build-up will drive it. `daylight` (= 1 − `SeasonSystem.night_factor`) fades the shadows out at night so the night wash takes over. New `CloudShadowLayer` (GPU-animated, one static quad), wired above the world content + below the night wash. Verified: soft drifting shadows on a fine day (coverage 0.30).
