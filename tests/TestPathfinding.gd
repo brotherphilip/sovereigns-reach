@@ -73,28 +73,24 @@ func _test_no_corner_cut() -> void:
 	ok("legal path exists when a corner is open", p2.size() > 0 and p2[p2.size()-1] == [1, 1])
 
 func _test_terrain_rules() -> void:
-	print("\n[Terrain rules: forest/water passable-but-slow, mountain blocks]")
+	print("\n[Terrain rules: forest passable-but-slow; river/mountain block; bridge crosses]")
 	# A 3-wide corridor; middle column is the test terrain. Endpoints on grass.
 	# Forest is passable, so the straight path through it is taken.
 	var forest := {"width": 3, "height": 1, "tiles": [[0, 1, 0]]}
 	var pf := Pathfinder.find_path_dict(forest, 0, 0, 2, 0, Pathfinder.PASS_FOOT)
 	ok("units walk through forest", pf.size() == 2 and pf[pf.size()-1] == [2, 0])
-	# Water (river) is passable too.
+	# Water (river) now BLOCKS — a 1-wide river wall makes the goal unreachable on foot.
 	var water := {"width": 3, "height": 1, "tiles": [[0, 3, 0]]}
 	var pw := Pathfinder.find_path_dict(water, 0, 0, 2, 0, Pathfinder.PASS_FOOT)
-	ok("units wade through water", pw.size() == 2 and pw[pw.size()-1] == [2, 0])
+	ok("rivers block movement (need a bridge)", pw.size() == 0)
+	# A BRIDGE (terrain 11) laid over the water restores the crossing.
+	var bridged := {"width": 3, "height": 1, "tiles": [[0, 11, 0]]}
+	var pb := Pathfinder.find_path_dict(bridged, 0, 0, 2, 0, Pathfinder.PASS_FOOT)
+	ok("units cross a bridge", pb.size() == 2 and pb[pb.size()-1] == [2, 0])
 	# Mountain fully blocks — a 1-wide mountain wall makes the goal unreachable.
 	var mtn := {"width": 3, "height": 1, "tiles": [[0, 2, 0]]}
 	var pm := Pathfinder.find_path_dict(mtn, 0, 0, 2, 0, Pathfinder.PASS_FOOT)
 	ok("mountains fully block movement", pm.size() == 0)
-	# Given a choice, A* prefers the cheaper grass detour over wading water.
-	var choice := {"width": 3, "height": 2, "tiles": [[0, 3, 0], [0, 0, 0]]}
-	var pc := Pathfinder.find_path_dict(choice, 0, 0, 2, 0, Pathfinder.PASS_FOOT)
-	var wades := false
-	for s in pc:
-		if s == [1, 0]:
-			wades = true
-	ok("prefers grass detour over costly water", not wades)
 
 func _test_determinism() -> void:
 	print("\n[Determinism]")

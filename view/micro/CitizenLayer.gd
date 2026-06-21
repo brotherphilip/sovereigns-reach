@@ -313,12 +313,21 @@ func _draw_figure(sx: float, sy: float, c: Dictionary, ap: Dictionary,
 	var head_turn: float = 0.0
 	var idle_arm: float = 0.0
 	if not moving and not working:
-		match idle_kind:
-			0: sway = sin(t * 0.8) * 1.3                         # weight-shift hips
-			1: head_turn = sin(t * 0.6) * 1.2                    # glancing about
-			2: breathe = sin(t * 1.1) * 1.0                      # deeper, slower breath
-			3: idle_arm = maxf(0.0, sin(t * 0.45)) * 3.0         # occasional stretch
-		breathe += sin(t * 1.5) * 0.3
+		if c.get("state", "") == "chat":
+			# Conversational gesture: gesticulate and nod. Phase split by id-parity so a pair
+			# talks in turns — one's hands move while the other listens — not in lockstep.
+			var ph: float = t * 1.5 + float(int(c.get("id", 0)) % 2) * PI
+			idle_arm = maxf(0.0, sin(ph)) * 3.4                  # a hand lifts while "speaking"
+			head_turn = sin(ph * 0.9) * 1.0                      # nodding / emphasis
+			sway = sin(t * 0.7) * 0.7
+			breathe += sin(t * 1.5) * 0.3
+		else:
+			match idle_kind:
+				0: sway = sin(t * 0.8) * 1.3                         # weight-shift hips
+				1: head_turn = sin(t * 0.6) * 1.2                    # glancing about
+				2: breathe = sin(t * 1.1) * 1.0                      # deeper, slower breath
+				3: idle_arm = maxf(0.0, sin(t * 0.45)) * 3.0         # occasional stretch
+			breathe += sin(t * 1.5) * 0.3
 
 	# Vertical bob: two per stride when walking, gentle breath otherwise.
 	var bob: float = (absf(sin(gait_t)) * 2.0 * speed01) if moving else (breathe * 0.4)

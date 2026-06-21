@@ -153,6 +153,8 @@ static func _pair_singles(citizens: Array, rng: RandomNumberGenerator, day: int)
 		for w in women:
 			if int(w.get("partner_id", -1)) >= 0:
 				continue
+			if _related(m, w):
+				continue   # no inbreeding — skip kin (same blood line / siblings / parent-child)
 			var gap: int = absi(age_of(m, day) - age_of(w, day))
 			if gap <= PAIR_AGE_GAP and gap < best_gap:
 				best_gap = gap
@@ -161,10 +163,31 @@ static func _pair_singles(citizens: Array, rng: RandomNumberGenerator, day: int)
 			m["partner_id"] = int(best["id"])
 			best["partner_id"] = int(m["id"])
 
+# True when two villagers are too close kin to wed: the same paternal family line (surname),
+# direct siblings (a shared mother or father), or parent and child. Keeps the bloodline from
+# folding in on itself without needing a full ancestry walk.
+static func _related(a: Dictionary, b: Dictionary) -> bool:
+	var asn: String = String(a.get("surname", ""))
+	if asn != "" and asn == String(b.get("surname", "")):
+		return true
+	var am: int = int(a.get("mother_id", -1)); var af: int = int(a.get("father_id", -1))
+	var bm: int = int(b.get("mother_id", -1)); var bf: int = int(b.get("father_id", -1))
+	if (am >= 0 and am == bm) or (af >= 0 and af == bf):
+		return true   # siblings (share a parent)
+	var aid: int = int(a.get("id", -1)); var bid: int = int(b.get("id", -1))
+	if am == bid or af == bid or bm == aid or bf == aid:
+		return true   # parent ↔ child
+	return false
+
 static func _birth(mother: Dictionary, citizens: Array, rng: RandomNumberGenerator, day: int, next_id: int) -> int:
 	var father := _find(citizens, int(mother.get("partner_id", -1)))
 	var m_skin: float = float(mother.get("skin", 0.5))
 	var f_skin: float = float(father.get("skin", m_skin)) if not father.is_empty() else m_skin
+	# Family name passes down the FATHER'S line (the mother's only when there's no father on
+	# record), so lineages form and thin out naturally over the generations.
+	var surname: String = String(father.get("surname", "")) if not father.is_empty() else ""
+	if surname == "":
+		surname = String(mother.get("surname", ""))
 	var prof: Dictionary = {
 		"sex": "m" if rng.randf() < 0.5 else "f",
 		"born_day": day,
@@ -174,6 +197,7 @@ static func _birth(mother: Dictionary, citizens: Array, rng: RandomNumberGenerat
 		"hair_style": rng.randi_range(0, 2),
 		"mother_id": int(mother.get("id", -1)),
 		"father_id": int(father.get("id", -1)) if not father.is_empty() else -1,
+		"surname": surname,
 	}
 	var hx: float = float(mother.get("hx", mother.get("x", 100.0)))
 	var hy: float = float(mother.get("hy", mother.get("y", 100.0)))

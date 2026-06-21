@@ -47,10 +47,16 @@ static func validate(
 			if not grid.in_bounds(grid_x + dx, grid_y + dy):
 				return _fail(ValidationResult.OUT_OF_BOUNDS, "Building extends out of bounds")
 
-	# Occupancy check
+	# Occupancy check. Exception: a GATE may be raised directly over the player's OWN wall/fence —
+	# it replaces that segment (handled in _cmd_place_building), so converting a wall run into a
+	# gateway doesn't require demolishing first.
+	var placing_gate: bool = defn.get("is_gate", false)
 	for dy in range(h):
 		for dx in range(w):
-			if grid.get_building_at(grid_x + dx, grid_y + dy) != 0:
+			var occ_id: int = grid.get_building_at(grid_x + dx, grid_y + dy)
+			if occ_id != 0:
+				if placing_gate and _is_own_wall(occ_id, player):
+					continue
 				return _fail(ValidationResult.OCCUPIED, "Tile (%d,%d) is occupied" % [grid_x+dx, grid_y+dy])
 
 	# Paths are laid as ROAD terrain — only on walkable land, never water/cliffs.
@@ -139,6 +145,14 @@ static func deduct_cost(building_type: String, player: Dictionary) -> void:
 			player["gold"] = maxi(0, player.get("gold", 0) - cost[res])
 		else:
 			player["resources"][res] = maxi(0, player["resources"].get(res, 0) - cost[res])
+
+# True if grid building id `building_id` is one of THIS player's wall/fence segments — the only
+# thing a gate is allowed to be placed on top of (it replaces it).
+static func _is_own_wall(building_id: int, player: Dictionary) -> bool:
+	for b in player.get("buildings", []):
+		if b is Dictionary and int(b.get("id", -1)) == building_id:
+			return BuildingRegistry.lookup(b.get("type", "")).get("is_wall", false)
+	return false
 
 static func _fail(code: int, message: String) -> Dictionary:
 	return {"ok": false, "code": code, "message": message}

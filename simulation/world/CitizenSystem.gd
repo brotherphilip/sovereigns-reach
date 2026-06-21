@@ -17,6 +17,7 @@ const ResourceTick     = preload("res://simulation/economy/ResourceTick.gd")
 const StorageSystem    = preload("res://simulation/economy/StorageSystem.gd")
 const FoodSystem       = preload("res://simulation/economy/FoodSystem.gd")
 const ForestSystem     = preload("res://simulation/world/ForestSystem.gd")
+const NeedsSystem      = preload("res://simulation/world/NeedsSystem.gd")
 
 # Tick-scoped handle to the live world dict (set at the top of tick()). Lets the
 # woodcutter consult the living forest — fell ONLY adult trees, regrow stumps — without
@@ -48,6 +49,7 @@ const HAUL_TIMEOUT: int = 1400    # give up on an unreachable target, re-seek
 
 const STATE_IDLE   = "idle"     # standing about near home
 const STATE_WANDER = "wander"   # ambling near home
+const STATE_CHAT   = "chat"     # paused, standing & talking with a nearby neighbour
 const STATE_WALK   = "walk"     # heading to a target (tx,ty)
 const STATE_BUILD  = "build"    # at a construction site, hammering
 const STATE_FETCH  = "fetch"    # builder walking to a depot to collect materials
@@ -58,7 +60,7 @@ const STATE_INSIDE = "inside"   # gone in through a door (not drawn) — e.g. as
 # How long a worker labours at one spot before tending to another part of the site.
 const WORK_TICKS := Vector2i(150, 360)
 
-const WALK_SPEED: float = 0.05      # tiles/tick — villagers bustle
+const WALK_SPEED: float = 0.025     # tiles/tick — a calmer, half-pace walk
 const ARRIVE_DIST: float = 0.7      # close enough to a standing spot to work
 # Stuck recovery: if a walking pawn fails to get STUCK_EPS tiles closer to its
 # target for STUCK_TIMEOUT ticks, it re-targets a reachable spot or abandons the job
@@ -66,6 +68,9 @@ const ARRIVE_DIST: float = 0.7      # close enough to a standing spot to work
 const STUCK_TIMEOUT: int = 480
 const STUCK_EPS: float = 0.5
 const WANDER_RADIUS: float = 4.0
+# How long a villager lingers indoors on a daytime food/warmth errand before stepping back out
+# (a cap so a villager whose larder is empty can't get stuck sheltering forever). ~1 game-day.
+const INSIDE_ERRAND_MAX: int = 240
 const BUILD_RATE: float = 0.33      # build-progress added per builder per tick (3× slower — raising a real structure takes time)
 const CONSTRUCTION_BATCH: int = 4   # material units a builder carries per trip (smaller load ⇒ ~3× more trips to the stockpile)
 const MAX_CITIZENS: int = 40
@@ -74,6 +79,12 @@ const LAND_MOVE: int = 0b00000001   # is_passable move-type bit (foot/land)
 
 const IDLE_TICKS := Vector2i(60, 180)
 const WANDER_TICKS := Vector2i(90, 240)
+# Chatting: when an idle villager's pause ends and a free neighbour happens to be close,
+# they pause together for a natter. Only forms between people ALREADY near each other, so
+# nobody teleports across the square — it just reads as folk stopping to talk.
+const CHAT_TICKS := Vector2i(160, 360)
+const CHAT_SEEK_RADIUS: float = 2.6   # a neighbour must already be this close to strike up a chat
+const CHAT_CHANCE: float = 0.5        # how often an idle pause turns into a chat (vs wandering)
 
 # Names for villager profiles (flavour).
 const MALE_NAMES: Array = ["Aldric", "Bran", "Cedric", "Dunstan", "Edmund", "Garrick", "Hew", "Osric", "Rowan", "Tomas", "Wulf", "Godwin"]
@@ -103,6 +114,7 @@ static func make_citizen(id: int, hx: float, hy: float, rng: RandomNumberGenerat
 		"vx": 0.0, "vy": 0.0, "hx": hx, "hy": hy,
 		"state": STATE_IDLE, "state_ticks": rng.randi_range(IDLE_TICKS.x, IDLE_TICKS.y),
 		"tx": hx, "ty": hy, "facing": 1.0, "anim": 0.0, "is_alive": true,
+		"chat_with": -1,   # id of the neighbour this villager is chatting with (-1 = none)
 		# Action target (tile coords) of the thing the pawn is acting ON while doing a
 		# stationary job — the tree it fells, the building it raises, the anvil it works.
 		# The view orients the swing toward this point and lands impact FX on it.
@@ -119,12 +131,25 @@ static func make_citizen(id: int, hx: float, hy: float, rng: RandomNumberGenerat
 		"father_id": profile.get("father_id", -1),
 		"pregnant_until": -1,
 		"name": profile.get("name", (FEMALE_NAMES if sex == "f" else MALE_NAMES)[rng.randi_range(0, 11)]),
+		# Family line (inherited patrilineally at birth; founders are dealt distinct ones in spawn).
+		"surname": profile.get("surname", ""),
+		# ── Survival needs (0–100). Founders/newborns begin comfortably provided for; they
+		# decay daily and are topped up indoors. See NeedsSystem. ──
+		"hp": float(profile.get("hp", NeedsSystem.HP_MAX)),
+		"food": float(profile.get("food", rng.randf_range(NeedsSystem.START_MIN, NeedsSystem.START_MAX))),
+		"warmth": float(profile.get("warmth", rng.randf_range(NeedsSystem.START_MIN, NeedsSystem.START_MAX))),
 	}
 
 static func spawn(citizens: Array, count: int, hx: float, hy: float,
 		rng: RandomNumberGenerator, next_id: int, day: int = 0) -> int:
-	for _i in range(count):
-		citizens.append(make_citizen(next_id, hx, hy, rng, day))
+	# Deal each new settler a DISTINCT family name from a shuffled pool, so the founding
+	# village is a spread of households rather than a town of one surname (lineages then form
+	# as children inherit their father's name — see PeopleSystem). Late spawns past the pool
+	# size simply wrap (some shared surnames), which is fine for reinforcements.
+	var surnames: Array = NeedsSystem.shuffled_surnames(rng)
+	for i in range(count):
+		citizens.append(make_citizen(next_id, hx, hy, rng, day,
+			{"surname": surnames[i % surnames.size()]}))
 		next_id += 1
 	return next_id
 
@@ -192,7 +217,7 @@ static func tick(citizens: Array, player, rng: RandomNumberGenerator,
 			if not (c is Dictionary and c.get("is_alive", false)):
 				continue
 			var st: String = c.get("state", "")
-			if (st == STATE_IDLE or st == STATE_WANDER) and _is_working_age(c):
+			if (st == STATE_IDLE or st == STATE_WANDER or st == STATE_CHAT) and _is_working_age(c):
 				var nb := _nearest_site(sites, c["x"], c["y"])
 				if not nb.is_empty():
 					var jid: int = int(nb.get("id", -1))
@@ -201,12 +226,9 @@ static func tick(citizens: Array, player, rng: RandomNumberGenerator,
 					c["role"] = "builder"
 					c["job"] = jid
 					c["build_slot"] = slot
-					c["state"] = STATE_WALK
-					c["stuck_ticks"] = 0
-					c.erase("best_dist")
-					var spot := _reachable_spot(nb, slot, c, grid, false, null)
-					c["tx"] = spot.x
-					c["ty"] = spot.y
+					# Go STRAIGHT for supplies if the site needs them — no wasted walk to an
+					# empty site only to immediately leave again to fetch.
+					_route_builder(c, nb, slot, buildings, grid, rng)
 
 	# Staff built workplaces from the available stock: idle villagers become
 	# job-workers (woodcutters, reapers, smiths…) up to each building's assigned
@@ -242,6 +264,9 @@ static func _reconcile_workers(citizens: Array, buildings: Array, rng: RandomNum
 		var jb: int = int(c.get("job", -1))
 		var keep: int = int(assigned.get(jb, 0))
 		# Release surplus, orphaned, OR aged-out workers (the young and old don't toil).
+		# NOTE: hunger/cold does NOT release a worker — they're provisioned at their post (see
+		# _tick_citizen). Releasing the hungry caused a death-spiral: when food dipped, the FARM
+		# workers downed tools too, so food production halted and the shortage only deepened.
 		if not desired.has(jb) or keep >= int(desired[jb]) or not _is_working_age(c):
 			_release_worker(c, grid)
 		else:
@@ -263,7 +288,7 @@ static func _reconcile_workers(citizens: Array, buildings: Array, rng: RandomNum
 			if not _is_working_age(c):
 				continue   # only working-age adults take jobs
 			var st: String = c.get("state", "")
-			if st != STATE_IDLE and st != STATE_WANDER:
+			if st != STATE_IDLE and st != STATE_WANDER and st != STATE_CHAT:
 				continue
 			c["role"] = "worker"
 			c["job"] = bid
@@ -362,14 +387,42 @@ static func _assign_next_site(c: Dictionary, buildings: Array, grid: Object) -> 
 		return false
 	c["role"] = "builder"
 	c["job"] = int(nb.get("id", -1))
-	c["state"] = STATE_WALK
-	c["path"] = []
+	# Flow to the next site supplies-first too (fetch if it needs materials, else build).
+	_route_builder(c, nb, int(c.get("build_slot", 0)), buildings, grid, null)
+	return true
+
+# True when a site has no build headroom left on its DELIVERED materials — i.e. a builder
+# standing there would immediately have to leave to fetch, so it should fetch FIRST.
+static func _builder_needs_materials(b: Dictionary) -> bool:
+	var mtotal: int = int(b.get("build_mat_total", 0))
+	if mtotal <= 0:
+		return false   # labour-only (free hall / paths): nothing to haul, just build
+	var mdone: int = int(b.get("build_mat_delivered", 0))
+	if mdone >= mtotal:
+		return false   # already fully supplied: just build
+	var required: float = float(b.get("build_required", 1.0))
+	var cap: float = (float(mdone) / float(mtotal)) * required
+	return float(b.get("build_progress", 0.0)) >= cap - 0.001
+
+# Route a newly-tasked builder: send it straight to a DEPOT for supplies when the site can't
+# progress without materials (skipping the wasted trip to an empty site), otherwise to the
+# site to build. From STATE_FETCH the fetch→haulback→build loop takes over as before.
+static func _route_builder(c: Dictionary, b: Dictionary, slot: int, buildings: Array, grid: Object, rng) -> void:
 	c["stuck_ticks"] = 0
 	c.erase("best_dist")
-	var spot := _reachable_spot(nb, int(c.get("build_slot", 0)), c, grid, false, null)
+	c["path"] = []
+	if _builder_needs_materials(b):
+		var depot := _nearest_depot(buildings, c)
+		if not depot.is_empty():
+			var dspot := _reachable_spot(depot, slot, c, grid, false, rng)
+			c["tx"] = dspot.x
+			c["ty"] = dspot.y
+			c["state"] = STATE_FETCH
+			return
+	var spot := _reachable_spot(b, slot, c, grid, false, rng)
 	c["tx"] = spot.x
 	c["ty"] = spot.y
-	return true
+	c["state"] = STATE_WALK
 
 # Source of a chain building's raw materials: a map node, its own field, or a fetched
 # input from a stockpile.
@@ -750,6 +803,12 @@ static func _tick_citizen(c: Dictionary, buildings: Array, citizens: Array,
 						c["work_phase"] = PH_SEEK
 						c["src_set"] = false
 						c["carry"] = ""
+				elif c.get("errand", "") == "home":
+					# Reached the door on a daytime food/warmth errand — step inside to the
+					# hearth/larder and top up (recovery + exit handled by STATE_INSIDE).
+					c["state"] = STATE_INSIDE
+					c["inside_ticks"] = 0
+					c["vx"] = 0.0; c["vy"] = 0.0
 				elif night:
 					# Reached the home door after dark — step INSIDE to sleep (not drawn),
 					# rather than _go_home (which re-targets the home centre and bounces the
@@ -871,9 +930,18 @@ static func _tick_citizen(c: Dictionary, buildings: Array, citizens: Array,
 					c["ty"] = spot.y
 					c["state"] = STATE_WALK
 		STATE_INSIDE:
-			# Indoors (not drawn). Step back out into the street when day returns.
+			# Indoors (not drawn): the hearth warms them and the larder feeds them (food only
+			# tops up while the realm actually has food in store). At night they sleep through;
+			# in daylight this is a quick food/warmth errand — they step back out once provided
+			# for (or after a capped dwell, so an empty larder can't trap them sheltering).
 			c["vx"] = 0.0; c["vy"] = 0.0
-			if not night:
+			NeedsSystem.recover_inside(c, NeedsSystem.realm_has_food(player))
+			if night:
+				return
+			c["inside_ticks"] = int(c.get("inside_ticks", 0)) + 1
+			var topped: bool = not NeedsSystem.is_hungry(c) and not NeedsSystem.is_cold(c)
+			if topped or int(c["inside_ticks"]) >= INSIDE_ERRAND_MAX or c.get("errand", "") != "home":
+				c.erase("errand")
 				c["state"] = STATE_IDLE
 				c["state_ticks"] = rng.randi_range(IDLE_TICKS.x, IDLE_TICKS.y)
 		STATE_WANDER:
@@ -887,11 +955,18 @@ static func _tick_citizen(c: Dictionary, buildings: Array, citizens: Array,
 					c["state"] = STATE_INSIDE
 				c["vx"] = 0.0; c["vy"] = 0.0
 				return
+			# Hungry or cold? Break off ambling and head indoors to the hearth/larder.
+			if _needs_errand(c, grid):
+				return
 			var to_home := Vector2(c["hx"], c["hy"]) - pos
 			var steer := to_home * 0.05 + Vector2(rng.randf_range(-1, 1), rng.randf_range(-1, 1))
 			if to_home.length() > WANDER_RADIUS:
 				steer = to_home.normalized()
 			steer += _separation(c, citizens) * 0.8
+			# Drift OFF tiles hard against a building so idle folk loiter on open ground rather
+			# than vanishing behind a wall. Only nudges ambling pawns — walks INTO a building
+			# (work, or heading home to sleep at night) set tx/ty and use STATE_WALK, untouched.
+			steer += _building_repulsion(grid, pos) * 0.7
 			if steer.length() > 0.001:
 				steer = steer.normalized()
 			var step := steer * WALK_SPEED * 0.6
@@ -904,6 +979,32 @@ static func _tick_citizen(c: Dictionary, buildings: Array, citizens: Array,
 			if c["state_ticks"] <= 0:
 				c["state"] = STATE_IDLE
 				c["state_ticks"] = rng.randi_range(IDLE_TICKS.x, IDLE_TICKS.y)
+		STATE_CHAT:
+			# Standing and talking with a neighbour. End if night falls, the partner wanders
+			# off / is pulled to work / dies, or the natter simply runs its course.
+			c["vx"] = 0.0; c["vy"] = 0.0
+			if night:
+				c["chat_with"] = -1
+				var hd := _home_door(c)
+				if pos.distance_to(hd) > ARRIVE_DIST:
+					c["state"] = STATE_WALK
+					c["tx"] = hd.x; c["ty"] = hd.y
+				else:
+					c["state"] = STATE_INSIDE
+				return
+			var partner := _citizen_by_id(citizens, int(c.get("chat_with", -1)))
+			if partner.is_empty() or not partner.get("is_alive", false) \
+					or partner.get("state", "") != STATE_CHAT \
+					or int(partner.get("chat_with", -1)) != int(c.get("id", -2)):
+				_end_chat(c, citizens, rng)
+			else:
+				# Keep facing the partner; aim any gesture toward them.
+				c["facing"] = 1.0 if partner["x"] >= c["x"] else -1.0
+				c["act_x"] = partner["x"]; c["act_y"] = partner["y"]
+				c["chat_ticks"] = int(c.get("chat_ticks", 0)) - 1
+				if c["chat_ticks"] <= 0:
+					_end_chat(c, citizens, rng)
+			return
 		_:  # IDLE
 			c["vx"] = 0.0; c["vy"] = 0.0
 			# At night, head to the home DOOR and step inside to sleep — don't drift
@@ -916,10 +1017,28 @@ static func _tick_citizen(c: Dictionary, buildings: Array, citizens: Array,
 				else:
 					c["state"] = STATE_INSIDE   # in through the door for the night
 				return
+			# Hungry or cold? Go indoors to eat / warm by the hearth before idling on.
+			if _needs_errand(c, grid):
+				return
 			c["state_ticks"] = int(c.get("state_ticks", 0)) - 1
 			if c["state_ticks"] <= 0:
+				# If a free neighbour is already close, stop for a chat; otherwise amble off.
+				if c.get("role", "") == "peasant" and rng.randf() < CHAT_CHANCE:
+					var mate := _find_chat_partner(c, citizens)
+					if not mate.is_empty():
+						_begin_chat(c, mate, rng)
+						return
 				c["state"] = STATE_WANDER
 				c["state_ticks"] = rng.randi_range(WANDER_TICKS.x, WANDER_TICKS.y)
+
+	# Provisioning: an EMPLOYED villager (worker or builder) is kept fed and warm AT their post —
+	# food drawn from the realm larder (only while it has food), warmth from the work itself — so
+	# they don't have to abandon the harvest/site to survive. Idle folk get nothing here; they must
+	# physically go home (handled in the idle/wander states). Workers only sleep once per long
+	# day/night cycle, so without this they'd starve at their posts between nights.
+	var emp_role := String(c.get("role", "peasant"))
+	if emp_role == "worker" or emp_role == "builder":
+		NeedsSystem.recover_inside(c, NeedsSystem.realm_has_food(player))
 
 	if absf(c.get("vx", 0.0)) > 0.001:
 		c["facing"] = 1.0 if c["vx"] > 0.0 else -1.0
@@ -991,6 +1110,66 @@ static func _walk_speed(grid: Object, pos: Vector2) -> float:
 	var cost: float = clampf(grid.get_move_cost(int(round(pos.x)), int(round(pos.y))), 0.4, 4.0)
 	return WALK_SPEED / cost
 
+static func _citizen_by_id(citizens: Array, id: int) -> Dictionary:
+	if id < 0:
+		return {}
+	for o in citizens:
+		if o is Dictionary and int(o.get("id", -2)) == id:
+			return o
+	return {}
+
+# Find the nearest FREE peasant already within chatting distance (none picked if they're
+# all busy/far — so a chat only forms between people genuinely standing near each other).
+static func _find_chat_partner(c: Dictionary, citizens: Array) -> Dictionary:
+	var best := {}
+	var bd: float = CHAT_SEEK_RADIUS
+	var cid: int = int(c.get("id", -1))
+	var px: float = c["x"]
+	var py: float = c["y"]
+	for o in citizens:
+		if not (o is Dictionary and o.get("is_alive", false)):
+			continue
+		if int(o.get("id", -2)) == cid:
+			continue
+		if o.get("role", "") != "peasant":
+			continue
+		var ost: String = o.get("state", "")
+		if ost != STATE_IDLE and ost != STATE_WANDER:
+			continue
+		if int(o.get("chat_with", -1)) != -1:
+			continue
+		var d: float = Vector2(float(o["x"]) - px, float(o["y"]) - py).length()
+		if d < bd:
+			bd = d
+			best = o
+	return best
+
+# Pair two villagers into a chat: both stand, face each other, for the same duration.
+static func _begin_chat(a: Dictionary, b: Dictionary, rng: RandomNumberGenerator) -> void:
+	var ticks: int = rng.randi_range(CHAT_TICKS.x, CHAT_TICKS.y)
+	for pair in [[a, b], [b, a]]:
+		var me: Dictionary = pair[0]
+		var other: Dictionary = pair[1]
+		me["state"] = STATE_CHAT
+		me["chat_with"] = int(other.get("id", -1))
+		me["chat_ticks"] = ticks
+		me["vx"] = 0.0; me["vy"] = 0.0
+		me["facing"] = 1.0 if float(other["x"]) >= float(me["x"]) else -1.0
+
+# End a chat. Also releases the partner (if it's still chatting back) so the pair always
+# breaks up together — never leaving one side talking to itself for a tick.
+static func _end_chat(c: Dictionary, citizens: Array, rng: RandomNumberGenerator) -> void:
+	var partner := _citizen_by_id(citizens, int(c.get("chat_with", -1)))
+	c["chat_with"] = -1
+	c["state"] = STATE_IDLE
+	c["state_ticks"] = rng.randi_range(IDLE_TICKS.x, IDLE_TICKS.y)
+	if not partner.is_empty() and partner.get("state", "") == STATE_CHAT \
+			and int(partner.get("chat_with", -1)) == int(c.get("id", -2)):
+		partner["chat_with"] = -1
+		partner["state"] = STATE_IDLE
+		partner["state_ticks"] = rng.randi_range(IDLE_TICKS.x, IDLE_TICKS.y)
+		partner["vx"] = 0.0; partner["vy"] = 0.0
+
 # Repulsion vector pushing this pawn away from nearby pawns (boids separation).
 static func _separation(c: Dictionary, citizens: Array) -> Vector2:
 	var push := Vector2.ZERO
@@ -1006,6 +1185,28 @@ static func _separation(c: Dictionary, citizens: Array) -> Vector2:
 		if dl > 0.001 and dl < SEP_RADIUS:
 			push += (d / dl) * ((SEP_RADIUS - dl) / SEP_RADIUS)
 	return push
+
+# A gentle steer AWAY from solid building tiles in the 3×3 around the pawn, so wandering
+# townsfolk settle on open ground instead of pressed against (and hidden behind) a wall.
+# Walkable field tiles (orchards/farms) don't repel — workers are meant to stand among the rows.
+static func _building_repulsion(grid: Object, p: Vector2) -> Vector2:
+	if grid == null or not grid.has_method("get_building_at"):
+		return Vector2.ZERO
+	var gx := int(round(p.x))
+	var gy := int(round(p.y))
+	var push := Vector2.ZERO
+	for dy in range(-1, 2):
+		for dx in range(-1, 2):
+			if dx == 0 and dy == 0:
+				continue
+			if grid.get_building_at(gx + dx, gy + dy) == 0:
+				continue
+			if grid.has_method("is_field_at") and grid.is_field_at(gx + dx, gy + dy):
+				continue
+			push += Vector2(-dx, -dy)   # push back from the occupied neighbour
+	if push.length() > 0.001:
+		return push.normalized()
+	return Vector2.ZERO
 
 # True if the tile under p is walkable (in bounds, passable terrain, no building).
 static func _passable(grid: Object, p: Vector2) -> bool:
@@ -1093,6 +1294,24 @@ static func _assign_homes(citizens: Array, buildings: Array, grid: Object = null
 			c["home_dx"] = door.x
 			c["home_dy"] = door.y
 			i += 1
+
+# If hungry or cold, break off and head indoors (to the home door, then INSIDE) to top up at the
+# hearth/larder. Returns true when an errand is begun (the caller should then return). Daytime
+# only — at night everyone heads home anyway, and work/build walks set their own targets and so
+# are never interrupted (this is only consulted from the idle/wander states).
+static func _needs_errand(c: Dictionary, grid: Object) -> bool:
+	if not (NeedsSystem.is_hungry(c) or NeedsSystem.is_cold(c)):
+		return false
+	c["errand"] = "home"
+	c["vx"] = 0.0; c["vy"] = 0.0
+	var hd := _home_door(c)
+	if Vector2(c["x"], c["y"]).distance_to(hd) <= ARRIVE_DIST:
+		c["state"] = STATE_INSIDE
+		c["inside_ticks"] = 0
+	else:
+		c["state"] = STATE_WALK
+		c["tx"] = hd.x; c["ty"] = hd.y
+	return true
 
 static func _go_home(c: Dictionary, rng: RandomNumberGenerator, grid: Object = null) -> void:
 	c["role"] = "peasant"

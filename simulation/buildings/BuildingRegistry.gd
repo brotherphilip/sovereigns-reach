@@ -41,6 +41,16 @@ const BUILDINGS: Dictionary = {
 		"coverage_radius": 0,
 		"description": "A paved track. Units walk it twice as fast and prefer it.",
 	},
+	"bridge": {
+		"name": "Bridge", "category": Category.CIVIC,
+		"width": 1, "height": 1, "is_bridge": true,
+		"cost": {"wood": 8},
+		"max_workers": 0, "worker_slots": 0,
+		"terrain_req": TERRAIN_ANY, "fire_risk": 0.0, "hp": 120,
+		"requires_tech": [], "produces": {}, "consumes": {},
+		"coverage_radius": 0,
+		"description": "Spans a river so units can cross. Stretches to reach the far bank.",
+	},
 	# ── §5.1 Civic ──────────────────────────────────────────────────────────
 	"village_hall": {
 		"name": "Village Hall", "category": Category.CIVIC,
@@ -121,10 +131,13 @@ const BUILDINGS: Dictionary = {
 		"width": 2, "height": 3,
 		"cost": {"wood": 4},
 		"max_workers": 3, "worker_slots": 3,
-		"terrain_req": TERRAIN_FOREST, "fire_risk": 0.03, "hp": 50,
+		# Stands on OPEN ground (grass/valley), NOT on the trees themselves — the woodcutters walk
+		# out to the nearest woodland to fell timber (the gather search scans the whole map, so the
+		# camp no longer has to sit in the forest). Placing it ON trees is rejected.
+		"terrain_req": TERRAIN_GRASS | TERRAIN_VALLEY, "fire_risk": 0.03, "hp": 50,
 		"requires_tech": [], "produces": {"wood": 1}, "consumes": {},
 		"coverage_radius": 0,
-		"description": "Harvests timber. Must be near trees.",
+		"description": "Harvests timber. Place on open ground near woodland.",
 	},
 	"stone_quarry": {
 		"name": "Stone Quarry", "category": Category.HARVESTING,
@@ -475,15 +488,28 @@ static func is_valid_type(building_type: String) -> bool:
 static func is_field(building_type: String) -> bool:
 	return BUILDINGS.get(building_type, {}).get("field", false)
 
+# Crop code a field building stamps onto the REAL terrain (WorldGrid._field_crop) so the ground
+# itself renders as farmland — no fake building floor. 0 none, 1 wheat, 2 orchard, 3 pasture, 4 mud,
+# 5 hops. Read by TerrainChunk. Keep in sync with WorldGrid's _field_crop comment.
+const _FIELD_CROP: Dictionary = {
+	"wheat_farm": 1, "apple_orchard": 2, "dairy_farm": 3, "pig_farm": 4, "hops_farm": 5,
+}
+static func field_crop(building_type: String) -> int:
+	return _FIELD_CROP.get(building_type, 0)
+
 # A "path" pseudo-building — placing it paints a ROAD tile rather than a structure.
 static func is_path(building_type: String) -> bool:
 	return BUILDINGS.get(building_type, {}).get("is_path", false)
 
-# Buildings that must keep a gap from each other. Paths and defensive works (walls,
-# towers, gatehouses — meant to sit flush in rings) are exempt.
+# A "bridge" pseudo-building — a stretchable crossing laid over a river's water cells.
+static func is_bridge(building_type: String) -> bool:
+	return BUILDINGS.get(building_type, {}).get("is_bridge", false)
+
+# Buildings that must keep a gap from each other. Paths, bridges and defensive works
+# (walls, towers, gatehouses — meant to sit flush in rings) are exempt.
 static func needs_spacing(building_type: String) -> bool:
 	var d: Dictionary = BUILDINGS.get(building_type, {})
-	if d.is_empty() or d.get("is_path", false):
+	if d.is_empty() or d.get("is_path", false) or d.get("is_bridge", false):
 		return false
 	return d.get("category", -1) != Category.DEFENSE
 

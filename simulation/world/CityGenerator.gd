@@ -18,12 +18,15 @@ const MAX_DEV: int = 10
 # grass/valley/flat so generation never fails for lack of special terrain. Higher
 # development simply reveals more of this list.
 const SEQUENCE: Array = [
-	["village_hall", 0], ["hovel", 0], ["apple_orchard", 0], ["well", 0],
-	["hovel", 1], ["market", 1], ["wheat_farm", 1],
+	# Every town carries the SAME raw-material economy the player builds: a woodcutter to fell
+	# timber and a stockpile to store it (so a watched AI town has real woodcutters working, not
+	# just food + housing). It lives by this economy exactly like the player's seat.
+	["village_hall", 0], ["hovel", 0], ["apple_orchard", 0], ["woodcutter_camp", 0], ["stockpile", 0], ["well", 0],
+	["hovel", 1], ["market", 1], ["wheat_farm", 1], ["woodcutter_camp", 1],
 	["hovel", 2], ["granary", 2], ["mill", 2], ["hovel", 2],
 	["hovel", 3], ["brewery", 3], ["inn", 3], ["barracks", 3],
 	["church", 4], ["hovel", 4], ["apple_orchard", 4], ["armory", 4],
-	["bakery", 5], ["hovel", 5],
+	["bakery", 5], ["hovel", 5], ["stockpile", 5], ["woodcutter_camp", 5],
 	["blacksmith", 6], ["hovel", 6], ["trading_post", 6], ["wheat_farm", 6],
 	["hovel", 7], ["guildhall", 7], ["pig_farm", 7],
 	["hovel", 8], ["cathedral", 8], ["hovel", 8],

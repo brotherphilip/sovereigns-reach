@@ -29,7 +29,7 @@ const _TERRAIN_PASSABILITY: Dictionary = {
 	0: 0b00001111,  # GRASS
 	1: 0b00000001,  # FOREST   — passable on foot (slow)
 	2: 0,           # MOUNTAIN — fully blocks
-	3: 0b00000001,  # RIVER    — wadeable on foot (very slow)
+	3: 0,           # RIVER    — deep water, fully blocks (cross via a BRIDGE)
 	4: 0b00000001,  # MARSH
 	5: 0,           # ROCK     — fully blocks
 	6: 0b00000001,  # ORE_VEIN
@@ -37,13 +37,14 @@ const _TERRAIN_PASSABILITY: Dictionary = {
 	8: 0b00000111,  # COASTAL
 	9: 0b00001111,  # ROAD
 	10: 0b00000011, # RUIN
+	11: 0b00001111, # BRIDGE   — crossing over water (all movement types)
 }
 
 const _TERRAIN_MOVE_COST: Dictionary = {
 	0: 1.0,   # GRASS
 	1: 2.0,   # FOREST  (≈ half speed)
 	2: 99.0,  # MOUNTAIN (blocked)
-	3: 5.0,   # RIVER   (water greatly slows)
+	3: 99.0,  # RIVER   (blocked — cross via a bridge)
 	4: 3.0,   # MARSH
 	5: 99.0,  # ROCK    (blocked)
 	6: 2.0,   # ORE_VEIN
@@ -51,6 +52,7 @@ const _TERRAIN_MOVE_COST: Dictionary = {
 	8: 1.2,   # COASTAL
 	9: 0.5,   # ROAD
 	10: 1.5,  # RUIN
+	11: 0.6,  # BRIDGE  (cross the water briskly)
 }
 
 # 8 neighbour directions: 4 cardinal first, then 4 diagonals.

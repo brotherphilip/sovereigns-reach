@@ -102,7 +102,7 @@ func _test_game_state_init() -> void:
 	var p = _gs.get_player(0)
 
 	_ok(p["name"]        == "Lord Phillip", "player name set")
-	_ok(p["gold"]        == 200,            "starting gold 200")
+	_ok(p["gold"]        == 400,            "starting gold 400")
 	_ok(p["popularity"]  == 50,             "starting popularity 50")
 	_ok(p["tax_rate"]    == 0,              "starting tax rate neutral (0)")
 	_ok(p["food_ration"] == 2,              "starting food ration normal (2)")

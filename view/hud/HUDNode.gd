@@ -247,10 +247,10 @@ func _build_all_panels() -> void:
 	_edict_panel.visible = false
 	_build_edict_panel()
 
-	# Stacking notification feed (replaces the old single-label notification)
+	# Live event feed — docked on the left under the minimap / World Map button. Keeps a
+	# scrollable history; the header toggle drops it down to read past messages.
 	_notification_feed = NotificationFeed.new()
-	_notification_feed.position = Vector2(vp.x * 0.5 - 200, 50)
-	_notification_feed.size = Vector2(400, 0)
+	_notification_feed.position = Vector2(4, 236)
 	add_child(_notification_feed)
 
 	# Diplomacy panel (tribute demands) — hidden until an envoy arrives
@@ -927,6 +927,20 @@ func show_selected_building(building: Dictionary) -> void:
 	if btype == "market" or btype == "guildhall":
 		_add_market_actions(building)
 
+	# Demolish — tear down your OWN building (also bound to the Delete key). The seat itself
+	# (village hall / keep) can't be razed by hand; losing it is a defeat, not a build choice.
+	if btype != "village_hall" and btype != "keep":
+		var dbtn: Button = _make_card_button("Demolish", true)
+		dbtn.add_theme_font_size_override("font_size", 10)
+		dbtn.custom_minimum_size = Vector2(80, 24)
+		dbtn.add_theme_color_override("font_color", Color(1.0, 0.55, 0.45))
+		dbtn.tooltip_text = "Tear this building down (or press Delete)."
+		var did: int = int(building.get("id", -1))
+		dbtn.pressed.connect(func():
+			CommandQueue.enqueue(CommandQueue.CommandType.DEMOLISH_BUILDING, {"building_id": did}, 0)
+			clear_selection())
+		_sel_actions.add_child(dbtn)
+
 func show_selected_unit(unit: Dictionary) -> void:
 	if not _sel_title:
 		return
@@ -970,6 +984,30 @@ func show_selected_unit(unit: Dictionary) -> void:
 		var next_stance: String = "guard" if cur == "aggressive" else "aggressive"
 		sb.pressed.connect(func(): CommandQueue.enqueue(32, {"unit_id": uid, "stance": next_stance}, 0))
 		_sel_actions.add_child(sb)
+
+# A villager's life at a glance — their name and family, sex/life-stage, what they do, and the
+# three things that keep them alive (HP, food, warmth). Coloured red as each need runs low.
+func show_selected_citizen(c: Dictionary) -> void:
+	if not _sel_title:
+		return
+	const Needs = preload("res://simulation/world/NeedsSystem.gd")
+	_sel_title.text = Needs.full_name(c)
+	var hp: int     = int(round(float(c.get("hp", 100.0))))
+	var food: int   = int(round(float(c.get("food", 100.0))))
+	var warmth: int = int(round(float(c.get("warmth", 100.0))))
+	var role_s: String = String(c.get("job_type", ""))
+	if role_s == "":
+		role_s = String(c.get("role", "peasant"))
+	_sel_info.text = "HP %d/100\nFood %d/100   Warmth %d/100\n%s" % [
+		hp, food, warmth, role_s.capitalize()]
+	var sex_s: String   = "Woman" if String(c.get("sex", "m")) == "f" else "Man"
+	var stage_s: String = String(c.get("stage", "adult")).capitalize()
+	_sel_workers_label.text = "[%s · %s]" % [sex_s, stage_s]
+	var low: bool = food < int(Needs.LOW) or warmth < int(Needs.LOW) or hp < 50
+	_sel_workers_label.add_theme_color_override("font_color",
+		Color(1.0, 0.5, 0.4) if low else Color(0.8, 0.85, 0.95))
+	for ch in _sel_actions.get_children():
+		ch.queue_free()
 
 func clear_selection() -> void:
 	if not _sel_title: return

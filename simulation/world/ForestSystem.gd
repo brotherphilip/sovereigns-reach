@@ -63,12 +63,16 @@ static func tick(world: Dictionary, grid, rng: RandomNumberGenerator) -> void:
 			if float(t[1]) >= 1.0:
 				t[0] = stage + 1; t[1] = 0.0
 		elif rng.randf() < SPREAD_CHANCE:
+			# Spread ONE tile in this tree's OWN fixed direction (a stable hash of its
+			# position), so a stand creeps outward in organic fingers/tendrils — one square
+			# at a time, one direction at a time — instead of filling a square in every
+			# direction at once. Each new sapling has its own direction, so the treeline
+			# meanders and branches like real regeneration.
 			var ax: int = int(k) % grid.width
 			var ay: int = int(k) / grid.width
-			var nx: int = ax + rng.randi_range(-1, 1)
-			var ny: int = ay + rng.randi_range(-1, 1)
-			if _can_seed(grid, world, nx, ny):
-				to_seed.append(_key(grid, nx, ny))
+			var d: Vector2i = _spread_dir(ax, ay)
+			if _can_seed(grid, world, ax + d.x, ay + d.y):
+				to_seed.append(_key(grid, ax + d.x, ay + d.y))
 	# Rare brand-new lone sapling somewhere fresh on the map.
 	if rng.randf() < NEW_SEED_CHANCE:
 		var rx: int = rng.randi_range(2, grid.width - 3)
@@ -78,6 +82,17 @@ static func tick(world: Dictionary, grid, rng: RandomNumberGenerator) -> void:
 	for k2 in to_seed:
 		trees[k2] = [SAPLING, 0.0, rng.randf_range(GROW_MIN, GROW_MAX), 0]
 		grid.set_terrain(int(k2) % grid.width, int(k2) / grid.width, WorldGrid.Terrain.FOREST)
+
+# A tree's fixed spread direction — a stable hash of its tile, one of the 8 compass
+# steps. Stable so a given tree always reaches the same way (a directional tendril),
+# while its offspring (new coords) pick their own, so the woodland branches naturally.
+const _SPREAD_DIRS: Array = [
+	Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1),
+	Vector2i(1, 1), Vector2i(1, -1), Vector2i(-1, 1), Vector2i(-1, -1),
+]
+static func _spread_dir(x: int, y: int) -> Vector2i:
+	var h: int = absi((x * 73856093) ^ (y * 19349663))
+	return _SPREAD_DIRS[h % 8]
 
 # A tile can sprout a sapling if it's open grass with no building/tree already.
 static func _can_seed(grid, world: Dictionary, x: int, y: int) -> bool:

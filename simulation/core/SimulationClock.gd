@@ -26,12 +26,16 @@ const SPEED_PAUSED: int = 0
 const SPEED_NORMAL: int = 1
 const SPEED_FAST: int = 2
 const SPEED_FASTEST: int = 3
+# Debug-only turbo (×20), reachable from the Alt+9 cheat, NOT the HUD speed buttons. Past the
+# normal SPEED_FASTEST ceiling so it can't be hit by accident.
+const SPEED_DEBUG: int = 4
 
 const SPEED_MULTIPLIERS: Dictionary = {
 	SPEED_PAUSED: 0.0,
 	SPEED_NORMAL: 1.0,
 	SPEED_FAST: 2.0,
 	SPEED_FASTEST: 5.0,
+	SPEED_DEBUG: 20.0,
 }
 
 var current_tick: int = 0
@@ -45,9 +49,10 @@ func _ready() -> void:
 # slow frame (a GC stall, a first-time shader/material compile when a new
 # building's geometry is drawn, an alt-tab) inflates `delta`, which queues more
 # ticks than real-time can drain — the classic "spiral of death" that hard-freezes
-# the main thread. FASTEST speed only needs ~1.7 ticks/frame at 60fps, so 10 is
-# ample headroom; any backlog beyond it is dropped so the game stays responsive.
-const MAX_TICKS_PER_FRAME: int = 10
+# the main thread. FASTEST needs ~1.7 ticks/frame at 60fps; the ×20 debug turbo needs
+# ~6.7 at 60fps (~13 at 30fps), so 24 gives that headroom. Any backlog beyond the cap is
+# still dropped each frame, so the spiral protection holds regardless of the value.
+const MAX_TICKS_PER_FRAME: int = 24
 
 func _process(delta: float) -> void:
 	var multiplier: float = SPEED_MULTIPLIERS.get(game_speed, 1.0)
@@ -73,7 +78,7 @@ func _advance_tick() -> void:
 
 func set_speed(speed: int) -> void:
 	var old_speed: int = game_speed
-	game_speed = clampi(speed, SPEED_PAUSED, SPEED_FASTEST)
+	game_speed = clampi(speed, SPEED_PAUSED, SPEED_DEBUG)
 	if old_speed != game_speed:
 		EventBus.game_speed_changed.emit(SPEED_MULTIPLIERS.get(game_speed, 1.0))
 

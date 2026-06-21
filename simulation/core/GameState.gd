@@ -1,6 +1,7 @@
 extends Node
 # Autoload singleton. The single source of truth for ALL game state.
 
+const BridgePlanner    = preload("res://simulation/world/BridgePlanner.gd")
 const WeatherSystem    = preload("res://simulation/world/WeatherSystem.gd")
 const PopularityEngine = preload("res://simulation/economy/PopularityEngine.gd")
 const ResourceTick     = preload("res://simulation/economy/ResourceTick.gd")
@@ -21,6 +22,7 @@ const ShireMap         = preload("res://simulation/world/ShireMap.gd")
 const WildlifeSystem   = preload("res://simulation/world/WildlifeSystem.gd")
 const CitizenSystem    = preload("res://simulation/world/CitizenSystem.gd")
 const PeopleSystem     = preload("res://simulation/world/PeopleSystem.gd")
+const NeedsSystem      = preload("res://simulation/world/NeedsSystem.gd")
 const WorldEventSystem = preload("res://simulation/world/WorldEventSystem.gd")
 const ObjectiveSystem  = preload("res://simulation/core/ObjectiveSystem.gd")
 # Phase 5
@@ -279,8 +281,9 @@ func _make_player(player_id: int, player_name: String, start_x: int, start_y: in
 		"is_alive": true,
 
 		# Economy
-		"gold": 200,
-		"popularity": 50,        # 0–100; peasants revolt below ~20
+		"gold": 400,             # doubled starting purse (the per-citizen needs system makes the
+								 # opening days harsher — see _make_food_stores for the food cushion)
+		"popularity": 80,        # 0–100; peasants revolt below ~20
 		"prestige": 0,
 		"prestige_per_tick": 0.0,
 
@@ -333,7 +336,7 @@ func _make_player(player_id: int, player_name: String, start_x: int, start_y: in
 
 func _make_resources() -> Dictionary:
 	return {
-		"wood": 100,
+		"wood": 200,             # doubled — more building stock before the economy is on its feet
 		"stone": 0,
 		"iron": 0,
 		"pitch": 0,
@@ -344,11 +347,15 @@ func _make_resources() -> Dictionary:
 	}
 
 func _make_food_stores() -> Dictionary:
+	# Food is the real survival blocker now that each villager eats from the larder (NeedsSystem):
+	# a 20-strong founding village drains the old 50 apples in ~2–3 days, before the player can
+	# stand up any food production (especially mid-tutorial). Start with a fat larder — apples
+	# tripled, plus a bread reserve (a second food type also grants the variety popularity bonus).
 	return {
-		"apples": 50,
+		"apples": 140,
 		"cheese": 0,
 		"meat": 0,
-		"bread": 0,
+		"bread": 60,
 		"ale": 0,
 	}
 
@@ -1274,11 +1281,12 @@ func simulate_tick(tick: int) -> void:
 	for player in players:
 		if not player.get("is_alive", false):
 			continue
-		# In spectator mode the showcased town (player 0) isn't economically driven —
-		# it only grows via strategic development — but its citizens still wander/build.
-		if spectator_mode and player.get("id", -1) == 0:
-			_tick_player_unit_movement(player, tick)
-			continue
+		# EVERY town lives by the SAME simulated economy — the player's seat AND any spectated AI
+		# town. Both run the full production/food/tax/popularity tick here, the identical physical
+		# citizen economy (CitizenSystem, below) and the same survival needs (NeedsSystem, below).
+		# A spectated rival is a FRESH founding realm (stash_seat_snapshot saved ours; then
+		# initialize_player re-stocked player 0 before enter_spectator_city swapped in the rival's
+		# buildings & people) — so it is a real, self-sufficient economic actor, never a showcase.
 		_tick_player_economy(player, tick)
 		_tick_player_unit_movement(player, tick)
 
@@ -1332,6 +1340,14 @@ func simulate_tick(tick: int) -> void:
 	if tick > 0 and tick % SimulationClock.TICKS_PER_GAME_DAY == 0 and not players.is_empty():
 		var day: int = tick / SimulationClock.TICKS_PER_GAME_DAY
 		var cal_day: int = tick / SimulationClock.TICKS_PER_CALENDAR_DAY   # sun-aligned, player-facing
+		# Each villager's own needs (food/warmth) ebb a little today; the unfed and the frozen
+		# sicken and, if it isn't put right, die by name. Runs BEFORE the lifecycle pass so the
+		# day's dead are purged with the old-age dead in one sweep. Runs for EVERY town, the
+		# player's seat and any spectated rival alike — now that the spectated town runs its full
+		# economy (above), its larder is genuinely produced/consumed, so its people live or die by it.
+		var needs_season: int = int(world.get("season", SeasonSystem.Season.SUMMER))
+		for gone in NeedsSystem.tick_day(citizens, players[0], needs_season, _citizen_rng):
+			EventBus.realm_notice.emit("%s has died of %s." % [gone["name"], gone["cause"]], "bad")
 		_next_citizen_id = PeopleSystem.tick_day(citizens, players[0], _citizen_rng, day, _next_citizen_id)
 		var living: int = PeopleSystem.living_count(citizens)
 		if players[0].get("population", 0) != living:
@@ -1343,6 +1359,12 @@ func simulate_tick(tick: int) -> void:
 		# its villagers visibly work, just like the player's.
 		if spectator_mode:
 			_auto_manage_ai_town()
+			# …and it manages its own LAND like the player would: if a building is cut off by a
+			# river it raises a bridge to reach it (BridgePlanner), or — if no crossing is possible
+			# — tears the stranded building down so its workers stop milling at the bank. Throttled
+			# (one crossing decision every few days) since the cut-off test is a full path-scan.
+			if day % 3 == 0:
+				_ai_manage_crossings(players[0])
 
 		# The 20-minute goal: reaching Day 100 alive is the whole point of a "life". Mark
 		# the achievement once — a triumphant moment + a fame reward — then let the
@@ -1744,6 +1766,85 @@ func _auto_manage_ai_town() -> void:
 		b["workers"] = give
 		job_budget -= give
 
+# The AI town keeps its own settlement CONNECTED, like a player would: a building cut off from
+# the town centre by a river gets a BRIDGE thrown to it; one that can't be reached at all (no
+# crossing possible) is torn down so its would-be workers stop milling at the water's edge. One
+# decision per call (the cut-off test is a full path-scan), and only when there's water about.
+func _ai_manage_crossings(player: Dictionary) -> void:
+	if _grid == null or player.is_empty():
+		return
+	var cx: int = int(player.get("keep_x", 100))
+	var cy: int = int(player.get("keep_y", 100))
+	if not _river_near(cx, cy, 22):
+		return   # no water near this town — nothing to cross, skip the scan
+	var pid: int = int(player.get("id", 0))
+	for b in player.get("buildings", []).duplicate():
+		if not (b is Dictionary and b.get("built", true)):
+			continue
+		var btype: String = String(b.get("type", ""))
+		if BuildingRegistry.is_bridge(btype) or btype in ["village_hall", "keep"]:
+			continue
+		var defn: Dictionary = BuildingRegistry.lookup(btype)
+		var spot: Vector2i = _free_tile_beside(int(b.get("grid_x", 0)), int(b.get("grid_y", 0)),
+			defn.get("width", 1), defn.get("height", 1))
+		if spot.x == -2147483648:
+			continue
+		# Reachable by land from the town centre? Then it's fine — leave it be.
+		if not Pathfinder.find_path(_grid, cx, cy, spot.x, spot.y, 1, true).is_empty():
+			continue
+		# Cut off. Try to BRIDGE toward it; if a span is possible, raise it and we're done.
+		var plan: Dictionary = BridgePlanner.plan_towards(_grid, cx, cy, spot.x, spot.y)
+		if plan.get("ok", false) and _place_bridge(pid, player, int(plan["start"].x), int(plan["start"].y)):
+			EventBus.realm_notice.emit("A bridge is raised to reach the %s across the water."
+				% defn.get("name", "outpost"), "neutral")
+			return
+		# No crossing possible at all → demolish the stranded building (frees its workforce).
+		_ai_demolish_building(player, pid, b)
+		EventBus.realm_notice.emit("The stranded %s is pulled down — no way across the water."
+			% defn.get("name", "building"), "neutral")
+		return
+
+# True if any RIVER tile lies within `r` of (cx,cy). Cheap pre-filter so only water-side towns
+# pay for the (expensive) cut-off path scans below.
+func _river_near(cx: int, cy: int, r: int) -> bool:
+	for dy in range(-r, r + 1):
+		for dx in range(-r, r + 1):
+			if _grid.in_bounds(cx + dx, cy + dy) \
+					and _grid.get_terrain(cx + dx, cy + dy) == WorldGrid.Terrain.RIVER:
+				return true
+	return false
+
+# A free, passable tile on the perimeter of the footprint at (bx,by)+(w,h) — where a worker would
+# actually stand. Returns (-2147483648, …) when none is open.
+func _free_tile_beside(bx: int, by: int, w: int, h: int) -> Vector2i:
+	for dy in range(-1, h + 1):
+		for dx in range(-1, w + 1):
+			if dx >= 0 and dx < w and dy >= 0 and dy < h:
+				continue   # inside the footprint — skip
+			var x: int = bx + dx
+			var y: int = by + dy
+			if _grid.in_bounds(x, y) and _grid.get_building_at(x, y) == 0 \
+					and _grid.is_passable(x, y, 1):
+				return Vector2i(x, y)
+	return Vector2i(-2147483648, 0)
+
+# Tear down one of the town's own buildings: clear its grid tiles and drop it from the roster.
+func _ai_demolish_building(player: Dictionary, pid: int, b: Dictionary) -> void:
+	if _grid != null:
+		var defn: Dictionary = BuildingRegistry.lookup(b.get("type", ""))
+		var bx: int = int(b.get("grid_x", 0))
+		var by: int = int(b.get("grid_y", 0))
+		var was_crop: bool = BuildingRegistry.field_crop(b.get("type", "")) != 0
+		for dy in range(defn.get("height", 1)):
+			for dx in range(defn.get("width", 1)):
+				_grid.set_building_at(bx + dx, by + dy, 0)
+				_grid.set_field_at(bx + dx, by + dy, false)
+				if was_crop:
+					_grid.set_field_crop_at(bx + dx, by + dy, 0)
+					EventBus.terrain_painted.emit(bx + dx, by + dy)
+	player.get("buildings", []).erase(b)
+	EventBus.building_demolished.emit(pid, int(b.get("id", -1)))
+
 func _spectator_add_hovel(player: Dictionary) -> void:
 	if _grid == null:
 		return
@@ -1770,10 +1871,13 @@ func _register_buildings_in_grid(blds: Array) -> void:
 		var gy: int = b.get("grid_y", 0)
 		var bid: int = b.get("id", 0)
 		var field: bool = defn.get("field", false)
+		var crop: int = BuildingRegistry.field_crop(b.get("type", ""))
 		for dy in range(h):
 			for dx in range(w):
 				_grid.set_building_at(gx + dx, gy + dy, bid)
 				_grid.set_field_at(gx + dx, gy + dy, field)
+				if crop != 0:
+					_grid.set_field_crop_at(gx + dx, gy + dy, crop)
 
 # While spectating, append newly-unlocked buildings (as UNBUILT) when the town's
 # strategic development rises, so the builder pawns visibly raise them.
@@ -1992,12 +2096,22 @@ func _cmd_place_building(cmd: Dictionary) -> bool:
 	var gy: int = payload.get("grid_y", 0)
 	var player: Dictionary = players[pid]
 
+	# Bridges span a river — a stretchable, multi-cell crossing, handled specially.
+	if BuildingRegistry.is_bridge(btype):
+		return _place_bridge(pid, player, gx, gy)
+
 	# Validate placement (requires grid if available)
 	if _grid != null:
 		var result: Dictionary = PlacementValidator.validate(btype, gx, gy, _grid, player, world)
 		if not result["ok"]:
 			EventBus.building_placement_failed.emit(pid, btype, gx, gy, result.get("message", ""))
 			return false
+
+	# A gate raised over the player's OWN wall/fence REPLACES that segment — clear the overlapped
+	# walls now so the gate can occupy the run (the validator permitted the overlap above).
+	if _grid != null and BuildingRegistry.lookup(btype).get("is_gate", false):
+		var _gdef: Dictionary = BuildingRegistry.lookup(btype)
+		_replace_walls_in_footprint(player, pid, gx, gy, _gdef.get("width", 1), _gdef.get("height", 1))
 
 	# Create building instance
 	var bid: int = _next_building_id
@@ -2028,10 +2142,16 @@ func _cmd_place_building(cmd: Dictionary) -> bool:
 		var w: int = defn.get("width", 1)
 		var h: int = defn.get("height", 1)
 		var field: bool = defn.get("field", false)
+		var crop: int = BuildingRegistry.field_crop(btype)
 		for dy in range(h):
 			for dx in range(w):
 				_grid.set_building_at(gx + dx, gy + dy, bid)
 				_grid.set_field_at(gx + dx, gy + dy, field)
+				if crop != 0:
+					# Stamp the crop onto the REAL terrain so the ground itself renders as farmland
+					# (TerrainChunk) — the field has no building floor of its own.
+					_grid.set_field_crop_at(gx + dx, gy + dy, crop)
+					EventBus.terrain_painted.emit(gx + dx, gy + dy)
 
 	# Placed unbuilt — villagers must raise it. build_progress accrues per builder
 	# (see CitizenSystem); the structure isn't functional until built. Bigger
@@ -2059,6 +2179,53 @@ func _cmd_place_building(cmd: Dictionary) -> bool:
 	# (the keep's base cellar already counts it) and is drawn larger to read as the main store.
 	if btype == "village_hall" and not _has_initial_stockpile(player):
 		_spawn_initial_stockpile(player, gx, gy)
+	return true
+
+# Lay a bridge across a river from the hovered land cell. The span is recomputed here from
+# the live grid (authoritative — the client only sends the anchor), then the water cells it
+# crosses become passable BRIDGE terrain. The bridge stands immediately (builders can't
+# work mid-river); the deck is stored on the building so the view can draw it.
+func _place_bridge(pid: int, player: Dictionary, gx: int, gy: int) -> bool:
+	if _grid == null:
+		return false
+	var plan: Dictionary = BridgePlanner.plan(_grid, gx, gy)
+	if not plan.get("ok", false):
+		EventBus.building_placement_failed.emit(pid, "bridge", gx, gy, plan.get("reason", "Cannot bridge here"))
+		return false
+	# Affordability.
+	var cost: Dictionary = BuildingRegistry.lookup("bridge").get("cost", {})
+	for r in cost:
+		var have: int = player.get("gold", 0) if r == "gold" else int(player.get("resources", {}).get(r, 0))
+		if have < int(cost[r]):
+			EventBus.building_placement_failed.emit(pid, "bridge", gx, gy, "Not enough %s" % r)
+			return false
+	PlacementValidator.deduct_cost("bridge", player)
+
+	var bid: int = _next_building_id
+	_next_building_id += 1
+	var building: Dictionary = BuildingState.create("bridge", pid, gx, gy, bid)
+	if building.is_empty():
+		return false
+	building["built"] = true
+	building["build_progress"] = 1.0
+	building["build_required"] = 0.0
+	building["build_mat_total"] = 0
+	building["build_mat_delivered"] = 0
+	var deck_arr: Array = []
+	for c in plan["deck"]:
+		deck_arr.append([c.x, c.y])
+	building["bridge_deck"] = deck_arr
+	building["bridge_dir"] = [int(plan["dir"].x), int(plan["dir"].y)]
+	# Convert the spanned water to passable BRIDGE terrain and mark it occupied by the bridge.
+	# Mark the deck as a walkable "field" tile too: civilian A* (avoid_buildings) treats ANY
+	# building tile as impassable UNLESS it's a field — so without this, pawns can't actually
+	# cross the bridge (the whole point of building it). This fixes player bridges as well.
+	for c in plan["cells"]:
+		_grid.set_terrain(c.x, c.y, WorldGrid.Terrain.BRIDGE)
+		_grid.set_building_at(c.x, c.y, bid)
+		_grid.set_field_at(c.x, c.y, true)
+	player["buildings"].append(building)
+	EventBus.building_placed.emit(pid, "bridge", gx, gy, bid)
 	return true
 
 func _has_initial_stockpile(player: Dictionary) -> bool:
@@ -2109,6 +2276,25 @@ func _spawn_initial_stockpile(player: Dictionary, hx: int, hy: int) -> void:
 		EventBus.building_placed.emit(int(player.get("id", 0)), "stockpile", sx, sy, bid)
 		return
 
+# Remove the player's wall/fence segments that fall inside (gx,gy)+(w,h) — used when a gate is
+# raised over a wall run, replacing those segments. Walls are 1×1, so a footprint test suffices.
+func _replace_walls_in_footprint(player: Dictionary, pid: int, gx: int, gy: int, w: int, h: int) -> void:
+	if _grid == null:
+		return
+	var kept: Array = []
+	for b in player.get("buildings", []):
+		var drop: bool = false
+		if b is Dictionary and BuildingRegistry.lookup(b.get("type", "")).get("is_wall", false):
+			var bx: int = int(b.get("grid_x", 0))
+			var by: int = int(b.get("grid_y", 0))
+			if bx >= gx and bx < gx + w and by >= gy and by < gy + h:
+				_grid.set_building_at(bx, by, 0)
+				EventBus.building_demolished.emit(pid, int(b.get("id", -1)))
+				drop = true
+		if not drop:
+			kept.append(b)
+	player["buildings"] = kept
+
 func _cmd_demolish_building(cmd: Dictionary) -> bool:
 	var pid: int = cmd["player_id"]
 	if not _valid_player(pid):
@@ -2132,10 +2318,14 @@ func _cmd_demolish_building(cmd: Dictionary) -> bool:
 			var h: int = defn.get("height", 1)
 			var gx: int = building.get("grid_x", 0)
 			var gy: int = building.get("grid_y", 0)
+			var was_crop: bool = BuildingRegistry.field_crop(btype) != 0
 			for dy in range(h):
 				for dx in range(w):
 					_grid.set_building_at(gx + dx, gy + dy, 0)
 					_grid.set_field_at(gx + dx, gy + dy, false)
+					if was_crop:
+						_grid.set_field_crop_at(gx + dx, gy + dy, 0)   # back to plain ground
+						EventBus.terrain_painted.emit(gx + dx, gy + dy)
 
 		# Unassign workers back to pool
 		WorkerSystem.unassign_workers(building, player)
@@ -2972,6 +3162,11 @@ func get_terrain_at(x: int, y: int) -> int:
 	if _grid == null:
 		return WorldGrid.Terrain.GRASS
 	return _grid.get_terrain(x, y)
+
+# Crop stamped on this tile by a field building (0 none, 1 wheat, 2 orchard, 3 pasture, 4 mud,
+# 5 hops) — so the TERRAIN renderer can paint the real ground as farmland.
+func get_field_crop_at(x: int, y: int) -> int:
+	return _grid.get_field_crop_at(x, y) if _grid != null else 0
 
 func get_grid_size() -> Vector2i:
 	if _grid == null:

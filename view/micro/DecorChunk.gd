@@ -10,8 +10,11 @@ const T_FOREST: int = 1
 const T_MOUNTAIN: int = 2
 const T_RIVER: int = 3
 const T_ROCK: int = 5
+const T_ORE: int = 6
 const T_VALLEY: int = 7
 const T_COASTAL: int = 8
+
+const MountainHeight = preload("res://view/micro/MountainHeight.gd")
 
 const SeasonSystem = preload("res://simulation/world/SeasonSystem.gd")
 
@@ -51,6 +54,7 @@ func _draw_decor(gx: int, gy: int) -> void:
 		T_FOREST:   pass  # trees are drawn by the animated TreeLayer (living forest), not here
 		T_MOUNTAIN: _draw_mountain(cx, cy, gx, gy)
 		T_ROCK:     _draw_rock(cx, cy, gx, gy)
+		T_ORE:      _draw_ore(cx, cy, gx, gy)
 		T_RIVER:    _draw_river(cx, cy)
 		T_COASTAL:  _draw_coastal(cx, cy)
 		T_GRASS:    _draw_ground_decor(cx, cy, gx, gy)
@@ -136,21 +140,143 @@ func _draw_one_tree(cx: float, cy: float, s: float, hue: float) -> void:
 	draw_circle(Vector2(cx + 3.0 * s, cy - 13.0 * s), 6.0 * s, lite)
 	draw_circle(Vector2(cx, cy - 18.0 * s), 5.0 * s, lite)
 
+func _is_mountain(gx: int, gy: int) -> bool:
+	return GameState.get_terrain_at(gx, gy) == T_MOUNTAIN
+
+# A grassy mountain rendered as STACKED TERRACES: each tile is raised by its terrace level,
+# so short rock steps near the rim climb in layers to a tall peak — a natural slope that
+# blends into the fields, not one uniform wall. The top is grass; only the drop to a LOWER
+# neighbour terrace shows as a columnar rock face. Still a full blocker. (Terrace heights
+# come from MountainHeight so the grass-blade overlay lands on the same tops.)
 func _draw_mountain(cx: float, cy: float, gx: int, gy: int) -> void:
-	var h: float = 30.0 + _h(gx, gy, 2) * 18.0
-	var w: float = 18.0 + _h(gx, gy, 3) * 6.0
-	var baseL := Vector2(cx - w, cy + 5.0)
-	var baseR := Vector2(cx + w, cy + 5.0)
-	var peak  := Vector2(cx + (_h(gx, gy, 4) - 0.5) * 8.0, cy - h)
-	var mid   := Vector2(cx, cy + 3.0)
-	draw_colored_polygon(PackedVector2Array([baseL, baseR, Vector2(cx, cy + 9.0)]), Color(0, 0, 0, 0.16))
-	draw_colored_polygon(PackedVector2Array([peak, baseR, mid]), Color(0.40, 0.40, 0.46))
-	draw_colored_polygon(PackedVector2Array([peak, baseL, mid]), Color(0.57, 0.57, 0.63))
-	var snow_y: float = peak.y + h * 0.30
+	var level: int = MountainHeight.level(gx, gy)
+	var e: float = MountainHeight.elevation_for_level(level)
+	var l_se: int = MountainHeight.level_or0(gx + 1, gy)
+	var l_sw: int = MountainHeight.level_or0(gx, gy + 1)
+	# Cast a soft shadow onto the grass at the foot of an OUTER cliff (where the massif meets
+	# open ground) — the single strongest cue that this is a raised landmass, not flat rock.
+	var be := Vector2(cx + HALF_W, cy)
+	var bs := Vector2(cx, cy + HALF_H)
+	var bw := Vector2(cx - HALF_W, cy)
+	if l_se == 0:
+		var o := Vector2(HALF_W * 0.26, HALF_H * 0.26)
+		draw_colored_polygon(PackedVector2Array([be, bs, bs + o, be + o]), Color(0, 0, 0, 0.17))
+	if l_sw == 0:
+		var o2 := Vector2(-HALF_W * 0.26, HALF_H * 0.26)
+		draw_colored_polygon(PackedVector2Array([bs, bw, bw + o2, bs + o2]), Color(0, 0, 0, 0.17))
+	var tn := Vector2(cx, cy - HALF_H - e)
+	var te := Vector2(cx + HALF_W, cy - e)
+	var ts := Vector2(cx, cy + HALF_H - e)
+	var tw := Vector2(cx - HALF_W, cy - e)
+	# Faces drop only to the lower FRONT neighbour terrace (south-east & south-west edges),
+	# so the massif reads as layers stacking up to the peak rather than a single cliff.
+	var e_se: float = MountainHeight.elevation_for_level(l_se)
+	var e_sw: float = MountainHeight.elevation_for_level(l_sw)
+	if e - e_se > 0.5:
+		var d := Vector2(0.0, e - e_se)
+		_cliff_column_face(te, ts, te + d, ts + d, gx, gy, 1)
+	if e - e_sw > 0.5:
+		var d2 := Vector2(0.0, e - e_sw)
+		_cliff_column_face(ts, tw, ts + d2, tw + d2, gx, gy, 2)
+	# Grassy terrace top — each higher terrace a touch lighter than the ground proper, so the
+	# layers read as rising elevation (the grass-blade overlay then textures it to match).
+	var top := _mtn_top_grass(level)
+	draw_colored_polygon(PackedVector2Array([tn, te, ts, tw]), top)
+	var ctr := Vector2(cx, cy - e)
+	if _h(gx, gy, 2) > 0.5:
+		draw_circle(ctr + Vector2((_h(gx, gy, 3) - 0.5) * 28.0, (_h(gx, gy, 4) - 0.5) * 12.0),
+			2.4, top.darkened(0.10))
+	if _h(gx, gy, 7) > 0.80:
+		var rp := ctr + Vector2((_h(gx, gy, 8) - 0.5) * 22.0, (_h(gx, gy, 9) - 0.5) * 9.0)
+		draw_circle(rp + Vector2(0, 1.0), 2.6, Color(0, 0, 0, 0.12))
+		draw_circle(rp, 2.6, Color(0.50, 0.48, 0.44))
+		draw_circle(rp + Vector2(-0.6, -0.6), 1.3, Color(0.60, 0.57, 0.52))
+	if _season == SeasonSystem.Season.WINTER:
+		draw_colored_polygon(PackedVector2Array([tn, te, ts, tw]), Color(0.95, 0.96, 1.0, 0.40))
+	# Mossy lip + the odd perched boulder along edges that actually drop a terrace.
+	if e - e_se > 0.5:
+		draw_line(te, ts, Color(0.29, 0.41, 0.19, 0.65), 2.0)
+		if _h(gx * 3, gy, 50) > 0.55:
+			_rim_boulder(te.lerp(ts, 0.5), gx, gy, 1)
+	if e - e_sw > 0.5:
+		draw_line(ts, tw, Color(0.29, 0.41, 0.19, 0.65), 2.0)
+		if _h(gx, gy * 3, 51) > 0.55:
+			_rim_boulder(ts.lerp(tw, 0.5), gx, gy, 2)
+
+# Grass colour for a terrace top: the seasonal ground grass, lightened a touch per terrace
+# level so each higher layer is a slightly lighter green than the ground proper (a sense of
+# rising elevation). The blade-texture overlay (MountainGrassLayer) then matches the fields.
+func _mtn_top_grass(level: int = 1) -> Color:
+	var g := Color(0.45, 0.62, 0.32)
+	match _season:
+		SeasonSystem.Season.SPRING: g = g.lerp(Color(0.55, 0.82, 0.42), 0.30)
+		SeasonSystem.Season.AUTUMN: g = g.lerp(Color(0.74, 0.56, 0.24), 0.40)
+		SeasonSystem.Season.WINTER: g = g.lerp(Color(0.85, 0.88, 0.94), 0.58)
+	return g.lightened(0.05 * float(level))
+
+# A rocky cliff face built from rounded vertical stone columns of varied width — the
+# Stardew-style basalt look. t0→t1 is the (grassy) top edge; b0→b1 the ground contact.
+func _cliff_column_face(t0: Vector2, t1: Vector2, b0: Vector2, b1: Vector2, gx: int, gy: int, salt: int) -> void:
+	var base := Color(0.42, 0.40, 0.36)
+	# Dark backing so the grooves between columns read as shadow.
+	draw_colored_polygon(PackedVector2Array([t0, t1, b1, b0]), Color(0.23, 0.21, 0.20))
+	var u: float = 0.0
+	var k: int = 0
+	while u < 0.999:
+		var wf: float = 0.16 + _h(gx * 7 + k, gy * 3 + salt, 12 + k) * 0.18   # column width 0.16–0.34
+		var u1: float = minf(1.0, u + wf)
+		var ct0 := t0.lerp(t1, u)
+		var ct1 := t0.lerp(t1, u1)
+		var cb0 := b0.lerp(b1, u)
+		var cb1 := b0.lerp(b1, u1)
+		# Each column dips a little differently → an uneven, varied top edge. Scaled to the
+		# face height so short terrace steps don't dip past their own base.
+		var fh: float = (t0.distance_to(b0) + t1.distance_to(b1)) * 0.5
+		var dip: float = (0.12 + _h(gx + k, gy * 2 + salt, 30 + k) * 0.34) * fh
+		ct0 += Vector2(0, dip)
+		ct1 += Vector2(0, dip)
+		var shade := base.lerp(Color(0.53, 0.50, 0.45), _h(gx * 5 + k, gy + salt, 20 + k))
+		var hw: float = ct0.distance_to(ct1) * 0.55
+		# Column body + rounded boulder head + rounded foot.
+		draw_colored_polygon(PackedVector2Array([ct0, ct1, cb1, cb0]), shade)
+		var head := (ct0 + ct1) * 0.5
+		draw_circle(head, hw, shade.lightened(0.10))                 # rounded top
+		draw_circle((cb0 + cb1) * 0.5, hw * 0.85, shade.darkened(0.10))   # rounded foot
+		# Lit left flank, shadowed groove on the right.
+		draw_line(ct0, cb0, shade.lightened(0.22), 1.2)
+		draw_line(ct1, cb1, Color(0.16, 0.14, 0.13, 0.85), 1.6)
+		draw_circle((cb0 + cb1) * 0.5, hw * 0.7, Color(0.14, 0.13, 0.12, 0.45))   # contact shadow
+		# A little moss clinging where the rock meets the grassy lip.
+		if _h(gx + k, gy + salt, 40 + k) > 0.5:
+			draw_circle(head + Vector2(0, -hw * 0.3), hw * 0.62, Color(0.32, 0.44, 0.20, 0.45))
+		u = u1
+		k += 1
+
+# A boulder perched on the cliff lip, rising into the grass so the top edge reads uneven.
+func _rim_boulder(p: Vector2, gx: int, gy: int, salt: int) -> void:
+	var r: float = 3.4 + _h(gx, gy, 60 + salt) * 2.6
+	var base := Color(0.45, 0.43, 0.39)
+	draw_circle(p + Vector2(0, 1.0), r, Color(0, 0, 0, 0.12))               # ground shadow
+	draw_circle(p + Vector2(0, -r * 0.35), r, base)                        # body rising above lip
+	draw_circle(p + Vector2(-r * 0.3, -r * 0.6), r * 0.5, base.lightened(0.15))   # highlight
+	draw_arc(p + Vector2(0, -r * 0.95), r * 0.7, PI, TAU, 9, Color(0.31, 0.43, 0.20, 0.55), 1.6)  # moss cap
+
+# A low iron outcrop for the foothills — a rocky lump flecked with ore, sits minable on
+# grass at the foot of the massif (ore is no longer carved into the cliff itself).
+func _draw_ore(cx: float, cy: float, gx: int, gy: int) -> void:
+	var s: float = 0.8 + _h(gx, gy, 5) * 0.5
+	draw_circle(Vector2(cx, cy + 4.0), 7.0 * s, Color(0, 0, 0, 0.15))
+	var rock := Color(0.42, 0.40, 0.40)
 	draw_colored_polygon(PackedVector2Array([
-		peak, Vector2(peak.x + w * 0.30, snow_y), Vector2(peak.x - w * 0.30, snow_y),
-	]), Color(0.95, 0.96, 1.0, 0.95))
-	draw_polyline(PackedVector2Array([baseL, peak, baseR]), Color(0.22, 0.22, 0.27, 0.7), 1.0)
+		Vector2(cx - 8.0 * s, cy + 2.0), Vector2(cx - 4.0 * s, cy - 6.0 * s),
+		Vector2(cx + 3.0 * s, cy - 7.0 * s), Vector2(cx + 8.0 * s, cy - 1.0),
+		Vector2(cx + 4.0 * s, cy + 4.0), Vector2(cx - 4.0 * s, cy + 4.0),
+	]), rock)
+	draw_colored_polygon(PackedVector2Array([
+		Vector2(cx - 3.0 * s, cy - 3.0 * s), Vector2(cx + 2.0 * s, cy - 5.0 * s), Vector2(cx + 1.0 * s, cy),
+	]), rock.lightened(0.18))
+	draw_circle(Vector2(cx - 2.0 * s, cy - 1.0), 1.3, Color(0.62, 0.45, 0.30))   # iron flecks
+	draw_circle(Vector2(cx + 3.0 * s, cy - 2.0 * s), 1.1, Color(0.70, 0.52, 0.34))
 
 func _draw_rock(cx: float, cy: float, gx: int, gy: int) -> void:
 	var s: float = 0.8 + _h(gx, gy, 5) * 0.6
@@ -171,10 +297,12 @@ func _draw_rock(cx: float, cy: float, gx: int, gy: int) -> void:
 	]), Color(0.25, 0.25, 0.29, 0.6), 0.8)
 
 func _draw_river(cx: float, cy: float) -> void:
-	var col: Color = Color(0.55, 0.75, 1.0, 0.55)
-	draw_arc(Vector2(cx - 4.0, cy + 2.0), 7.0,  0.1 * PI, 0.9 * PI, 12, col, 1.8)
-	draw_arc(Vector2(cx + 4.0, cy - 2.0), 7.0,  1.1 * PI, 1.9 * PI, 12, col, 1.8)
+	# Faint sub-surface streaks. The water_flow shader now carries the ripples/foam, so
+	# these stay barely-there instead of stamping a bright arc onto every tile.
+	var col: Color = Color(0.62, 0.78, 0.92, 0.18)
+	draw_arc(Vector2(cx - 4.0, cy + 2.0), 7.0,  0.1 * PI, 0.9 * PI, 12, col, 1.4)
+	draw_arc(Vector2(cx + 4.0, cy - 2.0), 7.0,  1.1 * PI, 1.9 * PI, 12, col, 1.4)
 
 func _draw_coastal(cx: float, cy: float) -> void:
 	draw_arc(Vector2(cx, cy + 4.0), 12.0, 0.15 * PI, 0.85 * PI, 14,
-		Color(0.80, 0.88, 1.0, 0.45), 2.5)
+		Color(0.80, 0.88, 1.0, 0.16), 2.0)

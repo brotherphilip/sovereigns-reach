@@ -17,6 +17,8 @@ const CT_SET_ALE_RATION    = 2
 const CT_SET_GAME_SPEED    = 20
 const CT_SAVE_GAME         = 23
 
+const BridgePlanner = preload("res://simulation/world/BridgePlanner.gd")
+
 signal build_mode_changed(building_type: String)
 signal entity_selected(entity_type: String, entity_data: Dictionary)
 signal entity_deselected()
@@ -75,6 +77,16 @@ func _on_left_click(screen_pos: Vector2) -> void:
 func _try_place_building(grid_pos: Vector2i) -> void:
 	if GameState.players.size() == 0:
 		return
+	# Bridges resolve their full span from the hovered anchor; validity is the crossing.
+	if _build_mode_type == "bridge":
+		var plan: Dictionary = BridgePlanner.plan(GameState._grid, grid_pos.x, grid_pos.y)
+		if not plan.get("ok", false):
+			placement_failed.emit(plan.get("reason", "Cannot bridge here"))
+			return
+		CommandQueue.enqueue(CT_PLACE_BUILDING, {
+			"building_type": "bridge", "grid_x": grid_pos.x, "grid_y": grid_pos.y,
+		}, 0)
+		return
 	# Validate first (view-side check for UI feedback)
 	var player: Dictionary = GameState.players[0]
 	var preview: Dictionary = _get_build_preview(grid_pos.x, grid_pos.y, player)
@@ -118,6 +130,18 @@ func _try_select(grid_pos: Vector2i, world_pos: Vector2) -> void:
 		var unit_screen := Vector2((ux - uy) * 32.0, (ux + uy) * 16.0)
 		if world_pos.distance_to(unit_screen) < 16.0:
 			_select_unit(unit)
+			return
+
+	# Check villagers — clicking a little person opens their life: name, family, age and needs.
+	for c in GameState.citizens:
+		if not (c is Dictionary and c.get("is_alive", false)):
+			continue
+		if String(c.get("state", "")) == "inside":
+			continue   # indoors (not drawn) — can't be clicked
+		var csx: float = (float(c["x"]) - float(c["y"])) * 32.0
+		var csy: float = (float(c["x"]) + float(c["y"])) * 16.0
+		if world_pos.distance_to(Vector2(csx, csy)) < 14.0:
+			_select_citizen(c)
 			return
 
 	# Check buildings
@@ -167,6 +191,15 @@ func _select_unit(unit: Dictionary) -> void:
 	entity_selected.emit("unit", unit)
 	_update_cursor()
 
+func _select_citizen(c: Dictionary) -> void:
+	_stop_tracking()
+	_selected_building_id = -1
+	_selected_unit_id = -1
+	if _unit_layer != null:
+		_unit_layer.set_selected(-1)
+	entity_selected.emit("citizen", c)
+	_update_cursor()
+
 func _deselect() -> void:
 	_stop_tracking()
 	_selected_building_id = -1
@@ -205,6 +238,12 @@ func _update_ghost(screen_pos: Vector2) -> void:
 	var grid_pos: Vector2i = _iso_grid.screen_to_grid(world_pos.x, world_pos.y)
 	if GameState.players.size() == 0:
 		return
+	# Bridge mode previews the whole computed span (green = valid crossing, red = can't reach).
+	if _build_mode_type == "bridge":
+		var plan: Dictionary = BridgePlanner.plan(GameState._grid, grid_pos.x, grid_pos.y)
+		_bld_layer.set_ghost_bridge(plan.get("deck", []), plan.get("ok", false))
+		_iso_grid.set_hover_tile(grid_pos.x, grid_pos.y, plan.get("ok", false))
+		return
 	var player: Dictionary = GameState.players[0]
 	var preview: Dictionary = _get_build_preview(grid_pos.x, grid_pos.y, player)
 	var valid: bool = preview.get("valid", false)
@@ -236,6 +275,11 @@ func _on_key(event: InputEventKey) -> void:
 			set_game_speed(SimulationClock.SPEED_FAST)
 		KEY_3:
 			set_game_speed(SimulationClock.SPEED_FASTEST)
+		# Debug cheat: Alt+9 → ×20 turbo (beyond the normal speed buttons).
+		KEY_9:
+			if event.alt_pressed:
+				set_game_speed(SimulationClock.SPEED_DEBUG)
+				EventBus.realm_notice.emit("DEBUG: simulation at ×20 speed.", "neutral")
 
 func _try_demolish_selected() -> void:
 	if _selected_building_id < 0:

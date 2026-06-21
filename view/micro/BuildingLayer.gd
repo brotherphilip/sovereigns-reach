@@ -5,6 +5,10 @@ extends Node2D
 const HALF_W: float = 32.0
 const HALF_H: float = 16.0
 
+# Toggle for the hand-painted sprite art layered over the procedural buildings. Off for now —
+# set true to bring the painted overlays back.
+const DRAW_SPRITE_OVERLAY: bool = false
+
 # Category colors (BuildingRegistry.Category enum 0–4)
 const CAT_COLORS: Array = [
 	Color(0.67, 0.87, 0.98),  # 0 CIVIC — light blue
@@ -32,15 +36,26 @@ var _ghost_gx:    int    = 0
 var _ghost_gy:    int    = 0
 var _ghost_valid: bool   = true
 
+var _ghost_bridge: Array = []   # bridge deck cells (Array of [x,y]) when in bridge mode
+
 func set_ghost(btype: String, gx: int, gy: int, valid: bool) -> void:
 	_ghost_type  = btype
 	_ghost_gx    = gx
 	_ghost_gy    = gy
 	_ghost_valid = valid
+	_ghost_bridge = []
+	queue_redraw()
+
+# Bridge build mode: the whole computed span is previewed (green=valid, red=can't reach).
+func set_ghost_bridge(deck: Array, valid: bool) -> void:
+	_ghost_type  = "bridge"
+	_ghost_bridge = deck
+	_ghost_valid = valid
 	queue_redraw()
 
 func clear_ghost() -> void:
 	_ghost_type = ""
+	_ghost_bridge = []
 	queue_redraw()
 
 func _ready() -> void:
@@ -104,6 +119,11 @@ func _draw_building(b: Dictionary, is_enemy: bool) -> void:
 	var gx: int       = b.get("grid_x", 0)
 	var gy: int       = b.get("grid_y", 0)
 	var btype: String = b.get("type", "")
+	# A bridge is a plank deck spanning a river — drawn from its stored span.
+	if BuildingRegistry.is_bridge(btype):
+		_bridge_span(b.get("bridge_deck", []),
+			Color(0.50, 0.36, 0.20), Color(0.40, 0.28, 0.15), Color(0.34, 0.24, 0.13))
+		return
 	# A path-in-progress is just a marked tile being paved — not a structure.
 	if BuildingRegistry.is_path(btype):
 		var pcx: float = (gx - gy) * HALF_W
@@ -175,7 +195,8 @@ func _draw_building(b: Dictionary, is_enemy: bool) -> void:
 			# Painted sprite drawn ON TOP of the procedural model, where hand-painted art
 			# exists for this type. Additive only — the procedural building still renders
 			# underneath, so a type without a sprite (or a failed load) keeps its old look.
-			if BuildingSpriteOverlay.has_sprite(btype):
+			# Temporarily disabled (DRAW_SPRITE_OVERLAY) — flip back to true to re-enable.
+			if DRAW_SPRITE_OVERLAY and BuildingSpriteOverlay.has_sprite(btype):
 				BuildingSpriteOverlay.draw(self, btype, top, right, bot, left, int(b.get("id", 0)))
 		draw_polyline(PackedVector2Array([top, right, bot, left, top]),
 			Color(0, 0, 0, 0.16), 0.6)
@@ -391,9 +412,51 @@ func _draw_stockpile(b: Dictionary, is_enemy: bool, top: Vector2, right: Vector2
 func _bilerp(tu: Vector2, ru: Vector2, bu: Vector2, lu: Vector2, u: float, v: float) -> Vector2:
 	return tu*(1.0-u)*(1.0-v) + ru*u*(1.0-v) + bu*u*v + lu*(1.0-u)*v
 
+# Draw a plank deck spanning the bridge's deck cells (anchor→…→anchor). Direction is read
+# off the points themselves, so it works for the live preview and the placed bridge alike.
+func _bridge_span(deck: Array, deck_col: Color, rail_col: Color, seam_col: Color) -> void:
+	if deck.is_empty():
+		return
+	var pts := PackedVector2Array()
+	for c in deck:
+		pts.append(Vector2((int(c[0]) - int(c[1])) * HALF_W, (int(c[0]) + int(c[1])) * HALF_H))
+	if pts.size() == 1:
+		var p: Vector2 = pts[0]
+		draw_colored_polygon(PackedVector2Array([p + Vector2(0, -HALF_H), p + Vector2(HALF_W, 0),
+			p + Vector2(0, HALF_H), p + Vector2(-HALF_W, 0)]), deck_col)
+		return
+	var sdir: Vector2 = (pts[pts.size() - 1] - pts[0]).normalized()
+	var perp := Vector2(-sdir.y, sdir.x)
+	var hw: float = 15.0
+	var left := PackedVector2Array()
+	var right := PackedVector2Array()
+	for p in pts:
+		left.append(p - perp * hw)
+		right.append(p + perp * hw)
+	# Deck ribbon (left edge forward, right edge back) — a straight bridge stays convex.
+	var poly := PackedVector2Array()
+	for p in left:
+		poly.append(p)
+	for i in range(right.size() - 1, -1, -1):
+		poly.append(right[i])
+	draw_colored_polygon(poly, deck_col)
+	# Cross-plank seams and side rails.
+	for i in range(pts.size()):
+		draw_line(pts[i] - perp * hw, pts[i] + perp * hw, seam_col, 1.5)
+	draw_polyline(left, rail_col, 2.0)
+	draw_polyline(right, rail_col, 2.0)
+
 func _draw_ghost() -> void:
 	var pulse: float = 0.45 + 0.20 * sin(Time.get_ticks_msec() * 0.006)
 	var tint: Color  = Color(0.35, 1.0, 0.35) if _ghost_valid else Color(1.0, 0.30, 0.30)
+
+	# Bridge preview: the full computed span, green when it reaches the far bank, red when not.
+	if _ghost_type == "bridge":
+		var a: float = 0.40 + pulse * 0.30
+		var deck_c := Color(tint.r, tint.g, tint.b, a)
+		var rail_c := Color(tint.r * 0.7, tint.g * 0.7, tint.b * 0.7, minf(a + 0.3, 1.0))
+		_bridge_span(_ghost_bridge, deck_c, rail_c, rail_c)
+		return
 
 	var defn: Dictionary  = BuildingRegistry.lookup(_ghost_type)
 	var w: int            = defn.get("width",  1)

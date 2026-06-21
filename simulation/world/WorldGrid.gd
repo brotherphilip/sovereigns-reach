@@ -19,6 +19,7 @@ enum Terrain {
 	COASTAL     = 8,  # Port access, Merchant Prince expansion target
 	ROAD        = 9,  # Movement speed bonus
 	RUIN        = 10, # Destroyed settlement remnant
+	BRIDGE      = 11, # Crossing laid over a river — the only way foot/cart cross water
 }
 
 # Passability masks — packed as bitfield per terrain (for pathfinding in Phase 6)
@@ -32,7 +33,7 @@ const TERRAIN_PASSABILITY: Dictionary = {
 	Terrain.GRASS:    PASSABLE_FOOT | PASSABLE_CAVALRY | PASSABLE_CART | PASSABLE_SIEGE,
 	Terrain.FOREST:   PASSABLE_FOOT,                       # passable, ~half speed
 	Terrain.MOUNTAIN: 0,  # solid mass — fully blocks movement
-	Terrain.RIVER:    PASSABLE_FOOT,                       # wadeable on foot, very slow
+	Terrain.RIVER:    0,  # deep water — fully blocks; cross only via a BRIDGE
 	Terrain.MARSH:    PASSABLE_FOOT,
 	Terrain.ROCK:     0,  # solid boulders — fully blocks movement
 	Terrain.ORE_VEIN: PASSABLE_FOOT,
@@ -40,6 +41,7 @@ const TERRAIN_PASSABILITY: Dictionary = {
 	Terrain.COASTAL:  PASSABLE_FOOT | PASSABLE_CAVALRY | PASSABLE_CART,
 	Terrain.ROAD:     PASSABLE_FOOT | PASSABLE_CAVALRY | PASSABLE_CART | PASSABLE_SIEGE,
 	Terrain.RUIN:     PASSABLE_FOOT | PASSABLE_CAVALRY,
+	Terrain.BRIDGE:   PASSABLE_FOOT | PASSABLE_CAVALRY | PASSABLE_CART | PASSABLE_SIEGE,
 }
 
 # Movement cost multipliers for pathfinding (lower = faster travel). Drives both
@@ -49,7 +51,7 @@ const TERRAIN_MOVE_COST: Dictionary = {
 	Terrain.GRASS:    1.0,
 	Terrain.FOREST:   2.0,    # trees ≈ half speed
 	Terrain.MOUNTAIN: 99.0,   # blocked
-	Terrain.RIVER:    5.0,    # water greatly slows
+	Terrain.RIVER:    99.0,   # blocked — cross only via a bridge
 	Terrain.MARSH:    3.0,
 	Terrain.ROCK:     99.0,   # blocked
 	Terrain.ORE_VEIN: 2.0,
@@ -57,6 +59,7 @@ const TERRAIN_MOVE_COST: Dictionary = {
 	Terrain.COASTAL:  1.2,
 	Terrain.ROAD:     0.5,  # Roads are 2× faster
 	Terrain.RUIN:     1.5,
+	Terrain.BRIDGE:   0.6,  # cross the water briskly, like a good road
 }
 
 # Farm yield multipliers per terrain (GDD §3.1.4)
@@ -72,6 +75,7 @@ const TERRAIN_FARM_YIELD: Dictionary = {
 	Terrain.COASTAL: 0.6,
 	Terrain.ROAD:    0.8,
 	Terrain.RUIN:    0.5,
+	Terrain.BRIDGE:  0.0,
 }
 
 const DEFAULT_WIDTH: int  = 200
@@ -88,6 +92,10 @@ var _resource_density: PackedByteArray # 0–255 (how rich this resource tile is
 var _building_id: PackedInt32Array   # 0 = empty, >0 = building occupies tile
 var _unit_id: PackedInt32Array       # 0 = empty, >0 = unit on tile
 var _field: PackedByteArray          # 1 = walkable "field" tile (orchard/farm rows)
+# Crop on this tile, so the REAL terrain renders as farmland (no fake building floor): 0 none,
+# 1 wheat, 2 orchard-grass, 3 pasture, 4 mud (pen), 5 hops. Set when a field building registers on
+# the grid; rebuilt from the buildings on load (not serialised), like _building_id / _field.
+var _field_crop: PackedByteArray
 
 func _init(w: int = DEFAULT_WIDTH, h: int = DEFAULT_HEIGHT) -> void:
 	width = w
@@ -107,6 +115,8 @@ func _init(w: int = DEFAULT_WIDTH, h: int = DEFAULT_HEIGHT) -> void:
 	_unit_id.resize(size)
 	_field             = PackedByteArray()
 	_field.resize(size)
+	_field_crop        = PackedByteArray()
+	_field_crop.resize(size)
 	_terrain.fill(Terrain.GRASS)
 	_shire_id.fill(255)
 
@@ -171,6 +181,13 @@ func set_building_at(x: int, y: int, building_id: int) -> void:
 
 # "Field" tiles (orchards, farms) stay registered as buildings for placement
 # collision but are walkable so villagers can toil AMONG the rows/trees.
+func set_field_crop_at(x: int, y: int, crop: int) -> void:
+	if in_bounds(x, y):
+		_field_crop[_idx(x, y)] = crop
+
+func get_field_crop_at(x: int, y: int) -> int:
+	return _field_crop[_idx(x, y)] if in_bounds(x, y) else 0
+
 func set_field_at(x: int, y: int, is_field: bool) -> void:
 	if in_bounds(x, y):
 		_field[_idx(x, y)] = 1 if is_field else 0
@@ -273,61 +290,91 @@ func _carve_river(rng: RandomNumberGenerator, sx: int, sy: int, length: int, all
 	var x: int = sx
 	var y: int = sy
 	for j in range(length):
-		if not in_bounds(x, y) or y >= height:
+		if y < 0 or y >= height:
 			break
-		set_terrain(x, y, Terrain.RIVER)
-		# Widen the channel for a more detailed look.
-		if rng.randf() < 0.45:
-			set_terrain(clampi(x + 1, 0, width - 1), y, Terrain.RIVER)
-		if rng.randf() < 0.25:
-			set_terrain(clampi(x - 1, 0, width - 1), y, Terrain.RIVER)
-		# Meander.
-		x = clampi(x + rng.randi_range(-1, 1), 0, width - 1)
+		# Always a solid band at least 2 cells wide (x..x+1), occasionally swelling to 3-4.
+		var lo: int = x
+		var hi: int = x + 1
 		if rng.randf() < 0.30:
-			x = clampi(x + rng.randi_range(-1, 1), 0, width - 1)
+			lo -= 1
+		if rng.randf() < 0.30:
+			hi += 1
+		_carve_river_row(y, lo, hi)
+		# Meander, then bridge the horizontal shift on THIS row so the channel never
+		# pinches off (a diagonal jump would otherwise leave a 1-cell gap).
+		var nx: int = x + rng.randi_range(-1, 1)
+		if rng.randf() < 0.30:
+			nx += rng.randi_range(-1, 1)
+		nx = clampi(nx, 0, width - 1)
+		_carve_river_row(y, mini(x, nx), maxi(x, nx) + 1)
+		x = nx
 		y += 1
 		# Occasionally fork a tributary.
 		if allow_branch and j > 12 and rng.randf() < 0.045:
 			_carve_river(rng, x, y, rng.randi_range(15, 45), false)
 
-func _place_mountains(rng: RandomNumberGenerator) -> void:
-	var chains: int = rng.randi_range(2, 4)
-	for _i in range(chains):
-		var cx: int = rng.randi_range(20, width - 20)
-		var cy: int = rng.randi_range(20, height - 20)
-		var length: int = rng.randi_range(15, 40)
-		var x: int = cx
-		var y: int = cy
-		for _j in range(length):
-			for dy in range(-2, 3):
-				for dx in range(-2, 3):
-					if rng.randf() < 0.7 and get_terrain(x + dx, y + dy) != Terrain.RIVER:
-						set_terrain(x + dx, y + dy, Terrain.MOUNTAIN)
-						if rng.randf() < 0.3:
-							set_terrain(x + dx, y + dy, Terrain.ROCK)
-							set_resource_density(x + dx, y + dy, rng.randi_range(60, 255))
-			x += rng.randi_range(-2, 2)
-			y += rng.randi_range(-2, 2)
-			x = clampi(x, 0, width - 1)
-			y = clampi(y, 0, height - 1)
+# Carve a contiguous run of RIVER cells across one row (inclusive, clamped to the map).
+func _carve_river_row(y: int, x0: int, x1: int) -> void:
+	for cx in range(x0, x1 + 1):
+		set_terrain(clampi(cx, 0, width - 1), y, Terrain.RIVER)
 
-# Many forest patches of varied size and density — dense cores, ragged edges.
+func _place_mountains(rng: RandomNumberGenerator) -> void:
+	# A few CHUNKY massifs — each a tight cluster of big overlapping lobes that fuse into one
+	# solid hill (deep interior tiles → tall terraced peaks), not a thin meandering ridge that
+	# would read as a maze of walls. No holes, no embedded rock/ore.
+	var ranges: int = rng.randi_range(2, 3)
+	for _i in range(ranges):
+		var x: int = rng.randi_range(20, width - 20)
+		var y: int = rng.randi_range(20, height - 20)
+		var lobes: int = rng.randi_range(3, 6)
+		for _j in range(lobes):
+			for tile in get_tiles_in_radius(x, y, rng.randi_range(4, 7)):
+				if get_terrain(tile["x"], tile["y"]) != Terrain.RIVER:
+					set_terrain(tile["x"], tile["y"], Terrain.MOUNTAIN)
+			# Keep the lobes close so they heavily overlap into one compact mass.
+			x = clampi(x + rng.randi_range(-4, 4), 0, width - 1)
+			y = clampi(y + rng.randi_range(-4, 4), 0, height - 1)
+
+# Many forest patches of varied size and density. Each is an irregular, lobed amoeba (not a
+# clean disc) with internal clearings and a scatter of lone outlier trees, so a wood reads as
+# organic copse-and-glade rather than a solid square block.
 func _place_forests(rng: RandomNumberGenerator) -> void:
-	var patches: int = rng.randi_range(16, 26)
+	var patches: int = rng.randi_range(14, 22)
 	for _i in range(patches):
 		var cx: int = rng.randi_range(0, width - 1)
 		var cy: int = rng.randi_range(0, height - 1)
-		var radius: int = rng.randi_range(5, 18)
-		var density: float = rng.randf_range(0.55, 0.95)
-		for tile in get_tiles_in_radius(cx, cy, radius):
-			if get_terrain(tile["x"], tile["y"]) != Terrain.GRASS:
+		var radius: int = rng.randi_range(5, 16)
+		var density: float = rng.randf_range(0.5, 0.9)
+		# Lobed outline: the effective radius wobbles with the angle, so the edge is ragged
+		# and the patch bulges and pinches like real woodland, not a circle.
+		var ph1: float = rng.randf() * TAU
+		var ph2: float = rng.randf() * TAU
+		var a1: float = rng.randf_range(0.25, 0.45)
+		var a2: float = rng.randf_range(0.12, 0.28)
+		for tile in get_tiles_in_radius(cx, cy, radius + 4):
+			var tx: int = tile["x"]
+			var ty: int = tile["y"]
+			if get_terrain(tx, ty) != Terrain.GRASS:
 				continue
-			# Denser near the core, sparser at the rim, for organic edges.
-			var dx: float = float(tile["x"] - cx)
-			var dy: float = float(tile["y"] - cy)
-			var edge: float = 1.0 - clampf(sqrt(dx * dx + dy * dy) / float(maxi(radius, 1)), 0.0, 1.0)
-			if rng.randf() < density * (0.4 + 0.6 * edge):
-				set_terrain(tile["x"], tile["y"], Terrain.FOREST)
+			var dx: float = float(tx - cx)
+			var dy: float = float(ty - cy)
+			var dist: float = sqrt(dx * dx + dy * dy)
+			var ang: float = atan2(dy, dx)
+			var eff: float = float(radius) * (1.0 + a1 * sin(ang * 3.0 + ph1) + a2 * sin(ang * 5.0 + ph2))
+			if dist > eff:
+				continue
+			# Internal clearings: a low-frequency wave punches glades so it isn't a solid mass.
+			if sin(float(tx) * 0.5 + ph1) * sin(float(ty) * 0.5 + ph2) > 0.62:
+				continue
+			var edge: float = 1.0 - clampf(dist / maxf(eff, 1.0), 0.0, 1.0)
+			if rng.randf() < density * (0.3 + 0.7 * edge):
+				set_terrain(tx, ty, Terrain.FOREST)
+		# A few lone outlier trees scattered beyond the canopy — stragglers and seedlings.
+		for _j in range(rng.randi_range(2, 5)):
+			var ox: int = clampi(cx + rng.randi_range(-radius - 6, radius + 6), 0, width - 1)
+			var oy: int = clampi(cy + rng.randi_range(-radius - 6, radius + 6), 0, height - 1)
+			if get_terrain(ox, oy) == Terrain.GRASS:
+				set_terrain(ox, oy, Terrain.FOREST)
 
 # Scattered solid rock outcrops (impassable) dotting the grassland.
 func _place_rocks(rng: RandomNumberGenerator) -> void:
@@ -340,10 +387,12 @@ func _place_rocks(rng: RandomNumberGenerator) -> void:
 				set_terrain(tile["x"], tile["y"], Terrain.ROCK)
 
 func _place_resource_nodes(rng: RandomNumberGenerator) -> void:
-	# Iron ore veins on/near mountains
+	# Iron ore veins in the FOOTHILLS — on grass touching the mountain mass, never inside
+	# it. This keeps the massif a clean solid cliff while the ore sits minable at its base.
 	for y in range(height):
 		for x in range(width):
-			if get_terrain(x, y) == Terrain.MOUNTAIN and rng.randf() < 0.1:
+			if get_terrain(x, y) == Terrain.GRASS \
+					and _has_terrain_near(x, y, 1, Terrain.MOUNTAIN) and rng.randf() < 0.20:
 				set_terrain(x, y, Terrain.ORE_VEIN)
 				set_resource_density(x, y, rng.randi_range(80, 255))
 	# Marsh/pitch near rivers
@@ -399,3 +448,5 @@ func deserialize(data: Dictionary) -> void:
 	_unit_id.resize(size)
 	_field            = PackedByteArray()
 	_field.resize(size)
+	_field_crop       = PackedByteArray()
+	_field_crop.resize(size)

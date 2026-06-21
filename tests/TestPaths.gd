@@ -19,12 +19,44 @@ func _init() -> void:
 	_test_citizen_road_speed()
 	_test_pathfinder_prefers_road()
 	_test_path_built_over_time()
+	_test_woodcutter_open_ground()
+	_test_gate_replaces_wall()
 	print("\n=== Path/Spacing Results: %d passed, %d failed ===" % [_pass, _fail])
 	quit(0 if _fail == 0 else 1)
 
 func ok(label: String, cond: bool) -> void:
 	if cond: _pass += 1; print("  PASS: %s" % label)
 	else: _fail += 1; print("  FAIL: %s" % label)
+
+func _test_woodcutter_open_ground() -> void:
+	print("\n[Woodcutter needs open ground, not trees]")
+	var grid := WorldGrid.new(20, 20)   # all GRASS by default
+	var player := _player_with({})
+	ok("woodcutter OK on open grass",
+		_code("woodcutter_camp", 5, 5, grid, player) == PlacementValidator.ValidationResult.OK)
+	for dy in range(3):
+		for dx in range(2):
+			grid.set_terrain(5 + dx, 5 + dy, WorldGrid.Terrain.FOREST)
+	ok("woodcutter REJECTED on the trees (forest)",
+		_code("woodcutter_camp", 5, 5, grid, player) == PlacementValidator.ValidationResult.WRONG_TERRAIN)
+
+func _test_gate_replaces_wall() -> void:
+	print("\n[Gate may be raised over your own wall]")
+	var grid := WorldGrid.new(20, 20)
+	var player := {"buildings": [
+			{"id": 1, "type": "wooden_palisade", "grid_x": 5, "grid_y": 5, "built": true},
+			{"id": 2, "type": "wooden_palisade", "grid_x": 5, "grid_y": 6, "built": true},
+		], "gold": 9999, "resources": {"wood": 999, "stone": 999}, "tech_unlocks": [], "food": {}, "armory": {}}
+	grid.set_building_at(5, 5, 1)
+	grid.set_building_at(5, 6, 2)
+	# Gatehouse is 1×2 → covers (5,5)+(5,6), both the player's own walls → allowed (replaces them).
+	ok("gate OK over your own wall run",
+		_code("gatehouse", 5, 5, grid, player) == PlacementValidator.ValidationResult.OK)
+	# A NON-wall building under the gate is still blocked (only walls/fences may be overbuilt).
+	player["buildings"].append({"id": 3, "type": "hovel", "grid_x": 8, "grid_y": 5, "built": true})
+	grid.set_building_at(8, 5, 3)
+	ok("gate REJECTED over a non-wall building",
+		_code("gatehouse", 8, 5, grid, player) == PlacementValidator.ValidationResult.OCCUPIED)
 
 func _player_with(building: Dictionary) -> Dictionary:
 	return {

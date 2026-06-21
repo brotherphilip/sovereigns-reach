@@ -10,6 +10,7 @@ const CombatSystem  = preload("res://simulation/combat/CombatSystem.gd")
 const DifficultySystem = preload("res://simulation/core/DifficultySystem.gd")
 const ResourceTick     = preload("res://simulation/economy/ResourceTick.gd")
 const BuildingRegistry = preload("res://simulation/buildings/BuildingRegistry.gd")
+const TownAgents       = preload("res://simulation/world/TownAgents.gd")
 
 # Order in which each archetype erects production buildings (cycled). The AI earns
 # ONLY from these, at the same per-building rates the player gets — no free income.
@@ -113,6 +114,9 @@ static func make_faction(id: int, name: String, archetype: String,
 		"tribute_demands": [],     # Array of {player_id, resource, amount, deadline_tick}
 		"last_attack_tick": 0,
 		"population": START_WORKFORCE,
+		# Live roster — one lightweight agent per worker (what they're doing + roughly where),
+		# rebuilt each day from the real staffing decisions (TownAgents). The town's actual people.
+		"agents": [],
 		# Economy sim bookkeeping
 		"daily_income_gold": 0,
 		"daily_income_wood": 0,
@@ -178,7 +182,15 @@ static func _process_economy(faction: Dictionary) -> void:
 	var res: Dictionary = faction.get("resources", {})
 	var food: Dictionary = faction.get("food", {})
 	var pool: int = int(faction.get("population", 0))   # workers available today
+	# LIVE ROSTER: as the economy assigns crews below, we record one lightweight agent per working
+	# soul — what they're doing and roughly where — so a watched town shows its ACTUAL people at
+	# their ACTUAL posts (TownAgents), not invented ones. Pure bookkeeping; the economy is unchanged.
+	var agents: Array = []
+	var cx: float = float(faction.get("capital_x", 100))
+	var cy: float = float(faction.get("capital_y", 100))
+	var idx: int = -1
 	for b in faction.get("buildings", []):
+		idx += 1
 		var btype: String = b if b is String else (b.get("type", "") if b is Dictionary else "")
 		if btype == "" or not ResourceTick.PRODUCTION_OUTPUTS.has(btype):
 			continue   # not a producer (hovel, market…) — no goods, no worker draw
@@ -209,6 +221,7 @@ static func _process_economy(faction: Dictionary) -> void:
 		if blocked:
 			continue   # nowhere to put the output — idle, keep the workers free
 		pool -= staff
+		TownAgents.add_workers(agents, btype, staff, idx, cx, cy)   # these crew are actually working
 		for r in inputs:
 			res[r] = int(res.get(r, 0)) - int(inputs[r])
 		for g in outs:
@@ -225,6 +238,10 @@ static func _process_economy(faction: Dictionary) -> void:
 				res[g] = int(res.get(g, 0)) + mini(amt, rroom)
 	faction["resources"] = res
 	faction["food"] = food
+	# Everyone left without a working post is idle near the town centre. The roster now covers the
+	# whole workforce — the town's live, trackable state for the view and for cost/earnings readouts.
+	TownAgents.add_idle(agents, maxi(0, pool), cx, cy)
+	faction["agents"] = agents
 	_feed_and_grow(faction)
 
 # ── Storage capacity (mirror of the player's StorageSystem / FoodSystem) ─────────
@@ -319,6 +336,10 @@ static func _build_economy(faction: Dictionary) -> void:
 # cost from its own stores). Returns true on success. Used for both the economy cycle and the
 # on-demand storage expansion.
 static func _try_build(faction: Dictionary, btype: String) -> bool:
+	# Bridges are never an economic pick — they're placed only when a real river crossing is
+	# needed (via BridgePlanner), so the AI can never spend its budget on random bridges.
+	if BuildingRegistry.is_bridge(btype):
+		return false
 	if int(faction.get("buildings", []).size()) >= MAX_FACTION_BUILDINGS:
 		return false
 	var cost: Dictionary = BuildingRegistry.lookup(btype).get("cost", {})

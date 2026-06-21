@@ -191,6 +191,7 @@ func _build_scene() -> void:
 	var grass_detail := preload("res://view/micro/GrassDetailLayer.gd").new()
 	grass_detail.name = "GrassDetailLayer"
 	_world_root.add_child(grass_detail)
+	grass_detail.set_camera(_camera)   # hide the blade overlay when zoomed out (illegible, costly)
 
 	# Animated river/water surface (light GPU-driven flow shader over water tiles).
 	var water_layer := preload("res://view/micro/WaterFlowLayer.gd").new()
@@ -203,6 +204,13 @@ func _build_scene() -> void:
 	_world_root.add_child(_decor_layer)
 	_decor_layer.set_camera(_camera)
 
+	# Grass-blade texture on the raised mountain terraces (matches the ground turf). Sits just
+	# above the cliff renderer so it multiplies onto the terrace grass it drew.
+	var mtn_grass := preload("res://view/micro/MountainGrassLayer.gd").new()
+	mtn_grass.name = "MountainGrassLayer"
+	_world_root.add_child(mtn_grass)
+	mtn_grass.set_camera(_camera)   # same zoomed-out LOD cut as the ground blade overlay
+
 	# The living forest — animated trees (growth phases, chop-shake, topple-on-fell), drawn
 	# from world["trees"]. Owns all FOREST-tile rendering (the static decor no longer draws them).
 	var tree_layer := preload("res://view/micro/TreeLayer.gd").new()
@@ -210,17 +218,28 @@ func _build_scene() -> void:
 	_world_root.add_child(tree_layer)
 	tree_layer.set_camera(_camera)
 
+	# Buildings draw ABOVE the pawn layers (units/citizens/animals stay at the default z 0), so a
+	# pawn standing on or behind a structure is occluded by it instead of floating on top. Iso
+	# buildings rise upward (north) from their footprint, so a pawn in FRONT (south, lower on
+	# screen) still shows — only those level-with / behind the structure are hidden, which reads
+	# correctly. Over-world effects below (projectiles, clouds, night wash, lamps, birds) share
+	# z 1 but are added AFTER the buildings, so they keep drawing on top of them.
+	# Farm/orchard crops are painted into the REAL terrain (TerrainChunk reads the per-tile crop the
+	# field building stamps on the grid), so the ground itself becomes farmland and workers toil ON
+	# it — the building draws only its structure (barn, trees, fences). No separate "field ground".
 	_bld_layer = preload("res://view/micro/BuildingLayer.gd").new()
 	_bld_layer.name = "BuildingLayer"
+	_bld_layer.z_index = 1
 	_world_root.add_child(_bld_layer)
 
 	_unit_layer = preload("res://view/micro/UnitLayer.gd").new()
 	_unit_layer.name = "UnitLayer"
 	_world_root.add_child(_unit_layer)
 
-	# Arrows/bolts/stones fly over the units when ranged troops loose a volley.
+	# Arrows/bolts/stones fly over the units AND the buildings when ranged troops loose a volley.
 	var projectile_layer := preload("res://view/micro/ProjectileLayer.gd").new()
 	projectile_layer.name = "ProjectileLayer"
+	projectile_layer.z_index = 1
 	_world_root.add_child(projectile_layer)
 
 	_animal_layer = preload("res://view/micro/AnimalLayer.gd").new()
@@ -239,15 +258,25 @@ func _build_scene() -> void:
 	# night wash). Coverage is driven by the weather system; fades out at night.
 	_cloud_layer = preload("res://view/micro/CloudShadowLayer.gd").new()
 	_cloud_layer.name = "CloudShadowLayer"
+	_cloud_layer.z_index = 1   # clouds pass over rooftops, not behind them
 	_world_root.add_child(_cloud_layer)
+
+	# Ambient birds in the sky — above the world, below the night wash so they darken at dusk.
+	var birds_layer := preload("res://view/micro/BirdsLayer.gd").new()
+	birds_layer.name = "BirdsLayer"
+	birds_layer.z_index = 1   # fly over the rooftops
+	_world_root.add_child(birds_layer)
+	birds_layer.set_camera(_camera)
 
 	# Day/night lighting — drawn last so it sits over the world. The darkening wash first,
 	# then the ADDITIVE building lights on top so lamps genuinely brighten the night.
 	var night_layer := preload("res://view/micro/NightLayer.gd").new()
 	night_layer.name = "NightLayer"
+	night_layer.z_index = 1   # the darkening wash must cover buildings too
 	_world_root.add_child(night_layer)
 	var lamp_layer := preload("res://view/micro/NightLampLayer.gd").new()
 	lamp_layer.name = "NightLampLayer"
+	lamp_layer.z_index = 1   # lamp glows sit over the buildings they light
 	_world_root.add_child(lamp_layer)
 
 	# Screen-space rain (falls across the view during RAIN/STORM weather). Its own CanvasLayer
@@ -333,9 +362,45 @@ func _build_scene() -> void:
 	# & building counts, FPS) read straight from the running sim — not guessed from screenshots.
 	if OS.get_environment("SR_TELEMETRY") != "":
 		_dev_telemetry(OS.get_environment("SR_TELEMETRY"))
+	# Dev hook: bridge demo. SR_BRIDGEDEMO=preview shows the green span preview over a river;
+	# any other value places a real bridge there. Camera recenters on the crossing.
+	if OS.get_environment("SR_BRIDGEDEMO") != "":
+		_dev_bridge_demo(OS.get_environment("SR_BRIDGEDEMO"))
 	# Dev hook: render for SR_SHOT_DELAY seconds then save a PNG to SR_SHOT and quit.
 	if OS.get_environment("SR_SHOT") != "":
 		_dev_screenshot(OS.get_environment("SR_SHOT"))
+
+func _dev_bridge_demo(mode: String) -> void:
+	var grid = GameState._grid
+	if grid == null:
+		return
+	var BP = preload("res://simulation/world/BridgePlanner.gd")
+	# Scan the central map for the WIDEST clean crossing (best demo), trying a land anchor on
+	# each side of every river cell.
+	var p0: Dictionary = {}
+	var best_len: int = 0
+	for gy in range(20, 180):
+		for gx in range(20, 180):
+			if grid.get_terrain(gx, gy) != 3:
+				continue
+			for a in [[gx - 1, gy], [gx, gy - 1], [gx + 1, gy], [gx, gy + 1]]:
+				var p: Dictionary = BP.plan(grid, a[0], a[1])
+				if p.get("ok", false) and int(p["cells"].size()) > best_len:
+					best_len = int(p["cells"].size())
+					p0 = p
+	if p0.is_empty():
+		print("[CityView] SR_BRIDGEDEMO: no bridgeable river found")
+		return
+	var deck: Array = p0["deck"]
+	var mid: Vector2i = deck[deck.size() / 2]
+	_camera.position = _iso_origin(mid.x, mid.y)
+	if mode == "preview":
+		if _bld_layer != null:
+			_bld_layer.set_ghost_bridge(deck, true)
+		print("[CityView] SR_BRIDGEDEMO preview at %s (%d cells)" % [str(p0["start"]), p0["cells"].size()])
+	else:
+		GameState._place_bridge(0, GameState.players[0], p0["start"].x, p0["start"].y)
+		print("[CityView] SR_BRIDGEDEMO placed at %s (%d cells)" % [str(p0["start"]), p0["cells"].size()])
 
 func _dev_telemetry(path: String) -> void:
 	var f := FileAccess.open(path, FileAccess.WRITE)
@@ -871,6 +936,7 @@ func _on_entity_selected(entity_type: String, entity_data: Dictionary) -> void:
 	match entity_type:
 		"building": _hud.show_selected_building(entity_data)
 		"unit":     _hud.show_selected_unit(entity_data)
+		"citizen":  _hud.show_selected_citizen(entity_data)
 
 func _on_research_tech(tech_id: String) -> void:
 	# Feedback comes from GameState on success (EventBus.realm_notice — readable name +

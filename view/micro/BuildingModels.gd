@@ -451,6 +451,11 @@ static func _market(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vecto
 	awnings.shuffle()
 	# Trodden market ground.
 	ci.draw_colored_polygon(PackedVector2Array([t, r, b, l]), Color(0.52, 0.47, 0.34))
+	# Packed-earth / cobbled square — speckled tones so the trodden market ground reads as worked
+	# stone-and-dirt, not a flat slab. Count scales with the plot area so a big square stays covered.
+	_speckle_ground(ci, l, t - l, b - l,
+		[Color(0.60, 0.55, 0.42), Color(0.46, 0.41, 0.30), Color(0.50, 0.47, 0.40), Color(0.40, 0.36, 0.28)],
+		clampi(int(90.0 * absf((t - l).cross(b - l)) / 900.0), 90, 900), 0.7, 1.5, rng)
 	var anchors := [l.lerp(ctr, 0.55), r.lerp(ctr, 0.55), b.lerp(ctr, 0.45), t.lerp(ctr, 0.5)]
 	var stalls := []
 	var n_stalls: int = rng.randi_range(3, 4)
@@ -619,36 +624,67 @@ static func _grass_floor_texture(ci: CanvasItem, t: Vector2, r: Vector2, b: Vect
 		var p: Vector2 = l + ex * rng.randf_range(0.08, 0.92) + ey * rng.randf_range(0.08, 0.92)
 		ci.draw_line(p, p + Vector2(rng.randf_range(-0.8, 0.8), -2.0), tuft, 0.8)
 
-static func _orchard(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vector2, season: int, seed: int = 0) -> void:
-	# A working FARMSTEAD, not a flat patch — and NO two orchards look alike: a per-plot
-	# RNG (seeded by the building id) jitters every tree, varies the planting density,
-	# nudges the shed and crates, and tints the ground, so each instance reads distinct.
+# Scatter small colour flecks across the plot (anchored at l, spanning ex=t-l and ey=b-l) so a
+# farm/market floor reads as WORKED, textured ground — a speckled mix of tones — instead of a flat
+# slab. Cheap (drawn once when the building paints). Pass a palette to vary the grain/soil/cobble.
+static func _speckle_ground(ci: CanvasItem, l: Vector2, ex: Vector2, ey: Vector2,
+		cols: Array, n: int, smin: float, smax: float, rng: RandomNumberGenerator) -> void:
+	for _i in range(n):
+		var p: Vector2 = l + ex * rng.randf_range(0.02, 0.98) + ey * rng.randf_range(0.02, 0.98)
+		ci.draw_circle(p, rng.randf_range(smin, smax), cols[rng.randi_range(0, cols.size() - 1)])
+
+# One wheat strand growing UP out of the ground at `base`: a leaning stalk topped by a nodding
+# grain ear (with a few awns when ripe). Many of these dotted across a field = standing grain.
+static func _wheat_strand(ci: CanvasItem, base: Vector2, h: float, col: Color, ripe: bool, rng: RandomNumberGenerator) -> void:
+	var lean: float = rng.randf_range(-1.0, 1.0)
+	var top: Vector2 = base + Vector2(lean, -h)
+	ci.draw_line(base, top, col.darkened(0.12), 0.8)               # stalk
+	var head: Color = col.lightened(0.12) if ripe else col
+	var ear_dir: Vector2 = Vector2(signf(lean) * 0.6, -1.0).normalized()
+	var ear_tip: Vector2 = top + ear_dir * (h * 0.42 + 1.6)
+	ci.draw_line(top, ear_tip, head, 1.3)                          # the nodding ear
+	if ripe:
+		for k in range(3):
+			var gp: Vector2 = top.lerp(ear_tip, 0.3 + float(k) / 3.0 * 0.6)
+			ci.draw_line(gp, gp + Vector2(0.8, -0.4), head, 0.5)  # awns fanning off the ear
+			ci.draw_line(gp, gp + Vector2(-0.8, -0.4), head, 0.5)
+
+static func _orchard_ground(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vector2, season: int, seed: int = 0) -> void:
+	# Seasonal grassy orchard floor with a small per-plot hue/brightness wobble + mown bands/tufts.
 	var rng := RandomNumberGenerator.new()
 	rng.seed = int(seed) * 2654435761 + 12345
-	# Ground tinted for the season, with a small per-plot hue/brightness wobble.
 	var gt: float = rng.randf_range(0.93, 1.08)
 	var ground := Color(0.40, 0.56, 0.30).lerp(Color(0.36, 0.52, 0.26), rng.randf()) * SeasonSystem.ground_tint(season) * gt
 	ci.draw_colored_polygon(PackedVector2Array([t, r, b, l]), ground)
-	_grass_floor_texture(ci, t, r, b, l, ground)   # mown bands + tufts under the trees
+	_grass_floor_texture(ci, t, r, b, l, ground)
+
+static func _orchard(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vector2, season: int, seed: int = 0) -> void:
+	# Trees, fences, shed, crates — the props ABOVE the pawns. The grassy floor is _orchard_ground.
+	# NO two orchards look alike: a per-plot RNG jitters every tree, varies planting density, nudges
+	# the shed and crates, so each instance reads distinct.
+	var rng := RandomNumberGenerator.new()
+	rng.seed = int(seed) * 2654435761 + 67890   # structure RNG (ground uses its own seed below)
 	var ctr: Vector2 = (t + r + b + l) * 0.25
 	var stage: int = SeasonSystem.growth_stage(season)
 	var ex := t - l
 	var ey := b - l
-	var slots: Array[float] = [0.12, 0.30, 0.50, 0.70, 0.88]
-	var density: float = rng.randf_range(0.78, 1.0)        # some plots are sparser
+	# FULL-SIZE apple trees now (matched to the level's forest trees), so the orchard is planted in
+	# a wider, sparser grid — real spaced trees, not a hedge.
+	var slots: Array[float] = [0.18, 0.50, 0.82]
+	var density: float = rng.randf_range(0.80, 1.0)        # some plots are sparser
 	# True for the central clearing kept open for the shed + yard.
 	var _clear := func(u: float, v: float) -> bool:
-		return u > 0.32 and u < 0.72 and v > 0.30 and v < 0.80
-	# Each tree: jittered position + a per-tree growth wobble, so ranks aren't a rigid grid.
+		return u > 0.30 and u < 0.74 and v > 0.34 and v < 0.82
+	# Each tree: jittered position + a per-tree size/growth wobble, so ranks aren't a rigid grid.
 	var _plant := func(u: float, v: float) -> void:
 		if _clear.call(u, v) or rng.randf() > density:
 			return
-		var ju: float = u + rng.randf_range(-0.05, 0.05)
-		var jv: float = v + rng.randf_range(-0.05, 0.05)
+		var ju: float = u + rng.randf_range(-0.06, 0.06)
+		var jv: float = v + rng.randf_range(-0.06, 0.06)
 		var st2: int = stage
 		if stage >= 2 and rng.randf() < 0.18:
 			st2 = stage - 1                                # a few younger/older trees
-		_tree(ci, l + ex * ju + ey * jv + Vector2(0, rng.randf_range(-1.0, 1.0)), st2, season)
+		_tree(ci, l + ex * ju + ey * jv + Vector2(0, rng.randf_range(-1.0, 1.0)), st2, season, rng.randf_range(0.85, 1.1))
 	# Back rows (everything but the frontmost rank) — drawn before the shed.
 	for vi in range(slots.size() - 1):
 		for u in slots:
@@ -668,37 +704,71 @@ static func _orchard(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vect
 		ci.draw_rect(Rect2(crate.x - 3.0, crate.y - 7.0, 6.0, 4.0), WOOD)
 		for k in range(rng.randi_range(2, 4)):
 			ci.draw_circle(crate + Vector2(-2.0 + float(k) * 2.0, -7.0), 1.0, RED)
+	# Orchard EQUIPMENT: a picking ladder leant in the yard + a couple of apple baskets.
+	var lad: Vector2 = sc.lerp(r, 0.42) + ey * 0.06
+	ci.draw_line(lad, lad + Vector2(5, -16), WOOD_D, 1.4)             # ladder rails
+	ci.draw_line(lad + Vector2(3, 0), lad + Vector2(8, -16), WOOD_D, 1.4)
+	for rr in range(1, 5):
+		ci.draw_line(lad + Vector2(float(rr) * 0.6, -float(rr) * 3.2), lad + Vector2(3 + float(rr) * 0.6, -float(rr) * 3.2), WOOD, 0.8)
+	for bi in range(2):
+		var bk: Vector2 = sc.lerp(l, 0.5) + ex * (0.04 + 0.10 * float(bi)) + ey * 0.10
+		ci.draw_colored_polygon(PackedVector2Array([bk + Vector2(-3, 0), bk + Vector2(3, 0), bk + Vector2(2, 4), bk + Vector2(-2, 4)]), Color(0.52, 0.38, 0.22))
+		for ai in range(3):
+			ci.draw_circle(bk + Vector2(-1.6 + float(ai) * 1.6, -0.5), 1.0, RED if stage == 3 else Color(0.6, 0.75, 0.3))
 	# Frontmost rank, drawn last so it correctly overlaps the shed/yard.
 	for u in slots:
 		_plant.call(u, slots[slots.size() - 1])
 
 # One tree at its seasonal growth stage. 0 bare, 1 budding, 2 leafy, 3 fruiting.
-static func _tree(ci: CanvasItem, base: Vector2, stage: int, season: int) -> void:
-	ci.draw_line(base, base + Vector2(0, -7), WOOD_D, 1.8)
+# A FULL-SIZE apple tree, matched to the level's forest trees (TreeLayer) so an orchard reads as
+# real trees, not bushes. ~34px tall: buttressed trunk + a billowing layered crown, with seasonal
+# blossom/fruit. `s` scales it (per-tree variation).
+static func _tree(ci: CanvasItem, base: Vector2, stage: int, season: int, s: float = 1.0) -> void:
+	ci.draw_circle(base + Vector2(0, 4.0), 10.0 * s, Color(0, 0, 0, 0.15))   # ground shadow
+	var tw: float = 3.0 * s
+	ci.draw_colored_polygon(PackedVector2Array([
+		base + Vector2(-tw, 3.0), base + Vector2(tw, 3.0),
+		base + Vector2(tw * 0.6, -15.0 * s), base + Vector2(-tw * 0.6, -15.0 * s)]), WOOD_D)
+	ci.draw_line(base + Vector2(-tw * 0.2, 2.0), base + Vector2(-tw * 0.2, -14.0 * s), WOOD_D.darkened(0.2), 1.0)
 	if stage == 0:
-		# Winter — bare branches, a touch of frost.
-		ci.draw_line(base + Vector2(0, -6), base + Vector2(-3, -11), WOOD_D, 1.0)
-		ci.draw_line(base + Vector2(0, -6), base + Vector2(3, -10), WOOD_D, 1.0)
-		ci.draw_line(base + Vector2(0, -4), base + Vector2(-2, -8), WOOD_D, 0.8)
-		ci.draw_circle(base + Vector2(0, -11), 1.4, Color(0.86, 0.90, 0.95, 0.8))
+		# Winter — bare, snow-dusted branches.
+		ci.draw_line(base + Vector2(0, -13 * s), base + Vector2(-6 * s, -23 * s), WOOD_D, 1.6)
+		ci.draw_line(base + Vector2(0, -13 * s), base + Vector2(6 * s, -22 * s), WOOD_D, 1.6)
+		ci.draw_line(base + Vector2(0, -10 * s), base + Vector2(-4 * s, -17 * s), WOOD_D, 1.2)
+		ci.draw_circle(base + Vector2(0, -22 * s), 3.0 * s, Color(0.88, 0.92, 0.98, 0.85))
 		return
 	var canopy := SeasonSystem.foliage_tint(season)
-	var rad: float = 3.4 if stage == 1 else 5.0   # budding crowns are smaller
-	ci.draw_circle(base + Vector2(0, -11), rad, canopy.darkened(0.25))
-	ci.draw_circle(base + Vector2(-2, -13), rad * 0.7, canopy)
-	ci.draw_circle(base + Vector2(2.5, -12), rad * 0.64, canopy.lightened(0.08))
+	var dark := canopy.darkened(0.22)
+	var lite := canopy.lightened(0.10)
+	var grow: float = 0.72 if stage == 1 else 1.0   # budding crowns a touch smaller
+	var clumps := [
+		[Vector2(0, -17), 9.0, dark], [Vector2(-6, -21), 7.0, dark], [Vector2(6, -22), 7.0, dark],
+		[Vector2(0, -26), 7.5, canopy], [Vector2(-3, -30), 5.5, lite], [Vector2(4, -29), 5.0, lite], [Vector2(1, -33), 4.5, lite],
+	]
+	for cl in clumps:
+		ci.draw_circle(base + (cl[0] as Vector2) * s * grow, (cl[1] as float) * s * grow, cl[2])
 	if stage == 1:
-		# Spring blossom.
-		ci.draw_circle(base + Vector2(-1, -12), 0.9, Color(0.98, 0.92, 0.95))
-		ci.draw_circle(base + Vector2(2, -13), 0.8, Color(0.98, 0.88, 0.92))
+		for bp in [Vector2(-4, -23), Vector2(5, -25), Vector2(0, -29), Vector2(-2, -19)]:
+			ci.draw_circle(base + bp * s * grow, 1.4 * s, Color(0.98, 0.92, 0.95))   # blossom
 	elif stage == 3:
-		# Autumn fruit.
-		ci.draw_circle(base + Vector2(-2, -10), 1.1, RED)
-		ci.draw_circle(base + Vector2(3, -13), 1.0, RED)
-		ci.draw_circle(base + Vector2(1, -14), 1.0, RED.lightened(0.1))
+		for ap in [Vector2(-5, -20), Vector2(6, -24), Vector2(-2, -28), Vector2(3, -31), Vector2(0, -22), Vector2(-6, -26)]:
+			ci.draw_circle(base + ap * s, 1.7 * s, RED)                              # apples
+			ci.draw_circle(base + ap * s + Vector2(-0.5, -0.5), 0.7 * s, RED.lightened(0.2))
 
-static func _pen(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vector2, ctr: Vector2, animal: Color) -> void:
+# Pig-pen GROUND: churned, muddy earth — speckled clods + a couple of puddles (terrain level).
+static func _pen_ground(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vector2, seed: int = 0) -> void:
 	ci.draw_colored_polygon(PackedVector2Array([t, r, b, l]), DIRT)
+	var prng := RandomNumberGenerator.new()
+	prng.seed = int(seed) * 9176 + 3
+	_speckle_ground(ci, l, t - l, b - l,
+		[DIRT.lightened(0.10), DIRT.darkened(0.12), Color(0.34, 0.26, 0.18)],
+		clampi(int(80.0 * absf((t - l).cross(b - l)) / 900.0), 80, 800), 0.6, 1.5, prng)
+	for _i in range(2):
+		var pud: Vector2 = l + (t - l) * prng.randf_range(0.2, 0.8) + (b - l) * prng.randf_range(0.2, 0.8)
+		ci.draw_circle(pud, prng.randf_range(1.8, 3.0), Color(0.30, 0.28, 0.26, 0.55))
+
+# Pig-pen STRUCTURE (above pawns): fence, sty, pigs. Ground is _pen_ground.
+static func _pen(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vector2, ctr: Vector2, animal: Color) -> void:
 	# fence around
 	_fence(ci, l, b); _fence(ci, b, r)
 	# small sty
@@ -709,7 +779,7 @@ static func _pen(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vector2,
 	_critter(ci, ctr + Vector2(7, 9), animal)
 
 static func _dairy(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vector2, ctr: Vector2) -> void:
-	ci.draw_colored_polygon(PackedVector2Array([t, r, b, l]), Color(0.42, 0.58, 0.30))
+	# Barn + fence + cow only; the grassy paddock floor is drawn by _plain_ground (terrain level).
 	# red barn
 	var c := _box(ci, t.lerp(ctr, 0.2), r.lerp(ctr, 0.3), ctr.lerp(b, 0.3), l.lerp(ctr, 0.3), 16.0, RED.lightened(0.05), TEX_PLANK)
 	_gable(ci, c, 9.0, Color(0.85, 0.82, 0.78))
@@ -717,9 +787,24 @@ static func _dairy(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vector
 	_fence(ci, b.lerp(l, 0.0), r)
 	_critter(ci, b.lerp(r, 0.55) + Vector2(0, 4), Color(0.90, 0.88, 0.84))  # cow
 
-static func _wheat(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vector2, ctr: Vector2, season: int, seed: int = 0) -> void:
-	# A big working wheat field with a corner THRESHING BARN — and per-plot variation in
-	# tint, furrow count, scarecrow placement and autumn sheaves, so no two fields match.
+# ── FIELD GROUND ───────────────────────────────────────────────────────────────────
+# Farms/orchards are WALKABLE — workers toil INSIDE the footprint — so their GROUND (tilled soil,
+# the crop, mud, grass) is the ACTUAL terrain, painted BELOW the pawns by FieldGroundLayer; the
+# building model draws only the STRUCTURE + props (barn, trees, fences) ABOVE the pawns. So a
+# worker standing in the field shows on top of the crop, never buried under a fake building floor.
+static func draw_field_ground(ci: CanvasItem, btype: String, t: Vector2, r: Vector2, b: Vector2, l: Vector2, season: int, seed: int = 0) -> void:
+	match btype:
+		"wheat_farm":    _wheat_ground(ci, t, r, b, l, season, seed)
+		"apple_orchard": _orchard_ground(ci, t, r, b, l, season, seed)
+		"hops_farm":     _hops_ground(ci, t, r, b, l, season)
+		"pig_farm":      _pen_ground(ci, t, r, b, l, seed)
+		"dairy_farm":    _plain_ground(ci, t, r, b, l, Color(0.42, 0.58, 0.30) * SeasonSystem.ground_tint(season))
+
+static func _plain_ground(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vector2, col: Color) -> void:
+	ci.draw_colored_polygon(PackedVector2Array([t, r, b, l]), col)
+	_grass_floor_texture(ci, t, r, b, l, col)
+
+static func _wheat_ground(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vector2, season: int, seed: int = 0) -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = int(seed) * 2246822519 + 5
 	var stage: int = SeasonSystem.growth_stage(season)
@@ -748,30 +833,62 @@ static func _wheat(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vector
 		ci.draw_colored_polygon(PackedVector2Array([a0, a1, c1, c0]),
 			ridge_lit if (i % 2 == 0) else furrow_dk)
 		ci.draw_line(a0, c0, furrow_line, 0.7)            # furrow shadow seam
-	# Crop texture at the growing/ripe stages: sparse stalk clumps dotting the ridges, so the
-	# field reads as standing grain rather than a painted patch (winter/stubble stays bare).
+	# Density scales with the plot's actual screen AREA (a wheat_farm is 5×4 = 20 tiles, ~20× the
+	# 1×1 reference), so a big field is FULLY covered with grain rather than a few sparse strands.
+	var dens: float = absf(ex.cross(ey)) / 900.0   # 1.0 at one tile
+	# Speckled "wheat mix" ground — flecks of varied grain/soil tones scattered over the ridges,
+	# so the field is a living, mottled crop colour rather than one flat fill.
+	var speck: Array = []
+	match stage:
+		0: speck = [field.darkened(0.08), field.lightened(0.06), DIRT.lightened(0.10)]
+		1: speck = [Color(0.50, 0.66, 0.30), Color(0.62, 0.72, 0.34), field.lightened(0.05)]
+		2: speck = [Color(0.46, 0.62, 0.24), Color(0.58, 0.68, 0.28), field.lightened(0.06)]
+		_: speck = [Color(0.90, 0.76, 0.32), Color(0.82, 0.64, 0.22), Color(0.74, 0.58, 0.20), Color(0.96, 0.85, 0.44)]
+	_speckle_ground(ci, l, ex, ey, speck, clampi(int(150.0 * dens), 140, 1400), 0.5, 1.1, rng)
+	# Literal wheat strands growing OUT of the ground — densely enough to carpet the whole field:
+	# sparse green sprouts in spring → a thick ripe-gold stand in autumn.
 	if stage >= 1:
-		var stalk := (Color(0.40, 0.58, 0.22) if stage == 1 else
-			(Color(0.34, 0.52, 0.18) if stage == 2 else Color(0.78, 0.62, 0.20)))
-		var n_clumps: int = 26 if stage >= 2 else 14
-		for i in range(n_clumps):
-			var cu: float = rng.randf_range(0.06, 0.94)
-			var cv: float = rng.randf_range(0.06, 0.94)
-			var cp: Vector2 = l + ex * cu + ey * cv
-			var hh: float = rng.randf_range(2.0, 4.0) * (0.6 if stage == 1 else 1.0)
-			ci.draw_line(cp, cp + Vector2(rng.randf_range(-0.6, 0.6), -hh), stalk, 0.9)
-			if stage == 3:
-				ci.draw_line(cp + Vector2(1.4, 0), cp + Vector2(1.4 + rng.randf_range(-0.6, 0.6), -hh * 0.9), stalk, 0.9)
-	# Corner threshing barn (box + gable + door), tucked toward the back.
-	var bc: Vector2 = l + ex * rng.randf_range(0.18, 0.26) + ey * rng.randf_range(0.18, 0.26)
-	var barn := _box(ci, bc.lerp(t, 0.18), bc.lerp(r, 0.18), bc.lerp(b, 0.18), bc.lerp(l, 0.18), rng.randf_range(11.0, 13.0), WOOD_D.lightened(0.06), TEX_PLANK)
-	_gable(ci, barn, rng.randf_range(6.0, 7.5), ROOF_LEATHER if rng.randf() < 0.5 else THATCH_D)
-	# Autumn: stacked sheaves dotted across the stubble.
+		var s_lo: Color; var s_hi: Color
+		match stage:
+			1: s_lo = Color(0.42, 0.60, 0.24); s_hi = Color(0.56, 0.70, 0.30)
+			2: s_lo = Color(0.36, 0.54, 0.18); s_hi = Color(0.50, 0.64, 0.24)
+			_: s_lo = Color(0.74, 0.58, 0.18); s_hi = Color(0.94, 0.80, 0.36)
+		var ripe: bool = stage == 3
+		var per_tile: int = 40 if stage == 1 else (70 if stage == 2 else 80)
+		var n_strands: int = clampi(int(float(per_tile) * dens), 30, 1200)
+		for i in range(n_strands):
+			var sp: Vector2 = l + ex * rng.randf_range(0.03, 0.97) + ey * rng.randf_range(0.03, 0.97)
+			var hh: float = rng.randf_range(3.0, 6.0) * (0.7 if stage == 1 else 1.0)
+			_wheat_strand(ci, sp, hh, s_lo.lerp(s_hi, rng.randf()), ripe, rng)
+	# Autumn: stacked sheaves dotted across the stubble (harvest piles — part of the ground).
 	if stage == 3:
 		for i in range(rng.randi_range(3, 6)):
 			var sp: Vector2 = l + ex * rng.randf_range(0.35, 0.92) + ey * rng.randf_range(0.35, 0.92)
 			ci.draw_colored_polygon(PackedVector2Array([sp + Vector2(-2.5, 1), sp + Vector2(2.5, 1), sp + Vector2(0, -5)]), Color(0.84, 0.70, 0.32))
 			ci.draw_line(sp + Vector2(-1.5, 0), sp + Vector2(1.5, 0), Color(0.66, 0.52, 0.22), 0.8)
+
+# Wheat STRUCTURE (above pawns): threshing barn + scarecrows. The field itself is _wheat_ground.
+static func _wheat(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vector2, ctr: Vector2, season: int, seed: int = 0) -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = int(seed) * 2246822519 + 17
+	var ex := t - l
+	var ey := b - l
+	# A rail fence bounds the field on its two front edges (the enclosure reads as a kept plot).
+	_fence(ci, l, b)
+	_fence(ci, b, r)
+	# Corner threshing barn (box + gable + door), tucked toward the back.
+	var bc: Vector2 = l + ex * rng.randf_range(0.18, 0.26) + ey * rng.randf_range(0.18, 0.26)
+	var barn := _box(ci, bc.lerp(t, 0.18), bc.lerp(r, 0.18), bc.lerp(b, 0.18), bc.lerp(l, 0.18), rng.randf_range(11.0, 13.0), WOOD_D.lightened(0.06), TEX_PLANK)
+	_gable(ci, barn, rng.randf_range(6.0, 7.5), ROOF_LEATHER if rng.randf() < 0.5 else THATCH_D)
+	# Work equipment: a HAY CART parked by the barn (bed + two wheels + a shaft) and a leaning scythe.
+	var cart: Vector2 = bc.lerp(b, 0.42) + ex * 0.04
+	ci.draw_colored_polygon(PackedVector2Array([cart + Vector2(-7, -2), cart + Vector2(7, -2), cart + Vector2(6, 2), cart + Vector2(-6, 2)]), WOOD)
+	ci.draw_colored_polygon(PackedVector2Array([cart + Vector2(-6, -2), cart + Vector2(6, -2), cart + Vector2(5, -6), cart + Vector2(-5, -6)]), Color(0.86, 0.72, 0.34))   # hay load
+	ci.draw_circle(cart + Vector2(-4, 3), 2.4, WOOD_D); ci.draw_circle(cart + Vector2(4, 3), 2.4, WOOD_D)
+	ci.draw_line(cart + Vector2(7, 0), cart + Vector2(12, 2), WOOD_D, 1.2)   # shaft
+	var scy: Vector2 = bc.lerp(l, 0.5) + ey * 0.08
+	ci.draw_line(scy, scy + Vector2(2, -13), WOOD_D, 1.4)                    # snath
+	ci.draw_arc(scy + Vector2(2, -13), 5.0, -0.2 * PI, 0.5 * PI, 8, Color(0.78, 0.80, 0.84), 1.2)   # blade
 	# One or two scarecrows at varied spots.
 	for i in range(rng.randi_range(1, 2)):
 		var sc: Vector2 = l + ex * rng.randf_range(0.4, 0.85) + ey * rng.randf_range(0.35, 0.8)
@@ -781,9 +898,6 @@ static func _wheat(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vector
 
 static func _hops(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vector2, season: int) -> void:
 	var stage: int = SeasonSystem.growth_stage(season)
-	var hops_ground: Color = Color(0.44, 0.56, 0.30) * SeasonSystem.ground_tint(season)
-	ci.draw_colored_polygon(PackedVector2Array([t, r, b, l]), hops_ground)
-	_grass_floor_texture(ci, t, r, b, l, hops_ground)   # tended yard under the trellises
 	var bine := SeasonSystem.foliage_tint(season)
 	for f in [0.25, 0.5, 0.75]:
 		var a := l.lerp(t, f); var bb := b.lerp(r, f)
@@ -797,6 +911,11 @@ static func _hops(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vector2
 			ci.draw_circle(tp + Vector2(0, 2), 2.4 * climb + 1.2, bine)
 			if stage == 3:
 				ci.draw_circle(tp + Vector2(0, 4), 1.0, bine.lightened(0.2))  # ripe cones
+
+static func _hops_ground(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vector2, season: int) -> void:
+	var hops_ground: Color = Color(0.44, 0.56, 0.30) * SeasonSystem.ground_tint(season)
+	ci.draw_colored_polygon(PackedVector2Array([t, r, b, l]), hops_ground)
+	_grass_floor_texture(ci, t, r, b, l, hops_ground)   # tended yard under the trellises
 
 static func _windmill(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vector2, ctr: Vector2, time: float) -> void:
 	# tapered round stone tower
