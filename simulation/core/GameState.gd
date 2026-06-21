@@ -502,9 +502,13 @@ func _tick_player_economy(player: Dictionary, tick: int) -> void:
 		# A plague that JUST broke out got no clear alert — only a passive HUD label while it
 		# silently killed villagers and sank popularity. Tell the player (toast + herald VO) and
 		# how to respond. One-shot on the not-active → active transition; player seat only.
-		if not _plague_was_active and player.get("disease_active", false) and int(player.get("id", -1)) == 0:
+		if int(player.get("id", -1)) == 0 and not _plague_was_active and player.get("disease_active", false):
 			EventBus.realm_notice.emit("☠ A plague has broken out — build an Apothecary to cure it; wells and varied food keep the people hale.", "bad")
 			EventBus.plague_outbreak.emit(0)
+		elif int(player.get("id", -1)) == 0 and _plague_was_active and not player.get("disease_active", false):
+			# Closure for the iter267 outbreak alert: tell the player the plague has lifted (the
+			# "Plague! X%" HUD label just vanished otherwise) so the scare has a clear end.
+			EventBus.realm_notice.emit("✦ The plague has run its course — your people recover.", "good")
 
 		# Siege morale penalty — if any AI faction is actively besieging this player.
 		# A realm that readied its defences (walls/towers + a garrison) keeps its nerve:

@@ -143,6 +143,27 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 268 — 2026-06-22  (POLISH — plague-feedback loop closure: announce when the plague PASSES)
+
+Companion to iter267. That iter added the outbreak ALERT but the loop was asymmetric — when the plague was
+cured/ran its course the only signal was the "Plague! X%" HUD label silently vanishing, so the scare had no
+clear END. Audited other silent events first: building loss already toasts ("Building destroyed: X!"), and
+the bulk plague deaths are reflected in the HUD label + popularity — so the plague-END was the clean gap.
+
+- **Fix:** `GameState.simulate_tick` now also detects the disease_active **true → false** transition (player
+  seat) and emits a one-shot `realm_notice` ("✦ The plague has run its course — your people recover.", good
+  tone) — symmetric with the iter267 start alert. (Toast-only, like the realm-notice family; the iter248
+  realm_notice-VO backlog covers voicing these.)
+- **Validated:** `tests/TestDiseaseAlert.gd` extended to 6/0 — after the outbreak, a staffed Apothecary
+  cures the plague and the closure notice fires. Regression: TestSurvival 6/0, TestPhase4 60/0.
+- Confirmed the disease BALANCE is mild (DEATH_FACTOR 0.04 → ~1 villager/day even at severity 85; the grow
+  town survives), so the iter267 watch-item needs no tuning now that outbreaks are alerted + curable.
+
+### Files
+- `simulation/core/GameState.gd` (cure-transition notice), `tests/TestDiseaseAlert.gd` (extended).
+
+---
+
 ## Iteration 267 — 2026-06-22  (PLAYER-EXPERIENCE PASS — found & fixed a MISSING-FEEDBACK bug: silent plague outbreaks)
 
 Did a real visual/player-experience pass: rendered a developed `grow`-autoplay town on Xvfb and read the

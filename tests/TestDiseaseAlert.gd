@@ -84,3 +84,22 @@ func _run_all() -> void:
 	ok("the alert is ONE-SHOT (fired once, not every day while active)", _outbreaks == 1)
 	ok("the realm registers the plague as active (disease_active)", bool(p.get("disease_active", false)))
 	print("    (plague broke out on day %d)" % fired_day)
+
+	# Closure: a staffed Apothecary clears the plague — the realm should ANNOUNCE it has passed
+	# (so the scare ends explicitly, not by the HUD label silently vanishing).
+	print("\n[Plague passing fires a closure notice]")
+	_notices.clear()
+	_add(p, "apothecary", 60, 60, 99)
+	for b in p.get("buildings", []):
+		if b is Dictionary and b.get("type", "") == "apothecary":
+			b["workers"] = 1; b["is_active"] = true
+	for d in range(161, 191):
+		_sc.current_tick = d * TPD
+		_gs.simulate_tick(d * TPD)
+	ok("an apothecary cures the plague (no longer active)", not bool(p.get("disease_active", false)))
+	var saw_recover := false
+	for m in _notices:
+		var lm := String(m).to_lower()
+		if "recover" in lm or "run its course" in lm or "plague has" in lm:
+			saw_recover = true
+	ok("the realm announces the plague has passed (closure notice)", saw_recover)

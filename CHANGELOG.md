@@ -2,6 +2,15 @@
 
 ---
 
+## 2026-06-22 — Plague-passing closure notice (iter268)
+
+- **[Polish] The plague's end is now announced:** companion to iter267 — when a plague is cured or runs
+  its course, the realm tells the player ("✦ The plague has run its course — your people recover.")
+  instead of the "Plague! X%" HUD label silently disappearing. Symmetric start→end feedback.
+  (simulation/core/GameState.gd; TestDiseaseAlert 6/0.)
+
+---
+
 ## 2026-06-22 — Plague outbreaks now alert the player (iter267)
 
 - **[Missing-feedback fix] Plague outbreaks are announced:** a plague used to break out silently —
