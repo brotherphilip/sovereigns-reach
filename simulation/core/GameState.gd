@@ -1844,7 +1844,7 @@ func _besieger_assault(owner: Dictionary, unit: Dictionary, tick: int, tpd: int)
 	var seat: Dictionary = players[0]
 	if not owner.has("archetype"):
 		return false  # only AI factions besiege; the seat's own forces never batter it
-		              # (player and faction ids share a 0-based namespace, so compare by kind, not id)
+					  # (player and faction ids share a 0-based namespace, so compare by kind, not id)
 	var ux: int = int(unit.get("pos_x", 0))
 	var uy: int = int(unit.get("pos_y", 0))
 	var bld: Dictionary = _nearest_seat_building(seat, ux, uy, SIEGE_ASSAULT_RANGE)
@@ -3116,26 +3116,6 @@ func _nearest_empty_grass(cx: int, cy: int, used: Dictionary) -> Vector2i:
 						and _grid.get_building_at(x, y) == 0:
 					return Vector2i(x, y)
 	return Vector2i(cx, cy)
-
-# Spawn a couple of fresh villagers each day (near the campfire/keep) until the
-# visible stock reaches a population-scaled target — the labour pool that workers
-# are drawn from.
-func _grow_citizen_stock() -> void:
-	if players.is_empty():
-		return
-	var target: int = clampi(players[0].get("population", 0) / 3, 8, CitizenSystem.MAX_CITIZENS)
-	if citizens.size() >= target:
-		return
-	var hx: float = float(players[0].get("keep_x", 100))
-	var hy: float = float(players[0].get("keep_y", 100))
-	if campfire.get("active", false):
-		hx = float(campfire.get("x", hx))
-		hy = float(campfire.get("y", hy))
-	if _citizen_rng == null:
-		_citizen_rng = RandomNumberGenerator.new()
-		_citizen_rng.seed = server_config.get("map_seed", 12345) ^ 0xC1721E
-	var add: int = mini(2, target - citizens.size())
-	_next_citizen_id = CitizenSystem.spawn(citizens, add, hx, hy, _citizen_rng, _next_citizen_id)
 
 # Lights / moves the campfire to sit just in front of the player's built hall, and
 # re-homes the villagers in a ring around it the moment it first appears.

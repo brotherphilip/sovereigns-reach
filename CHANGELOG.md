@@ -2,6 +2,16 @@
 
 ---
 
+## 2026-06-22 — Internal: removed dead villager-spawn code + corrected a misconception (iter301)
+
+- **[Maintenance] Removed a dead, no-op villager-growth function and an unused cap:** an old `_grow_citizen_stock`
+  routine (and its `MAX_CITIZENS` limit) were never called and, even if they were, could never have done anything —
+  villager pawns already track the population count directly. Removed both, and corrected internal notes that wrongly
+  described villagers as a "one-third sample" of the population (they aren't; the real population ceiling is 150).
+- **Validated:** people, needs, workers, economy and survival tests all pass; the game boots cleanly.
+
+---
+
 ## 2026-06-22 — Internal: removed unused fog-of-war code (iter300)
 
 - **[Maintenance] Committed to the full-reveal design and removed dead fog-of-war machinery:** the game intentionally
