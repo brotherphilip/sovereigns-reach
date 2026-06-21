@@ -1057,8 +1057,9 @@ static func _follow_path(c: Dictionary, tgt: Vector2, citizens: Array, grid: Obj
 	var path: Array = c.get("path", [])
 	var stale: bool = int(c.get("ptx", -99999)) != tix or int(c.get("pty", -99999)) != tiy
 	if not stale and not path.is_empty():
-		# Recompute if we've been knocked off the next waypoint.
-		if Vector2(c["x"], c["y"]).distance_to(Vector2(path[0][0], path[0][1])) > 2.5:
+		# Recompute if we've been knocked off the next waypoint. Compare SQUARED distance (2.5² =
+		# 6.25) so this per-citizen, per-tick check skips a sqrt — behaviour-identical to `> 2.5`.
+		if Vector2(c["x"], c["y"]).distance_squared_to(Vector2(path[0][0], path[0][1])) > 6.25:
 			stale = true
 	if stale:
 		path = Pathfinder.find_path(grid, int(round(c["x"])), int(round(c["y"])), tix, tiy, LAND_MOVE, true)

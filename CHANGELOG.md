@@ -2,6 +2,20 @@
 
 ---
 
+## 2026-06-22 — More villager-update math hygiene; performance follow-up (iter291)
+
+- **[Performance] Another wasted square-root removed:** the villager movement code checked, every tick, whether a
+  pawn had been bumped off its path using a square-root distance; it now uses a squared-distance comparison instead
+  (identical result, no square-root). Pairs with the previous release's crowd-avoidance cleanup.
+- Investigated a deeper villager path-finding optimization (the main cost at large town sizes) and deliberately
+  deferred it: the re-pathing happens for legitimate reasons (villagers genuinely changing where they're headed as
+  they haul goods), so a blunt change risks breaking the hauling economy. It's logged as a dedicated future task to
+  do carefully with proper profiling, rather than rushed.
+- **Validated:** economy, worker, people, path-finding, and town-roster tests all pass (behaviour unchanged).
+  (simulation/world/CitizenSystem.gd.)
+
+---
+
 ## 2026-06-22 — Profiled the simulation; trimmed wasted math in villager crowd-avoidance (iter290)
 
 - **[Performance] Faster villager separation:** profiled the game's per-tick simulation (new dev benchmark
