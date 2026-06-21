@@ -108,7 +108,7 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 ## Live Backlog & Resolved Index  (compacted iter201 — Phase 1 reads THIS; the per-iteration `### Active Backlog` blocks in Run History below are historical snapshots, superseded here. iter201 compact: collapsed the scattered art items → one line + the SR_SEASON/SR_SEED dev hooks → one line; verified no Active/Resolved overlap; Run History untouched)
 
 ### Active Backlog (Base Game) — deduplicated
-- **[QA — open from iter262 full-suite audit] TestSpectatorTroops — spectator siege battle doesn't fight.** When spectating a besieged city, besiegers + garrison spawn correctly but exchange ZERO casualties over 25 days (a tableau, not the intended live battle, iter108). Narrowed to `GameState.simulate_tick` spectator combat branch (~L1309–1317). Needs instrumented debugging (besieger positions/orders over the sim) — a focused next iteration.
+- **[QA — open, ROOT-CAUSED iter263] TestSpectatorTroops — spectator siege battle doesn't fight.** A spectated besieged city spawns both forces but exchanges ZERO casualties (a tableau, not the iter108 live battle). **Root cause (via `tools/ProbeSpectatorSiege.gd`):** the besiegers correctly march in, acquire ATTACK orders, and close to **min_gap 3.6** by day ~14 — then STALL: they're melee (range 0) but the garrison defenders muster at the town CENTRE, walled in by the spectated city's buildings, so the besiegers can't path the last few tiles to melee contact. Two coupled problems: **(a) engagement** — the forces aren't in mutually-reachable open ground; **(b) perf** — `_tick_unit_attack` does an expensive FAILING A* (whole-map explore) every step toward an unreachable target. **iter263 fix attempt REVERTED:** mustering defenders "forward" via `_nearest_free_cell` snapped them into an isolated open POCKET (still unreachable) AND made the besiegers fail-A* from day 0 → ~4× sim slowdown (would slow real spectated sieges). **Robust fix (next):** stage BOTH forces in a VERIFIED mutually-reachable clearing (e.g. place defenders on tiles along a besieger→keep path, or flood-fill a shared open area), AND/OR make `_tick_unit_attack` back off when `find_path` returns empty (a general perf win). Probe + precise repro committed.
 - **[QA — open from iter262] TestSiege impractically slow (>5 min).** Bounded (no hang) but runs ~110k full `simulate_tick`s (460 game-days); per-tick cost grew with NeedsSystem/forest/wildlife. Effectively un-runnable in a normal suite (this is why suite drift hid). Fix: shrink day-windows that still cross siege thresholds, OR a siege-only fast-sim path, OR profile+cut per-tick cost.
 - **Phase 2 (deferred, user-agreed): physical AI cities** — prototype ONE AI city running CitizenSystem hauling; measure FPS/tick cost before committing.
 - **Visual polish (POLISH):** WALL colours still cluster (tan-timber / grey-stone / wood-plank); `market` reads sparse and `well` is tiny at play-zoom. ✅ **iter258: winter roof snow landed** — the shared roof primitives (`_gable`/`_hip`/`_cone`, covering 28 building types) now lay a pale dusting on their upper faces in winter, so the town reads wintry alongside the already-snowy terrain+trees (resolves the iter245 incongruity: ground/trees snowed but roofs stayed summer-bright). The dusting hugs the ridge/apex and leaves the eaves clear, so each roof's type-distinguishing colour still reads. ✅ **iter259 extended it to the defensive perimeter** — snow-capped crenellations (`_merlons` → keep/great_tower/stone_wall/gatehouse), dusted wall-walks/parapets (`_snow_top`), snow-tipped palisade stakes, and a snowcap on the watchtower's thatch hip — so the walls/towers (which bypass the roof primitives) now join the winter scene too. (Roofs diversified iter175; villager tunics iter191; watchtower rebuilt iter193.)
@@ -140,6 +140,39 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 - **Intermediate-clog PREVENTION (iter205, follow-up):** the deeper root of the woodcutter freeze — a `wheat_farm`/`hops_farm` with no `mill`/`brewery` banks an intermediate that's useless and only clogs the shared raw pool. Now such a farm TENDS its rows but banks nothing until its processor exists (`CitizenSystem._farm_output_blocked`), so a new player's wheat farm can't silently strangle their wood/stone economy. Ev: ProbeWoodcutter — wood now flows continuously (0→465 climbing, wheat stays 0) where it previously froze at 113; TestEconomy 18/0.
 - **Painted building sprites (iter203):** buildings can now wear hand-painted iso art over the procedural model (`view/micro/BuildingSpriteOverlay.gd`, additive — finished buildings only, auto procedural fallback). First asset: a detailed **Village Hall** replacing the flat procedural roof-diamond. Local ComfyUI art pipeline in `tools/artgen/`; raw candidate renders (multi-GB) git-ignored, only chosen source + keyed sprite committed. Ev: before/after `_SpriteTrial.tscn` render + in-world placement (Xvfb), TestSurvival 6/0.
 - **(Durable, older — see Current Targets):** Day-100 FLOOR multi-seed survival; Reeve→King climb on 5 seeds ≤113d; late-game coalition-vs-leader; on-screen in-city FLOOR survival (iter158).
+
+---
+
+## Iteration 263 — 2026-06-21  (DEEP INVESTIGATION — spectator-siege "no battle" ROOT-CAUSED; fix attempt reverted, game stable)
+
+Targeted the iter262-inventoried spectator-combat regression (a spectated besieged city plays no battle).
+Built a diagnostic probe, found the exact stall, attempted a fix, hit a perf regression, and reverted —
+the honest outcome is a precise root cause + a reusable tool, with the game left stable.
+
+### Root cause (via the new `tools/ProbeSpectatorSiege.gd`)
+Replicated the test setup and logged force state per day. The besiegers **work**: they march in, acquire
+ATTACK orders, and close to **min_gap 3.6 by day ~14** — then freeze there with 0 casualties through day 24.
+They're melee (range 0); the garrison defenders muster at the town CENTRE, **walled in by the spectated
+city's buildings**, so the besiegers can't path the final ~3 tiles to melee contact. Underneath sits a
+general perf wart: `_tick_unit_attack` runs an expensive FAILING A* (explores the whole reachable map) every
+step toward an unreachable target.
+
+### Fix attempt → REVERTED
+Mustered the defenders "forward" toward the attackers via `_nearest_free_cell`, and (separately) ticked the
+garrison so it fights back. Both reverted: the snap found an **isolated open pocket** still unreachable from
+the besiegers, and the besiegers then fail-A* from day 0 (not day 14) → **~4× sim slowdown** (couldn't even
+finish day 1 in 20s). Shipping that would slow REAL spectated sieges, so I reverted `GameState.gd` fully —
+confirmed back to baseline (TestSpectatorTroops 9/1, TestSurvival 6/0).
+
+### Refined plan for the robust fix (next iteration — backlog updated)
+Stage BOTH forces in a VERIFIED mutually-reachable clearing (place defenders on tiles along a besieger→keep
+path, or flood-fill a shared open area before placing), AND/OR make `_tick_unit_attack` back off when
+`find_path` returns empty (a general perf win that also helps real walled-in sieges). The probe makes this a
+fast iterate-and-measure loop.
+
+### Files
+- `tools/ProbeSpectatorSiege.gd` — NEW diagnostic dev tool (replays the besieged-spectator setup, logs
+  besieger/defender counts + orders + min-gap per day). `GameState.gd` — reverted (no net change).
 
 ---
 
