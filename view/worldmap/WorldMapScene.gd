@@ -100,10 +100,11 @@ func _init_and_build() -> void:
 	# present, since both the climb to King and the loss of the last holding happen here). Use
 	# SR_WINTEST=defeat for the DEFEAT panel, anything else for the King VICTORY panel.
 	if OS.get_environment("SR_WINTEST") != "":
-		if OS.get_environment("SR_WINTEST") == "defeat":
-			_show_endgame(false, "Your last holding has fallen. Your domain is no more.")
-		else:
-			_on_title_promoted(6, "King")
+		match OS.get_environment("SR_WINTEST"):
+			"defeat":   _show_endgame(false, "Your last holding has fallen. Your domain is no more.")
+			"revolt":   _on_popularity_changed(0, 50.0, 5.0)
+			"conquest": _show_endgame(true, "All enemies vanquished! Sovereign's Reach is yours!")
+			_:          _on_title_promoted(6, "King")
 
 	# Dev/headless hook: fast-forward the shared clock (used for screenshots).
 	if OS.get_environment("SR_AUTOWATCH") != "":
@@ -431,6 +432,12 @@ func _build_scene() -> void:
 	# during the strategic tick); that game-over was likewise city-view-only (iter272).
 	EventBus.player_realm_lost.connect(func():
 		_show_endgame(false, "Your last holding has fallen. Your domain is no more."))
+	# The REMAINING win/loss conditions also fire from the seat + strategic sim that keep ticking on
+	# this map, yet their game-over was city-view-only (iter273): vanquishing the LAST rival = a win;
+	# the seat's hall razed (siege) or popularity < 10 (revolt) = defeat. Present them here too.
+	EventBus.ai_faction_defeated.connect(_on_ai_faction_defeated)
+	EventBus.popularity_changed.connect(_on_popularity_changed)
+	EventBus.building_destroyed.connect(_on_building_destroyed)
 
 # Gold-bordered parchment styling for the bottom action buttons. The default theme
 # rendered them near-transparent over the busy map terrain (Raise/March/Diplomacy
@@ -785,6 +792,33 @@ func _on_title_promoted(_title_index: int, title_name: String) -> void:
 		_event_feed.push("👑 You have risen to %s!" % title_name, 8.0, Color(1.0, 0.85, 0.3))
 	if title_name == "King":
 		_show_endgame(true, "You have risen to KING — the realm is yours!")
+
+# A rival kingdom fell — vanquishing the LAST one is the conquest victory (mirrors CityViewScene).
+func _on_ai_faction_defeated(faction_id: int) -> void:
+	if is_instance_valid(_event_feed):
+		_event_feed.push("⚔ %s has been vanquished!" % GameState.get_faction_display_name(faction_id), 6.0, Color(1.0, 0.85, 0.2))
+	var any_alive: bool = false
+	for fac in GameState.ai_factions:
+		if fac is Dictionary and fac.get("is_alive", true):
+			any_alive = true
+			break
+	if not any_alive and GameState.ai_factions.size() > 0:
+		_show_endgame(true, "All enemies vanquished! Sovereign's Reach is yours!")
+
+# Popularity cratering to a revolt is a DEFEAT — the seat keeps ticking while you're on the map.
+func _on_popularity_changed(_pid: int, _old: float, new_val: float) -> void:
+	if new_val < 10.0:
+		_show_endgame(false, "The people have revolted! Your reign is over.")
+
+# The player's hall/keep razed (siege) is a DEFEAT — the seat can fall while you campaign abroad.
+func _on_building_destroyed(player_id: int, building_id: int, _cause: String) -> void:
+	if player_id != 0 or GameState.players.is_empty():
+		return
+	for bld in GameState.players[0].get("buildings", []):
+		if bld is Dictionary and int(bld.get("id", -1)) == building_id \
+				and String(bld.get("type", "")) in ["village_hall", "keep"]:
+			_show_endgame(false, "Your keep has fallen! The realm is lost.")
+			return
 
 # Minimal end-game overlay (the world map has no game-over panel of its own). Pauses the realm and
 # presents the win (King) or defeat (last holding lost), mirroring CityViewScene._show_game_over so

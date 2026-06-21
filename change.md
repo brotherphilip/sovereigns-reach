@@ -143,6 +143,32 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 273 — 2026-06-22  (BUG — the REMAINING win/loss conditions were missing on the world map too)
+
+Audited the full gap: `CityViewScene` connects 18 EventBus signals; after iter271–272 the world map handled
+only 3. Cross-checking which fire from the seat + strategic sim that keep TICKING on the map found **three
+more game-over conditions** presented only in the city view:
+- **`ai_faction_defeated`** — vanquishing the LAST rival is a conquest WIN, and you defeat rivals by
+  campaigning ON the map; reaching it there showed nothing.
+- **`popularity_changed` (<10)** — a revolt DEFEAT; the seat's popularity keeps ticking while you're away.
+- **`building_destroyed` (hall/keep)** — a siege DEFEAT; the seat can be razed while you campaign abroad.
+
+- **Fix:** `WorldMapScene` now connects all three (named handlers mirroring CityViewScene), routing to the
+  shared `_show_endgame()` — so the world map presents **all five** win/loss outcomes, full parity with the
+  city view. `SR_WINTEST` extended (`=revolt`/`=conquest`).
+- **Validated (Xvfb):** clean boot (the new handlers + connections parse; `get_faction_display_name` etc.
+  resolve); the revolt-DEFEAT panel renders correctly ("The people have revolted!"); the conquest-WIN and
+  hall-siege paths reuse the iter271/272-validated gold/red overlay with city-view-mirrored conditions.
+- NOTE (tech debt): game-over presentation is now wired in BOTH scenes (5 conditions each). A future
+  consolidation into a shared/global handler would remove the duplication and prevent this recurring — but
+  the additive parity fix is the low-risk close for the live bug.
+
+### Files
+- `view/worldmap/WorldMapScene.gd` — `_on_ai_faction_defeated` / `_on_popularity_changed` /
+  `_on_building_destroyed` + connections + `SR_WINTEST` revolt/conquest previews.
+
+---
+
 ## Iteration 272 — 2026-06-22  (BUG — the symmetric DEFEAT screen was also missing on the world map)
 
 The iter271 sibling I flagged: `player_realm_lost` (your LAST holding captured — the strategic loss

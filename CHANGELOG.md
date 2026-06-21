@@ -2,6 +2,16 @@
 
 ---
 
+## 2026-06-22 — All win/loss screens now show on the world map (iter273)
+
+- **[Bug fix] Full game-over parity on the world map:** beyond the King-win (iter271) and last-holding
+  defeat (iter272), three more outcomes were city-view-only — vanquishing the last rival (a conquest win),
+  a popularity revolt (<10), and the hall being razed (siege) — all of which fire from the seat/strategic
+  sim that keeps running on the map. The world map now presents all five win/loss conditions, matching the
+  city view. (view/worldmap/WorldMapScene.gd.)
+
+---
+
 ## 2026-06-22 — The defeat screen now shows when you lose on the world map (iter272)
 
 - **[Bug fix] The loss is no longer silent:** companion to iter271 — losing your last holding (the
