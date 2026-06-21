@@ -2361,7 +2361,12 @@ func _cmd_demolish_building(cmd: Dictionary) -> bool:
 		# even firing the loss screen (demolish emits building_demolished, not building_destroyed).
 		# The HUD hides the Demolish button for the seat, but the Delete-key path didn't guard it —
 		# so enforce it here, in the authoritative command, where EVERY path converges. (iter281)
+		# A brief notice closes the feedback loop so a Delete-on-seat reads as "not allowed", not
+		# an unresponsive game (the normal demolish already gives a sound + the building vanishing).
 		if building.get("type", "") in ["village_hall", "keep"]:
+			if pid == 0:
+				EventBus.realm_notice.emit(
+					"Your seat may not be razed by your own hand — to lose it would be a defeat, not a decree.", "bad")
 			return false
 
 		# Clear grid cells

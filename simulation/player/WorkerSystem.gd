@@ -17,7 +17,11 @@ static func assign_workers(building: Dictionary, count: int, player: Dictionary)
 	var old_count: int = building.get("workers", 0)
 	# Include this building's current workers in available so reductions are computed correctly.
 	var available: int = _available_workers(player) + old_count
-	var to_assign: int = mini(count, min(max_w, available))
+	# Clamp to [0, capacity]: the LOWER bound matters — a crafted/replayed set-workers command with
+	# a NEGATIVE count would otherwise store negative workers, which inflates the free-worker pool
+	# (_available_workers subtracts total_assigned) and lets the realm over-staff other buildings —
+	# a phantom-worker production exploit. The UI only ever sends 0..max; this guards the command.
+	var to_assign: int = clampi(count, 0, min(max_w, available))
 	building["workers"] = to_assign
 	return to_assign - old_count  # Net change
 

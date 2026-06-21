@@ -2,6 +2,23 @@
 
 ---
 
+## 2026-06-22 — Closed a phantom-worker exploit; seat-demolish now explains itself (iter282)
+
+- **[Exploit fix] Worker assignment can't conjure phantom labourers:** assigning workers to a building was only
+  capped at the top (a building's capacity and your free population), with no floor — so a malformed worker-count
+  command could store a *negative* number of workers, which tricked the game into thinking you had extra free
+  villagers and let you over-staff other buildings beyond your actual population. Worker counts are now clamped to
+  a sane 0..capacity range. Normal play is unaffected (the worker +/- buttons always sent valid values).
+- **[Feedback] Trying to demolish your own seat now tells you why:** pressing Delete on your village hall/keep
+  (which is protected — iter281) was a silent no-op; it now shows a short message explaining the seat can't be
+  razed by hand, so it reads as "not allowed" rather than an unresponsive game.
+- An expert-QA pass over the strategic spend commands (recruit, develop city, raise army, donate to capital,
+  disband) found them all sound — each validates ownership/affordability and deducts atomically.
+- **Validated:** new `tests/TestWorkerAssign.gd` 8/0; regression `TestWorkers` 21/0, `TestEconomy` 18/0,
+  `TestPhase3` 88/0, `TestSurvival` 6/0. (simulation/player/WorkerSystem.gd, simulation/core/GameState.gd.)
+
+---
+
 ## 2026-06-22 — You can no longer accidentally demolish your own seat (iter281)
 
 - **[Bug fix] The village hall / keep can't be torn down by hand:** the demolish button in the building panel
