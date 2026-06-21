@@ -42,6 +42,8 @@ func _init() -> void:
 		print("✓ ALL %d TESTS PASSED" % _pass)
 	else:
 		print("✗ %d PASSED  %d FAILED" % [_pass, _fail])
+	# Uniform, greppable summary line so a full-suite sweep can't silently miss this suite.
+	print("=== Phase 2 Results: %d passed, %d failed ===" % [_pass, _fail])
 	print("")
 	quit(0 if _fail == 0 else 1)
 

@@ -59,6 +59,9 @@ func _init() -> void:
 		print("✓ ALL %d TESTS PASSED" % _pass)
 	else:
 		print("✗ %d PASSED  %d FAILED" % [_pass, _fail])
+	# Uniform, greppable summary line so a full-suite sweep can't silently miss this suite
+	# (the pretty line above isn't matched by a "Results:" grep — that hid this suite in audits).
+	print("=== Phase 1 Results: %d passed, %d failed ===" % [_pass, _fail])
 	print("")
 	quit(0 if _fail == 0 else 1)
 

@@ -2,6 +2,18 @@
 
 ---
 
+## 2026-06-22 — Full test-suite review: 55 suites green, and a fix so sweeps can't silently skip suites (iter283)
+
+- **[Quality / test infra] Whole suite re-verified:** ran all 55 test suites individually — **0 failures across
+  ~1699 checks**, confirming the recent run of fixes (diplomacy, save/load, workers, demolish) is regression-clean
+  and that the two formerly-flaky suites (spectator-troops, siege) are solidly green.
+- **[Test infra fix] Sweeps can no longer silently miss a suite:** three suites printed only "ALL N TESTS PASSED"
+  instead of the standard "Results: N passed, M failed" line that every other suite emits, so an automated sweep
+  that scans for "Results:" would skip them — a real failure in one would look like no output. All three now print
+  the standard line too, so a full-suite sweep always sees every suite. (No gameplay code touched.)
+
+---
+
 ## 2026-06-22 — Closed a phantom-worker exploit; seat-demolish now explains itself (iter282)
 
 - **[Exploit fix] Worker assignment can't conjure phantom labourers:** assigning workers to a building was only
