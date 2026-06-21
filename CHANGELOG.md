@@ -2,6 +2,16 @@
 
 ---
 
+## 2026-06-22 — Internal: pathfinding & terrain rules unified to one source (iter298)
+
+- **[Maintenance] Removed a duplicated terrain table:** the pathfinder kept its own copy of the world's
+  terrain passability and movement-speed rules, which had to be kept in sync with the master copy by hand — a latent
+  hazard where routes could quietly disagree with how units actually move. Both copies were confirmed identical and
+  the pathfinder now reads the single master table. No gameplay change. (Pathfinding, unit-AI, economy and path tests
+  all pass.)
+
+---
+
 ## 2026-06-22 — Difficulty now actually affects food consumption (iter297)
 
 - **[Bug fix] Harder difficulties make your people eat more (and easier ones less):** the difficulty setting's

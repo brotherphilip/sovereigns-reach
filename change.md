@@ -156,6 +156,17 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 298 — 2026-06-22  (REDUNDANCY — terrain tables: WorldGrid is now Pathfinder's single source)
+
+Autonomous cycle (queued audit item). `Pathfinder` kept a hand-synced COPY of WorldGrid's terrain passability +
+move-cost tables (the code literally said "must stay in sync with WorldGrid constants") — a real drift hazard where
+A* routing could silently diverge from actual per-tile movement. Verified the two were byte-identical, then replaced
+Pathfinder's copies with references to `WorldGrid.TERRAIN_PASSABILITY`/`TERRAIN_MOVE_COST` (added the preload; class
+consts resolve without a grid instance, so dict-mode headless/save lookups still work). Validated: TestPathfinding
+17/0, TestUnitAI 23/0, TestEconomy 18/0, TestPaths 20/0; clean boot. (Backlog audit-redundancy item #2 ✅.)
+
+---
+
 ## Iteration 297 — 2026-06-22  (LATENT BUG from the audit — difficulty silently did NOT affect food)
 
 User switched the loop to autonomous fast cadence ("2 mins per cycle ... just fix things you find", see memory
