@@ -2,6 +2,22 @@
 
 ---
 
+## 2026-06-22 — Codebase cleanup: removed dead systems, unified duplicated limits (iter296)
+
+- **[Maintenance] Deep-dive audit pass — removed leftover/dead code and unified hand-mirrored limits:** a
+  codebase-wide audit (four parallel discovery passes) cleaned up cruft with no change to how the game plays. Removed
+  three orphaned files (a dead input mapper and an entire unused parallel start-up path), eight event signals that
+  nothing used, and several legacy leftover variables. Unified two storage limits (the no-granary food cap and the
+  cellar cap) that were copy-pasted between the player's and the AI's economy and could silently drift apart, and
+  made the map-edge logic derive from the actual map size instead of a hardcoded 200. Documented the villager-pawn
+  cap as a deliberate performance budget.
+- **Validated:** every removal was confirmed to have zero live references first; both main scenes boot clean and the
+  siege/survival/people/economy/strategic/unit-AI test suites all pass unchanged. Remaining redundancy consolidations
+  (a dead duplicate food system, a duplicated terrain table, etc.) are queued for follow-up. No player-facing behavior
+  changed.
+
+---
+
 ## 2026-06-22 — Sieges are now physical: enemy troops actually attack your buildings (iter295)
 
 - **[Gameplay] A building only loses HP when an enemy is physically striking it:** following on from iter294, the

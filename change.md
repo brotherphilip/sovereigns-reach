@@ -117,6 +117,7 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 - **ONBOARDING — no world-map tutorial (iter243, USER pick):** the strategic `WorldMapScene` has no first-visit onboarding — a new player must find their single gold village with no "this is you / start here" callout, and nothing teaches Develop/Raise Army/March/Diplomacy or why to leave the in-city seat. Mechanically proven (TestKingClimb + Reeve·1→King·15); the depth is just untaught. (✅ iter270 added the realm_notice event feed; ✅ iter288 verified the action buttons themselves are well-fed-back — the gap is purely first-visit guidance, not the controls.)
 - **FOLLOW-UP — low/full-stores warnings still un-VO'd (from iter286):** the `realm_notice` war beats are voiced (iter286), but the low-stores/full-stores warnings still play silent. A small follow-up clip + keyword classification in `_on_realm_notice` — DEFERRED pending the user's ear-check of the iter286 clips (don't batch more unverified audio before the voice is confirmed).
 - **Deathmatch "Empires of Ages":** `deathmatch.md` absent; no active work. Create only when that mode is built.
+- **AUDIT FOLLOW-UP (iter296, USER-DIRECTED deep-dive — partially done, rest queued):** dead-code + clear limit fixes shipped (iter296a/b). REMAINING true-redundancy consolidations to do in validated batches: (1) delete dead `FoodSystem.tick` (duplicates the live `ResourceTick.tick_food_consumption` + dup ration multiplier table; port the one missing difficulty mod, rewrite TestPhase4); (2) single terrain passability/move-cost table (WorldGrid is canonical; `Pathfinder._TERRAIN_*` is a hand-synced copy — careful: dict-mode used in headless/tests); (3) route the ~5 inline building-registration loops through `_register_buildings_in_grid`; (4) extract one `_ring_search(cx,cy,r,predicate)` for the ~6 copy-pasted spiral searches + unify the 3 "tile free for a civilian" predicates; (5) drop the redundant stored `max_hp` (derive from registry; save-format default needed); (6) collapse the `population` cache's ~7 hand-sync sites into one `_sync_population()`; (7) HUD crisis-alert double-notification (route through EventBus). LOW-PRIORITY: ~20 zero-ref functions + 13 emitted-but-unconnected signals. NEEDS USER CALL (perf/balance, don't change blind): raise `MAX_CITIZENS=40`? `SAFETY_MAX_PEOPLE=150` / `MAX_ARMY_SIZE=40` / `MAX_FACTION_BUILDINGS=22` review; "FOW disabled for now" (UnitLayer/BuildingLayer) — implement or commit to full-reveal.
 
 ### Resolved Index (recent, real evidence) — collapsed
 - **Calmer pacing (iter187):** realm events every 3–5 sun cycles (`WorldEventSystem` COOLDOWN 225 + chance 0.013); King's Peace = 10 sun cycles (`AIFaction.PLAYER_GRACE_DAYS 750`, gates sieges AND tribute). Ev: TestWorldEvents 46/0, TestPhase6 104/0.
@@ -152,6 +153,38 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 - **Save/load LIFTED trade embargoes (iter278):** `DiplomacySystem.is_embargoed` tested `player_id in embargoed_players`, but Godot's `Array.has()`/`in` is type-strict (`0 in [0.0]` is false) and JSON loads the stored int ids as floats — so after a save/load the embargo membership failed and the market trade penalty (keyed on is_embargoed) silently vanished; the same pattern in refuse()/MerchantPrince accumulated duplicate float/int ids. Fix: is_embargoed compares ids numerically; a centralized `mark_embargoed` appends with numeric de-dup; refuse + MerchantPrince route through it. Audited all other `in persisted-array` checks — the rest are string membership (round-trip safe). Ev: new TestSaveLoadDiplomacy 15/0 (embargo/grievance/tribute deadline/pending events/clock all survive a real JSON round-trip); TestMarket 72/0, TestStrategicAI 91/0, TestPhase6 104/0, TestSaveLoad 13/0. WATCH: any `int in persisted_array` is a latent save/load bug.
 - **Modal audit + tribute "Decide Later" (iter277):** audited ModalGate — sound (2 participants gate/queue correctly; the tutorial/reign/game-over overlays don't realistically co-occur in real play). Real gap: the tribute panel (correctly NOT paused — it's a decide-at-leisure ultimatum per iter275/276; a prototyped pause was reverted as it'd softlock a poor ruler into Refuse) offered only Accept (often disabled when broke) + Refuse (consequential), cornering a poor/busy ruler. Fix: added a "Decide Later" dismiss — demand stays unfulfilled (no spend/peace/grievance), re-presents on return (iter276) or pays once funds allow. Ev: on-screen 3-button panel (SR_DIPLO_DEMO); TestDiplomacyTribute 29/0, TestDiplomacyRepresent 11/0, TestPhase6 104/0.
 - **(Durable, older — see Current Targets):** Day-100 FLOOR multi-seed survival; Reeve→King climb on 5 seeds ≤113d; late-game coalition-vs-leader; on-screen in-city FLOOR survival (iter158).
+
+---
+
+## Iteration 296 — 2026-06-22  (USER-DIRECTED — deep-dive audit: redundant/leftover systems + hardcoded limits)
+
+**User directive:** "a deep dive on redundant and left over systems and limits etc. all needs to be fixed." Fanned
+out four parallel discovery agents (dead code / redundant systems / vestigial-deprecated / hardcoded limits), each
+returning an evidence-backed list. Fixed in two VALIDATED batches (not one blind sweep); every removal was
+re-verified to have zero live references first.
+
+- **Batch A — dead/leftover removal (commit b959962):** deleted three orphaned files — `simulation/core/InputMapper.gd`
+  (superseded by `PlayerInputHandler`), and `view/main/Main.tscn` + `view/main/GameBootstrap.gd` (a complete dead
+  parallel boot path; `main_scene` is MainMenuScene — kept `PlayerInputHandler`, which is live). Removed 8 EventBus
+  signals never emitted or connected (resource_changed, building_production_tick, unit_moved, unit_ordered,
+  ai_border_changed, weather_effect_applied, trade_route_updated, simulation_error). Removed dead vars/consts
+  (WorldMapScene `_watch_speed`/`_campaign_army_id`/`RAISE_BATCH` legacy gold-army remnants; CitizenSystem
+  `NODE_RADIUS`) and fixed a stale InputMapper comment.
+- **Batch B — limit fixes (commit 001794a):** the granary-less `FOOD_BASE` (200) and cellar `RAW_BASE` (500) were
+  HAND-MIRRORED between StorageSystem/FoodSystem and AIFaction (a real player-vs-AI desync hazard) → made
+  `FoodSystem.FOOD_BASE` the single source (was an inline magic 200) and AIFaction now references the canonical
+  consts. Hardcoded grid-edge clamps (199/197) in `_rally_goal` + `_spawn_seat_attackers` assumed a 200-wide map
+  (map size is a `server_config` knob) → derived from `_grid.width/height`. Documented `MAX_CITIZENS=40` as the
+  deliberate citizen-tick PERF budget (pawns are a population/3 sample, not 1:1) rather than blindly raising it.
+- **Validated:** both main scenes boot clean; TestSiege 9/0, TestSiegePhysical 5/0, TestSiegeReach 8/0, TestUnitAI
+  23/0, TestPeople 21/0, TestStrategicAI 91/0, TestEconomy 18/0, TestPhase2 96/0, TestPhase4 60/0.
+- **Remaining audit backlog (queued for follow-up loop iterations — see Active Backlog):** the redundancy
+  consolidations the agents surfaced (dead `FoodSystem.tick` duplicating `ResourceTick.tick_food_consumption` +
+  dup ration table; terrain passability/cost tables duplicated WorldGrid↔Pathfinder; ~5 ad-hoc building-registration
+  loops; ~6 copy-pasted ring-searches; `max_hp` field redundant with registry; `population` cache hand-synced at ~7
+  sites; HUD crisis-alert double-notification) plus ~20 zero-ref functions / 13 emitted-but-unconnected signals; and
+  the perf/balance CAPS to weigh with the user (MAX_CITIZENS raise?, SAFETY_MAX_PEOPLE 150, MAX_ARMY_SIZE 40,
+  MAX_FACTION_BUILDINGS 22) + the "FOW disabled for now" decision.
 
 ---
 
