@@ -139,7 +139,41 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 - **Stores-full warning (iter204, user-reported):** the raw pool (wood/stone/ore/intermediates) is shared, so when it fills, gatherers can't deposit and freeze CARRYING their load — the woodcutter keeps cutting but the realm gets no more wood, silently (root-caused via ProbeWoodcutter: unprocessed **wheat** with no windmill hogs the pool → wood stuck at 113/cap-500 forever). Now the realm warns once ("stores are full — build a Stockpile…") while a raw producer is throttled, re-arming when room opens. Ev: tests/TestStoresWarning.gd 6/0.
 - **Intermediate-clog PREVENTION (iter205, follow-up):** the deeper root of the woodcutter freeze — a `wheat_farm`/`hops_farm` with no `mill`/`brewery` banks an intermediate that's useless and only clogs the shared raw pool. Now such a farm TENDS its rows but banks nothing until its processor exists (`CitizenSystem._farm_output_blocked`), so a new player's wheat farm can't silently strangle their wood/stone economy. Ev: ProbeWoodcutter — wood now flows continuously (0→465 climbing, wheat stays 0) where it previously froze at 113; TestEconomy 18/0.
 - **Painted building sprites (iter203):** buildings can now wear hand-painted iso art over the procedural model (`view/micro/BuildingSpriteOverlay.gd`, additive — finished buildings only, auto procedural fallback). First asset: a detailed **Village Hall** replacing the flat procedural roof-diamond. Local ComfyUI art pipeline in `tools/artgen/`; raw candidate renders (multi-GB) git-ignored, only chosen source + keyed sprite committed. Ev: before/after `_SpriteTrial.tscn` render + in-world placement (Xvfb), TestSurvival 6/0.
+- **Tribute "free peace" exploit (iter275):** `DiplomacySystem.accept` deducted demanded goods as `maxi(0, have−amt)` with no affordability check, yet always granted the 14-day peace window + grievance relief — so a player with 0 of the demanded resource bought peace for nothing (HUD lied "Tribute paid"), and partial payments silently drained stock. The iter1 "tribute unpayable early" note. Fix: `can_afford()` gate; `accept()` returns bool and is a strict no-op when short (no spend, no peace, no relief); the Accept button disables + relabels "can't afford" with an explanatory line; command path emits "demand still stands". Ev: TestDiplomacyTribute 29/0, TestPhase6 104/0, clean HUD render.
 - **(Durable, older — see Current Targets):** Day-100 FLOOR multi-seed survival; Reeve→King climb on 5 seeds ≤113d; late-game coalition-vs-leader; on-screen in-city FLOOR survival (iter158).
+
+---
+
+## Iteration 275 — 2026-06-22  (EXPERT-QA — tribute "Accept" bought peace you couldn't pay for)
+
+Pivoted off the world-map feedback thread (iter270–274) to an unaudited system: **diplomacy / tribute**.
+Expert-QA traced the accept path end-to-end — `DiplomacyPanel` ("Accept (pay)") → `CommandQueue` →
+`GameState._cmd_diplomacy_response` → `DiplomacySystem.accept`. Found a real **economy exploit + data-loss**
+pair: `accept()` deducted each demanded resource as `maxi(0, have − amount)` with **no affordability check**,
+yet always marked the demand fulfilled and granted the full reward — a 14-day no-siege window **plus** grievance
+relief. Consequences:
+- **Free peace:** a player with 0 gold (or 0 of a demanded good) could click Accept, pay **nothing**, and still
+  buy 14 days of guaranteed peace + soothe the rival's grievance. The HUD even lied: "Tribute paid… they hold
+  the peace." This is exactly the long-standing iter1 backlog note *"tribute unpayable early."*
+- **Partial-drain:** paying 50 of a 100-gold demand took the 50 **and** granted full peace — silent partial loss.
+
+- **Root-cause fix (authoritative, sim-layer):** `DiplomacySystem` gains `can_afford(player, demands)` (checks
+  EVERY demanded resource — gold / food / raw — is held in full; untracked = 0) and a `_player_stock` helper.
+  `accept()` now **returns bool** and is a strict no-op when the coffers fall short: no resources spent, demand
+  left active, **no peace, no grievance relief**. `_cmd_diplomacy_response` reacts to a false return with a
+  "You cannot afford that tribute in full — the demand still stands" realm_notice (demand stays for a later pay
+  or refuse). The full-payment path is unchanged.
+- **UI gate (DiplomacyPanel):** the Accept button is **disabled + relabelled "Accept — can't afford"** (with a
+  tooltip) when `can_afford` is false, and the demand text adds a red "your coffers cannot meet this — you must
+  Refuse, or pay once you can" line, so the player understands the choice instead of clicking a button that lies.
+  `_on_accept` re-checks at click time (stocks can drift) — defence-in-depth behind the authoritative no-op.
+- **Validated:** new `tests/TestDiplomacyTribute.gd` **29/0** — can_afford across gold/food/resource/untracked/
+  mixed; affordable accept pays-in-full + buys peace + soothes grievance; **unaffordable accept drains NOTHING,
+  fulfils nothing, buys no peace**; penniless can't buy free peace; and the GameState command path no-ops when
+  short then pays cleanly when funded. Regression: `TestPhase6` **104/0** (the other accept() caller, unchanged).
+  `DiplomacyPanel` parses + instantiates in the live HUD (clean Xvfb city-view render, 0 SCRIPT/Parse errors).
+- (Noted, not in scope: the worldmap has **no** diplomacy UI, so an envoy arriving while the player is on the map
+  queues with no panel — a separate onboarding/feedback gap, logged for a future world-map-diplomacy pass.)
 
 ---
 

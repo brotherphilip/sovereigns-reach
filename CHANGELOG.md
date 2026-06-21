@@ -2,6 +2,25 @@
 
 ---
 
+## 2026-06-22 — Tribute you can't pay no longer buys peace for free (iter275)
+
+- **[Exploit / data-loss fix] Accepting a tribute now requires paying it in full:** an AI faction's tribute
+  demand could be "Accepted" even with empty coffers — `DiplomacySystem.accept` deducted only what you had
+  (`maxi(0, have − amount)`, often nothing) but still granted the full reward: a 14-day no-siege window **and**
+  grievance relief. So a penniless lord bought peace for free (the HUD even claimed "Tribute paid"), and paying
+  part of a demand silently drained that partial stock while still buying full peace. This was the long-standing
+  "tribute unpayable early" issue.
+- **Fix:** new `DiplomacySystem.can_afford()` checks every demanded resource (gold / food / raw) is held in full;
+  `accept()` now returns a bool and is a strict **no-op when you can't pay** — no resources spent, demand stays
+  active, no peace, no grievance relief. The diplomacy panel **disables the Accept button** (relabelled "Accept —
+  can't afford", with a tooltip and an in-panel explanation) when you're short, so you Refuse or gather goods and
+  pay later; the command path announces "the demand still stands" if an unaffordable accept slips through.
+- **Validated:** `tests/TestDiplomacyTribute.gd` 29/0 (afford checks; full-payment buys peace; unaffordable accept
+  changes nothing; command-path no-op-then-pay); `TestPhase6` 104/0; clean HUD render. (simulation/ai/DiplomacySystem.gd,
+  simulation/core/GameState.gd, view/hud/DiplomacyPanel.gd.)
+
+---
+
 ## 2026-06-22 — Siege warning now shows on the world map (iter274)
 
 - **[Feedback fix] You're warned of a siege on the map:** a rival marshalling a siege against your seat

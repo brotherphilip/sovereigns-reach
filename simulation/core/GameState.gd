@@ -2579,7 +2579,13 @@ func _cmd_diplomacy_response(cmd: Dictionary) -> bool:
 			faction = f
 			break
 	if payload.get("accept", false):
-		DiplomacySystem.accept(players[pid], payload.get("demands", {}), faction, SimulationClock.current_tick)
+		var paid: bool = DiplomacySystem.accept(players[pid], payload.get("demands", {}), faction, SimulationClock.current_tick)
+		if not paid:
+			# Couldn't meet the tribute in full — nothing is paid and no peace is bought.
+			# The demand stays active so the lord can gather the goods and accept later
+			# (or refuse). Without this guard, accepting an unaffordable demand drained
+			# whatever partial stock existed yet still bought peace for free.
+			EventBus.realm_notice.emit("You cannot afford that tribute in full — the demand still stands.", "bad")
 	else:
 		DiplomacySystem.refuse(players[pid], faction)
 	return true

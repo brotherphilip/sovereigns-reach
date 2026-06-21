@@ -6,12 +6,38 @@ extends RefCounted
 const AIFaction = preload("res://simulation/ai/AIFaction.gd")
 const TICKS_PER_DAY: int = 240
 
+# How much of `res` the player holds (gold, a food, or a raw resource); 0 if untracked.
+static func _player_stock(player: Dictionary, res) -> int:
+	if res == "gold":
+		return int(player.get("gold", 0))
+	var food: Dictionary = player.get("food", {})
+	if food.has(res):
+		return int(food[res])
+	var resources: Dictionary = player.get("resources", {})
+	if resources.has(res):
+		return int(resources[res])
+	return 0
+
+# True only if the player can pay EVERY demanded resource in full. Accepting a tribute
+# you cannot afford must be impossible: paying part of a demand (or nothing) yet still
+# buying peace was an exploit (free/cheap peace) and silently drained partial stock.
+# The panel gates its Accept option on this; accept() re-checks it authoritatively.
+static func can_afford(player: Dictionary, demands: Dictionary) -> bool:
+	for res in demands:
+		if _player_stock(player, res) < int(demands[res]):
+			return false
+	return true
+
 # Accept: pay the demanded resources, mark demands fulfilled, and — crucially — BUY
 # PEACE: a guaranteed no-siege window plus soothed grievance, so tribute actually
 # keeps the wolves from the door for a while (the whole point of paying).
-static func accept(player: Dictionary, demands: Dictionary, faction = null, tick: int = 0) -> void:
+# Returns true only if the FULL tribute was paid; an unaffordable accept is a no-op
+# (no resources spent, no peace, no grievance relief) so callers can react.
+static func accept(player: Dictionary, demands: Dictionary, faction = null, tick: int = 0) -> bool:
+	if not can_afford(player, demands):
+		return false
 	for res in demands:
-		var amount: int = demands[res]
+		var amount: int = int(demands[res])
 		if res == "gold":
 			player["gold"] = maxi(0, int(player.get("gold", 0)) - amount)
 		elif player.get("food", {}).has(res):
@@ -26,6 +52,7 @@ static func accept(player: Dictionary, demands: Dictionary, faction = null, tick
 		if tick > 0:
 			faction["tribute_peace_until"] = tick + AIFaction.TRIBUTE_PEACE_DAYS * TICKS_PER_DAY
 		faction["grievance"] = maxf(0.0, faction.get("grievance", 0.0) - AIFaction.GRIEVANCE_ON_ACCEPT)
+	return true
 
 # Refuse: the populace grows uneasy, and the snubbed faction nurses a PERSISTENT
 # grievance (escalating its threat toward a siege) plus a trade embargo.

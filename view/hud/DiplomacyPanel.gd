@@ -6,6 +6,7 @@ extends PanelContainer
 const CT_DIPLOMACY_RESPONSE = 26  # CommandQueue.CommandType.DIPLOMACY_RESPONSE
 const ModalGate = preload("res://view/hud/ModalGate.gd")
 const AIFaction = preload("res://simulation/ai/AIFaction.gd")
+const DiplomacySystem = preload("res://simulation/ai/DiplomacySystem.gd")
 
 # Archetype-specific opening lines for tribute demands
 const ARCH_FLAVOR: Dictionary = {
@@ -32,6 +33,7 @@ const ARCH_FLAVOR: Dictionary = {
 }
 
 var _label:         RichTextLabel
+var _accept_btn:    Button
 var _threat_bar:    ProgressBar
 var _threat_label:  Label
 var _history_label: RichTextLabel
@@ -75,6 +77,7 @@ func _ready() -> void:
 	accept_btn.text = "Accept (pay)"
 	accept_btn.pressed.connect(_on_accept)
 	hb.add_child(accept_btn)
+	_accept_btn = accept_btn
 	var refuse_btn := Button.new()
 	refuse_btn.text = "Refuse"
 	refuse_btn.pressed.connect(_on_refuse)
@@ -140,10 +143,23 @@ func _present(faction_id: int, demand: Dictionary) -> void:
 		refuse_tail = "grievance deepens (now %s); the King's Peace stays their hand ~%d days more." % [standing, grace_left]
 	else:
 		refuse_tail = "grievance deepens (now %s) & they may march." % standing
+	# Affordability gate: you can only Accept a tribute you can pay IN FULL. Paying part
+	# (or nothing) yet still buying peace was an exploit, so when the coffers fall short
+	# the Accept option is disabled and the player must Refuse (or gather goods & wait).
+	var can_pay: bool = false
+	if GameState.players.size() > 0:
+		can_pay = DiplomacySystem.can_afford(GameState.players[0], demand.get("demands", {}))
+	_accept_btn.disabled = not can_pay
+	_accept_btn.text = "Accept (pay)" if can_pay else "Accept — can't afford"
+	_accept_btn.tooltip_text = "" if can_pay else \
+		"You lack the goods to pay this tribute in full. Refuse, or gather the resources before the next envoy."
+	var afford_tail: String = "" if can_pay else \
+		"\n\n[color=#ff8866]Your coffers cannot meet this demand in full — you must Refuse, or pay once you can.[/color]"
+
 	_label.text = ("[i]%s[/i]\n\n[b]%s[/b] demands tribute: %s.\n\n" +
 		"[color=#9fe08a]Pay[/color] → they hold the peace ~14 days.    " +
-		"[color=#ffaa66]Refuse[/color] → %s") % [
-		flavor, faction_name, ", ".join(parts), refuse_tail]
+		"[color=#ffaa66]Refuse[/color] → %s%s") % [
+		flavor, faction_name, ", ".join(parts), refuse_tail, afford_tail]
 
 	# History + active agreements
 	_refresh_history()
@@ -169,6 +185,16 @@ func _get_active_agreement_lines() -> Array:
 
 func _on_accept() -> void:
 	if GameState.players.size() > 0:
+		# Re-check affordability at click time (the button is disabled when short, but
+		# stocks can drift between presenting and clicking). If we can't pay in full,
+		# don't claim tribute was paid — the command would no-op authoritatively anyway.
+		if not DiplomacySystem.can_afford(GameState.players[0], _current.get("demands", {})):
+			var hud0 = get_parent()
+			if hud0 and hud0.has_method("show_notification"):
+				hud0.show_notification(
+					"Your coffers cannot meet that tribute — the demand still stands.",
+					5.0, Color(1.0, 0.55, 0.1))
+			return
 		CommandQueue.enqueue(CT_DIPLOMACY_RESPONSE, {
 			"faction_id": _current.get("faction_id", -1),
 			"accept": true,
