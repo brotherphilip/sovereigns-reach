@@ -1746,9 +1746,18 @@ func enter_spectator_city(city_id: int, center_x: int, center_y: int, seed_val: 
 	var city: Dictionary = CampaignMap.city_by_id(world, city_id)
 	var dev: int = int(city.get("development", city.get("tier", 0)))
 	_spectator_last_dev = dev
-	# Generate the town fully standing (prev_dev == dev → all built).
+	# How far the player has WATCHED this town build, persisted in the city record. Anything developed
+	# since (or, on a first visit, the latest level) arrives UNDER CONSTRUCTION so the AI's building is
+	# visibly in-progress — active sites with pawns raising them — instead of a finished snapshot that
+	# "pops in" the moment you click in. Completed levels persist, so re-visiting never resets/regenerates
+	# construction, and development that accrued while you were away is shown being built. (iter312)
+	# Cap active construction to the NEWEST development level (dev-1): a town that grew several levels
+	# while you were away has long since finished the older ones — only its latest expansion is still
+	# rising. This keeps arrivals realistic (a few build sites, not a whole town under scaffolding) and
+	# avoids the "broken build rate" pile-up.
+	var seen_dev: int = clampi(maxi(int(city.get("spec_seen_dev", dev - 1)), dev - 1), 0, dev)
 	var res: Dictionary = CityGenerator.building_dicts(
-		center_x, center_y, _grid, seed_val, dev, 0, _next_building_id, dev)
+		center_x, center_y, _grid, seed_val, dev, 0, _next_building_id, seen_dev)
 	var blds: Array = res["buildings"]
 	_next_building_id = res["next_id"]
 	if not players.is_empty():
@@ -3491,6 +3500,21 @@ func restore_seat_snapshot() -> bool:
 	var s = world.get("seat_snapshot", null)
 	if not (s is Dictionary and not s.is_empty()):
 		return false
+	# Persist how far the spectated town built before leaving. Only advance `spec_seen_dev` if the town
+	# actually finished its current development (no buildings still under construction) — otherwise keep
+	# the prior value so re-entry resumes its unfinished construction rather than completing it for free.
+	# (iter312 — makes AI construction real-time-consistent and reset-free across spectator visits.)
+	if _spectator_city_id >= 0 and not players.is_empty():
+		var sc: Dictionary = CampaignMap.city_by_id(world, _spectator_city_id)
+		if not sc.is_empty():
+			var all_built := true
+			for b in players[0].get("buildings", []):
+				if b is Dictionary and not b.get("built", true):
+					all_built = false
+					break
+			if all_built:
+				sc["spec_seen_dev"] = int(sc.get("development", sc.get("tier", 0)))
+	_spectator_city_id = -1
 	spectator_mode = false
 	_grid = WorldGrid.new(server_config["map_width"], server_config["map_height"])
 	_grid.deserialize(s["grid"])
