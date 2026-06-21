@@ -141,6 +141,47 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 261 — 2026-06-21  (EXPERT-QA BUG HUNT — found & fixed a market arbitrage exploit + a stale disease test)
+
+Pivoted from polish to an aggressive QA pass. A 45s real autoplay was error-clean (happy path solid),
+so I hunted edge cases & exploits in the code. Found TWO real issues.
+
+### BUG 1 — [HIGH, economy break] Market self-arbitrage → infinite gold
+- **Symptom:** a player can buy a resource and immediately re-sell it at a profit, repeatable →
+  exponential gold (e.g. swords during the +50% sell edict: buy 22, sell 27 → +5/unit; with the buy-fee
+  tech too, +4000 gold per 500-unit round-trip).
+- **Root cause:** the buy markup is fixed at ×1.2 (20%), but the **sell** price gets `market_sell_price_bonus`
+  with **no cap** — the `trade_boosts` edict (+50%) and `border_expansion` (+20%) + the `diplomacy` tech's
+  −10% buy-fee push **sell above buy**, breaking the spread invariant that prevents market self-arbitrage.
+  Nothing enforced buy > sell.
+- **Fix (root cause):** `MarketSystem.buy()` now floors the charged unit price strictly above the player's
+  effective sell price (`unit_price = max(markup_price, effective_sell_price + 1)`). Extracted a shared
+  `effective_sell_price()` (sell base + edict premium) so buy & sell agree on one source of truth. The
+  legitimate +50% sell premium on **surplus you produced** is fully preserved (sell side untouched); only
+  the arbitrage loop is closed. No-op in normal conditions (only floors buy when a premium would otherwise
+  meet/exceed it). AI economy unaffected (it doesn't use MarketSystem).
+- **Validation:** new `tests/TestMarket.gd` — buy→sell round-trip nets ≤ 0 and buy-unit > sell-unit under 6
+  modifier loadouts × 3 resources. **Pre-fix 50/22 (caught the exploit); post-fix 72/0.**
+
+### BUG 2 — [LOW, test quality] Pre-existing TestPhase4 disease test failing (suite not actually green)
+- **Symptom:** `test_gs_disease_event_reduces_popularity` was RED (the suite was not green despite docs).
+- **Root cause:** NOT a gameplay bug — disease correctly applies its −10 `disease_outbreak` penalty. The
+  test asserted an absolute drop below 80, but the baseline food-**variety** bonus grew when the starting
+  larder gained a `bread` reserve (`_make_food_stores`, the NeedsSystem larder change) → apples(+2)+bread(+8)
+  = +10 exactly offsets the −10 → net delta 0 → pop stays 80.0 → assertion fails. A non-isolating test that
+  a later, unrelated balance change tipped.
+- **Fix:** rewrote it as an **A/B isolation** — diseased vs an otherwise-identical healthy realm; the diseased
+  one must end LESS popular. Robust to baseline food/tax tuning. **TestPhase4 59/1 → 60/0.**
+
+### Files
+- `simulation/economy/MarketSystem.gd` — `effective_sell_price()` helper; spread-invariant clamp in `buy()`; `sell()` dedup.
+- `tests/TestMarket.gd` (new, 72/0). `tests/TestPhase4.gd` — disease test now A/B-isolated.
+
+### Regression sweep (all green)
+TestMarket 72/0, TestPhase4 60/0, TestSurvival 6/0, TestNeeds 23/0, TestEconomy 18/0, TestPhase6 104/0, TestStrategicAI 91/0, TestAudio 45/0.
+
+---
+
 ## Iteration 260 — 2026-06-21  (SHIP — the felling THEATRE: dramatic topple + dust + a "timber" crash)
 
 Closed the long-standing forest-track weak point: the fell *worked* (cycle proven since iter240) but read

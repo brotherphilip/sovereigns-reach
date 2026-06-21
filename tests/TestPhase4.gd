@@ -540,8 +540,19 @@ func test_gs_sell_resource_via_command() -> void:
 	expect("sell_resource earns gold", _gs.players[0]["gold"] > 200)  # Started at 200
 
 func test_gs_disease_event_reduces_popularity() -> void:
+	# A/B isolation: disease must leave the realm LESS popular than the SAME realm without it.
+	# (Asserting an absolute drop below 80 was non-isolating — the baseline food-variety bonus,
+	# which grew when the starting larder gained a bread reserve, can fully offset the −10 disease
+	# penalty and net to zero. Comparing diseased vs healthy isolates the disease term regardless
+	# of how the surrounding food/tax model is tuned.)
+	var healthy_pop: float = _run_day_popularity(false)
+	var sick_pop: float = _run_day_popularity(true)
+	expect("disease lowers popularity vs an otherwise-identical healthy realm", sick_pop < healthy_pop)
+
+# Runs one game-day for a fixed realm (optionally diseased) and returns its end-of-day popularity.
+func _run_day_popularity(diseased: bool) -> float:
 	_init_gs_player()
-	_gs.players[0]["disease_active"] = true
+	_gs.players[0]["disease_active"] = diseased
 	_gs.players[0]["popularity"] = 80.0
 	_gs.players[0]["tax_rate"] = 0
 	_gs.players[0]["food_ration"] = 2
@@ -550,13 +561,11 @@ func test_gs_disease_event_reduces_popularity() -> void:
 	_gs.players[0]["inn_coverage"] = 0.0
 	_gs.players[0]["religion_coverage"] = 0.0
 	_gs.players[0]["shire_id"] = -1
-	# Advance to day boundary
 	_sc.set_speed(1)
 	for _i in range(240):
 		_sc._advance_tick()
 	_sc.set_speed(0)
-	var pop = _gs.players[0].get("popularity", 80.0)
-	expect("disease event reduces popularity at day boundary", pop < 80.0)
+	return _gs.players[0].get("popularity", 80.0)
 
 # ============ Assertion helpers ============
 

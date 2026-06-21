@@ -70,6 +70,16 @@ static func get_buy_price(resource: String, world: Dictionary) -> int:
 static func get_sell_price(resource: String, world: Dictionary) -> int:
 	return world.get("market_prices", {}).get(resource, BASE_PRICES.get(resource, 5))
 
+# The gold a player actually RECEIVES per unit when selling — the base sell price plus any
+# active sell-premium edict (e.g. "trade_boosts" +50%). The buy path floors its charge strictly
+# above this, so the market can never be self-arbitraged (see buy()).
+static func effective_sell_price(player: Dictionary, resource: String, world: Dictionary) -> int:
+	var unit_price: int = get_sell_price(resource, world)
+	var sell_bonus: float = EdictSystem.get_active_modifiers(player).get("market_sell_price_bonus", 0.0)
+	if sell_bonus > 0.0:
+		unit_price = ceili(float(unit_price) * (1.0 + sell_bonus))
+	return unit_price
+
 # Returns true if the player is embargoed by any AI faction (prices rise).
 # Looks the GameState autoload up at runtime via the scene tree instead of
 # referencing it as a compile-time global identifier — that keeps this helper
@@ -105,6 +115,10 @@ static func buy(player: Dictionary, resource: String, quantity: int, world: Dict
 		unit_price = maxi(1, int(floor(float(unit_price) * (1.0 - fee_reduction))))
 	if is_embargoed(player):
 		unit_price = ceili(float(unit_price) * 1.40)
+	# Spread invariant: never let a player buy cheaper than they can immediately re-sell, or the
+	# market is self-arbitrageable for infinite gold (a sell-premium edict or buy-fee tech could
+	# otherwise push the sell price above the 20% buy markup). Floor the charge above the sell price.
+	unit_price = maxi(unit_price, effective_sell_price(player, resource, world) + 1)
 	var total_cost: int = unit_price * quantity
 	if player.get("gold", 0) < total_cost:
 		return {"ok": false, "message": "Insufficient gold (need %d)" % total_cost}
@@ -124,11 +138,7 @@ static func sell(player: Dictionary, resource: String, quantity: int, world: Dic
 	if available < quantity:
 		return {"ok": false, "message": "Not enough %s (have %d)" % [resource, available]}
 
-	var unit_price: int = get_sell_price(resource, world)
-	var sell_mods: Dictionary = EdictSystem.get_active_modifiers(player)
-	var sell_bonus: float = sell_mods.get("market_sell_price_bonus", 0.0)
-	if sell_bonus > 0.0:
-		unit_price = ceili(float(unit_price) * (1.0 + sell_bonus))
+	var unit_price: int = effective_sell_price(player, resource, world)
 	var earned: int = unit_price * quantity
 	_deduct_resource(player, resource, quantity)
 	player["gold"] = player.get("gold", 0) + earned

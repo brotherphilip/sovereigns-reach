@@ -2,6 +2,20 @@
 
 ---
 
+## 2026-06-21 — Market exploit fix + disease test isolation (iter261)
+
+- **[Exploit fix] Market self-arbitrage closed:** the sell-premium edict (+50%) and the buy-fee tech
+  (−10%) could push the market SELL price above the BUY price, letting a player buy-low/sell-high in
+  the same market for exponential gold. `MarketSystem.buy()` now floors the charged price strictly
+  above the effective sell price, restoring the buy>sell spread invariant under all edict/tech combos.
+  The legitimate +50% premium on selling your own surplus is fully preserved. New `tests/TestMarket.gd`
+  (72/0) guards the no-arbitrage invariant. (simulation/economy/MarketSystem.gd.)
+- **[Test fix] Disease popularity test isolated:** a pre-existing RED test (`TestPhase4`) asserted an
+  absolute popularity drop, which a later larder change (a bread reserve raising the food-variety bonus)
+  silently offset; rewrote it as an A/B diseased-vs-healthy comparison. Disease itself was always correct.
+
+---
+
 ## 2026-06-21 — The felling theatre (iter260)
 
 - **Dramatic tree-felling:** when a woodcutter fells a tree it now TOPPLES with real drama — a slower
