@@ -1606,6 +1606,11 @@ func simulate_tick(tick: int) -> void:
 										shire["owner_is_player"] = false
 										EventBus.shire_ownership_changed.emit(captured_id, old_owner, faction.get("id", -1))
 										break
+								# Tell the player they LOST territory — a shire silently flipping owner (only the
+								# macro map flashes it) is invisible from the city view, where you'd be during a
+								# siege. So a strategic loss has clear feedback like the rest. iter306.
+								if target_pid == 0:
+									EventBus.realm_notice.emit("⚔ The %s has overrun one of your shires! Your realm has lost ground — retake it or shore up what remains." % get_faction_display_name(faction.get("id", -1)), "bad")
 							# Seat damage — ONLY while the player is AWAY (catch-up fast-forward): the grid
 							# units don't march then, so this abstract strike stands in for the strategic
 							# assault you weren't there to defend. When the player is PRESENT, the besieging
