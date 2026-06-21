@@ -157,6 +157,19 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 306 — 2026-06-22  (MISSING FEEDBACK — losing a shire to a siege was silent)
+
+Autonomous cycle, continuing the feedback-completeness sweep. When a besieger overran one of the player's shires
+(the `siege_assembled` success block), the shire silently flipped owner — the ONLY feedback was a macro-map flash
+(`MacroMapView._on_shire_ownership_changed`), invisible from the city view where you'd be during a siege. So you could
+lose strategic territory and never be told. GameState now fires a player-facing `realm_notice` on the loss ("⚔ The
+<faction> has overrun one of your shires! …"), shown in both the city HUD and the world-map feed. Validated: new
+`tests/TestShireLossAlert.gd` 3/0 (shire captured + `shire_ids` shrank + notice fired); TestSiege 9/0, TestSiegeReach
+8/0, TestStrategicAI 91/0; clean boot. (Note: confirmed again the player/faction id-0 namespace collision — the test
+proves capture via `owner_is_player`, not `owner_id`.)
+
+---
+
 ## Iteration 305 — 2026-06-22  (FEEDBACK POLISH — cause-aware, display-named building-destruction notice)
 
 Autonomous cycle, continuing the iter304 "every state change needs clear feedback" theme. `building_destroyed` was

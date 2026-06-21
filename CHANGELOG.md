@@ -2,6 +2,15 @@
 
 ---
 
+## 2026-06-22 — You're now told when you lose a shire to a siege (iter306)
+
+- **[Bug fix] Losing territory is announced:** when an enemy siege overran one of your shires, the holding changed
+  hands silently — the only sign was a flash on the world map, which you wouldn't see if you were in your town. Now
+  you get a clear alert ("⚔ The <enemy> has overrun one of your shires!…") in both the city and world-map views.
+- **Validated:** new test confirms the capture and the alert; siege and strategic-AI tests pass; clean boot.
+
+---
+
 ## 2026-06-22 — Clearer notice when a building is destroyed (iter305)
 
 - **[Polish] Building-loss notifications now name the building and the cause:** instead of a generic "Building
