@@ -2,6 +2,18 @@
 
 ---
 
+## 2026-06-22 — The well is now a recognizable well (iter288)
+
+- **[Visual polish] Wells are legible again:** the well used to render as a tiny disc that vanished among the
+  larger buildings. It's now drawn as a proper covered wellhead — a stone rim with water, two posts holding a
+  little thatched roof, and a windlass with a rope and bucket — so you can actually pick it out at normal zoom.
+- A QA pass over the world-map order buttons (Develop / Raise Army / March / Diplomacy) and unit recruitment
+  confirmed they already give clear feedback and disable themselves when an action isn't possible — no changes needed.
+- **Validated:** the building-showcase render shows all ~35 building models drawing correctly, with the new well
+  reading clearly. (view/micro/BuildingModels.gd.)
+
+---
+
 ## 2026-06-22 — "Can't build" messages now tell you how to fix it (iter287)
 
 - **[Feedback] Resource-shortage build messages are actionable:** trying to place a building you can't afford used

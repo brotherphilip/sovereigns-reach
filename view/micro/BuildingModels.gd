@@ -542,14 +542,23 @@ static func _trading_post(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l:
 	_barrel(ci, r.lerp(ctr, 0.4) + Vector2(0, 4), 3.0)
 
 static func _well(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vector2, ctr: Vector2) -> void:
-	_cyl(ci, ctr + Vector2(0, 4), 7.0, 3.4, 7.0, STONE)
-	_ellipse(ci, ctr + Vector2(0, -3), 6.0, 2.8, Color(0.10, 0.20, 0.34))  # water
-	var p1 := _post(ci, ctr + Vector2(-7, 4), 16.0, WOOD_D)
-	var p2 := _post(ci, ctr + Vector2(7, 4), 16.0, WOOD_D)
-	ci.draw_line(p1, p1 + Vector2(7, -3), THATCH_D, 1.4)   # little roof
-	ci.draw_line(p2, p2 + Vector2(-7, -3), THATCH_D, 1.4)
-	ci.draw_colored_polygon(PackedVector2Array([p1, p2, (p1 + p2) * 0.5 + Vector2(0, -5)]), THATCH)
-	ci.draw_rect(Rect2(ctr.x - 2, ctr.y - 8, 4, 4), WOOD)  # bucket
+	# A proper stone wellhead — enlarged + detailed so it reads at play-zoom (the old version was
+	# a tiny puck that vanished among the bigger buildings). A wider/taller stone rim with a dark
+	# water disc, two stout posts carrying a little gabled roof, a windlass crossbar, rope + bucket.
+	var topc := _cyl(ci, ctr + Vector2(0, 5), 9.0, 4.2, 9.0, STONE)              # stone wellhead
+	_ellipse(ci, topc, 7.6, 3.4, STONE.lightened(0.12))                          # rim lip
+	_ellipse(ci, topc + Vector2(0, 0.6), 6.0, 2.6, Color(0.08, 0.17, 0.30))      # dark water
+	var p1 := _post(ci, ctr + Vector2(-9, 5), 22.0, WOOD_D, 2.4)
+	var p2 := _post(ci, ctr + Vector2(9, 5), 22.0, WOOD_D, 2.4)
+	var apex := (p1 + p2) * 0.5 + Vector2(0, -8)                                 # gabled roof
+	ci.draw_colored_polygon(PackedVector2Array([p1, p2, apex]), THATCH)
+	ci.draw_line(p1, apex, THATCH_D, 1.6)
+	ci.draw_line(p2, apex, THATCH_D, 1.6)
+	var bar_y: float = (p1.y + p2.y) * 0.5 + 3.0
+	ci.draw_line(Vector2(p1.x, bar_y), Vector2(p2.x, bar_y), WOOD, 2.2)          # windlass crossbar
+	ci.draw_line(Vector2(ctr.x, bar_y), ctr + Vector2(0, -3), Color(0.45, 0.38, 0.26), 1.2)  # rope
+	ci.draw_rect(Rect2(ctr.x - 3, ctr.y - 5, 6, 6), WOOD)                        # bucket
+	ci.draw_rect(Rect2(ctr.x - 3, ctr.y - 5, 6, 1.6), WOOD_D)                    # bucket rim
 
 static func _guildhall(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vector2, ctr: Vector2) -> void:
 	var c := _box(ci, t, r, b, l, 24.0, STONE_L, TEX_STONE)
