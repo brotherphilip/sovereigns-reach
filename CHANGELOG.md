@@ -2,6 +2,23 @@
 
 ---
 
+## 2026-06-22 — Tribute demands add a "Decide Later" option so a poor ruler isn't cornered into refusing (iter277)
+
+- **[UX fix] You can now set a tribute demand aside:** the Accept/Refuse panel offered only **Accept** — which is
+  disabled when you can't afford the demand (iter275) — and **Refuse**, which is consequential (grievance + trade
+  embargo + expected retaliation). A poor or busy ruler was therefore cornered into refusing. A tribute demand is a
+  *decide-at-leisure* ultimatum (it has a multi-day deadline, re-presents when you return to your seat, and the
+  realm keeps running so you can gather what's owed), so the panel now adds a **"Decide Later"** button: it dismisses
+  the demand without answering — nothing is paid, no peace is bought, and **no grievance or embargo is incurred**
+  (unlike Refuse). The demand keeps standing and comes back on your next return to the seat, or you can pay it once
+  funds allow.
+- **Also:** an audit confirmed the modal coordinator (ModalGate) is sound, and documented in-code *why* the tribute
+  panel deliberately does not pause the sim (unlike the world-event panel) — so the asymmetry isn't mistaken for a bug.
+- **Validated:** on-screen (the panel now shows Accept / Refuse / Decide Later, with the affordability gate intact);
+  regression `TestDiplomacyTribute` 29/0, `TestDiplomacyRepresent` 11/0, `TestPhase6` 104/0. (view/hud/DiplomacyPanel.gd.)
+
+---
+
 ## 2026-06-22 — A tribute demand sent while you're on the world map no longer vanishes unanswered (iter276)
 
 - **[Feedback / lost-interaction fix] Tribute demands now reach you wherever you are:** an AI faction's tribute

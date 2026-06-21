@@ -70,7 +70,7 @@ func _ready() -> void:
 	_label.custom_minimum_size = Vector2(300, 60)
 	vb.add_child(_label)
 
-	# Accept / Refuse buttons
+	# Accept / Refuse / Decide Later buttons
 	var hb := HBoxContainer.new()
 	vb.add_child(hb)
 	var accept_btn := Button.new()
@@ -82,6 +82,14 @@ func _ready() -> void:
 	refuse_btn.text = "Refuse"
 	refuse_btn.pressed.connect(_on_refuse)
 	hb.add_child(refuse_btn)
+	# Decide Later: dismiss WITHOUT answering. The demand is a decide-at-leisure ultimatum (it
+	# keeps standing in the faction's tribute_demands until its deadline), so a player who can't
+	# yet pay — or just wants to keep playing — can clear the panel instead of being forced to
+	# Refuse. It re-presents on the next return to the seat (iter276), or once funds allow a pay.
+	var later_btn := Button.new()
+	later_btn.text = "Decide Later"
+	later_btn.pressed.connect(_on_decide_later)
+	hb.add_child(later_btn)
 
 	# Interaction history
 	_history_label = RichTextLabel.new()
@@ -203,6 +211,10 @@ func _present(faction_id: int, demand: Dictionary) -> void:
 	# History + active agreements
 	_refresh_history()
 	visible = true
+	# NOTE: unlike EventChoicePanel, a tribute demand deliberately does NOT pause the sim — it's
+	# a decide-at-leisure ultimatum with a multi-day deadline, and the iter275 affordability gate
+	# expects the realm to keep running so the player can GATHER what's owed and pay ("pay once you
+	# can"). "Decide Later" lets them clear the panel meanwhile (it re-presents on return, iter276).
 
 # The live faction dict (for grievance/peace standing) by id, or null.
 func _live_faction(fid: int):
@@ -262,6 +274,20 @@ func _on_refuse() -> void:
 			hud.show_notification(
 				"%s refused — trade embargo imposed. Market prices rise. Expect retaliation." % fname,
 				5.0, Color(1.0, 0.55, 0.1))
+	visible = false
+	_after_close()
+
+# Dismiss without answering: the demand stays UNFULFILLED in the faction's tribute_demands, so no
+# resources change hands, no peace is bought, and no grievance/embargo is incurred (unlike Refuse).
+# It simply waits — re-presented on the next return to the seat (iter276), or re-answered once the
+# player has gathered enough to pay. Lets a poor or busy ruler defer rather than be cornered.
+func _on_decide_later() -> void:
+	var fname: String = _current.get("faction_name", "The envoy")
+	var hud = get_parent()
+	if hud and hud.has_method("show_notification"):
+		hud.show_notification(
+			"%s's demand set aside — it still stands; answer it before the deadline." % fname,
+			4.0, Color(0.78, 0.78, 0.85))
 	visible = false
 	_after_close()
 

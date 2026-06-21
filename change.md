@@ -141,7 +141,37 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 - **Painted building sprites (iter203):** buildings can now wear hand-painted iso art over the procedural model (`view/micro/BuildingSpriteOverlay.gd`, additive — finished buildings only, auto procedural fallback). First asset: a detailed **Village Hall** replacing the flat procedural roof-diamond. Local ComfyUI art pipeline in `tools/artgen/`; raw candidate renders (multi-GB) git-ignored, only chosen source + keyed sprite committed. Ev: before/after `_SpriteTrial.tscn` render + in-world placement (Xvfb), TestSurvival 6/0.
 - **Tribute "free peace" exploit (iter275):** `DiplomacySystem.accept` deducted demanded goods as `maxi(0, have−amt)` with no affordability check, yet always granted the 14-day peace window + grievance relief — so a player with 0 of the demanded resource bought peace for nothing (HUD lied "Tribute paid"), and partial payments silently drained stock. The iter1 "tribute unpayable early" note. Fix: `can_afford()` gate; `accept()` returns bool and is a strict no-op when short (no spend, no peace, no relief); the Accept button disables + relabels "can't afford" with an explanatory line; command path emits "demand still stands". Ev: TestDiplomacyTribute 29/0, TestPhase6 104/0, clean HUD render.
 - **Tribute demand sent while on the world map silently expired (iter276):** `ai_envoy_sent` is a one-shot emit and the Accept/Refuse panel lives only in the city HUD, so a demand generated while the player was on the strategic map was never shown and lapsed at its 7-day deadline unanswered (lost interaction + grievance kept building). Fix (reuses existing systems): the panel re-presents any unfulfilled/non-expired owed tribute on seat entry (via `DiplomacySystem.owed_tribute`, sim-layer + unit-tested), and `WorldMapScene` pushes a "return to your seat to answer" feed notice when an envoy arrives. Ev: TestDiplomacyRepresent 11/0, TestPhase6 104/0, TestDiplomacyTribute 29/0; on-screen re-present (SR_DIPLO_DEMO) + map notice (SR_WINTEST=envoy). Closes the iter275-logged worldmap-diplomacy gap.
+- **Modal audit + tribute "Decide Later" (iter277):** audited ModalGate — sound (2 participants gate/queue correctly; the tutorial/reign/game-over overlays don't realistically co-occur in real play). Real gap: the tribute panel (correctly NOT paused — it's a decide-at-leisure ultimatum per iter275/276; a prototyped pause was reverted as it'd softlock a poor ruler into Refuse) offered only Accept (often disabled when broke) + Refuse (consequential), cornering a poor/busy ruler. Fix: added a "Decide Later" dismiss — demand stays unfulfilled (no spend/peace/grievance), re-presents on return (iter276) or pays once funds allow. Ev: on-screen 3-button panel (SR_DIPLO_DEMO); TestDiplomacyTribute 29/0, TestDiplomacyRepresent 11/0, TestPhase6 104/0.
 - **(Durable, older — see Current Targets):** Day-100 FLOOR multi-seed survival; Reeve→King climb on 5 seeds ≤113d; late-game coalition-vs-leader; on-screen in-city FLOOR survival (iter158).
+
+---
+
+## Iteration 277 — 2026-06-22  (MODAL AUDIT — tribute demand cornered a poor ruler; added "Decide Later")
+
+Audited ModalGate coverage (the iter276 dev-hook screenshot showed a forced demand overlapping the tutorial
+prompt). Findings: **ModalGate is sound** — its only two participants (`EventChoicePanel`, `DiplomacyPanel`) gate
+and queue correctly; the tutorial-choice / reign-milestone / game-over overlays sit on higher CanvasLayers (20–40)
+and don't realistically co-occur with the gated panels in real play (world events are tutorial-gated; tribute is
+post-grace; the higher overlays' full-rect backdrops consume input). The dev-hook overlap was an artifact of
+forcing a demand at tick 0.
+
+A real **design gap** surfaced instead. `EventChoicePanel` pauses the sim while you choose; `DiplomacyPanel` does
+not — and that asymmetry is **intentional**: a tribute demand is a decide-at-leisure ultimatum (multi-day deadline,
+re-presents on return per iter276, and the iter275 affordability gate's "pay once you can" REQUIRES the realm to
+keep running so you can gather). *(A pause was prototyped, then reverted on this realization — pausing would have
+softlocked a poor ruler, who can't gather while frozen, into Refuse.)* But the panel offered only **Accept** (often
+disabled when you can't pay) and **Refuse** (consequential — grievance + embargo), with no way to clear the
+screen-obscuring modal and keep playing. So a poor or busy ruler was cornered into Refuse.
+
+- **Fix (additive, low-risk):** a third **"Decide Later"** button dismisses the panel WITHOUT answering — the demand
+  stays UNFULFILLED in the faction's tribute_demands (no resources spent, no peace, no grievance/embargo, unlike
+  Refuse), and re-presents on the next return to the seat (iter276) or can be paid once funds allow. Completes the
+  decide-at-leisure loop the rest of the system already implied. A light notice confirms ("…demand set aside — it
+  still stands; answer it before the deadline").
+- **Also:** documented in-code WHY the tribute panel doesn't pause (so a future reader doesn't "fix" the asymmetry).
+- **Validated:** on-screen (Xvfb, SR_DIPLO_DEMO) — the panel now renders three buttons (Accept/Refuse/Decide Later),
+  with the iter275 affordability gate still engaged on a fresh realm; clean boot, 0 SCRIPT/Parse errors. Regression
+  (sim layer untouched this iter): TestDiplomacyTribute 29/0, TestDiplomacyRepresent 11/0, TestPhase6 104/0.
 
 ---
 
