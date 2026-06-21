@@ -2,6 +2,22 @@
 
 ---
 
+## 2026-06-22 — Your buildings no longer take siege damage with no enemy in sight (iter294)
+
+- **[Bug fix — player-reported] Sieges only damage your seat when the enemy actually reaches it:** players saw town
+  buildings get an empty health bar and turn unusable while no troops were anywhere near them. The cause: when an
+  enemy siege finished assembling, it dealt damage to your Village Hall/Keep on a timer — without ever checking that
+  the besieging warband had actually marched up to your walls. You could wipe out the attackers at the gates and your
+  hall would *still* lose health when the timer ran out. Now the strike only lands if living attackers have reached
+  the seat; break them (or stop them closing the distance) and the whole assault is **lifted** — you keep your shire,
+  take no damage, and get a notice that the siege was repelled. Defending your walls is now genuinely decisive.
+- **Note:** if you're away on the world map when a siege completes (you weren't there to defend), it still damages
+  your seat as before — you can't dodge a siege by leaving. The new rule applies when you're present at your town.
+- **Validated:** new `tests/TestSiegeReach.gd` (8/0) plus the existing siege regression (`TestSiege` 9/0), survival
+  (6/0), and strategic-AI (91/0) tests all pass. (simulation/core/GameState.gd.)
+
+---
+
 ## 2026-06-22 — A village that loses everyone can rise again (iter293)
 
 - **[Softlock fix] Wandering settlers refound a depopulated village:** if your settlement ever lost every last

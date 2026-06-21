@@ -768,6 +768,13 @@ const SIEGE_READY_THRESHOLD: int = 3
 # ruler survives Day 100 with margin, while an undefended seat (150) still falls ~day 91.
 const SIEGE_DAMAGE_DEFENDED: int = 32     # smaller attacks (was 50) — a prepared seat shrugs them off more easily
 const SIEGE_DAMAGE_UNDEFENDED: int = 110  # still punishing if you never defend (was 150)
+# A siege "strike" only lands if the besieging warband actually REACHED the seat: at least one
+# living attacker within this many tiles of the keep. If the defenders broke the warband (or it
+# never closed the distance), the assault fails and the seat takes NO damage — no more buildings
+# losing HP / falling "unusable" with no attacker anywhere in sight (the strike used to be a bare
+# assembly timer, decoupled from the physical warband). Sized to cover the ~14-tile staging ring
+# (a warband marches in to the walls in live play; in catch-up regressions it sits at the ring).
+const SIEGE_REACH_TILES: int = 24
 # A living realm patches its seat between assaults (builders shore up the keep). Tuned (iter120)
 # so a DEFENDED seat under the live two-faction siege (≈5.3 dmg/day at 50/strike) RECOVERS and can
 # hold indefinitely with good play, while an UNDEFENDED seat (≈15.8/day at 150) still falls — so
@@ -1546,35 +1553,50 @@ func simulate_tick(tick: int) -> void:
 					var target_pid: int = faction.get("last_siege_player_id", -1)
 					if target_pid >= 0 and target_pid < players.size():
 						var tgt: Dictionary = players[target_pid]
-						# Shire capture: take one shire from the defender
-						var tgt_shires: Array = tgt.get("shire_ids", [])
-						if not tgt_shires.is_empty():
-							var captured_id: int = tgt_shires[0]
-							tgt_shires.remove_at(0)
-							tgt["shire_ids"] = tgt_shires
-							if tgt.get("shire_id", -1) == captured_id:
-								tgt["shire_id"] = tgt_shires[0] if not tgt_shires.is_empty() else -1
-							for shire in world.get("shires", []):
-								if shire.get("id", -1) == captured_id:
-									var old_owner: int = shire.get("owner_id", -1)
-									shire["owner_id"] = faction.get("id", -1)
-									shire["owner_is_player"] = false
-									EventBus.shire_ownership_changed.emit(captured_id, old_owner, faction.get("id", -1))
+						# The assault only LANDS if the besieging warband actually reached the seat.
+						# If the defenders broke it (no living attacker within reach of the keep), the
+						# siege is lifted: no shire lost, no seat damage. Root-cause fix for buildings
+						# losing HP with no troops in sight — the strike was a bare assembly timer before.
+						# EXCEPTION: during catch-up fast-forward (player AWAY from the seat) the grid
+						# units don't march, and the strike stands in for the strategic-layer assault —
+						# you can't dodge a siege by leaving the map. So require physical reach only when
+						# the player is actually present at the live seat (normal play / spectating).
+						var _seat_kx: int = int(tgt.get("keep_x", 100))
+						var _seat_ky: int = int(tgt.get("keep_y", 100))
+						var _require_reach: bool = not _catch_up_mode
+						if _require_reach and _besiegers_at_seat(faction, _seat_kx, _seat_ky) <= 0:
+							if not spectator_mode:
+								EventBus.realm_notice.emit("⚔ The %s broke before they reached your walls — the siege is lifted." % get_faction_display_name(faction.get("id", -1)), "good")
+						else:
+							# Shire capture: take one shire from the defender
+							var tgt_shires: Array = tgt.get("shire_ids", [])
+							if not tgt_shires.is_empty():
+								var captured_id: int = tgt_shires[0]
+								tgt_shires.remove_at(0)
+								tgt["shire_ids"] = tgt_shires
+								if tgt.get("shire_id", -1) == captured_id:
+									tgt["shire_id"] = tgt_shires[0] if not tgt_shires.is_empty() else -1
+								for shire in world.get("shires", []):
+									if shire.get("id", -1) == captured_id:
+										var old_owner: int = shire.get("owner_id", -1)
+										shire["owner_id"] = faction.get("id", -1)
+										shire["owner_is_player"] = false
+										EventBus.shire_ownership_changed.emit(captured_id, old_owner, faction.get("id", -1))
+										break
+							# Siege damage to the seat. A PREPARED ruler (walls/towers/garrison)
+							# blunts the assault badly; an undefended seat is gutted — so the
+							# pre-siege warning is actionable and defending genuinely pays off.
+							var defended_seat: bool = is_siege_ready(tgt)
+							var siege_dmg: int = SIEGE_DAMAGE_DEFENDED if defended_seat else SIEGE_DAMAGE_UNDEFENDED
+							EventBus.ai_siege_struck.emit(faction.get("id", -1), target_pid, defended_seat, siege_dmg)
+							for bld in tgt.get("buildings", []):
+								if not bld is Dictionary:
+									continue
+								if bld.get("type", "") in ["village_hall", "keep"]:
+									if BuildingState.take_damage(bld, siege_dmg):
+										PrestigeSystem.apply_defeat_loss(tgt)
+										EventBus.building_destroyed.emit(tgt.get("id", 0), bld.get("id", -1), "siege")
 									break
-						# Siege damage to the seat. A PREPARED ruler (walls/towers/garrison)
-						# blunts the assault badly; an undefended seat is gutted — so the
-						# pre-siege warning is actionable and defending genuinely pays off.
-						var defended_seat: bool = is_siege_ready(tgt)
-						var siege_dmg: int = SIEGE_DAMAGE_DEFENDED if defended_seat else SIEGE_DAMAGE_UNDEFENDED
-						EventBus.ai_siege_struck.emit(faction.get("id", -1), target_pid, defended_seat, siege_dmg)
-						for bld in tgt.get("buildings", []):
-							if not bld is Dictionary:
-								continue
-							if bld.get("type", "") in ["village_hall", "keep"]:
-								if BuildingState.take_damage(bld, siege_dmg):
-									PrestigeSystem.apply_defeat_loss(tgt)
-									EventBus.building_destroyed.emit(tgt.get("id", 0), bld.get("id", -1), "siege")
-								break
 				if ev in ["bandit_raid_started", "ironhand_siege_started", "ashen_siege_started", "merchant_siege_started"]:
 					var asm: Dictionary = faction.get("siege_assembly", {})
 					EventBus.ai_siege_assembling.emit(
@@ -1775,6 +1797,22 @@ func _spawn_seat_attackers(faction: Dictionary) -> void:
 			uid += 1
 			faction["units"].append(fu)
 	faction["next_unit_id"] = uid
+
+# How many of this faction's units have physically reached the besieged seat — alive and within
+# SIEGE_REACH_TILES of the keep. The siege strike only lands when the warband is actually AT the
+# walls; if the defenders slaughtered or repelled it (none in reach), the assault is broken and the
+# seat takes no damage. This is what stops buildings dying with no troops in sight.
+func _besiegers_at_seat(faction: Dictionary, kx: int, ky: int) -> int:
+	var reach_sq: int = SIEGE_REACH_TILES * SIEGE_REACH_TILES
+	var n: int = 0
+	for u in faction.get("units", []):
+		if not (u is Dictionary and u.get("is_alive", false)):
+			continue
+		var dx: int = int(u.get("pos_x", 0)) - kx
+		var dy: int = int(u.get("pos_y", 0)) - ky
+		if dx * dx + dy * dy <= reach_sq:
+			n += 1
+	return n
 
 # The first hostile strategic army marching on (or sitting at) the given city, or {} if none.
 func _find_besieging_army(city_id: int, owner_fid: int) -> Dictionary:
