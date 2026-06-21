@@ -143,6 +143,27 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 274 — 2026-06-22  (PLAYER-EXPERIENCE — the siege telegraph was missing on the world map)
+
+Closing the iter270–273 thread: of the remaining city-view-only signals, the actionable one a player on the
+world map most needs is **`ai_siege_assembling`** — a rival marshalling a siege against your SEAT. The
+"siege_incoming" VO plays (NarrationPlayer autoload), but the detailed on-screen warning ("X marshalling a
+siege — ready in ~N days; raise walls/towers/garrison") was wired only in `CityViewScene`. So a player off
+campaigning on the map heard the cue but saw no actionable telegraph — and the seat siege is exactly the
+thing they'd want to break off and defend.
+
+- **Fix:** `WorldMapScene` now connects `ai_siege_assembling` and pushes the warning to its event feed,
+  nudging the player to **return to the seat** (vs the city view's "raise walls"). `SR_WINTEST=siege` preview.
+- **Validated (Xvfb):** the warning renders correctly in the map feed ("⚠ … marshalling a siege against your
+  seat — ready in ~48 days … return to your seat before it lands!"); clean boot. View-only.
+- (Other still-city-view-only signals — unit/weather/edict/build-fail toasts — are genuinely seat-local and
+  not relevant on the strategic map; this was the last map-relevant one.)
+
+### Files
+- `view/worldmap/WorldMapScene.gd` — `_on_ai_siege_assembling` feed warning + `SR_WINTEST=siege`.
+
+---
+
 ## Iteration 273 — 2026-06-22  (BUG — the REMAINING win/loss conditions were missing on the world map too)
 
 Audited the full gap: `CityViewScene` connects 18 EventBus signals; after iter271–272 the world map handled

@@ -2,6 +2,15 @@
 
 ---
 
+## 2026-06-22 — Siege warning now shows on the world map (iter274)
+
+- **[Feedback fix] You're warned of a siege on the map:** a rival marshalling a siege against your seat
+  showed its actionable on-screen warning ("…ready in ~N days; raise walls/towers/garrison") only in the
+  city view — so a player off campaigning on the world map heard the cue but saw no telegraph. The world
+  map now shows the warning in its event feed, nudging you to return and defend. (view/worldmap/WorldMapScene.gd.)
+
+---
+
 ## 2026-06-22 — All win/loss screens now show on the world map (iter273)
 
 - **[Bug fix] Full game-over parity on the world map:** beyond the King-win (iter271) and last-holding

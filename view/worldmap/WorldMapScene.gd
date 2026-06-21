@@ -103,6 +103,7 @@ func _init_and_build() -> void:
 		match OS.get_environment("SR_WINTEST"):
 			"defeat":   _show_endgame(false, "Your last holding has fallen. Your domain is no more.")
 			"revolt":   _on_popularity_changed(0, 50.0, 5.0)
+			"siege":    _on_ai_siege_assembling(90, 0, 48 * 240)
 			"conquest": _show_endgame(true, "All enemies vanquished! Sovereign's Reach is yours!")
 			_:          _on_title_promoted(6, "King")
 
@@ -438,6 +439,10 @@ func _build_scene() -> void:
 	EventBus.ai_faction_defeated.connect(_on_ai_faction_defeated)
 	EventBus.popularity_changed.connect(_on_popularity_changed)
 	EventBus.building_destroyed.connect(_on_building_destroyed)
+	# A siege MARSHALLING against your seat is the key actionable telegraph — but its visual warning
+	# was city-view-only, so a player off campaigning on the map only HEARD the VO with no on-screen
+	# "raise walls, ~N days" advice. Surface it in the map feed too (iter274).
+	EventBus.ai_siege_assembling.connect(_on_ai_siege_assembling)
 
 # Gold-bordered parchment styling for the bottom action buttons. The default theme
 # rendered them near-transparent over the busy map terrain (Raise/March/Diplomacy
@@ -804,6 +809,19 @@ func _on_ai_faction_defeated(faction_id: int) -> void:
 			break
 	if not any_alive and GameState.ai_factions.size() > 0:
 		_show_endgame(true, "All enemies vanquished! Sovereign's Reach is yours!")
+
+# A siege is marshalling against the player's seat — warn them on the map (the seat is besieged while
+# they campaign abroad). Mirrors CityViewScene's warning but nudges the player to return.
+func _on_ai_siege_assembling(faction_id: int, _target_player_id: int, eta_ticks: int) -> void:
+	if not is_instance_valid(_event_feed):
+		return
+	var who: String = GameState.get_faction_display_name(faction_id)
+	var days: int = maxi(1, int(round(float(eta_ticks) / 240.0)))
+	var ready: bool = GameState.players.size() > 0 and GameState.is_siege_ready(GameState.players[0])
+	var tail: String = " Your walls and garrison steady the people." if ready \
+		else " Raise walls, towers and a garrison — return to your seat before it lands!"
+	_event_feed.push("⚠ %s is marshalling a siege against your seat — ready in ~%d days.%s" % [who, days, tail],
+		9.0, Color(1.0, 0.7, 0.25))
 
 # Popularity cratering to a revolt is a DEFEAT — the seat keeps ticking while you're on the map.
 func _on_popularity_changed(_pid: int, _old: float, new_val: float) -> void:
