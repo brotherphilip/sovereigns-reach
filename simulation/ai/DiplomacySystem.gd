@@ -6,6 +6,22 @@ extends RefCounted
 const AIFaction = preload("res://simulation/ai/AIFaction.gd")
 const TICKS_PER_DAY: int = 240
 
+# The tribute this faction still owes the player as a {resource: amount} map plus the earliest
+# live deadline — counting only UNFULFILLED demands whose deadline has NOT passed. Used to
+# RE-PRESENT a demand that arrived while the player was away from the seat (the envoy signal is a
+# one-shot and the panel lives only in the city HUD), without resurrecting expired/answered ones.
+# Returns {"demands": {...}, "deadline_tick": int}; demands is empty when nothing is owed.
+static func owed_tribute(faction: Dictionary, player_id: int, now_tick: int) -> Dictionary:
+	var demands_map: Dictionary = {}
+	var deadline: int = 0
+	for d in AIFaction.get_pending_demands(faction, player_id):
+		if int(d.get("deadline_tick", 0)) < now_tick:
+			continue   # already past its deadline — will be purged; don't resurrect it
+		demands_map[d.get("resource", "")] = d.get("amount", 0)
+		if deadline == 0:
+			deadline = int(d.get("deadline_tick", 0))
+	return {"demands": demands_map, "deadline_tick": deadline}
+
 # How much of `res` the player holds (gold, a food, or a raw resource); 0 if untracked.
 static func _player_stock(player: Dictionary, res) -> int:
 	if res == "gold":

@@ -2,6 +2,24 @@
 
 ---
 
+## 2026-06-22 — A tribute demand sent while you're on the world map no longer vanishes unanswered (iter276)
+
+- **[Feedback / lost-interaction fix] Tribute demands now reach you wherever you are:** an AI faction's tribute
+  envoy fires a one-shot signal, and the Accept/Refuse panel exists only in the city view — so a demand sent while
+  you were on the world map (where you campaign) was never shown and silently expired at its 7-day deadline,
+  unanswered, while the rival's grievance kept climbing toward a siege you never knew you could have avoided.
+- **Fix (two halves, both reusing existing systems):** (1) the diplomacy panel now **re-presents** any unanswered,
+  non-expired tribute demand the moment you return to your seat — surfaced from the faction's persistent demand
+  list, presented exactly like a live envoy; (2) the **world map now shows a feed notice** ("📜 An envoy of X
+  demands tribute (…) — return to your seat to answer within ~N days") so you know to head back. The owed-tribute
+  reconstruction lives in the sim layer (`DiplomacySystem.owed_tribute`) and is unit-tested.
+- **Validated:** new `tests/TestDiplomacyRepresent.gd` 11/0 (surfaces live demands; excludes expired / already-
+  answered / other players'; deadline boundary). Regression `TestPhase6` 104/0, `TestDiplomacyTribute` 29/0.
+  On-screen: city re-presentation (`SR_DIPLO_DEMO`) and the map notice (`SR_WINTEST=envoy`) both render; clean boot.
+  (simulation/ai/DiplomacySystem.gd, view/hud/DiplomacyPanel.gd, view/worldmap/WorldMapScene.gd, view/cityview/CityViewScene.gd.)
+
+---
+
 ## 2026-06-22 — Tribute you can't pay no longer buys peace for free (iter275)
 
 - **[Exploit / data-loss fix] Accepting a tribute now requires paying it in full:** an AI faction's tribute

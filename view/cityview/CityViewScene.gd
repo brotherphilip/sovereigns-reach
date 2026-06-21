@@ -290,6 +290,13 @@ func _build_scene() -> void:
 	_hud.layer = 10
 	add_child(_hud)
 
+	# Dev hook (SR_DIPLO_DEMO): seed a pending tribute demand so the seat-entry RE-PRESENTATION
+	# (iter276) is provable on-screen — a demand sent while the player was on the world map (no
+	# diplomacy panel there) must surface on return to the city instead of silently expiring.
+	# Seeded after the HUD is built but before the panel's deferred re-present check runs.
+	if OS.get_environment("SR_DIPLO_DEMO") != "" and not _spectator:
+		_seed_demo_tribute_demand()
+
 	_add_minimap()
 
 	_macro_view = CanvasLayer.new()
@@ -737,6 +744,17 @@ func _add_spectator_banner() -> void:
 		slbl.add_theme_font_size_override("font_size", 13)
 		slbl.add_theme_color_override("font_color", Color(1.0, 0.7, 0.6))
 		siege_panel.add_child(slbl)
+
+func _seed_demo_tribute_demand() -> void:
+	var now: int = SimulationClock.current_tick
+	for f in GameState.ai_factions:
+		if f is Dictionary and f.get("is_alive", false):
+			f["tribute_demands"] = [
+				{"player_id": 0, "resource": "gold", "amount": 80, "deadline_tick": now + 240 * 7, "fulfilled": false},
+				{"player_id": 0, "resource": "iron", "amount": 15, "deadline_tick": now + 240 * 7, "fulfilled": false},
+			]
+			f["threat_level"] = maxf(f.get("threat_level", 0.0), 55.0)
+			return
 
 func _add_minimap() -> void:
 	var overlay := CanvasLayer.new()

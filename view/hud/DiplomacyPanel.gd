@@ -91,6 +91,45 @@ func _ready() -> void:
 	vb.add_child(_history_label)
 
 	EventBus.ai_envoy_sent.connect(_on_envoy)
+	# Re-present any tribute demand still awaiting a response. ai_envoy_sent is a ONE-SHOT
+	# emit at generation, and this panel lives only in the city HUD — so a demand sent while
+	# the player was on the WORLD MAP (where they campaign) was never shown and silently
+	# expired at its 7-day deadline, unanswered (lost interaction + the grievance kept
+	# building toward a siege). On entering the seat we reconstruct the pending demand from
+	# the faction's persistent tribute_demands and route it through the normal modal queue.
+	call_deferred("_present_demands_awaiting_response")
+
+# Build the envoy-demand dict (same shape GameState emits) for any UNFULFILLED, NON-EXPIRED
+# tribute this faction holds against the player; {} if none. The owed-resource reconstruction
+# (and expiry filtering) lives in the sim layer (DiplomacySystem.owed_tribute, unit-tested); the
+# panel just wraps it with the faction's presentation metadata so an away-sent demand presents
+# identically to a live one.
+func _pending_demand_for(faction: Dictionary) -> Dictionary:
+	var owed: Dictionary = DiplomacySystem.owed_tribute(faction, 0, SimulationClock.current_tick)
+	var demands_map: Dictionary = owed.get("demands", {})
+	if demands_map.is_empty():
+		return {}
+	return {
+		"player_id": 0,
+		"faction_id": faction.get("id", -1),
+		"faction_name": faction.get("name", "A rival lord"),
+		"archetype": faction.get("archetype", ""),
+		"threat_level": faction.get("threat_level", 0.0),
+		"demands": demands_map,
+		"deadline_tick": owed.get("deadline_tick", 0),
+	}
+
+# On seat entry, surface every demand that arrived while the player was away. Routed through
+# _on_envoy so the modal gate / queue handles one-at-a-time presentation behind any open popup.
+func _present_demands_awaiting_response() -> void:
+	if GameState == null:
+		return
+	for f in GameState.ai_factions:
+		if not (f is Dictionary):
+			continue
+		var demand: Dictionary = _pending_demand_for(f)
+		if not demand.is_empty():
+			_on_envoy(int(f.get("id", -1)), demand)
 
 func _on_envoy(faction_id: int, demand: Dictionary) -> void:
 	if demand.get("player_id", -1) != 0:

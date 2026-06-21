@@ -140,7 +140,39 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 - **Intermediate-clog PREVENTION (iter205, follow-up):** the deeper root of the woodcutter freeze — a `wheat_farm`/`hops_farm` with no `mill`/`brewery` banks an intermediate that's useless and only clogs the shared raw pool. Now such a farm TENDS its rows but banks nothing until its processor exists (`CitizenSystem._farm_output_blocked`), so a new player's wheat farm can't silently strangle their wood/stone economy. Ev: ProbeWoodcutter — wood now flows continuously (0→465 climbing, wheat stays 0) where it previously froze at 113; TestEconomy 18/0.
 - **Painted building sprites (iter203):** buildings can now wear hand-painted iso art over the procedural model (`view/micro/BuildingSpriteOverlay.gd`, additive — finished buildings only, auto procedural fallback). First asset: a detailed **Village Hall** replacing the flat procedural roof-diamond. Local ComfyUI art pipeline in `tools/artgen/`; raw candidate renders (multi-GB) git-ignored, only chosen source + keyed sprite committed. Ev: before/after `_SpriteTrial.tscn` render + in-world placement (Xvfb), TestSurvival 6/0.
 - **Tribute "free peace" exploit (iter275):** `DiplomacySystem.accept` deducted demanded goods as `maxi(0, have−amt)` with no affordability check, yet always granted the 14-day peace window + grievance relief — so a player with 0 of the demanded resource bought peace for nothing (HUD lied "Tribute paid"), and partial payments silently drained stock. The iter1 "tribute unpayable early" note. Fix: `can_afford()` gate; `accept()` returns bool and is a strict no-op when short (no spend, no peace, no relief); the Accept button disables + relabels "can't afford" with an explanatory line; command path emits "demand still stands". Ev: TestDiplomacyTribute 29/0, TestPhase6 104/0, clean HUD render.
+- **Tribute demand sent while on the world map silently expired (iter276):** `ai_envoy_sent` is a one-shot emit and the Accept/Refuse panel lives only in the city HUD, so a demand generated while the player was on the strategic map was never shown and lapsed at its 7-day deadline unanswered (lost interaction + grievance kept building). Fix (reuses existing systems): the panel re-presents any unfulfilled/non-expired owed tribute on seat entry (via `DiplomacySystem.owed_tribute`, sim-layer + unit-tested), and `WorldMapScene` pushes a "return to your seat to answer" feed notice when an envoy arrives. Ev: TestDiplomacyRepresent 11/0, TestPhase6 104/0, TestDiplomacyTribute 29/0; on-screen re-present (SR_DIPLO_DEMO) + map notice (SR_WINTEST=envoy). Closes the iter275-logged worldmap-diplomacy gap.
 - **(Durable, older — see Current Targets):** Day-100 FLOOR multi-seed survival; Reeve→King climb on 5 seeds ≤113d; late-game coalition-vs-leader; on-screen in-city FLOOR survival (iter158).
+
+---
+
+## Iteration 276 — 2026-06-22  (PLAYER-EXPERIENCE — a tribute demand sent while you're on the map silently expired)
+
+Took the worldmap-diplomacy gap flagged at the end of iter275. Traced the envoy flow: `ashen_tribute_demanded`
+fires `EventBus.ai_envoy_sent` ONCE at generation, the demand persists in `faction["tribute_demands"]` with a
+**7-day deadline**, and `AIFaction`'s tick **purges it the moment the deadline passes** (no consequence). But the
+Accept/Refuse `DiplomacyPanel` lives ONLY in the city HUD — and the shared clock runs the strategic tick on BOTH
+scenes, so a demand generated while the player is on the **world map** (exactly where they campaign and climb the
+title) was **never shown and silently expired unanswered**: a lost player interaction, no feedback at all, and the
+rival's grievance kept building toward a siege the player never knew they could have soothed.
+
+- **Root-cause fix, two halves (both reuse existing systems — no duplicate diplomacy UI):**
+  1. **Re-present on seat entry (closes the lost interaction):** on `_ready` the `DiplomacyPanel` now scans
+     `GameState.ai_factions` for any UNFULFILLED, NON-EXPIRED tribute owed to the player and routes it through the
+     normal `_on_envoy` modal queue — so a demand that arrived while away surfaces the moment the player returns to
+     the city, presented identically to a live one (and respecting the modal gate / one-at-a-time queue).
+  2. **World-map feedback (closes the missing feedback):** `WorldMapScene` now connects `ai_envoy_sent` and pushes
+     a feed notice — "📜 An envoy of X demands tribute (…) — return to your seat to answer within ~N days." —
+     mirroring the iter274 siege-warning-on-map pattern, so the player knows to go back.
+- **Architecture:** the owed-resource reconstruction + expiry filtering lives in the **sim layer**
+  (`DiplomacySystem.owed_tribute(faction, player_id, now)`), keeping the panel thin and the logic unit-testable
+  (the `--script` harness can't compile a view script that references the `EventBus` autoload global).
+- **Validated:** new `tests/TestDiplomacyRepresent.gd` **11/0** (owed_tribute surfaces live demands; EXCLUDES
+  expired / already-answered / other-players'; boundary: a demand AT the deadline tick is still live, one tick past
+  is gone). Regression `TestPhase6` **104/0**, `TestDiplomacyTribute` **29/0**. On-screen (Xvfb): a new `SR_DIPLO_DEMO`
+  hook seeds a pending demand → the city panel **re-presents it on entry** (shows "Bandit King demands tribute: 80
+  gold, 15 iron", with the iter275 affordability gate correctly engaged since a fresh realm can't pay); `SR_WINTEST=envoy`
+  shows the **world-map feed notice**. Both scenes boot clean, 0 SCRIPT/Parse errors. (The dev hook forces a demand at
+  game start purely for the screenshot — real demands fire only after the 750-day King's Peace, long past the tutorial.)
 
 ---
 

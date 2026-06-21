@@ -104,6 +104,9 @@ func _init_and_build() -> void:
 			"defeat":   _show_endgame(false, "Your last holding has fallen. Your domain is no more.")
 			"revolt":   _on_popularity_changed(0, 50.0, 5.0)
 			"siege":    _on_ai_siege_assembling(90, 0, 48 * 240)
+			"envoy":    _on_envoy_sent_map(90, {"player_id": 0, "faction_id": 90,
+							"demands": {"gold": 80, "iron": 15},
+							"deadline_tick": SimulationClock.current_tick + 240 * 7})
 			"conquest": _show_endgame(true, "All enemies vanquished! Sovereign's Reach is yours!")
 			_:          _on_title_promoted(6, "King")
 
@@ -443,6 +446,10 @@ func _build_scene() -> void:
 	# was city-view-only, so a player off campaigning on the map only HEARD the VO with no on-screen
 	# "raise walls, ~N days" advice. Surface it in the map feed too (iter274).
 	EventBus.ai_siege_assembling.connect(_on_ai_siege_assembling)
+	# A tribute ENVOY can arrive while the player is on the map, but the Accept/Refuse panel lives
+	# only in the city HUD — so the demand was invisible here and silently expired unanswered (the
+	# panel now re-presents it on return, iter276). Tell the player to GO BACK and answer it.
+	EventBus.ai_envoy_sent.connect(_on_envoy_sent_map)
 
 # Gold-bordered parchment styling for the bottom action buttons. The default theme
 # rendered them near-transparent over the busy map terrain (Raise/March/Diplomacy
@@ -822,6 +829,22 @@ func _on_ai_siege_assembling(faction_id: int, _target_player_id: int, eta_ticks:
 		else " Raise walls, towers and a garrison — return to your seat before it lands!"
 	_event_feed.push("⚠ %s is marshalling a siege against your seat — ready in ~%d days.%s" % [who, days, tail],
 		9.0, Color(1.0, 0.7, 0.25))
+
+# A tribute envoy arrived while the player is on the map. The Accept/Refuse panel is in the city
+# HUD, so nudge the player to return to the seat to answer before the demand lapses (it re-presents
+# there). Feed-only — no decision is taken here.
+func _on_envoy_sent_map(faction_id: int, demand: Dictionary) -> void:
+	if not is_instance_valid(_event_feed) or demand.get("player_id", -1) != 0:
+		return
+	var who: String = GameState.get_faction_display_name(faction_id)
+	var parts: Array = []
+	for res in demand.get("demands", {}):
+		parts.append("%d %s" % [demand["demands"][res], res])
+	var what: String = ", ".join(parts) if not parts.is_empty() else "tribute"
+	var deadline: int = int(demand.get("deadline_tick", 0))
+	var days: int = maxi(1, int(round(float(deadline - SimulationClock.current_tick) / 240.0)))
+	_event_feed.push("📜 An envoy of %s demands tribute (%s) — return to your seat to answer within ~%d days." % [who, what, days],
+		8.0, Color(0.95, 0.85, 0.5))
 
 # Popularity cratering to a revolt is a DEFEAT — the seat keeps ticking while you're on the map.
 func _on_popularity_changed(_pid: int, _old: float, new_val: float) -> void:
