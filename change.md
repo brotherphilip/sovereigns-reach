@@ -141,9 +141,40 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 - **Painted building sprites (iter203):** buildings can now wear hand-painted iso art over the procedural model (`view/micro/BuildingSpriteOverlay.gd`, additive — finished buildings only, auto procedural fallback). First asset: a detailed **Village Hall** replacing the flat procedural roof-diamond. Local ComfyUI art pipeline in `tools/artgen/`; raw candidate renders (multi-GB) git-ignored, only chosen source + keyed sprite committed. Ev: before/after `_SpriteTrial.tscn` render + in-world placement (Xvfb), TestSurvival 6/0.
 - **Tribute "free peace" exploit (iter275):** `DiplomacySystem.accept` deducted demanded goods as `maxi(0, have−amt)` with no affordability check, yet always granted the 14-day peace window + grievance relief — so a player with 0 of the demanded resource bought peace for nothing (HUD lied "Tribute paid"), and partial payments silently drained stock. The iter1 "tribute unpayable early" note. Fix: `can_afford()` gate; `accept()` returns bool and is a strict no-op when short (no spend, no peace, no relief); the Accept button disables + relabels "can't afford" with an explanatory line; command path emits "demand still stands". Ev: TestDiplomacyTribute 29/0, TestPhase6 104/0, clean HUD render.
 - **Tribute demand sent while on the world map silently expired (iter276):** `ai_envoy_sent` is a one-shot emit and the Accept/Refuse panel lives only in the city HUD, so a demand generated while the player was on the strategic map was never shown and lapsed at its 7-day deadline unanswered (lost interaction + grievance kept building). Fix (reuses existing systems): the panel re-presents any unfulfilled/non-expired owed tribute on seat entry (via `DiplomacySystem.owed_tribute`, sim-layer + unit-tested), and `WorldMapScene` pushes a "return to your seat to answer" feed notice when an envoy arrives. Ev: TestDiplomacyRepresent 11/0, TestPhase6 104/0, TestDiplomacyTribute 29/0; on-screen re-present (SR_DIPLO_DEMO) + map notice (SR_WINTEST=envoy). Closes the iter275-logged worldmap-diplomacy gap.
+- **Save/load int-coercion class CLEARED + citizen round-trip coverage (iter279):** audited every sibling of the iter278 embargo bug (int-in-array / int-keyed-dict / `Dictionary.has(int)` vs JSON-loaded state) across forest/strategic/capital/people/needs — all safe (forest+capital deliberately string-keyed; people/needs coerce ids with `int()`; the `.has(int)` sites are runtime-only dicts). Embargo was the sole instance. Added `tests/TestSaveLoadCitizens.gd` 15/0 (citizens/needs/lineage survive a real JSON round-trip; parent-id kinship + live needs intact). No prod change — audit + coverage. Memory: [[save-load-json-coercion]].
 - **Save/load LIFTED trade embargoes (iter278):** `DiplomacySystem.is_embargoed` tested `player_id in embargoed_players`, but Godot's `Array.has()`/`in` is type-strict (`0 in [0.0]` is false) and JSON loads the stored int ids as floats — so after a save/load the embargo membership failed and the market trade penalty (keyed on is_embargoed) silently vanished; the same pattern in refuse()/MerchantPrince accumulated duplicate float/int ids. Fix: is_embargoed compares ids numerically; a centralized `mark_embargoed` appends with numeric de-dup; refuse + MerchantPrince route through it. Audited all other `in persisted-array` checks — the rest are string membership (round-trip safe). Ev: new TestSaveLoadDiplomacy 15/0 (embargo/grievance/tribute deadline/pending events/clock all survive a real JSON round-trip); TestMarket 72/0, TestStrategicAI 91/0, TestPhase6 104/0, TestSaveLoad 13/0. WATCH: any `int in persisted_array` is a latent save/load bug.
 - **Modal audit + tribute "Decide Later" (iter277):** audited ModalGate — sound (2 participants gate/queue correctly; the tutorial/reign/game-over overlays don't realistically co-occur in real play). Real gap: the tribute panel (correctly NOT paused — it's a decide-at-leisure ultimatum per iter275/276; a prototyped pause was reverted as it'd softlock a poor ruler into Refuse) offered only Accept (often disabled when broke) + Refuse (consequential), cornering a poor/busy ruler. Fix: added a "Decide Later" dismiss — demand stays unfulfilled (no spend/peace/grievance), re-presents on return (iter276) or pays once funds allow. Ev: on-screen 3-button panel (SR_DIPLO_DEMO); TestDiplomacyTribute 29/0, TestDiplomacyRepresent 11/0, TestPhase6 104/0.
 - **(Durable, older — see Current Targets):** Day-100 FLOOR multi-seed survival; Reeve→King climb on 5 seeds ≤113d; late-game coalition-vs-leader; on-screen in-city FLOOR survival (iter158).
+
+---
+
+## Iteration 279 — 2026-06-22  (SAVE/LOAD AUDIT — class cleared; added citizen round-trip coverage)
+
+Followed the iter278 embargo fix by auditing the rest of the save/load surface for siblings of that bug class
+(int-in-array / int-keyed-dict / `Dictionary.has(int)` against JSON-loaded state). Swept the remaining newer
+subsystems — forest, strategic (armies/campaigns/shire ids), capital donations, citizens/people/needs:
+
+- **Forest** `world["trees"]` is deliberately STRING-keyed and already has a real JSON round-trip test
+  (TestForest `_test_json_round_trip`); `tree_falls` is a transient array. Safe.
+- **CapitalSystem** `capital_donations` is consistently STRING-keyed (`str(player.id)` at write AND read). Safe.
+- **People/Needs** read every persisted id with `int(...)` coercion (`_related`, `_citizen_by_id`, `_birth`) and
+  needs with `float(...)`. The lone risky-looking `Dictionary.has(int)` sites (`marched`, BFS `visited`/`came_from`,
+  audio `_audio_prev_hp`) are all RUNTIME dicts built in-memory, never round-tripped. Safe.
+- **Conclusion:** the embargo (iter278) was the SOLE real instance — every other id read in the codebase already
+  coerces with `int()`, and the `in`-operator (which bypasses that habit) was the one that slipped. The class is
+  cleared. (Recorded the gotcha in agent memory so it isn't re-introduced.)
+
+Because the embargo proved code-inspection alone isn't enough ("claimed safe" ≠ "verified safe"), shipped a real
+round-trip GUARD for the richest previously-untested persisted state — **citizens (people/needs/lineage)**:
+
+- **New `tests/TestSaveLoadCitizens.gd` 15/0:** a full serialize → SaveManager JSON file → load → deserialize cycle
+  preserves citizen count + the alive/dead split, per-citizen needs (hp/food/warmth) as usable floats, family
+  surname, and crucially the **parent-id LINEAGE** (a child still registers as kin to its mother via the inbreeding
+  guard `PeopleSystem._related` after the float coercion of mother_id/id), and both `NeedsSystem.tick_day` and
+  `PeopleSystem.living_count` keep working on the reloaded array (needs stay live & mutable). Fixtures built via the
+  real `CitizenSystem.make_citizen` factory (no malformed-pawn error spam).
+- **Validated:** TestSaveLoadCitizens 15/0; regression TestPeople 21/0, TestNeeds 23/0, TestSaveLoad 13/0,
+  TestSaveLoadDiplomacy 15/0. No production code changed this iteration (audit confirmed clean) — pure coverage add.
 
 ---
 

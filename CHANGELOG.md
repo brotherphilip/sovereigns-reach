@@ -2,6 +2,21 @@
 
 ---
 
+## 2026-06-22 — Save/load robustness: audit cleared + citizen round-trip coverage added (iter279)
+
+- **[Quality / preventative] Verified the rest of the save system is round-trip safe:** after the iter278 embargo
+  fix, audited every place that could share that bug class (comparing a number or key against data reloaded from
+  a save, where JSON turns numbers into floats and keys into text). The forest and capital-donation state use text
+  keys by design, the people/needs systems already convert ids back to integers on read, and the remaining
+  candidates are temporary in-memory lookups that never touch a save file — so the embargo was the only real case.
+- **[Test coverage] Citizens now have a real save/load test:** new `tests/TestSaveLoadCitizens.gd` (15/0) confirms a
+  full save→load preserves villager counts, the living/dead split, each villager's needs (health/food/warmth),
+  family names, and — importantly — **family lineage** (a child is still recognised as kin to its parent, so the
+  no-inbreeding rule keeps working after a reload), and that the needs/people systems keep running on the reloaded
+  villagers. No gameplay code changed this release — this is verification and a regression guard.
+
+---
+
 ## 2026-06-22 — Trade embargoes no longer vanish when you load a save (iter278)
 
 - **[Save/load data-loss fix] A refused faction's trade embargo now survives a reload:** refusing a tribute
