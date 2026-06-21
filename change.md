@@ -157,6 +157,17 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 305 — 2026-06-22  (FEEDBACK POLISH — cause-aware, display-named building-destruction notice)
+
+Autonomous cycle, continuing the iter304 "every state change needs clear feedback" theme. `building_destroyed` was
+already toasted in the city HUD, but as a bare `"Building destroyed: hovel!"` — raw type, no cause — so a building
+vanishing could still read as a glitch. Made `CityViewScene._on_building_destroyed` cause-aware + display-named:
+🔥 fire → "Your Hovel burned down.", ⚔ siege → "Your Hovel was destroyed in the assault.", else → "Your Hovel was
+destroyed." Dropped the redundant keep destruction toast (the game-over screen already announces the keep fall).
+Validated: clean boot; TestSiege 9/0, TestSiegePhysical 5/0 (building_destroyed path intact).
+
+---
+
 ## Iteration 304 — 2026-06-22  (USER-REPORTED — "buildings hit with no enemies" was FIRE with no feedback)
 
 **User report:** watched a city whose buildings lost HP (health bar down) with NO enemies on the minimap or camera —

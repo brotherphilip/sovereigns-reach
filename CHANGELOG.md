@@ -2,6 +2,14 @@
 
 ---
 
+## 2026-06-22 — Clearer notice when a building is destroyed (iter305)
+
+- **[Polish] Building-loss notifications now name the building and the cause:** instead of a generic "Building
+  destroyed: hovel!", you now get "🔥 Your Hovel burned down." or "⚔ Your Hovel was destroyed in the assault." so it's
+  always clear what was lost and why. (Builds on the iter304 fire fix.)
+
+---
+
 ## 2026-06-22 — Fixed: buildings losing health "with no enemy" — it was an unannounced fire (iter304)
 
 - **[Bug fix] Fires are now clearly signposted:** buildings could lose health with no attacker in sight, which looked
