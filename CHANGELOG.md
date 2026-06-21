@@ -2,6 +2,19 @@
 
 ---
 
+## 2026-06-22 — The herald now voices your strategic victories and defeats (iter286)
+
+- **[Missing audio / feedback] Conquest beats are no longer silent:** the on-screen toasts for the big strategic
+  moments — your army taking an enemy city, a rival seizing one of yours, your assault being thrown back, your
+  garrison holding a siege — appeared with no voice-over, unlike nearly every other pop-up in the game. The grim
+  war-herald now speaks four new lines for these beats. AI-vs-AI conquests and routine trade/research/diplomacy
+  notices stay silent on purpose (so the herald doesn't natter over every small event).
+- **Validated:** the new clips are confirmed non-silent and in the correct format; the audio test suite passes
+  (`TestNarration` 82/0 over 99 clips, `TestAudio` 45/0). The exact delivery of the new lines is pending a listen-
+  through (it can't be heard in an automated run). (audio/narration/realm_*.wav, simulation/audio/NarrationPlayer.gd.)
+
+---
+
 ## 2026-06-22 — Siege-engine arrow immunity is now data-driven (iter285)
 
 - **[Consistency fix] "Immune to arrows" actually works off its flag now:** the battering ram is marked

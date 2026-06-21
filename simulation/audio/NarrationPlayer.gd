@@ -70,6 +70,11 @@ func _ready() -> void:
 		EventBus.save_completed.connect(func(_path): say("game_saved"))
 	if EventBus.has_signal("load_completed"):
 		EventBus.load_completed.connect(func(success): if success: say("game_loaded"))
+	# Strategic war beats (realm_notice) were the last un-narrated pop-ups (iter248 gap): the
+	# conquest/loss toasts the world map shows. Voice the DRAMATIC, player-framed ones; routine
+	# trade/tech/diplomacy receipts stay silent (over-narration otherwise).
+	if EventBus.has_signal("realm_notice"):
+		EventBus.realm_notice.connect(_on_realm_notice)
 	# TutorialSystem loads AFTER us (see project.godot autoload order), so its node isn't in the
 	# tree yet — defer the hookup. Its hint TEXT is dynamic, so (like edicts/objectives) a single
 	# generic instructional sting voices every onboarding pop-up: welcome, defence warning, etc.
@@ -146,6 +151,20 @@ func _on_popularity_changed(_pid: int, _old: float, new_value: float) -> void:
 	if not _realm_fallen_said and new_value < 10.0:
 		_realm_fallen_said = true
 		say("realm_fallen")
+
+# Voice the DRAMATIC strategic war beats (realm_notice). Classified by the distinctive
+# PLAYER-framed phrasing of the toast text — AI-vs-AI conquest uses different wording ("X has
+# captured Y from Z"), so it correctly gets no VO; routine trade/tech/diplomacy receipts ("Bought
+# …", "Researched …", "You decreed …", "cannot afford …") stay silent to avoid over-narration.
+func _on_realm_notice(text: String, _tone: String) -> void:
+	if "Your host has taken" in text:
+		say("realm_host_victory")          # ⚔ you captured an enemy city
+	elif "seized your city" in text:
+		say("realm_city_seized")           # 💥 a rival took one of yours
+	elif "assault on" in text and "thrown back" in text:
+		say("realm_assault_repelled")      # your assault failed
+	elif "garrison at" in text and "held against" in text:
+		say("realm_garrison_held")         # 🛡 your garrison repelled a siege
 
 # Speak a narration key. Latest line wins (a new one cuts off any still playing, so two
 # heralds never talk over each other). Unknown/missing keys are silently ignored.
