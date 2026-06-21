@@ -1489,6 +1489,13 @@ func simulate_tick(tick: int) -> void:
 						_citizen_rng, _next_citizen_id)
 					_snap_citizens_to_grass()
 					players[0]["population"] = PeopleSystem.living_count(citizens)
+				# A CHOICE event's effect is applied on RESOLVE, not here — record it as pending so
+				# _cmd_resolve_event_choice stays idempotent (a resolve only lands once, against an
+				# actually-pending event; a stray/duplicate command can't re-bank the reward).
+				if not (revent.get("choices", []) as Array).is_empty():
+					var _pce: Array = world.get("pending_choice_events", [])
+					_pce.append(String(revent.get("id", "")))
+					world["pending_choice_events"] = _pce
 				EventBus.world_event.emit(revent)
 
 	# Phase 6: tick AI factions each game-day
@@ -2584,10 +2591,19 @@ func _cmd_resolve_event_choice(cmd: Dictionary) -> bool:
 	if not _valid_player(pid):
 		return false
 	var payload: Dictionary = cmd["payload"]
-	var outcome: Dictionary = WorldEventSystem.resolve(
-		players[pid], payload.get("event_id", ""), int(payload.get("choice_index", -1)))
-	if outcome.is_empty():
+	var event_id: String = String(payload.get("event_id", ""))
+	# Idempotency: only resolve an event that is actually PENDING (fired and unanswered), so a
+	# duplicate/stray resolve command can't re-bank the choice's reward.
+	var _pce: Array = world.get("pending_choice_events", [])
+	if event_id not in _pce:
 		return false
+	var outcome: Dictionary = WorldEventSystem.resolve(
+		players[pid], event_id, int(payload.get("choice_index", -1)))
+	if outcome.is_empty():
+		return false   # invalid choice — leave it pending so a valid retry still works
+	# Consume it only once the choice landed.
+	_pce.erase(event_id)
+	world["pending_choice_events"] = _pce
 	var spawn_n: int = int(outcome.get("spawn_citizens", 0))
 	if spawn_n > 0 and pid == 0:
 		_next_citizen_id = CitizenSystem.spawn(citizens, spawn_n,

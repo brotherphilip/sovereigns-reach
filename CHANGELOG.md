@@ -2,6 +2,17 @@
 
 ---
 
+## 2026-06-22 — Choice-event reward re-banking fixed (iter269)
+
+- **[Exploit fix] World-event decisions can't be re-banked:** a World Event that offers a choice applies
+  its reward on resolve; the resolve command had no idempotency guard, so a duplicate/stray resolve could
+  bank the reward again (e.g. a +150-gold loan every time). The realm now tracks each fired choice event
+  as pending and consumes it once, so only the first resolve lands. (Audited the whole player-command
+  surface — everything else validates correctly.) New tests/TestEventChoice.gd (7/0).
+  (simulation/core/GameState.gd.)
+
+---
+
 ## 2026-06-22 — Plague-passing closure notice (iter268)
 
 - **[Polish] The plague's end is now announced:** companion to iter267 — when a plague is cured or runs

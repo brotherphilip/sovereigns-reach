@@ -143,6 +143,37 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 269 — 2026-06-22  (EXPERT-QA — command/economy exploit audit; fixed choice-event resolve re-banking)
+
+Ran an aggressive exploit/validation sweep of the player COMMAND surface (the iter261 market exploit lived
+here). Result: the layer is **robust** — every spend/setter command validates: `recruit_unit` (gold +
+equipment + raw mats), `develop_city` (`can_develop`), `activate_edict` (`can_activate`: points, duplicate,
+cooldown, tech, tier-cap), `research_tech` (`can_research`: prestige, prereqs, already-done),
+`donate_to_capital` (`amount <= 0` guard), tax/rations (`clampi`), `raise_army` (size `clampi`+afford).
+Save/load preserves player state wholesale (`players.duplicate(true)`). The iter261 market fix was the lone
+outlier — until this one:
+
+### Bug — [VALIDATION, low severity] choice-event RESOLVE was replayable (reward re-banking)
+- A World Event carrying `choices` applies its effect on RESOLVE (deferred from the daily tick).
+  `_cmd_resolve_event_choice` → `WorldEventSystem.resolve` looked the event up by its STATIC definition and
+  applied the effect with **no check that it was the player's pending event and no consume** — so a
+  duplicate/stray resolve command re-banked the reward (e.g. `barons_loan` choice 0 = **+150 gold every
+  time**). Not reachable via the normal UI (the panel hides on click), but the authoritative command layer
+  wasn't idempotent.
+- **Fix:** GameState records each FIRED choice event in `world["pending_choice_events"]`;
+  `_cmd_resolve_event_choice` only resolves an event that's actually pending and **consumes it once** (and
+  only on a successful resolve, so a bad choice_index leaves it retryable). A duplicate or out-of-band
+  resolve is now a harmless no-op.
+- **Validation:** new `tests/TestEventChoice.gd` (7/0) — `barons_loan` banks +150 once, a duplicate resolve
+  is rejected with no re-bank, and a never-fired event can't be resolved. Regression: TestWorldEvents 46/0,
+  TestPhase6 104/0, TestSurvival 6/0, clean real CityViewScene boot.
+
+### Files
+- `simulation/core/GameState.gd` (pending-tracking at the choice-event fire + idempotent resolve),
+  `tests/TestEventChoice.gd` (new).
+
+---
+
 ## Iteration 268 — 2026-06-22  (POLISH — plague-feedback loop closure: announce when the plague PASSES)
 
 Companion to iter267. That iter added the outbreak ALERT but the loop was asymmetric — when the plague was
