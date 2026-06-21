@@ -71,16 +71,15 @@ static func _recruit_elite(faction: Dictionary, budget: int) -> void:
 		spent += cost
 
 static func _apply_embargoes(faction: Dictionary, players: Array) -> void:
-	var embargoed: Array = faction.get("embargoed_players", [])
 	for p in players:
 		if not (p is Dictionary and p.get("is_alive", false)):
 			continue
 		var pid: int = p.get("id", -1)
-		# Embargo players that are economically OR militarily weak (GDD §8.2.5)
+		# Embargo players that are economically OR militarily weak (GDD §8.2.5). mark_embargoed
+		# dedups NUMERICALLY, so a reloaded (float-coerced) id isn't re-added as a duplicate.
 		var weak: bool = AIFaction.assess_player_strength(p) < 30.0
-		if (p.get("gold", 0) <= EMBARGO_GOLD_THRESHOLD or weak) and pid not in embargoed:
-			embargoed.append(pid)
-	faction["embargoed_players"] = embargoed
+		if p.get("gold", 0) <= EMBARGO_GOLD_THRESHOLD or weak:
+			DiplomacySystem.mark_embargoed(faction, pid)
 
 static func _get_player_x(players: Array, pid: int) -> int:
 	for p in players:

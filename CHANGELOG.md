@@ -2,6 +2,25 @@
 
 ---
 
+## 2026-06-22 — Trade embargoes no longer vanish when you load a save (iter278)
+
+- **[Save/load data-loss fix] A refused faction's trade embargo now survives a reload:** refusing a tribute
+  demand imposes a trade embargo (your market prices rise), but after saving and loading, the embargo silently
+  lifted and prices returned to normal — the consequence of refusing evaporated. Root cause: the embargo check
+  asked `player_id in embargoed_players`, and Godot's array membership is type-strict (`0` doesn't match `0.0`)
+  while a loaded save stores ids as floats, so the check always failed after a reload. The market penalty is
+  keyed on that check, so the embargo effectively disappeared. (The same flaw also let duplicate ids pile up in
+  the embargo list across reloads.)
+- **Fix:** embargo membership now compares ids numerically, and all embargo writes route through a single
+  de-duplicating helper. An audit of every similar membership check across the simulation confirmed this was the
+  only affected one (the rest compare text, which reloads correctly).
+- **Validated:** new `tests/TestSaveLoadDiplomacy.gd` 15/0 — a full save→load cycle now preserves embargoes,
+  grievance, pending tribute demands (with usable deadlines), the pending-event list, and the clock. Regression:
+  `TestMarket` 72/0, `TestStrategicAI` 91/0, `TestPhase6` 104/0, `TestSaveLoad` 13/0, `TestDiplomacyTribute` 29/0.
+  (simulation/ai/DiplomacySystem.gd, simulation/ai/MerchantPrince.gd.)
+
+---
+
 ## 2026-06-22 — Tribute demands add a "Decide Later" option so a poor ruler isn't cornered into refusing (iter277)
 
 - **[UX fix] You can now set a tribute demand aside:** the Accept/Refuse panel offered only **Accept** — which is

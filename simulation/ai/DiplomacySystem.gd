@@ -75,19 +75,32 @@ static func accept(player: Dictionary, demands: Dictionary, faction = null, tick
 static func refuse(player: Dictionary, faction) -> void:
 	player["popularity"] = maxf(0.0, player.get("popularity", 50.0) - 5.0)
 	if faction is Dictionary:
+		var pid: int = player.get("id", 0)
 		faction["grievance"] = faction.get("grievance", 0.0) + AIFaction.GRIEVANCE_ON_REFUSE
 		# Impose embargo: block the player from this faction's trade for future interactions.
-		var pid: int = player.get("id", 0)
-		var embargoed: Array = faction.get("embargoed_players", [])
-		if pid not in embargoed:
-			embargoed.append(pid)
-		faction["embargoed_players"] = embargoed
+		mark_embargoed(faction, pid)
 		# Mark all pending demands for this player as fulfilled=true so the cooldown resets
 		# and the next demand will arrive sooner at a higher scale.
 		for d in faction.get("tribute_demands", []):
-			if d is Dictionary and d.get("player_id", -1) == pid and not d.get("fulfilled", false):
+			if d is Dictionary and int(d.get("player_id", -1)) == pid and not d.get("fulfilled", false):
 				d["fulfilled"] = true
 
-# Returns true if the player is embargoed by this faction (trade penalty applies).
+# Returns true if the player is embargoed by this faction (trade penalty applies). Compares ids
+# NUMERICALLY rather than `player_id in embargoed_players`: Godot's Array `in`/has() is type-strict
+# (an int won't match a float), and JSON loads every number as a float — so a plain membership test
+# silently fails after a save/load, lifting the embargo on reload. This survives the round-trip.
 static func is_embargoed(faction: Dictionary, player_id: int) -> bool:
-	return player_id in faction.get("embargoed_players", [])
+	for e in faction.get("embargoed_players", []):
+		if int(e) == player_id:
+			return true
+	return false
+
+# Add a player to this faction's trade embargo, de-duplicated numerically (so a reloaded float id
+# isn't appended again as a duplicate). The single writer for embargo state — refuse() and the
+# MerchantPrince auto-embargo both route through here.
+static func mark_embargoed(faction: Dictionary, player_id: int) -> void:
+	if is_embargoed(faction, player_id):
+		return
+	var embargoed: Array = faction.get("embargoed_players", [])
+	embargoed.append(player_id)
+	faction["embargoed_players"] = embargoed
