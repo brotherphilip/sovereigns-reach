@@ -141,10 +141,37 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 - **Painted building sprites (iter203):** buildings can now wear hand-painted iso art over the procedural model (`view/micro/BuildingSpriteOverlay.gd`, additive — finished buildings only, auto procedural fallback). First asset: a detailed **Village Hall** replacing the flat procedural roof-diamond. Local ComfyUI art pipeline in `tools/artgen/`; raw candidate renders (multi-GB) git-ignored, only chosen source + keyed sprite committed. Ev: before/after `_SpriteTrial.tscn` render + in-world placement (Xvfb), TestSurvival 6/0.
 - **Tribute "free peace" exploit (iter275):** `DiplomacySystem.accept` deducted demanded goods as `maxi(0, have−amt)` with no affordability check, yet always granted the 14-day peace window + grievance relief — so a player with 0 of the demanded resource bought peace for nothing (HUD lied "Tribute paid"), and partial payments silently drained stock. The iter1 "tribute unpayable early" note. Fix: `can_afford()` gate; `accept()` returns bool and is a strict no-op when short (no spend, no peace, no relief); the Accept button disables + relabels "can't afford" with an explanatory line; command path emits "demand still stands". Ev: TestDiplomacyTribute 29/0, TestPhase6 104/0, clean HUD render.
 - **Tribute demand sent while on the world map silently expired (iter276):** `ai_envoy_sent` is a one-shot emit and the Accept/Refuse panel lives only in the city HUD, so a demand generated while the player was on the strategic map was never shown and lapsed at its 7-day deadline unanswered (lost interaction + grievance kept building). Fix (reuses existing systems): the panel re-presents any unfulfilled/non-expired owed tribute on seat entry (via `DiplomacySystem.owed_tribute`, sim-layer + unit-tested), and `WorldMapScene` pushes a "return to your seat to answer" feed notice when an envoy arrives. Ev: TestDiplomacyRepresent 11/0, TestPhase6 104/0, TestDiplomacyTribute 29/0; on-screen re-present (SR_DIPLO_DEMO) + map notice (SR_WINTEST=envoy). Closes the iter275-logged worldmap-diplomacy gap.
+- **`SR_AUTOPLAY=grow` showcased a plague death-spiral, not growth (iter280):** the managed build was market + 6 hovels with ZERO sanitation — 6 hovels trips the crowding threshold (5), so the outbreak severity spiralled to ~95% (no cure) and killed ~4%/day, population FALLING, defeating the tooling's purpose (showcase growth, iter254). Verified the player-facing loop is sound first (the warning names "build an Apothecary"; 1 apothecary covers 6 hovels → cured ~3 days). Fix: added apothecary + well to the grow_plan (view-only tooling). Ev: SR_TELEMETRY 50-day run — population 20→23 (never dips), label "Plague 95%"→"Health 100". (PX pass also reconfirmed the known iter249 night-darkness as a taste call needing user input — left as-is.)
 - **Save/load int-coercion class CLEARED + citizen round-trip coverage (iter279):** audited every sibling of the iter278 embargo bug (int-in-array / int-keyed-dict / `Dictionary.has(int)` vs JSON-loaded state) across forest/strategic/capital/people/needs — all safe (forest+capital deliberately string-keyed; people/needs coerce ids with `int()`; the `.has(int)` sites are runtime-only dicts). Embargo was the sole instance. Added `tests/TestSaveLoadCitizens.gd` 15/0 (citizens/needs/lineage survive a real JSON round-trip; parent-id kinship + live needs intact). No prod change — audit + coverage. Memory: [[save-load-json-coercion]].
 - **Save/load LIFTED trade embargoes (iter278):** `DiplomacySystem.is_embargoed` tested `player_id in embargoed_players`, but Godot's `Array.has()`/`in` is type-strict (`0 in [0.0]` is false) and JSON loads the stored int ids as floats — so after a save/load the embargo membership failed and the market trade penalty (keyed on is_embargoed) silently vanished; the same pattern in refuse()/MerchantPrince accumulated duplicate float/int ids. Fix: is_embargoed compares ids numerically; a centralized `mark_embargoed` appends with numeric de-dup; refuse + MerchantPrince route through it. Audited all other `in persisted-array` checks — the rest are string membership (round-trip safe). Ev: new TestSaveLoadDiplomacy 15/0 (embargo/grievance/tribute deadline/pending events/clock all survive a real JSON round-trip); TestMarket 72/0, TestStrategicAI 91/0, TestPhase6 104/0, TestSaveLoad 13/0. WATCH: any `int in persisted_array` is a latent save/load bug.
 - **Modal audit + tribute "Decide Later" (iter277):** audited ModalGate — sound (2 participants gate/queue correctly; the tutorial/reign/game-over overlays don't realistically co-occur in real play). Real gap: the tribute panel (correctly NOT paused — it's a decide-at-leisure ultimatum per iter275/276; a prototyped pause was reverted as it'd softlock a poor ruler into Refuse) offered only Accept (often disabled when broke) + Refuse (consequential), cornering a poor/busy ruler. Fix: added a "Decide Later" dismiss — demand stays unfulfilled (no spend/peace/grievance), re-presents on return (iter276) or pays once funds allow. Ev: on-screen 3-button panel (SR_DIPLO_DEMO); TestDiplomacyTribute 29/0, TestDiplomacyRepresent 11/0, TestPhase6 104/0.
 - **(Durable, older — see Current Targets):** Day-100 FLOOR multi-seed survival; Reeve→King climb on 5 seeds ≤113d; late-game coalition-vs-leader; on-screen in-city FLOOR survival (iter158).
+
+---
+
+## Iteration 280 — 2026-06-22  (PLAYER-EXPERIENCE pass — the "growth" showcase was a plague death-spiral)
+
+Rebalanced after five code-audit iterations with a hands-on PX pass: launched the real game on Xvfb and read it
+as a player — early-game city (day & night), strategic world map. Findings:
+- **World map:** bright, legible, well-polished (iter128-138/270-274 hold up). No issue.
+- **Night city:** dark/murky away from lamp pools — the KNOWN iter249 deep-night item (`NightLayer.MAX_DARK 0.92`),
+  flagged as a taste call needing user input. Left as-is (not a bug; balance change needs a user steer).
+- **Real issue — the `SR_AUTOPLAY=grow` showcase displayed a PLAGUE CRISIS, not growth.** Both day and night shots
+  showed "Plague 95%" + a population-FALLING warning. Root cause: the managed build was market + **6 hovels with
+  zero sanitation**. 6 hovels trips the crowding threshold (5), and with sanitation 0 the outbreak severity spirals
+  (`DiseaseSystem`: +15/day spread, no cure) to ~95%, killing ~4%/day (`DEATH_FACTOR 0.04`) — so population fell and
+  the growth this tooling exists to demonstrate (iter254) never happened. The tooling was self-defeating.
+
+- **Verified the PLAYER-FACING loop is SOUND first:** the plague warning already names the fix ("build an
+  Apothecary", iter267), and one apothecary covers 6 hovels (`COVERAGE_TILES_PER_HOVEL 6`) → sanitation 1.0 → spread
+  0, cure −30/day → cured in ~3 days. So a real player gets a clear, actionable warning and recovers. Only the
+  autoplay ignored it.
+- **Fix (tooling, low-risk, models correct play):** added an **apothecary + well** to the `grow_plan` (all grow-plan
+  buildings spawn pre-built at t=0, so sanitation is present from the start). View-only dev hook; no core-game change.
+- **Validated (real telemetry, SR_TELEMETRY, 50 game-days):** population **20→23 (min 20, never dips), final 23 at
+  day 50** — matches the iter254 growth baseline, now WITHOUT the plague; on-screen the label flipped from "Plague
+  95%" (red) to **"Health 100"** (green) and the disease warning cleared. The growth showcase now actually shows
+  growth. Clean boot, 0 SCRIPT/Parse errors.
 
 ---
 

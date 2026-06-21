@@ -524,9 +524,15 @@ func _dev_autoplay() -> void:
 	# This adds hovels (housing → births → population growth) + a market, so a run actually EXERCISES
 	# the growth loop on-screen (and town_of_ten / population milestones can land). Tooling only.
 	if OS.get_environment("SR_AUTOPLAY") == "grow":
+		# 6 hovels trips the crowding threshold (5), so WITHOUT sanitation an untreated plague
+		# spirals (severity → ~95%, population FALLING) and the growth this is meant to showcase
+		# never happens — the warning even tells the player to build an Apothecary. So the managed
+		# build includes an apothecary (covers 6 hovels → full sanitation) + a well: it models
+		# correct play and lets population actually GROW instead of dying to disease. (iter280)
 		var grow_plan := [
 			["market", -6, -3], ["hovel", -6, -5], ["hovel", -4, -5],
 			["hovel", -8, -5], ["hovel", -6, -7], ["hovel", -4, -7], ["hovel", -8, -7],
+			["apothecary", -2, -5], ["well", -2, -7],
 		]
 		for item in grow_plan:
 			var gdefn: Dictionary = BReg.lookup(item[0])
@@ -545,7 +551,7 @@ func _dev_autoplay() -> void:
 				for dx in range(gdefn.get("width", 1)):
 					if GameState._grid != null:
 						GameState._grid.set_building_at(ggx + dx, ggy + dy, gb["id"])
-		print("[CityView] SR_AUTOPLAY=grow: +market +6 hovels (exercises population growth)")
+		print("[CityView] SR_AUTOPLAY=grow: +market +6 hovels +apothecary +well (sanitised growth)")
 	SimulationClock.set_speed(SimulationClock.SPEED_FASTEST)
 	print("[CityView] SR_AUTOPLAY: seeded economy + %d-unit garrison, running at top speed" % garrison.size())
 

@@ -2,6 +2,21 @@
 
 ---
 
+## 2026-06-22 — The "managed growth" demo now actually grows instead of dying to a plague (iter280)
+
+- **[Tooling / showcase fix] `SR_AUTOPLAY=grow` shows sustainable growth again:** the managed-growth autoplay (a
+  dev/showcase mode meant to demonstrate population growth) built a market and six houses but **no sanitation** —
+  six houses trip the crowding threshold, so an untreated plague spiralled to ~95% severity and the population
+  *fell* instead of growing, with the on-screen label stuck on "Plague 95%". The build now also raises an
+  apothecary and a well, so the town stays healthy and the population grows as intended.
+- A hands-on player-experience pass confirmed the underlying disease system is sound for real players — the plague
+  warning already tells you to build an apothecary, and doing so cures it within a few days — so this was purely a
+  gap in the demo's build list, not a gameplay bug.
+- **Validated:** a 50-game-day telemetry run shows population rising 20→23 (never dipping) with the health readout
+  at 100 instead of "Plague 95%". (view/cityview/CityViewScene.gd — dev tooling only, no gameplay code changed.)
+
+---
+
 ## 2026-06-22 — Save/load robustness: audit cleared + citizen round-trip coverage added (iter279)
 
 - **[Quality / preventative] Verified the rest of the save system is round-trip safe:** after the iter278 embargo
