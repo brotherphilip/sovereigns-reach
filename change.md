@@ -157,6 +157,29 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 312 — 2026-06-22  (USER REPORT — AI town construction now real-time-consistent across spectator visits)
+
+**User report:** AI buildings "only seem to be built when you click in to view," and construction resets/jumps —
+"fundamentally breaks the real-time economy and leads to broken build rates." **Root cause (investigated end-to-end):**
+AI cities are an abstract `development` number; a spectated town's buildings are REGENERATED from it on every entry
+with `prev_dev == dev` (everything built), because the buildings need a town GRID that only exists while watched. So
+construction popped in all-at-once on entry and reset across visits. (Development itself DOES advance in real time —
+`_tick_strategic_layer` runs every game-day inside `simulate_tick`, gated only by tutorial/catch-up, NOT spectator.)
+**Fix (within the grid constraint):** each city now remembers `spec_seen_dev` (how far the player has watched it
+build, persisted in the serialized city record). `enter_spectator_city` generates with
+`prev_dev = max(spec_seen_dev, dev-1)`, so the NEWEST development arrives UNDER CONSTRUCTION (active sites with pawns
+raising them) instead of popped-in built; `restore_seat_snapshot` advances `spec_seen_dev` to `dev` only when the
+town actually finished (no free completion, no reset). Capped to the latest level so a long absence doesn't drop a
+whole town under scaffolding (kills the build-rate pile-up — entry-3 went 33→4 sites). So AI construction is visibly
+in-progress on arrival, completed work persists, and development accrued while away is shown being built. Validated:
+new `tools/ProbeAIBuildPersist.gd` **5/0** (entry shows construction; completed persists across re-entry — no reset;
+dev-grown-while-away builds on return, capped); TestCityGeneration 25/0, TestStrategicAI 91/0, TestSaveLoad 14/0;
+clean boot. (`spec_seen_dev` rides in `world_map`, so it persists through save/load automatically.) NOTE: full
+PHYSICAL construction in unwatched towns remains infeasible/deferred (no per-town grid exists unwatched) — but isn't
+needed, since development is already real-time and the town now reflects it honestly.
+
+---
+
 ## Iteration 311 — 2026-06-22  (AESTHETICS #2 — ambient yard props: barrels/crates/sacks/logs at building fronts)
 
 Continuing the visual-detail directive (iterative, render-verified). Added `BuildingModels._props` (called at the end

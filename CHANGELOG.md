@@ -2,6 +2,20 @@
 
 ---
 
+## 2026-06-22 — Rival towns show real, ongoing construction (iter312)
+
+- **[Fix] AI towns no longer "pop in" fully-built when you visit them:** spectating a rival city used to regenerate it
+  every time with everything already built, so its construction reset between visits and you never saw it being made.
+  Now a town remembers how much of its growth you've already watched: its newest expansion arrives **under
+  construction** (active building sites with workers), finished buildings stay finished across visits, and development
+  that happened while you were away is shown being built when you return — capped to the latest level so a town isn't
+  buried under scaffolding after a long absence. AI development was always advancing in real time; now what you see
+  reflects it honestly.
+- **Validated:** a new diagnostic confirms construction shows on entry, persists across re-entry without resetting, and
+  the city-generation / strategic-AI / save-load tests all pass.
+
+---
+
 ## 2026-06-22 — Settlements now look busy and lived-in (iter311)
 
 - **[Visual] Yard clutter around buildings:** barrels, crates, sacks and stacked logs now sit at the fronts of your
