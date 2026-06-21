@@ -8,11 +8,14 @@ extends Node2D
 const HALF_W: float = 32.0
 const HALF_H: float = 16.0
 const DECOR_MIN_ZOOM: float = 0.45
-const FALL_DUR: float = 0.85          # seconds for a felled trunk to swing flat
-const FALL_LINGER: float = 1.4        # then the downed log fades over this long
+const FALL_DUR: float = 1.25          # seconds for a felled trunk to teeter + swing flat
+const FALL_LINGER: float = 1.5        # then the downed log fades over this long
+const DUST_DUR: float = 0.6           # ground-impact dust + leaf burst lifetime
 
 const SeasonSystem = preload("res://simulation/world/SeasonSystem.gd")
 const ForestSystem = preload("res://simulation/world/ForestSystem.gd")
+const SfxGen = preload("res://simulation/audio/SfxGen.gd")
+const FALL_SFX_POOL: int = 3           # a tree crash is infrequent — a tiny pool suffices
 
 var _camera: Camera2D = null
 var _season: int = SeasonSystem.Season.SUMMER
@@ -20,9 +23,41 @@ var _t: float = 0.0
 var _view: Rect2 = Rect2()
 var _falls: Array = []                 # active topple animations: {x,y,dir,age}
 var _chop: Dictionary = {}             # tile_key -> true while a worker chops it (this frame)
+var _sfx_pool: Array = []              # positional players for the impact crash
+var _fall_stream: AudioStream = null
 
 func set_camera(cam: Camera2D) -> void:
 	_camera = cam
+
+func _ready() -> void:
+	# Positional crash players: a felled tree booms from its world spot, panning + fading
+	# with distance off the camera (same soundscape model as the workers' chop SFX).
+	var bus := "SFX" if AudioServer.get_bus_index("SFX") >= 0 else "Master"
+	for i in range(FALL_SFX_POOL):
+		var pl := AudioStreamPlayer2D.new()
+		pl.bus = bus
+		pl.max_distance = 1100.0       # a crash carries further than a single axe chop
+		pl.attenuation = 1.5
+		pl.panning_strength = 1.4
+		add_child(pl)
+		_sfx_pool.append(pl)
+
+# Play the "timber" crash at a felled tile's world position through a free pooled player.
+func _play_crash(gx: int, gy: int) -> void:
+	if _sfx_pool.is_empty():
+		return
+	if _fall_stream == null:
+		_fall_stream = SfxGen.for_event("TREE_FALL")
+	var pick: AudioStreamPlayer2D = _sfx_pool[0]
+	for pl in _sfx_pool:
+		if not pl.playing:
+			pick = pl
+			break
+	pick.stream = _fall_stream
+	pick.global_position = Vector2((gx - gy) * HALF_W, (gx + gy) * HALF_H)
+	pick.volume_db = -6.0
+	pick.pitch_scale = randf_range(0.92, 1.06)   # variance so repeats don't sound canned
+	pick.play()
 
 func _process(delta: float) -> void:
 	_t += delta
@@ -37,11 +72,15 @@ func _process(delta: float) -> void:
 			_falls.append({"x": int(f.get("x", 0)), "y": int(f.get("y", 0)),
 				"dir": float(f.get("dir", 1.0)), "age": 0.0})
 		GameState.world["tree_falls"] = []
-	# Age the topples; drop finished ones.
+	# Age the topples; play the crash as each crosses impact; drop finished ones.
 	var keep: Array = []
 	for f in _falls:
-		f["age"] = float(f["age"]) + delta
-		if float(f["age"]) < FALL_DUR + FALL_LINGER:
+		var prev: float = float(f["age"])
+		var now: float = prev + delta
+		f["age"] = now
+		if prev < FALL_DUR and now >= FALL_DUR:
+			_play_crash(int(f["x"]), int(f["y"]))   # trunk hits the ground → timber!
+		if now < FALL_DUR + FALL_LINGER:
 			keep.append(f)
 	_falls = keep
 	# Note which tiles are being chopped right now (continuous shake while felling).
@@ -215,18 +254,23 @@ func _draw_falling(f: Dictionary) -> void:
 	var sy: float = (gx + gy) * HALF_H
 	if not _view.has_point(Vector2(sx, sy)):
 		return
-	var age: float = float(f["age"])
-	var dir: float = float(f["dir"])
-	# Topple: ease the trunk from upright to flat on the ground over FALL_DUR, then linger+fade.
+	_paint_fall(Vector2(sx, sy), gx, gy, float(f["dir"]), float(f["age"]))
+
+# Paint one toppling tree at an explicit pivot — the felling "theatre". A brief teeter (the
+# cut tree leans back, gathering) then an accelerating swing flat, and at impact a dust puff
+# kicks up where the crown slams down with a few leaves knocked loose. Split out from
+# _draw_falling so the dev preview (_FellShowcase) can drive it at fixed ages.
+func _paint_fall(pivot: Vector2, gx: int, gy: int, dir: float, age: float) -> void:
 	var p: float = clampf(age / FALL_DUR, 0.0, 1.0)
-	var eased: float = 1.0 - pow(1.0 - p, 3.0)            # accelerate as it goes over
-	var angle: float = eased * (PI * 0.5) * dir
+	var go: float = clampf((p - 0.2) / 0.8, 0.0, 1.0)
+	var fall: float = 1.0 - pow(1.0 - go, 2.4)                       # accelerating swing to flat
+	var back: float = 0.09 * sin(clampf(p / 0.2, 0.0, 1.0) * PI) * (1.0 - go)   # teeter, gone by impact
+	var angle: float = dir * (fall * (PI * 0.5) - back)
 	var alpha: float = 1.0
 	if age > FALL_DUR:
 		alpha = clampf(1.0 - (age - FALL_DUR) / FALL_LINGER, 0.0, 1.0)
-	var pivot := Vector2(sx, sy)
-	draw_set_transform(pivot, angle, Vector2.ONE)
 	# Trunk + a simple adult crown, drawn in local space (pivoting about the base).
+	draw_set_transform(pivot, angle, Vector2.ONE)
 	draw_colored_polygon(PackedVector2Array([
 		Vector2(-3.0, 3.0), Vector2(3.0, 3.0), Vector2(2.0, -16.0), Vector2(-2.0, -16.0),
 	]), Color(TRUNK.r, TRUNK.g, TRUNK.b, alpha))
@@ -238,3 +282,19 @@ func _draw_falling(f: Dictionary) -> void:
 	draw_circle(Vector2(6.0, -27.0), 7.0, cl)
 	draw_circle(Vector2(0, -32.0), 6.0, cl)
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+	# ── Ground-impact theatre: dust kicks up + leaves scatter where the crown hits ──
+	if age >= FALL_DUR:
+		var dp: float = clampf((age - FALL_DUR) / DUST_DUR, 0.0, 1.0)
+		var land := pivot + Vector2(dir * 26.0, 2.0)
+		var da: float = (1.0 - dp) * 0.5
+		var rad: float = 5.0 + dp * 17.0
+		draw_circle(land, rad, Color(0.82, 0.79, 0.70, da))
+		draw_circle(land + Vector2(-rad * 0.45, -2.0), rad * 0.70, Color(0.86, 0.83, 0.74, da * 0.8))
+		draw_circle(land + Vector2(rad * 0.50, -1.0), rad * 0.60, Color(0.78, 0.75, 0.66, da * 0.7))
+		# A few leaves knocked loose — pop up and out, then settle as the dust clears.
+		for i in range(5):
+			var ia: float = _h(gx * 5 + i, gy * 3, i) * TAU
+			var spread: float = (9.0 + _h(gx, gy * 7 + i, i + 11) * 13.0) * dp
+			var arc: float = -16.0 * dp + 26.0 * dp * dp        # rise then fall
+			var lp := land + Vector2(cos(ia) * spread, arc - absf(sin(ia)) * 3.0)
+			draw_circle(lp, 1.3, Color(cl.r, cl.g, cl.b, (1.0 - dp) * 0.9))

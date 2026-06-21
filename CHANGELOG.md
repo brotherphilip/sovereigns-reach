@@ -2,6 +2,18 @@
 
 ---
 
+## 2026-06-21 — The felling theatre (iter260)
+
+- **Dramatic tree-felling:** when a woodcutter fells a tree it now TOPPLES with real drama — a slower
+  teeter-then-accelerate swing (the cut tree leans back, gathers, then goes over), a **dust puff +
+  leaf scatter** kicked up where the crown slams the ground, and a new procedural **"timber" crash**
+  sound (splinter-crack + heavy low boom + leafy rustle) played positionally at the moment of impact.
+  Previously the fell read as trees gradually thinning out; now it reads as a felled tree. Verified via
+  a new deterministic `_FellShowcase` preview + a clean real-scene fell-demo boot; TestAudio 45/0.
+  (view/micro/TreeLayer.gd, simulation/audio/SfxGen.gd + AudioManager.gd.)
+
+---
+
 ## 2026-06-21 — Winter snow on walls & towers (iter259)
 
 - **Seasonal cohesion (defensive perimeter):** the walls and towers — which draw their tops

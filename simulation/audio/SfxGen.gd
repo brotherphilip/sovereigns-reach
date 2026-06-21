@@ -22,6 +22,7 @@ static func for_event(name: String) -> AudioStreamWAV:
 		"UI_CLICK":            return _click()
 		"WOOD_CHOP":           return _wood_chop()
 		"HAMMER_HIT":          return _hammer_hit()
+		"TREE_FALL":           return _tree_fall()
 		_:                     return _ding()
 
 # ── sample plumbing ──────────────────────────────────────────────────────────────
@@ -54,6 +55,24 @@ static func _wood_chop() -> AudioStreamWAV:
 		var body_env: float = exp(-t * 21.0)
 		var body: float = sin(TAU * pitch * t) + 0.45 * sin(TAU * pitch * 1.5 * t) + 0.28 * sin(TAU * pitch * 0.5 * t)
 		_push(buf, (bite + body * body_env) * 0.5)
+	return _new_wav(buf)
+
+# Timber! A felled tree slamming the ground — a sharp splintering crack, a heavy low boom
+# as the trunk lands, and a leafy rustle settling out. Played at the moment of impact.
+static func _tree_fall() -> AudioStreamWAV:
+	var buf := PackedByteArray()
+	var rng := RandomNumberGenerator.new(); rng.seed = 41
+	var n: int = int(0.55 * MIX)
+	for i in range(n):
+		var t: float = float(i) / MIX
+		# Splintering crack at the very front (fast, bright noise transient).
+		var crack: float = rng.randf_range(-1.0, 1.0) * exp(-t * 42.0) * 0.6
+		# Heavy low boom of the trunk hitting the earth (two close low tones).
+		var boom: float = sin(TAU * 56.0 * t) * exp(-t * 11.0)
+		var boom2: float = 0.4 * sin(TAU * 37.0 * t) * exp(-t * 8.0)
+		# Leafy rustle tail — soft noise that fades slower than the boom.
+		var rustle: float = rng.randf_range(-1.0, 1.0) * (0.32 + 0.22 * sin(TAU * 28.0 * t)) * exp(-t * 5.0) * 0.4
+		_push(buf, (crack + boom + boom2 + rustle) * 0.5)
 	return _new_wav(buf)
 
 # A builder's hammer landing on timber — a crisp knock with a short woody/iron ring.
