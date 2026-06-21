@@ -157,6 +157,25 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 307 — 2026-06-22  (FIRE PACING — make it visible & fair; "rain douses it" is now TRUE)
+
+Autonomous cycle. Auditing the iter304 fire fix end-to-end surfaced two problems that undermined it:
+- **Fire was near-instant.** Damage was 8 HP/tick, applied PER-TICK (the fire-damage loop is before the day-boundary
+  block), so a 60-HP hovel burned down in ~8 ticks (≈0.4s at normal speed) — far too fast to SEE the (now bolder)
+  flames/smoke or react; it read as instant "invisible" deletion. Tuned to **3/tick** (`BuildingState.FIRE_DAMAGE_PER_TICK`):
+  the smallest building now burns over ~1s and larger ones 2–4s, so a fire is visibly ON FIRE. Pitch/armory still
+  explode fast (40/tick).
+- **The alert lied.** My iter304 notice promised "rain douses it", but NOTHING extinguished fire (`grep` found no
+  `is_on_fire=false` except post-destruction). Now wet weather (RAIN/SNOW) **douses** burning buildings and tells the
+  player ("🌧 The rains have doused the fires — your buildings are spared."), giving a blaze a way to end other than
+  razing the building. Aligns with the calm-realm directive (fire as a visible, fair event, not instant RNG deletion).
+- **Validated:** `tests/TestFireAlert.gd` extended to **6/0** (slow burn — building not gone instantly; rain douses
+  the fire; douse notice fires). Regression TestSurvival 6/0, TestEconomy 18/0, TestPhase2 96/0, TestPhase4 60/0.
+  (Earlier in the cycle: verified the destruction path is robust — workers released, ruins produce nothing & are
+  demolishable — and that the ring-search "duplication" is legitimately-different predicates, no bug.)
+
+---
+
 ## Iteration 306 — 2026-06-22  (MISSING FEEDBACK — losing a shire to a siege was silent)
 
 Autonomous cycle, continuing the feedback-completeness sweep. When a besieger overran one of the player's shires

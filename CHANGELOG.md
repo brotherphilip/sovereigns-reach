@@ -2,6 +2,17 @@
 
 ---
 
+## 2026-06-22 — Fires now burn visibly and rain puts them out (iter307)
+
+- **[Gameplay] Fire is slower, visible, and fair:** buildings used to burn down almost instantly (under a second), so
+  you'd never really see the fire or have a chance to react. Fires now burn over a few seconds — you can see the
+  flames and smoke — and **rain or snow now actually douses them**, sparing the building (with a "🌧 The rains have
+  doused the fires" message). Pitch rigs and armories still go up fast. Together with the iter304 fire alert, fire is
+  now a clear, fair event instead of a sudden unexplained loss.
+- **Validated:** fire test extended (slow burn + rain-dousing); survival, economy and weather tests pass.
+
+---
+
 ## 2026-06-22 — You're now told when you lose a shire to a siege (iter306)
 
 - **[Bug fix] Losing territory is announced:** when an enemy siege overran one of your shires, the holding changed
