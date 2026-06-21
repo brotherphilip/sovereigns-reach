@@ -306,8 +306,40 @@ static func _shadow(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vecto
 	var ctr := (t + b) * 0.5 + Vector2(3, 5)
 	var rx: float = absf(r.x - l.x) * 0.5
 	var ry: float = absf(b.y - t.y) * 0.5
-	_ellipse(ci, ctr, rx * 0.98, ry * 0.98, Color(0, 0, 0, 0.10))
-	_ellipse(ci, ctr, rx * 0.68, ry * 0.68, Color(0, 0, 0, 0.13))
+	_ellipse(ci, ctr, rx * 0.98, ry * 0.98, Color(0, 0, 0, 0.12))
+	_ellipse(ci, ctr, rx * 0.66, ry * 0.66, Color(0, 0, 0, 0.16))
+
+# Building btypes that ARE fields — they paint their own farmland ground, so they get NO earth pad.
+const _FIELD_BTYPES := {
+	"apple_orchard": true, "wheat_farm": true, "pig_farm": true, "dairy_farm": true, "hops_farm": true,
+}
+
+# Trodden-earth foundation pad: the grass underfoot is worn to packed, bare dirt where a building stands
+# and folk come and go all day. Plants the structure in the world instead of leaving it floating on a
+# manicured lawn — and scatters a few embedded stones/scuffs so the ground reads as lived-in. iter310.
+static func _foundation(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vector2) -> void:
+	var c := (t + b) * 0.5
+	# A faint worn margin slightly beyond the footprint (grass → dirt), then the packed-earth core.
+	var ex := 1.10
+	var T := c + (t - c) * ex
+	var R := c + (r - c) * ex
+	var B := c + (b - c) * ex
+	var L := c + (l - c) * ex
+	var margin := Color(0.34, 0.28, 0.19, 0.30)
+	var core   := Color(0.40, 0.33, 0.23, 0.62)
+	var scuff  := Color(0.25, 0.20, 0.14, 0.55)
+	if _winter:
+		margin = Color(0.66, 0.68, 0.72, 0.28); core = Color(0.78, 0.80, 0.84, 0.5); scuff = Color(0.55, 0.58, 0.64, 0.45)
+	ci.draw_colored_polygon(PackedVector2Array([T, R, B, L]), margin)
+	ci.draw_colored_polygon(PackedVector2Array([t, r, b, l]), core)
+	# Deterministic embedded stones/scuffs (seeded by tile position so they don't shimmer).
+	var rng := RandomNumberGenerator.new()
+	rng.seed = (int(t.x) * 73856093) ^ (int(t.y) * 19349663)
+	for _i in range(5):
+		var u := rng.randf()
+		var v := rng.randf()
+		var p := l.lerp(t, u).lerp(b.lerp(r, u), v)   # a point inside the iso diamond
+		ci.draw_circle(p, rng.randf_range(0.7, 1.5), scuff)
 
 # A clearly-readable entrance centred on the front-left face (l→b edge): a stone
 # surround, an arched dark opening with a warm-lit interior, and a threshold step —
@@ -363,6 +395,9 @@ static func draw_finished(ci: CanvasItem, btype: String, cat: int, w: int, h: in
 		seed: int = 0) -> void:
 	var ctr := (t + b) * 0.5
 	_winter = (season == SeasonSystem.Season.WINTER)
+	# Worn-earth pad under structures (fields paint their own ground), then the cast shadow on top.
+	if not _FIELD_BTYPES.has(btype):
+		_foundation(ci, t, r, b, l)
 	_shadow(ci, t, r, b, l)
 	match btype:
 		"village_hall":      _village_hall(ci, t, r, b, l, ctr)
