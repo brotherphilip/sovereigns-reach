@@ -156,6 +156,21 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 299 — 2026-06-22  (SAVE/LOAD BUG found via the redundancy thread — field crops were dropped on load)
+
+Autonomous cycle. Chasing the queued building-registration loop de-dup surfaced a real save/load bug: the canonical
+`_register_buildings_in_grid` sets building_id + field + CROP, but `GameState.deserialize`'s reload loop had drifted
+to set building_id + field only. Since `WorldGrid.serialize()` omits `_field_crop` (and `deserialize` zeroes it),
+**after any save/load the field-crop layer was all zeros — every farm/orchard lost its farmland ground** (TerrainChunk
++ GrassDetailLayer render from `get_field_crop_at`); fields came back as plain grass under the buildings. **Fix
+doubles as the de-dup:** routed the reload loop through the canonical helper (restores crop). The `_place_normal_building`
+copy is deliberately KEPT — it additionally emits `terrain_painted` for a live repaint that the bulk-restore path
+doesn't need. Validated: TestSaveLoad 14/0 with a NEW assertion that an apple_orchard's field crop survives the JSON
+round-trip (fails before the fix); TestSaveLoadCitizens 15/0, TestSeatPersistence 16/0, TestDemolishSeat 8/0.
+(Backlog audit-redundancy item #3 ✅ — and it wasn't just cleanup, it was hiding a real bug.)
+
+---
+
 ## Iteration 298 — 2026-06-22  (REDUNDANCY — terrain tables: WorldGrid is now Pathfinder's single source)
 
 Autonomous cycle (queued audit item). `Pathfinder` kept a hand-synced COPY of WorldGrid's terrain passability +

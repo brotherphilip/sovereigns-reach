@@ -2,6 +2,17 @@
 
 ---
 
+## 2026-06-22 — Fixed: farm/orchard fields losing their farmland ground after loading a save (iter299)
+
+- **[Bug fix] Saved games now keep their farmland:** loading a saved game wiped the crop "stamp" that makes a farm
+  or orchard's ground render as tilled farmland — so after a load, fields reverted to looking like plain grass with
+  buildings sitting on them. The crop layer is now properly rebuilt on load. (Internally this also removed a
+  drifted duplicate of the building-registration code — the duplicate was the source of the bug.)
+- **Validated:** new save/load assertion confirms an orchard's field crop survives a full save→load round-trip;
+  the citizen/seat-persistence/demolish save tests all pass.
+
+---
+
 ## 2026-06-22 — Internal: pathfinding & terrain rules unified to one source (iter298)
 
 - **[Maintenance] Removed a duplicated terrain table:** the pathfinder kept its own copy of the world's
