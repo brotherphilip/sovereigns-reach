@@ -18,6 +18,10 @@ const FOOD_DRAIN_PER_PEASANT: Dictionary = {
 
 # Order in which food types are consumed (cheapest first — GDD §3.1.2)
 const FOOD_CONSUMPTION_ORDER: Array = ["apples", "bread", "cheese", "meat"]
+# Larder capacity a realm keeps even with NO granary built. Single source of truth — AIFaction
+# references this (was hand-mirrored as a magic 200 in two files, which could silently desync the
+# player's and the AI's food caps).
+const FOOD_BASE: int = 200
 
 # Returns the total food units a player has across all food types
 static func get_total_food(player: Dictionary) -> int:
@@ -36,7 +40,7 @@ static func get_granary_capacity(player: Dictionary) -> int:
 		if building.get("type", "") == "granary" and building.get("is_active", true):
 			cap += building.get("storage_max", 0)
 	if cap == 0:
-		cap = 200  # default capacity even without a granary
+		cap = FOOD_BASE  # default capacity even without a granary
 	var granary_bonus: float = TechTree.get_all_modifiers(player).get("granary_capacity_bonus", 0.0) + EdictSystem.get_active_modifiers(player).get("granary_capacity_bonus", 0.0)
 	if granary_bonus > 0.0:
 		cap = int(ceil(float(cap) * (1.0 + granary_bonus)))

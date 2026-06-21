@@ -939,8 +939,8 @@ func _rally_goal(rally: Vector2i, unit: Dictionary) -> Vector2i:
 	var uid: int = unit.get("id", 0)
 	var a: float = float(uid) * 2.39996323
 	for rad in [2, 3, 4, 5, 1]:
-		var gx: int = clampi(rally.x + int(round(cos(a) * float(rad))), 0, 199)
-		var gy: int = clampi(rally.y + int(round(sin(a) * float(rad))), 0, 199)
+		var gx: int = clampi(rally.x + int(round(cos(a) * float(rad))), 0, _grid.width - 1)
+		var gy: int = clampi(rally.y + int(round(sin(a) * float(rad))), 0, _grid.height - 1)
 		if _grid.in_bounds(gx, gy) and _grid.is_passable(gx, gy, WorldGrid.PASSABLE_FOOT) \
 				and _grid.get_building_at(gx, gy) == 0:
 			return Vector2i(gx, gy)
@@ -1808,12 +1808,16 @@ func _spawn_seat_attackers(faction: Dictionary) -> void:
 	if dir.length() < 1.0:
 		dir = Vector2(1.0, 0.0)
 	dir = dir.normalized()
-	var sx: int = clampi(kx + int(dir.x * 14.0), 2, 197)
-	var sy: int = clampi(ky + int(dir.y * 14.0), 2, 197)
+	# Stay 2 tiles off any edge — derived from the actual grid (was a hardcoded 197 = 200-3, which
+	# would clip staging to the wrong edge on a non-200 map; map size is a server_config knob).
+	var hi_x: int = (_grid.width - 3) if _grid != null else WorldGrid.DEFAULT_WIDTH - 3
+	var hi_y: int = (_grid.height - 3) if _grid != null else WorldGrid.DEFAULT_HEIGHT - 3
+	var sx: int = clampi(kx + int(dir.x * 14.0), 2, hi_x)
+	var sy: int = clampi(ky + int(dir.y * 14.0), 2, hi_y)
 	var uid: int = int(faction.get("next_unit_id", faction.get("id", 0) * 10000 + 1))
 	for j in range(8):
-		var ax: int = clampi(sx + (j % 4) * 2 - 3, 2, 197)
-		var ay: int = clampi(sy + (j / 4) * 2 - 2, 2, 197)
+		var ax: int = clampi(sx + (j % 4) * 2 - 3, 2, hi_x)
+		var ay: int = clampi(sy + (j / 4) * 2 - 2, 2, hi_y)
 		var fu: Dictionary = UnitState.create("armed_peasant", int(faction.get("id", -1)), ax, ay, uid)
 		if not fu.is_empty():
 			uid += 1

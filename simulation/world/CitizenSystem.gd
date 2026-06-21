@@ -72,6 +72,13 @@ const WANDER_RADIUS: float = 4.0
 const INSIDE_ERRAND_MAX: int = 240
 const BUILD_RATE: float = 0.33      # build-progress added per builder per tick (3× slower — raising a real structure takes time)
 const CONSTRUCTION_BATCH: int = 4   # material units a builder carries per trip (smaller load ⇒ ~3× more trips to the stockpile)
+# Hard ceiling on PHYSICALLY-SIMULATED villager pawns. The rendered pawns are a sample of the
+# abstract population (spawned as population/3, see GameState._grow_citizen_stock), NOT 1:1 — this
+# caps that sample. It is a deliberate PERFORMANCE budget: CitizenSystem.tick is the dominant,
+# population-scaling cost (~250 µs/pawn), so this bounds the per-tick work regardless of how large
+# the abstract population grows (which itself tops out at PeopleSystem.SAFETY_MAX_PEOPLE=150).
+# Consequence: above ~pop 120 the pawn count holds at 40 while the population number keeps climbing.
+# Raising this trades frame-time for visible density — a perf/balance call, not a free win.
 const MAX_CITIZENS: int = 40
 const SEP_RADIUS: float = 0.85      # personal space — pawns push apart within this
 const LAND_MOVE: int = 0b00000001   # is_passable move-type bit (foot/land)

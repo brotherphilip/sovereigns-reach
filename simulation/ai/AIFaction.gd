@@ -10,6 +10,8 @@ const CombatSystem  = preload("res://simulation/combat/CombatSystem.gd")
 const DifficultySystem = preload("res://simulation/core/DifficultySystem.gd")
 const ResourceTick     = preload("res://simulation/economy/ResourceTick.gd")
 const BuildingRegistry = preload("res://simulation/buildings/BuildingRegistry.gd")
+const StorageSystem    = preload("res://simulation/economy/StorageSystem.gd")
+const FoodSystem       = preload("res://simulation/economy/FoodSystem.gd")
 const TownAgents       = preload("res://simulation/world/TownAgents.gd")
 
 # Order in which each archetype erects production buildings (cycled). The AI earns
@@ -38,8 +40,8 @@ const _FOOD_GOODS: Array = ["apples", "bread", "cheese", "meat", "ale"]
 # so production HALTS when full and the AI must build MORE stockpiles/granaries to grow its
 # stores (it can't accumulate resources out of nowhere). Mirrors StorageSystem / FoodSystem.
 const RAW_GOODS: Array = ["wood", "firewood", "stone", "iron", "pitch", "hops", "wheat", "flour", "leather"]
-const RAW_BASE: int = 500        # keep cellar before any stockpile (mirror StorageSystem.RAW_BASE)
-const FOOD_BASE: int = 200       # granary-less default (mirror FoodSystem)
+const RAW_BASE: int = StorageSystem.RAW_BASE   # keep cellar before any stockpile (single source: StorageSystem)
+const FOOD_BASE: int = FoodSystem.FOOD_BASE    # granary-less default (single source: FoodSystem)
 const STORAGE_FULL_FRAC: float = 0.85   # build another stockpile/granary once this full
 
 # Workforce / housing economy (abstract mirror of the player's).
