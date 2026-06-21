@@ -2,6 +2,17 @@
 
 ---
 
+## 2026-06-22 — Difficulty now actually affects food consumption (iter297)
+
+- **[Bug fix] Harder difficulties make your people eat more (and easier ones less):** the difficulty setting's
+  food-consumption modifier was being ignored by the live food system — so playing on Hard or Siege Lord didn't
+  actually increase hunger, and Peaceful didn't reduce it. Now it's applied: Peaceful 0.7×, Normal 1.0× (unchanged),
+  Hard 1.25×, Siege Lord 1.5×. Normal-difficulty play is identical to before.
+- **Validated:** new `tests/TestFoodDifficulty.gd` (4/0) confirms the live per-day consumption scales across all four
+  difficulties; food/economy/survival regressions pass unchanged.
+
+---
+
 ## 2026-06-22 — Codebase cleanup: removed dead systems, unified duplicated limits (iter296)
 
 - **[Maintenance] Deep-dive audit pass — removed leftover/dead code and unified hand-mirrored limits:** a

@@ -3,6 +3,7 @@ const EdictSystem      = preload("res://simulation/edicts/EdictSystem.gd")
 const TechTree         = preload("res://simulation/tech/TechTree.gd")
 const SeasonSystem     = preload("res://simulation/world/SeasonSystem.gd")
 const BuildingRegistry = preload("res://simulation/buildings/BuildingRegistry.gd")
+const DifficultySystem = preload("res://simulation/core/DifficultySystem.gd")
 # Handles per-tick resource production and consumption for all buildings.
 # Called from GameState.simulate_tick() once per simulation tick.
 # GDD §5.2–5.4 (Building Roster), §4.2–4.4 (Tech Tree production bonuses).
@@ -243,6 +244,10 @@ static func tick_food_consumption(player: Dictionary, current_tick: int) -> Dict
 	var _tech_mods: Dictionary = TechTree.get_all_modifiers(player)
 	var total_food_reduction: float = _consumption_mods.get("food_consumption_reduction", 0.0) + _tech_mods.get("army_food_cost_reduction", 0.0)
 	daily_demand *= maxf(0.0, 1.0 - total_food_reduction)
+	# Difficulty scales hunger (PEACEFUL 0.7 … SIEGE_LORD 1.5; NORMAL=1.0). This is the LIVE food path;
+	# the modifier was previously only honoured by the dead FoodSystem.tick, so difficulty silently did
+	# not affect food consumption in the real game (iter297). NORMAL leaves default play unchanged.
+	daily_demand *= DifficultySystem.get_mod("food_consumption")
 
 	var changes: Dictionary = {}
 	var food: Dictionary = player.get("food", {})

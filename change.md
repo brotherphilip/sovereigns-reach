@@ -156,6 +156,20 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 297 — 2026-06-22  (LATENT BUG from the audit — difficulty silently did NOT affect food)
+
+User switched the loop to autonomous fast cadence ("2 mins per cycle ... just fix things you find", see memory
+`loop-autonomous-fix-posture`). First find from chasing the queued dead-`FoodSystem.tick` consolidation: the
+`DifficultySystem.food_consumption` modifier (PEACEFUL 0.7 / NORMAL 1.0 / HARD 1.25 / SIEGE_LORD 1.5) was applied
+ONLY in the dead `FoodSystem.tick`, never in the LIVE `ResourceTick.tick_food_consumption` — so choosing a harder
+difficulty did nothing to hunger. **Fix:** `ResourceTick.tick_food_consumption` now applies the difficulty mod (added
+the `DifficultySystem` preload). NORMAL=1.0 → default play byte-identical; harder modes finally bite, easier ones
+ease. Validated: new `tests/TestFoodDifficulty.gd` 4/0 (live-path consumed/day 14/20/25/30 across the four levels);
+regression TestPhase4 60/0, TestEconomy 18/0, TestSurvival 6/0, TestPhase2 96/0. (The dead `FoodSystem.tick` itself
+stays for now — deleting it needs a TestPhase4 rewrite; its difficulty behaviour is now matched in the live path.)
+
+---
+
 ## Iteration 296 — 2026-06-22  (USER-DIRECTED — deep-dive audit: redundant/leftover systems + hardcoded limits)
 
 **User directive:** "a deep dive on redundant and left over systems and limits etc. all needs to be fixed." Fanned
