@@ -2,6 +2,18 @@
 
 ---
 
+## 2026-06-21 — Winter roof snow (iter258)
+
+- **Seasonal cohesion:** building roofs now carry a light snow dusting in winter, matching the
+  already-snowy ground and bare trees (previously roofs stayed summer-bright — the town read
+  half-wintry). Implemented in the three shared roof primitives (`_gable`/`_hip`/`_cone`,
+  covering 28 building types) and gated on a per-building winter flag set in
+  `BuildingModels.draw_finished()`. The dusting hugs the ridge/apex and leaves the eaves clear,
+  so each roof's type-distinguishing colour still reads. Other seasons unchanged.
+  (view/micro/BuildingModels.gd; the dev-only `_BuildingShowcase` now honours `SR_SEASON`.)
+
+---
+
 ## 2026-06-18 — User-directed OVERHAUL session (people, audio, economy, world map, time, AI)
 
 A multi-part overhaul driven directly by the user:

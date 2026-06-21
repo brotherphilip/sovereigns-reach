@@ -32,6 +32,13 @@ const DIRT    := Color(0.46, 0.36, 0.24)
 const WATER   := Color(0.18, 0.42, 0.66)
 const RED     := Color(0.74, 0.20, 0.18)
 const EDGE    := Color(0.0, 0.0, 0.0, 0.28)
+const SNOW    := Color(0.92, 0.94, 0.98)        # settled snow — roof dusting in winter
+
+# Set once per building in draw_finished(): when true, the shared roof primitives
+# (_gable/_hip/_cone) lay a pale snow dusting on their upper faces so the town reads
+# as wintry alongside the already-snowy terrain and trees — without erasing the
+# type-distinguishing roof colours (the dusting hugs the ridge/apex, eaves stay clear).
+static var _winter := false
 
 # Distinct roof hues so building TYPES read apart at a glance from the top-down iso view
 # (the roof is the dominant surface). Previously ~everything was TILE/THATCH/SLATE, so the
@@ -185,6 +192,13 @@ static func _hip(ci: CanvasItem, c: PackedVector2Array, rh: float, roof: Color) 
 	# Hip ridges catch a highlight from apex down each corner.
 	for corner in [lu, ru, bu]:
 		ci.draw_line(apex, corner, roof.lightened(0.20), 0.8)
+	# Winter: snow settles on the upper third of each face, fanning down from the apex.
+	if _winter:
+		var g := 0.6   # snow reaches 40% down from the apex toward each eave corner
+		for face in [[lu, tu, 0.74], [tu, ru, 0.90], [lu, bu, 0.74], [ru, bu, 0.88]]:
+			ci.draw_colored_polygon(PackedVector2Array([apex,
+				(face[0] as Vector2).lerp(apex, g), (face[1] as Vector2).lerp(apex, g)]),
+				Color(SNOW, face[2]))
 	ci.draw_polyline(PackedVector2Array([lu, apex, ru]), EDGE, 0.5)
 	ci.draw_polyline(PackedVector2Array([bu, apex]), EDGE, 0.5)
 	return apex
@@ -215,6 +229,15 @@ static func _gable(ci: CanvasItem, c: PackedVector2Array, rh: float, roof: Color
 	# Bright ridge cap + darker eave overhang give the roof real thickness.
 	ci.draw_line(rback, rfront, roof.lightened(0.26), 1.4)
 	ci.draw_polyline(PackedVector2Array([lu, bu, ru]), roof.darkened(0.30), 0.9)
+	# Winter: a snow dusting hugging the ridge on each slope (eaves stay clear, so the
+	# roof's type colour still reads). Right (lit) slope brighter than the shaded left.
+	if _winter:
+		var f := 0.5
+		ci.draw_colored_polygon(PackedVector2Array(
+			[rback, rfront, rfront.lerp(lu, f), rback.lerp(lu, f)]), Color(SNOW, 0.70))
+		ci.draw_colored_polygon(PackedVector2Array(
+			[rback, rfront, rfront.lerp(ru, f), rback.lerp(ru, f)]), Color(SNOW, 0.84))
+		ci.draw_line(rback, rfront, Color(SNOW, 0.95), 1.6)
 	ci.draw_polyline(PackedVector2Array([rback, rfront]), EDGE, 0.6)
 	ci.draw_polyline(PackedVector2Array([lu, rback]), EDGE, 0.4)
 
@@ -257,6 +280,20 @@ static func _cone(ci: CanvasItem, c: Vector2, rx: float, ry: float, ht: float, c
 	for fr in [0.30, 0.58, 0.82]:
 		var ringc := c + Vector2(0, -ht * fr)
 		_ring(ci, ringc, rx * (1.0 - fr), ry * (1.0 - fr), col.darkened(0.22), 0.6)
+	# Winter: a snowcap over the top of the cone, fanning from the apex to an upper ring
+	# (top ~37%, so the cone's type colour still reads on the body below).
+	if _winter:
+		var capfr := 0.63
+		var rc := c + Vector2(0, -ht * capfr)
+		var crx := rx * (1.0 - capfr)
+		var cry := ry * (1.0 - capfr)
+		for i in range(18):
+			var a0 := TAU * float(i) / 18.0
+			var a1 := TAU * float(i + 1) / 18.0
+			var p0 := rc + Vector2(cos(a0) * crx, sin(a0) * cry)
+			var p1 := rc + Vector2(cos(a1) * crx, sin(a1) * cry)
+			var lit := 0.90 if (p0 + p1).y * 0.5 >= rc.y else 0.72   # front faces brighter
+			ci.draw_colored_polygon(PackedVector2Array([p0, p1, apex]), Color(SNOW, lit))
 
 static func _post(ci: CanvasItem, base: Vector2, ht: float, col: Color, wd: float = 1.6) -> Vector2:
 	var top := base + Vector2(0, -ht)
@@ -325,6 +362,7 @@ static func draw_finished(ci: CanvasItem, btype: String, cat: int, w: int, h: in
 		wall: Color, roof: Color, trim: Color, time: float, season: int = SeasonSystem.Season.SUMMER,
 		seed: int = 0) -> void:
 	var ctr := (t + b) * 0.5
+	_winter = (season == SeasonSystem.Season.WINTER)
 	_shadow(ci, t, r, b, l)
 	match btype:
 		"village_hall":      _village_hall(ci, t, r, b, l, ctr)

@@ -21,6 +21,9 @@ func _ready() -> void:
 		_shoot(OS.get_environment("SR_SHOT"))
 
 func _draw() -> void:
+	var season := 2
+	if OS.get_environment("SR_SEASON") != "":
+		season = clampi(int(OS.get_environment("SR_SEASON")), 0, 3)
 	var cols := 7
 	var cw := 168.0
 	var ch := 150.0
@@ -39,7 +42,7 @@ func _draw() -> void:
 		var left := Vector2(cx - hw, cy)
 		# Bespoke models use their own internal colours; pass neutral placeholders.
 		BuildingModels.draw_finished(self, bt, 0, 1, 1, top, right, bot, left,
-			Color(0.74, 0.70, 0.62), Color(0.6, 0.4, 0.3), Color(0.4, 0.3, 0.2), 0.4, 2)
+			Color(0.74, 0.70, 0.62), Color(0.6, 0.4, 0.3), Color(0.4, 0.3, 0.2), 0.4, season)
 		draw_string(ThemeDB.fallback_font, Vector2(cx - 50, cy + 34), bt,
 			HORIZONTAL_ALIGNMENT_CENTER, 100, 11, Color.WHITE)
 
