@@ -44,7 +44,6 @@ var _objective_panel: Panel = null
 var _objective_label: Label = null
 var _objective_progress: Label = null
 var _was_starving: bool = false
-var _had_disease: bool  = false
 
 # Resource labels
 var _gold_label: Label = null
@@ -136,19 +135,16 @@ func _check_crisis_alerts() -> void:
 	if GameState.players.size() == 0: return
 	var p: Dictionary = GameState.players[0]
 	var starving: bool = p.get("is_starving", false)
-	var diseased: bool = p.get("disease_active", false)
 	if starving and not _was_starving:
 		var ration: int = int(p.get("food_ration", 2))
 		var cause: String = "No rations set!" if ration == 0 else "Food stores depleted!"
 		show_notification("STARVATION: %s Popularity falling fast." % cause, 5.0, Color(1.0, 0.35, 0.35))
 	elif not starving and _was_starving:
 		show_notification("Food crisis resolved — peasants fed.", 3.0, Color(0.4, 1.0, 0.5))
-	if diseased and not _had_disease:
-		show_notification("DISEASE OUTBREAK: Population falling ill. Reduce crowding.", 5.0, Color(1.0, 0.55, 0.1))
-	elif not diseased and _had_disease:
-		show_notification("Disease cleared — population recovering.", 3.0, Color(0.4, 1.0, 0.5))
+	# Disease onset/clear is announced ONCE via GameState's realm_notice (shown in BOTH the city HUD
+	# and the world-map feed, and carrying the cure/prevention advice) — so it is NOT duplicated here.
+	# Starvation has no such realm_notice, so the HUD remains its sole alert. (iter302: was double-toasting.)
 	_was_starving = starving
-	_had_disease  = diseased
 
 func _on_milestone_earned(_player_id: int, milestone_id: String, prestige_bonus: float) -> void:
 	const MilestoneSystem = preload("res://simulation/core/MilestoneSystem.gd")
