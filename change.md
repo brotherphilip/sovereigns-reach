@@ -156,6 +156,23 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 300 — 2026-06-22  (VESTIGIAL — removed the dead fog-of-war subsystem; committed to full-reveal)
+
+Autonomous cycle — resolved the flagged "FOW disabled for now" decision (user authorised making the call). The view
+shows all enemy units/buildings BY DESIGN (calm-realm / telegraph-threats), but the FOW COMPUTE chain was entirely
+dead: `VisibilitySystem.recompute` ran every game-day (scanning all buildings+units, marking vision circles,
+duplicating the dict) and stored `player["fog_of_war"]` + emitted `fog_of_war_updated` — yet the only readers
+(`MacroViewController.get_revealed_tiles` / `is_tile_revealed`) had ZERO production callers (just a TestPhase7
+unit-test) and the signal had no listener. Removed `simulation/world/VisibilitySystem.gd`, GameState's daily
+recompute block + the `visibility` member + preload + the inert `fog_of_war` player-template field,
+`EventBus.fog_of_war_updated`, MacroViewController's two dead readers, and the TestPhase7 lines testing them — a clean
+full-reveal commit. Validated: TestPhase7 102/0, TestSaveLoad 14/0, TestSurvival 6/0, TestStrategicAI 91/0, TestPeople
+21/0, TestPhase9 67/0; both scenes boot. (Resolves the backlog "FOW disabled for now" item. New low-pri note: a
+benign `current_tick`-on-Node SCRIPT ERROR surfaces in a Phase7/9 test teardown — non-fatal, pre-existing, unrelated;
+worth a cleanup pass.)
+
+---
+
 ## Iteration 299 — 2026-06-22  (SAVE/LOAD BUG found via the redundancy thread — field crops were dropped on load)
 
 Autonomous cycle. Chasing the queued building-registration loop de-dup surfaced a real save/load bug: the canonical

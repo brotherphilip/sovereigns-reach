@@ -2,6 +2,18 @@
 
 ---
 
+## 2026-06-22 — Internal: removed unused fog-of-war code (iter300)
+
+- **[Maintenance] Committed to the full-reveal design and removed dead fog-of-war machinery:** the game intentionally
+  shows the whole map (threats are telegraphed), but a leftover fog-of-war visibility system was still recomputing
+  every in-game day and feeding nothing — its results had no readers anywhere in the game. Removed the whole unused
+  chain (the visibility system, its daily recompute, the signal, and the dead helpers). No gameplay change; one less
+  thing running each day.
+- **Validated:** the Phase-7, save/load, survival, strategic-AI, people, and Phase-9 suites all pass, and both the
+  city and world-map scenes boot cleanly.
+
+---
+
 ## 2026-06-22 — Fixed: farm/orchard fields losing their farmland ground after loading a save (iter299)
 
 - **[Bug fix] Saved games now keep their farmland:** loading a saved game wiped the crop "stamp" that makes a farm
