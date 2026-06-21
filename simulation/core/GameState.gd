@@ -397,6 +397,20 @@ func _tick_player_economy(player: Dictionary, tick: int) -> void:
 					BuildingState.repair(_b, KEEP_REPAIR_PER_DAY)
 				break
 
+	# General building self-repair (once per game-day): the village slowly patches up NON-seat
+	# structures scraped by fire or a raid, so transient damage HEALS instead of leaving a permanent
+	# HP bar the player can't fix (other than demolish+rebuild). The SEAT is excluded — it keeps the
+	# defence-gated repair above, so an undefended seat still falls. Burning buildings don't repair
+	# (the fire is still winning); needs people to do the work. iter308.
+	if tick % SimulationClock.TICKS_PER_GAME_DAY == 0 and int(player.get("population", 0)) > 0:
+		for _rb in player.get("buildings", []):
+			if not (_rb is Dictionary) or not _rb.get("built", false) or not _rb.get("is_active", true):
+				continue
+			if _rb.get("is_on_fire", false) or String(_rb.get("type", "")) in ["village_hall", "keep"]:
+				continue
+			if int(_rb.get("hp", 0)) > 0 and int(_rb.get("hp", 0)) < int(_rb.get("max_hp", 0)):
+				BuildingState.repair(_rb, BUILDING_REPAIR_PER_DAY)
+
 	# Resolve shire biome production bonuses once per player per tick (GDD §1.2.1).
 	var _biome_farm_bonus: float = 0.0
 	var _biome_mine_bonus: float = 0.0
@@ -810,6 +824,10 @@ const SIEGE_ASSAULT_RANGE: int = 8       # a rallying raider switches from "marc
 # late-game survival is about MAINTAINING defences+economy, not an inevitable death clock. A razed
 # seat (hp 0) stays razed (game over preserved). Headless repro: lifts the defended ceiling past Day 150.
 const KEEP_REPAIR_PER_DAY: int = 6
+# Slow per-day HP recovery for NON-seat buildings (the village patches up structures scraped by fire/
+# raids so transient damage heals rather than leaving a permanent, unfixable HP bar). Deliberately
+# slow + calm; the seat uses KEEP_REPAIR_PER_DAY above (defence-gated) instead. iter308.
+const BUILDING_REPAIR_PER_DAY: int = 3
 func is_siege_ready(player: Dictionary) -> bool:
 	var points: int = 0
 	for b in player.get("buildings", []):
