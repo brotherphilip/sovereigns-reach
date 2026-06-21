@@ -23,37 +23,11 @@ const SQRT2: float = 1.4142135623730951
 # ties toward straighter routes on equal-cost ground without overcoming real savings.
 const _MIN_TILE_COST: float = 0.5
 
-# Terrain passability and move costs duplicated here so Pathfinder is self-contained.
-# These must stay in sync with WorldGrid constants.
-const _TERRAIN_PASSABILITY: Dictionary = {
-	0: 0b00001111,  # GRASS
-	1: 0b00000001,  # FOREST   — passable on foot (slow)
-	2: 0,           # MOUNTAIN — fully blocks
-	3: 0,           # RIVER    — deep water, fully blocks (cross via a BRIDGE)
-	4: 0b00000001,  # MARSH
-	5: 0,           # ROCK     — fully blocks
-	6: 0b00000001,  # ORE_VEIN
-	7: 0b00001111,  # VALLEY
-	8: 0b00000111,  # COASTAL
-	9: 0b00001111,  # ROAD
-	10: 0b00000011, # RUIN
-	11: 0b00001111, # BRIDGE   — crossing over water (all movement types)
-}
-
-const _TERRAIN_MOVE_COST: Dictionary = {
-	0: 1.0,   # GRASS
-	1: 2.0,   # FOREST  (≈ half speed)
-	2: 99.0,  # MOUNTAIN (blocked)
-	3: 99.0,  # RIVER   (blocked — cross via a bridge)
-	4: 3.0,   # MARSH
-	5: 99.0,  # ROCK    (blocked)
-	6: 2.0,   # ORE_VEIN
-	7: 1.0,   # VALLEY
-	8: 1.2,   # COASTAL
-	9: 0.5,   # ROAD
-	10: 1.5,  # RUIN
-	11: 0.6,  # BRIDGE  (cross the water briskly)
-}
+# Terrain passability + move-cost tables: WorldGrid is the SINGLE SOURCE OF TRUTH. These used to be a
+# hand-synced copy here ("must stay in sync with WorldGrid") — a drift hazard where pathing could
+# silently diverge from actual per-tile movement. The class consts resolve without a WorldGrid
+# INSTANCE, so dict-mode (headless/save) lookups work too; keys are terrain enum ints either way.
+const WorldGrid = preload("res://simulation/world/WorldGrid.gd")
 
 # 8 neighbour directions: 4 cardinal first, then 4 diagonals.
 const _DIRS: Array = [
@@ -224,16 +198,16 @@ static func funcref_cost_dict(d: Dictionary) -> Callable:
 # ── Terrain helpers ──────────────────────────────────────────────────────────────
 
 static func _tile_passable(grid, x: int, y: int, mask: int) -> bool:
-	return (_TERRAIN_PASSABILITY.get(grid.get_terrain(x, y), 0) & mask) != 0
+	return (WorldGrid.TERRAIN_PASSABILITY.get(grid.get_terrain(x, y), 0) & mask) != 0
 
 static func _tile_cost(grid, x: int, y: int) -> float:
-	return _TERRAIN_MOVE_COST.get(grid.get_terrain(x, y), 99.0)
+	return WorldGrid.TERRAIN_MOVE_COST.get(grid.get_terrain(x, y), 99.0)
 
 static func _dict_tile_passable(grid_dict: Dictionary, x: int, y: int, mask: int) -> bool:
-	return (_TERRAIN_PASSABILITY.get(_dict_get_terrain(grid_dict, x, y), 0) & mask) != 0
+	return (WorldGrid.TERRAIN_PASSABILITY.get(_dict_get_terrain(grid_dict, x, y), 0) & mask) != 0
 
 static func _dict_tile_cost(grid_dict: Dictionary, x: int, y: int) -> float:
-	return _TERRAIN_MOVE_COST.get(_dict_get_terrain(grid_dict, x, y), 99.0)
+	return WorldGrid.TERRAIN_MOVE_COST.get(_dict_get_terrain(grid_dict, x, y), 99.0)
 
 static func _dict_get_terrain(grid_dict: Dictionary, x: int, y: int) -> int:
 	var tiles: Array = grid_dict.get("tiles", [])
