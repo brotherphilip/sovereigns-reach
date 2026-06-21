@@ -2,6 +2,17 @@
 
 ---
 
+## 2026-06-22 — Fixed: plague outbreak no longer pops two notifications (iter302)
+
+- **[Bug fix] One plague alert instead of two:** when a plague broke out (or cleared), the game showed two overlapping
+  pop-up notifications saying the same thing. Now there's a single, clearer alert that also tells you to reduce
+  crowding (alongside the existing build-an-apothecary / wells / varied-food advice), and it still appears both in the
+  city HUD and on the world map. The starvation alert is unchanged.
+- **Validated:** the disease-alert test passes (outbreak notice, one-shot behavior, and apothecary-cure recovery all
+  intact); the game boots cleanly.
+
+---
+
 ## 2026-06-22 — Internal: removed dead villager-spawn code + corrected a misconception (iter301)
 
 - **[Maintenance] Removed a dead, no-op villager-growth function and an unused cap:** an old `_grow_citizen_stock`

@@ -156,6 +156,18 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 302 — 2026-06-22  (UX BUG — plague was DOUBLE-notified; deduped to one richer toast)
+
+Autonomous cycle, player-facing focus (backlog item f). On plague onset AND clear the player got TWO toasts:
+GameState's `realm_notice` (shown in BOTH the city HUD via `CityViewScene` *and* the world-map feed, carrying the
+cure advice) AND `HUDNode._check_crisis_alerts` firing its own "DISEASE OUTBREAK" / "Disease cleared" toast each
+tick-transition. Removed the duplicate HUD disease toasts (+ the now-unused `_had_disease` tracker) and folded the
+"reduce crowding" advice into the single authoritative `realm_notice`. Starvation is deliberately LEFT in the HUD —
+it has no GameState realm_notice, so the HUD is its sole (non-duplicated) alert. Validated: TestDiseaseAlert 6/0
+(realm_notice + one-shot + apothecary-recovery path intact); clean boot. (Backlog audit-redundancy item (f) ✅.)
+
+---
+
 ## Iteration 301 — 2026-06-22  (DEAD CODE + a doc CORRECTION — `_grow_citizen_stock`/`MAX_CITIZENS` were dead AND misdocumented)
 
 Autonomous cycle. Started by chasing a `current_tick`-on-Node SCRIPT ERROR in `--script` test runs → traced to
