@@ -869,47 +869,8 @@ func _show_endgame(victory: bool, message: String) -> void:
 		return
 	_endgame_shown = true
 	SimulationClock.set_speed(SimulationClock.SPEED_PAUSED)
-	var overlay := CanvasLayer.new()
-	overlay.name = "EndgameOverlay"
-	overlay.layer = 60
-	add_child(overlay)
-	var bg := ColorRect.new()
-	bg.color = Color(0.0, 0.0, 0.0, 0.72)
-	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	overlay.add_child(bg)
-	var panel := Panel.new()
-	panel.position = Vector2(340, 210)
-	panel.size = Vector2(600, 280)
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.10, 0.12, 0.16, 0.98)
-	style.set_border_width_all(2)
-	style.border_color = Color.GOLD if victory else Color.DARK_RED
-	style.set_corner_radius_all(8)
-	panel.add_theme_stylebox_override("panel", style)
-	overlay.add_child(panel)
-	var title := Label.new()
-	title.text = "👑  VICTORY!" if victory else "DEFEAT"
-	title.position = Vector2(20, 24); title.size = Vector2(560, 50)
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 32)
-	title.add_theme_color_override("font_color", Color.GOLD if victory else Color.ORANGE_RED)
-	panel.add_child(title)
-	var msg := Label.new()
-	msg.text = message; msg.position = Vector2(20, 92); msg.size = Vector2(560, 80)
-	msg.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	msg.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	msg.add_theme_font_size_override("font_size", 16)
-	msg.add_theme_color_override("font_color", Color.WHITE_SMOKE)
-	panel.add_child(msg)
-	var day_lbl := Label.new()
-	day_lbl.text = "Day %d reached." % SimulationClock.game_day()
-	day_lbl.position = Vector2(20, 172); day_lbl.size = Vector2(560, 24)
-	day_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	day_lbl.add_theme_font_size_override("font_size", 13)
-	day_lbl.add_theme_color_override("font_color", Color.LIGHT_GRAY)
-	panel.add_child(day_lbl)
-	var menu_btn := Button.new()
-	menu_btn.text = "Main Menu"; menu_btn.position = Vector2(230, 216); menu_btn.size = Vector2(140, 40)
-	menu_btn.add_theme_font_size_override("font_size", 14)
-	menu_btn.pressed.connect(func(): get_tree().change_scene_to_file("res://view/menu/MainMenuScene.tscn"))
-	panel.add_child(menu_btn)
+	# Shared end-game overlay (iter284) at layer 60 (over the world-map chrome). On the map the only
+	# action is Main Menu — Play Again/World Map don't apply to a finished strategic campaign.
+	preload("res://view/hud/GameOverOverlay.gd").build(self, victory, message, [
+		{"text": "Main Menu", "action": func(): get_tree().change_scene_to_file("res://view/menu/MainMenuScene.tscn")},
+	], 60)

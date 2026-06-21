@@ -2,6 +2,19 @@
 
 ---
 
+## 2026-06-22 — Win/loss screens unified into one shared component (iter284)
+
+- **[Tech-debt / consistency] One game-over screen, used everywhere:** the victory/defeat screen was hand-built
+  separately in the city view and the world map — nearly identical, but drifting (the city version was missing the
+  crown, rounded corners and drop-shadow the map version had). Both now draw from a single shared component, so
+  the two screens are identical by construction and future tweaks land in one place. Players see a slightly more
+  polished city-view game-over (now with the crown + rounded panel); behaviour and buttons are otherwise the same
+  (city: Play Again / World Map / Main Menu; world map: Main Menu).
+- **Validated:** all four states (city win/lose, world-map win/lose) render correctly on a headless display; the
+  test suite is unaffected (this is a view-only refactor). (view/hud/GameOverOverlay.gd + the two scenes.)
+
+---
+
 ## 2026-06-22 — Full test-suite review: 55 suites green, and a fix so sweeps can't silently skip suites (iter283)
 
 - **[Quality / test infra] Whole suite re-verified:** ran all 55 test suites individually — **0 failures across

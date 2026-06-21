@@ -341,6 +341,14 @@ func _build_scene() -> void:
 	# Dev hook: pop the "20 minutes reached" reign-milestone overlay shortly after boot.
 	if OS.get_environment("SR_REIGN") != "":
 		_dev_reign_preview()
+	# Dev hook: preview the shared end-game overlay (iter284). SR_GAMEOVER=victory → gold VICTORY
+	# panel, anything else → dark-red DEFEAT panel. Lets the city-view game-over be render-tested
+	# (mirrors the world map's SR_WINTEST).
+	if OS.get_environment("SR_GAMEOVER") != "":
+		if OS.get_environment("SR_GAMEOVER") == "victory":
+			_show_game_over(true, "All enemies vanquished! Sovereign's Reach is yours!")
+		else:
+			_show_game_over(false, "The people have revolted! Your reign is over.")
 	var SeasonRef = preload("res://simulation/world/SeasonSystem.gd")
 	# Dev hook: jump the calendar to a chosen season (0=spring 1=summer 2=autumn 3=winter).
 	# Sets the live season DIRECTLY + repaints — the preview clock may not advance a whole
@@ -1183,70 +1191,12 @@ func _show_game_over(victory: bool, message: String) -> void:
 	_game_over_shown = true
 	SimulationClock.set_speed(0)
 
-	var overlay := CanvasLayer.new()
-	overlay.name  = "GameOverOverlay"
-	overlay.layer = 20
-	add_child(overlay)
-
-	var bg := ColorRect.new()
-	bg.color = Color(0.0, 0.0, 0.0, 0.72)
-	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	overlay.add_child(bg)
-
-	var panel := Panel.new()
-	panel.position = Vector2(340, 220)
-	panel.size     = Vector2(600, 260)
-	var style := StyleBoxFlat.new()
-	style.bg_color         = Color(0.10, 0.12, 0.16, 0.98)
-	style.set_border_width_all(2)
-	style.border_color     = Color.GOLD if victory else Color.DARK_RED
-	panel.add_theme_stylebox_override("panel", style)
-	overlay.add_child(panel)
-
-	var title := Label.new()
-	title.text = "VICTORY!" if victory else "DEFEAT"
-	title.position = Vector2(20, 20); title.size = Vector2(560, 50)
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 32)
-	title.add_theme_color_override("font_color", Color.GOLD if victory else Color.ORANGE_RED)
-	panel.add_child(title)
-
-	var msg := Label.new()
-	msg.text = message; msg.position = Vector2(20, 80); msg.size = Vector2(560, 80)
-	msg.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	msg.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	msg.add_theme_font_size_override("font_size", 16)
-	msg.add_theme_color_override("font_color", Color.WHITE_SMOKE)
-	panel.add_child(msg)
-
-	var day_lbl := Label.new()
-	day_lbl.text = "Day %d reached." % SimulationClock.game_day()
-	day_lbl.position = Vector2(20, 160); day_lbl.size = Vector2(560, 24)
-	day_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	day_lbl.add_theme_font_size_override("font_size", 13)
-	day_lbl.add_theme_color_override("font_color", Color.LIGHT_GRAY)
-	panel.add_child(day_lbl)
-
-	var restart_btn := Button.new()
-	restart_btn.text = "Play Again"; restart_btn.position = Vector2(80, 200)
-	restart_btn.size = Vector2(140, 40)
-	restart_btn.add_theme_font_size_override("font_size", 14)
-	restart_btn.pressed.connect(func(): get_tree().reload_current_scene())
-	panel.add_child(restart_btn)
-
-	var map_btn := Button.new()
-	map_btn.text = "World Map"; map_btn.position = Vector2(240, 200)
-	map_btn.size = Vector2(140, 40)
-	map_btn.add_theme_font_size_override("font_size", 14)
-	map_btn.pressed.connect(func(): get_tree().change_scene_to_file("res://view/worldmap/WorldMapScene.tscn"))
-	panel.add_child(map_btn)
-
-	var quit_btn := Button.new()
-	quit_btn.text = "Main Menu"; quit_btn.position = Vector2(400, 200)
-	quit_btn.size = Vector2(120, 40)
-	quit_btn.add_theme_font_size_override("font_size", 14)
-	quit_btn.pressed.connect(func(): get_tree().change_scene_to_file("res://view/menu/MainMenuScene.tscn"))
-	panel.add_child(quit_btn)
+	# Shared end-game overlay (iter284). The city view offers Play Again / World Map / Main Menu.
+	preload("res://view/hud/GameOverOverlay.gd").build(self, victory, message, [
+		{"text": "Play Again", "action": func(): get_tree().reload_current_scene()},
+		{"text": "World Map",  "action": func(): get_tree().change_scene_to_file("res://view/worldmap/WorldMapScene.tscn")},
+		{"text": "Main Menu",  "action": func(): get_tree().change_scene_to_file("res://view/menu/MainMenuScene.tscn")},
+	], 20)
 
 # ── Starting buildings ────────────────────────────────────────────────────────
 
