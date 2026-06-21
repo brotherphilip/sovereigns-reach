@@ -157,6 +157,21 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 310 — 2026-06-22  (AESTHETICS #1 — trodden-earth foundation pads ground every structure)
+
+**New standing user directive** (see memory `directive-variety-and-aesthetics`): (1) add emergent/unexpected gameplay
+so it isn't played the expected way; (2) deeply improve the visual detail & aesthetic of every building/scene/object.
+Working it ITERATIVELY (one area/cycle, render to verify). The procedural renderer (`BuildingModels`, 1348 lines) is
+already strong (per-type models, wall textures, hip/gable roofs, doors, windows, snow, soft shadows) — the biggest
+gap was PLACE-MAKING: structures sat directly on a manicured lawn, floating. Added `BuildingModels._foundation`
+(called from `draw_finished` for non-field btypes): a worn grass→dirt margin, a packed-earth core, and a few
+deterministic embedded stones/scuffs (snow-over-frozen-earth winter variant), plus a slightly stronger cast shadow.
+Now the village reads as planted and lived-in. Fields keep their own farmland ground (excluded via `_FIELD_BTYPES`).
+Verified on a rendered autoplay-grow town (earth pads clearly visible under hall/granary/market/woodcutter) + clean
+boot. View-only; the aesthetic track continues next cycles (props, lighting, per-building detail).
+
+---
+
 ## Iteration 309 — 2026-06-22  (REGRESSION REVIEW — 24-suite sweep after iter294–308: 620/0, all green)
 
 Autonomous cycle, REGRESSION-REVIEW phase. After ~15 iterations of changes (siege physicalization, the full fire

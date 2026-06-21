@@ -2,6 +2,15 @@
 
 ---
 
+## 2026-06-22 — Buildings now sit on worn ground, not a lawn (iter310)
+
+- **[Visual] Structures look planted in the world:** every building now stands on a patch of trodden, packed earth
+  (with a few embedded stones and a stronger shadow) instead of floating on perfect grass — so the village reads as
+  established and lived-in. Farm/orchard fields keep their own farmland ground. First step of a broader visual-detail
+  pass.
+
+---
+
 ## 2026-06-22 — Damaged buildings now slowly repair themselves (iter308)
 
 - **[Gameplay] Your buildings heal over time:** a building scraped by a fire or a raid used to stay damaged forever —
