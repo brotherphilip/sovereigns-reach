@@ -79,7 +79,6 @@ signal player_realm_lost()
 signal shire_ownership_changed(shire_id: int, old_owner: int, new_owner: int)
 # A terrain tile was repainted at runtime (e.g. a path laid) — chunks repaint.
 signal terrain_painted(x: int, y: int)
-signal fog_of_war_updated(player_id: int, revealed_tiles: Array)
 
 # --- Edicts ---
 signal edict_activated(player_id: int, edict_id: String, duration_ticks: int)

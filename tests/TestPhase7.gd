@@ -491,7 +491,3 @@ func _test_macro_view_controller() -> void:
 		ok("tent progress ~0.5", absf(t.get("progress", 0.0) - 0.5) < 0.02)
 		ok("tent has eta_label", t.has("eta_label"))
 
-	# fog of war
-	var fow_player: Dictionary = {"fog_of_war": {"3,4": true, "5,6": true}}
-	ok("is_tile_revealed (3,4) = true",  MacroViewController.is_tile_revealed(fow_player, 3, 4))
-	ok("is_tile_revealed (0,0) = false", not MacroViewController.is_tile_revealed(fow_player, 0, 0))

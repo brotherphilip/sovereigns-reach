@@ -137,13 +137,3 @@ static func get_siege_tent_data(ai_factions: Array) -> Array:
 		})
 	return result
 
-# ── Fog of war ────────────────────────────────────────────────────────────────
-
-# Returns the set of tile keys the player has revealed.
-static func get_revealed_tiles(player: Dictionary) -> Dictionary:
-	return player.get("fog_of_war", {})
-
-# Returns true if the given tile is revealed for the player.
-static func is_tile_revealed(player: Dictionary, tx: int, ty: int) -> bool:
-	var key: String = "%d,%d" % [tx, ty]
-	return player.get("fog_of_war", {}).has(key)

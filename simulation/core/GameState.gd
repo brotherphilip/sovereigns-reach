@@ -13,7 +13,6 @@ const TaxSystem        = preload("res://simulation/economy/TaxSystem.gd")
 const DiseaseSystem    = preload("res://simulation/economy/DiseaseSystem.gd")
 const MarketSystem     = preload("res://simulation/economy/MarketSystem.gd")
 const BuildingRegistry = preload("res://simulation/buildings/BuildingRegistry.gd")
-const VisibilitySystem = preload("res://simulation/world/VisibilitySystem.gd")
 const BuildingState    = preload("res://simulation/buildings/BuildingState.gd")
 const PlacementValidator = preload("res://simulation/buildings/PlacementValidator.gd")
 const WorkerSystem     = preload("res://simulation/player/WorkerSystem.gd")
@@ -61,7 +60,6 @@ const ForestSystem     = preload("res://simulation/world/ForestSystem.gd")
 var world: Dictionary = {}
 var players: Array = []        # Array[Dictionary]
 var ai_factions: Array = []    # Array[Dictionary]
-var visibility: Dictionary = {}  # Phase 6 fog of war: "x,y" -> true (player 0 vision)
 var weather: Dictionary = {}
 var active_edicts: Array = []  # Array[Dictionary]
 var server_config: Dictionary = {}
@@ -326,8 +324,6 @@ func _make_player(player_id: int, player_name: String, start_x: int, start_y: in
 		"disease_active": false,
 		"disease_severity": 0.0,
 
-		# Vision
-		"fog_of_war": {},        # "x,y" -> true for revealed tiles
 
 		# Metrics
 		"total_kills": 0,
@@ -1545,10 +1541,6 @@ func simulate_tick(tick: int) -> void:
 
 	# Phase 6: tick AI factions each game-day
 	if tick > 0 and tick % SimulationClock.TICKS_PER_GAME_DAY == 0:
-		VisibilitySystem.recompute(self)
-		if not players.is_empty():
-			players[0]["fog_of_war"] = visibility.duplicate()
-			EventBus.fog_of_war_updated.emit(0, visibility.keys())
 		for faction in ai_factions:
 			if not (faction is Dictionary and faction.get("is_alive", false)):
 				continue
