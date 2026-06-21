@@ -341,6 +341,45 @@ static func _foundation(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: V
 		var p := l.lerp(t, u).lerp(b.lerp(r, u), v)   # a point inside the iso diamond
 		ci.draw_circle(p, rng.randf_range(0.7, 1.5), scuff)
 
+# ── Ambient yard props ───────────────────────────────────────────────────────────
+# Barrels / crates / log piles / sacks scattered at a building's front so the settlement reads as a
+# working, lived-in place rather than tidy empty boxes. Deterministic per tile (no shimmer),
+# btype-flavoured, drawn AFTER the building model so they sit in front of it. iter311.
+const _NO_PROP_BTYPES := {
+	"wooden_palisade": true, "stone_wall": true, "gatehouse": true, "watchtower": true,
+	"lookout_tower": true, "great_tower": true, "well": true, "stockpile": true, "pitch_rig": true,
+	"apple_orchard": true, "wheat_farm": true, "pig_farm": true, "dairy_farm": true, "hops_farm": true,
+}
+
+static func _prop(ci: CanvasItem, base: Vector2, kind: String, rng: RandomNumberGenerator) -> void:
+	# Reuses the file's existing prop primitives (_crate/_barrel/_sack/_log). A soft contact shadow
+	# first so each prop sits on the earth rather than floating.
+	_ellipse(ci, base + Vector2(0.8, 1.2), 3.6, 1.5, Color(0, 0, 0, 0.15))
+	match kind:
+		"crate":   _crate(ci, base + Vector2(0, -3.6), rng.randf_range(2.6, 3.3))
+		"sacks":   _sack(ci, base + Vector2(-1.4, -1.0)); _sack(ci, base + Vector2(1.8, 0.6))
+		"logpile":
+			_log(ci, base + Vector2(0, -3.0), 1.8)
+			_log(ci, base + Vector2(0.4, -0.6), 1.8)
+		_:         _barrel(ci, base + Vector2(0, -2.6), rng.randf_range(2.3, 2.9))
+
+static func _props(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vector2, btype: String, seed: int) -> void:
+	if _NO_PROP_BTYPES.has(btype):
+		return
+	var rng := RandomNumberGenerator.new()
+	rng.seed = (int(b.x) * 2654435761) ^ (int(b.y) * 40503) ^ (seed * 2246822519 + 7)
+	var kinds := ["barrel", "crate", "sacks"]
+	if btype in ["woodcutter_camp", "poleturner", "fletcher", "crossbow_workshop", "siege_workshop"]:
+		kinds = ["logpile", "logpile", "crate"]
+	elif btype in ["granary", "bakery", "mill"]:
+		kinds = ["sacks", "sacks", "barrel"]
+	elif btype in ["brewery", "inn", "tannery"]:
+		kinds = ["barrel", "barrel", "crate"]
+	if rng.randf() < 0.78:   # front-left, just outside the wall, on the earth pad
+		_prop(ci, l.lerp(b, 0.62) + Vector2(-3.0, 2.0), kinds[rng.randi() % kinds.size()], rng)
+	if rng.randf() < 0.5:    # sometimes a second on the front-right
+		_prop(ci, b.lerp(r, 0.4) + Vector2(3.0, 2.0), kinds[rng.randi() % kinds.size()], rng)
+
 # A clearly-readable entrance centred on the front-left face (l→b edge): a stone
 # surround, an arched dark opening with a warm-lit interior, and a threshold step —
 # so the player (and pawns) can plainly see where folk go in.
@@ -439,6 +478,8 @@ static func draw_finished(ci: CanvasItem, btype: String, cat: int, w: int, h: in
 		"watchtower", "lookout_tower": _watchtower(ci, t, r, b, l, ctr)
 		"great_tower":       _great_tower(ci, t, r, b, l, ctr)
 		_:                   _generic(ci, t, r, b, l, wall, roof)
+	# Ambient yard props at the front (barrels/crates/logs/sacks) — drawn last so they sit in front.
+	_props(ci, t, r, b, l, btype, seed)
 
 # ── CIVIC ────────────────────────────────────────────────────────────────────────
 
