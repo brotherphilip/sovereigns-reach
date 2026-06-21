@@ -143,6 +143,41 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 267 — 2026-06-22  (PLAYER-EXPERIENCE PASS — found & fixed a MISSING-FEEDBACK bug: silent plague outbreaks)
+
+Did a real visual/player-experience pass: rendered a developed `grow`-autoplay town on Xvfb and read the
+HUD. The top bar showed **"Plague! 85%"** on a well-fed town (the grow build = market + ~7 hovels with no
+sanitation → crowding → a plague at severity 85).
+
+### Bug — [MISSING FEEDBACK] a plague outbreak gave the player no clear alert
+- **Symptom:** when a plague first breaks out it **kills villagers every day** (`DiseaseSystem`:
+  `deaths = pop × severity% × DEATH_FACTOR`) and applies **−10 popularity/day**, but the ONLY signal was a
+  small passive "Plague! X%" HUD label. No toast, no VO. There was **no `EventBus` signal for disease at
+  all** — `GameState` only fed the outbreak to the popularity engine. The "sickness is spreading" herald
+  clip (`tut_disease.wav`) existed but was wired ONLY to the tutorial hint, never to a real outbreak.
+- **Root cause:** the not-active → active transition was never surfaced to the player.
+- **Fix (architecture-consistent, matches the iter198 low-food-warning pattern):** new
+  `EventBus.plague_outbreak(player_id)`; `GameState.simulate_tick` detects the transition (player seat only)
+  and emits a one-shot **`realm_notice` toast** ("☠ A plague has broken out — build an Apothecary…") plus
+  `plague_outbreak`; `NarrationPlayer` plays the existing `tut_disease` herald VO on it. One-shot per
+  outbreak; re-arms naturally when a cured plague later recurs (`disease_active` flips back).
+- **Validation:** new `tests/TestDiseaseAlert.gd` (4/0) — a crowded unsanitary seat breaks out (day 4, seed
+  42), emits exactly ONE 'plague' toast + `plague_outbreak`, registers `disease_active`. Regression GREEN:
+  TestPhase4 60/0, TestNarration 82/0, TestSurvival 6/0, TestPhase7 104/0, TestPeople 21/0, TestNeeds 23/0.
+
+### Watch-item (balance, NOT changed)
+The `grow` build reaches a plague at severity 85 because it adds housing (hovels) with no sanitation (wells/
+apothecary). Now that the player is ALERTED + told how to respond, this is fair counter-play rather than a
+silent spiral. IF crowding-plague proves too punishing for a normal builder later, tune
+`OUTBREAK_BASE_PROBABILITY`/`DEATH_FACTOR` or have the objective/tutorial nudge a well earlier — but that's
+a balance call (and the user's calm-realm directive), not done here.
+
+### Files
+- `simulation/core/EventBus.gd` (signal), `simulation/core/GameState.gd` (emit on transition),
+  `simulation/audio/NarrationPlayer.gd` (VO wiring), `tests/TestDiseaseAlert.gd` (new).
+
+---
+
 ## Iteration 266 — 2026-06-22  (POLISH — spectator siege battle is now two-sided: the garrison sallies to meet the charge)
 
 Polish-review follow-up on iter264. The spectator combat branch's comment promised "the defenders auto-aggro

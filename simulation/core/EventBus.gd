@@ -69,6 +69,9 @@ signal season_changed(season: int, season_name: String)
 signal world_event(event_data: Dictionary)
 # The outcome of a player's decision on a choice-event — a one-off notification line.
 signal realm_notice(text: String, tone: String)
+# A plague has just broken out in a realm (severity 0 → active). One-shot per outbreak; drives
+# the herald VO + a toast so the player is alerted (it silently killed villagers + sank popularity).
+signal plague_outbreak(player_id: int)
 # Standing objective changed (player's current goal). index/total for "(3/6)" display.
 signal objective_updated(index: int, total: int, text: String)
 # The player has ruled to Day 100 — twenty unbroken minutes, the loop's goal. Fired once.

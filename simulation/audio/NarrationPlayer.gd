@@ -9,6 +9,7 @@ extends Node
 #   sovereign_reign_reached     → reign_day100
 #   ai_siege_assembling         → siege_incoming
 #   world_event(data.id)        → event_<id>      (silent until those files are added)
+#   plague_outbreak             → tut_disease     ("sickness is spreading" — a plague just broke out)
 #   edict_activated             → edict_proclaimed     (generic sting; edict name is dynamic)
 #   edict_expired               → edict_lapsed
 #   objective_updated           → objective_updated     (generic; the goal text is dynamic)
@@ -47,6 +48,8 @@ func _ready() -> void:
 		EventBus.ai_siege_assembling.connect(func(_f, _t, _e): say("siege_incoming"))
 	if EventBus.has_signal("world_event"):
 		EventBus.world_event.connect(func(data): say("event_" + str(data.get("id", ""))))
+	if EventBus.has_signal("plague_outbreak"):
+		EventBus.plague_outbreak.connect(func(_pid): say("tut_disease"))   # "sickness is spreading"
 	if EventBus.has_signal("edict_activated"):
 		EventBus.edict_activated.connect(func(_pid, _eid, _dur): say("edict_proclaimed"))
 	if EventBus.has_signal("edict_expired"):

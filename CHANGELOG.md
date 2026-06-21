@@ -2,6 +2,18 @@
 
 ---
 
+## 2026-06-22 — Plague outbreaks now alert the player (iter267)
+
+- **[Missing-feedback fix] Plague outbreaks are announced:** a plague used to break out silently —
+  killing villagers and sinking popularity every day behind only a small "Plague! X%" HUD label. Now,
+  when one first breaks out, the realm warns the player with a toast ("☠ A plague has broken out —
+  build an Apothecary…") and the grim-herald "sickness is spreading" voice-over, so the threat is
+  unmistakable and the counter-play (apothecary / wells / varied food) is clear. New
+  `EventBus.plague_outbreak` signal; one-shot per outbreak, re-arms on recurrence. New
+  tests/TestDiseaseAlert.gd (4/0). (simulation/core/{EventBus,GameState}.gd, NarrationPlayer.gd.)
+
+---
+
 ## 2026-06-22 — Two-sided spectator siege battle (iter266)
 
 - **[Polish] Spectated siege is now a real two-sided clash:** the besieged city's garrison now sallies
