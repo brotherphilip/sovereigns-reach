@@ -2,6 +2,19 @@
 
 ---
 
+## 2026-06-22 — Fixed: buildings losing health "with no enemy" — it was an unannounced fire (iter304)
+
+- **[Bug fix] Fires are now clearly signposted:** buildings could lose health with no attacker in sight, which looked
+  like an invisible attack. The cause was a weather **fire** — but a building catching fire gave no notification and
+  the flames were small and easy to miss. Now a fire raises a clear on-screen alert ("🔥 A building has caught fire!…")
+  the moment it starts, and burning buildings show bolder flames plus a rising smoke plume so fire is unmistakable at
+  a glance. (Investigation confirmed the simulation never damages a building without a real cause — every hit is fire
+  or an attacker physically at the wall.)
+- **Validated:** new fire-alert test passes (ignition raises exactly one alert per outbreak); weather, disease,
+  survival and economy tests all pass; clean boot.
+
+---
+
 ## 2026-06-22 — Fixed: plague outbreak no longer pops two notifications (iter302)
 
 - **[Bug fix] One plague alert instead of two:** when a plague broke out (or cleared), the game showed two overlapping

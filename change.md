@@ -157,6 +157,33 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 304 — 2026-06-22  (USER-REPORTED — "buildings hit with no enemies" was FIRE with no feedback)
+
+**User report:** watched a city whose buildings lost HP (health bar down) with NO enemies on the minimap or camera —
+"something is wrong" / "they might just be invisible or not rendering." Investigated rigorously (the user asked me to
+step back and do it properly):
+- **Exhaustive grep:** the ONLY building-HP-decrement in the whole repo is `BuildingState.take_damage`, reached from
+  exactly THREE call sites — fire (`tick_fire`), the abstract siege strike (catch-up-only since iter294), and the
+  physical `_besieger_assault` (iter295).
+- **`tools/ProbeSpectatorDamage.gd` (new):** a non-besieged spectated city takes **ZERO** building damage over 60
+  days; a besieged one takes 19 hits, **ALL with a living besieger within 30 tiles** (and the assault only damages
+  from melee range — attackers are literally AT the wall, and besiegers ARE drawn by UnitLayer + the minimap). The
+  sim never damages a building with no attacker present.
+- **Catch-up is a BLOCKING loop** (`_catch_up_seat`: `for i in range(total): simulate_tick(...)`, no rendering) — so
+  it can't be "watched" live.
+- **Conclusion:** the only thing that drains a building's HP LIVE with no attacker on the field is **FIRE** — and fire
+  was **silent**: igniting emitted no notification at all, and the flame VFX was small/easy to miss. A weather fire
+  read as an "invisible attack."
+- **Fix:** (1) GameState emits a one-shot `realm_notice` when a building first catches fire (player seat / watched
+  town; throttled per outbreak, not per tile/tick) so the cause is unmistakable; (2) BuildingLayer flames made bolder
+  + a rising smoke plume so a fire reads at a glance even zoomed out; (3) `SR_FIREDEMO` dev hook; (4) fixed an
+  outdated "AI factions aren't ticked in spectator" comment.
+- **Validated:** new `tests/TestFireAlert.gd` **3/0** (ignites under fire-risk weather; a single alert even for two
+  simultaneous ignitions; one-shot per outbreak); regression TestPhase2 96/0, TestDiseaseAlert 6/0, TestSurvival 6/0,
+  TestPhase4 60/0; clean boot + SR_FIREDEMO render. (Deferred: a fire herald VO, batched with the iter286 ear-check.)
+
+---
+
 ## Iteration 303 — 2026-06-22  (PLAYER-EXPERIENCE + QA verify pass — clean run; verified 2 claims; logged 1 design-call issue)
 
 Autonomous cycle, deliberately a play/verify pass (vs another static edit). (1) Ran a ~20s live autoplay-grow
