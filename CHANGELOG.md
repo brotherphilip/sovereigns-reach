@@ -2,6 +2,18 @@
 
 ---
 
+## 2026-06-21 — TestSiege made runnable; full test suite green again (iter265)
+
+- **[Test perf] TestSiege >400s → 1.5s (test-only):** the end-to-end siege regression ran the full
+  per-tick simulation for ~110k ticks (its runtime had crept from ~25s to over 400s, timing out and
+  making the whole suite un-runnable). Since the siege chain is entirely day-boundary-gated, it now
+  ticks only at day boundaries, sets `_catch_up_mode` to skip the per-tick besieger-warband pathfinding
+  (a visual layer, not the siege damage), and clears the irrelevant citizen/wildlife sims — 9/0 unchanged,
+  full coverage preserved. With this, all five suites the iter262 audit found red are resolved and the full
+  suite runs end-to-end again. (tests/TestSiege.gd.)
+
+---
+
 ## 2026-06-21 — Spectator siege battle fixed + combat perf guard (iter264)
 
 - **[Perf] Failing-pathfind guard:** a unit chasing an UNREACHABLE target (e.g. besiegers walled off

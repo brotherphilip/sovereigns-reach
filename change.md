@@ -109,7 +109,7 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ### Active Backlog (Base Game) — deduplicated
 - **✅ [QA — RESOLVED iter264] TestSpectatorTroops — spectator siege battle now fights (10/0).** Was: a spectated besieged city exchanged ZERO casualties (a tableau). Root cause (iter263 via `tools/ProbeSpectatorSiege.gd`): besiegers stall at min_gap 3.6 — melee (range 0), but the garrison mustered at the building-packed town CENTRE so they couldn't path the last few tiles in; AND `_tick_unit_attack` re-ran a whole-map FAILING A* EVERY tick toward the unreachable target (a successful step sets the move cooldown, a failed pathfind didn't), a real hotspot. **Two-part fix (iter264):** (1) the failing-A* perf guard — set `step_cd` on an empty path so the retry is throttled to the normal step cadence (general win, also in `_tick_unit_patrol`; no behaviour change for reachable targets); (2) muster the garrison FORWARD on open ground toward the attackers when besieged so the besiegers reach them — they charge in and fall to the militia's retaliation → casualties. (iter263's identical forward-muster *appeared* broken only because the missing guard made the sim too slow to ever progress past day 0.) Validated: TestSpectatorTroops 10/0 (was 9/1); the probe runs the forward-muster scenario ~10× faster (>90s→9.5s/12 days). Possible future polish: tick the defenders too for a fully two-sided clash (the guard now makes that cheap).
-- **[QA — open from iter262] TestSiege impractically slow (>5 min).** Bounded (no hang) but runs ~110k full `simulate_tick`s (460 game-days); per-tick cost grew with NeedsSystem/forest/wildlife. Effectively un-runnable in a normal suite (this is why suite drift hid). Fix: shrink day-windows that still cross siege thresholds, OR a siege-only fast-sim path, OR profile+cut per-tick cost.
+- **✅ [QA — RESOLVED iter265] TestSiege was impractically slow (>400s → 1.5s, 9/0).** Was ~110k full `simulate_tick`s (460 game-days); per-tick cost had grown with NeedsSystem/forest/wildlife/besieger-pathfinding until the suite was un-runnable (this is why the iter262 suite drift hid). Test-only fix — the siege chain (assembly→strike→hall HP) is ENTIRELY day-boundary-gated and the AI assembly counter advances a full TICKS_PER_DAY per AI tick, so: (1) `_run_days` ticks ONLY at day boundaries (240× fewer `simulate_tick` calls, exact siege outcome); (2) set `_catch_up_mode=true` to skip the per-tick besieger-warband pathfinding (a visual layer, not the day-boundary strike that damages the hall) — this was the dominant remaining cost; (3) clear citizens/wildlife (irrelevant to the siege). 9/0 unchanged, full 260-day coverage preserved. **All 5 suites from the iter262 audit are now resolved — the full suite is runnable again.**
 - **Phase 2 (deferred, user-agreed): physical AI cities** — prototype ONE AI city running CitizenSystem hauling; measure FPS/tick cost before committing.
 - **Visual polish (POLISH):** WALL colours still cluster (tan-timber / grey-stone / wood-plank); `market` reads sparse and `well` is tiny at play-zoom. ✅ **iter258: winter roof snow landed** — the shared roof primitives (`_gable`/`_hip`/`_cone`, covering 28 building types) now lay a pale dusting on their upper faces in winter, so the town reads wintry alongside the already-snowy terrain+trees (resolves the iter245 incongruity: ground/trees snowed but roofs stayed summer-bright). The dusting hugs the ridge/apex and leaves the eaves clear, so each roof's type-distinguishing colour still reads. ✅ **iter259 extended it to the defensive perimeter** — snow-capped crenellations (`_merlons` → keep/great_tower/stone_wall/gatehouse), dusted wall-walks/parapets (`_snow_top`), snow-tipped palisade stakes, and a snowcap on the watchtower's thatch hip — so the walls/towers (which bypass the roof primitives) now join the winter scene too. (Roofs diversified iter175; villager tunics iter191; watchtower rebuilt iter193.)
 - **OBSERVATION — night dead-space (taste, needs USER call, NOT a bug):** deep-night `NightLayer.MAX_DARK = 0.92` (near-black away from lamps) + depopulated night (skeleton crew) ⇒ ~5 min/cycle dark+empty. Soften MAX_DARK or add night ambient life only if the user wants less dead time.
@@ -140,6 +140,36 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 - **Intermediate-clog PREVENTION (iter205, follow-up):** the deeper root of the woodcutter freeze — a `wheat_farm`/`hops_farm` with no `mill`/`brewery` banks an intermediate that's useless and only clogs the shared raw pool. Now such a farm TENDS its rows but banks nothing until its processor exists (`CitizenSystem._farm_output_blocked`), so a new player's wheat farm can't silently strangle their wood/stone economy. Ev: ProbeWoodcutter — wood now flows continuously (0→465 climbing, wheat stays 0) where it previously froze at 113; TestEconomy 18/0.
 - **Painted building sprites (iter203):** buildings can now wear hand-painted iso art over the procedural model (`view/micro/BuildingSpriteOverlay.gd`, additive — finished buildings only, auto procedural fallback). First asset: a detailed **Village Hall** replacing the flat procedural roof-diamond. Local ComfyUI art pipeline in `tools/artgen/`; raw candidate renders (multi-GB) git-ignored, only chosen source + keyed sprite committed. Ev: before/after `_SpriteTrial.tscn` render + in-world placement (Xvfb), TestSurvival 6/0.
 - **(Durable, older — see Current Targets):** Day-100 FLOOR multi-seed survival; Reeve→King climb on 5 seeds ≤113d; late-game coalition-vs-leader; on-screen in-city FLOOR survival (iter158).
+
+---
+
+## Iteration 265 — 2026-06-21  (SHIP — TestSiege >400s→1.5s; the iter262-audit suite is fully runnable again)
+
+The last red/un-runnable suite from the iter262 audit. TestSiege ran the FULL `simulate_tick` for every one
+of ~110k ticks (460 game-days × 240) — its runtime had crept from the "~25s" in its header to **>400s**,
+timing out, which is precisely why the suite drift went unnoticed (nobody runs a suite when one test hangs).
+
+### Root-cause profile (instrumented)
+Each game-day's siege logic (assembly, strikes, hall damage) is **entirely day-boundary-gated** in
+`simulate_tick` (`tick % TICKS_PER_GAME_DAY == 0`); the 239 intra-day ticks/day only do per-tick work this
+test doesn't exercise. Profiling showed: the undefended hall actually falls **day 151** (not 260), and the
+per-day cost was dominated by the **besieger warband (18–33 units) pathfinding** every tick (the iter264
+seat-attackers — a visual layer, not the day-boundary strike that damages the hall).
+
+### Fix (test-only, siege outcome verified identical → 9/0)
+1. **Tick only at day boundaries** (`_run_days`): 240× fewer `simulate_tick` calls; the AI assembly counter
+   advances a full TICKS_PER_DAY per AI tick, so the siege timing is exactly reproduced.
+2. **`_catch_up_mode = true`**: skips the per-tick AI **unit movement** (GameState L1307) — the besieger
+   pathfinding — WITHOUT gating the day-boundary siege block (L1476). This was the dominant remaining cost.
+3. **Clear citizens/wildlife**: irrelevant per-tick economy the siege doesn't depend on.
+Full 260-day coverage window kept (speed now comes from how it ticks, not from trimming what's tested).
+
+### Result
+**>400s (timeout) → 1.56s, 9/0 unchanged.** ~270×. The 5 suites the iter262 audit found red are now ALL
+resolved (Phase1/2/14 iter262, Spectator iter264, Siege iter265) → the full suite is runnable end-to-end.
+
+### Files
+- `tests/TestSiege.gd` (test-only; no game code touched).
 
 ---
 
