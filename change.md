@@ -108,7 +108,8 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 ## Live Backlog & Resolved Index  (compacted iter201 — Phase 1 reads THIS; the per-iteration `### Active Backlog` blocks in Run History below are historical snapshots, superseded here. iter201 compact: collapsed the scattered art items → one line + the SR_SEASON/SR_SEED dev hooks → one line; verified no Active/Resolved overlap; Run History untouched)
 
 ### Active Backlog (Base Game) — deduplicated  (compacted iter289 — collapsed 6 fully-resolved ✅ items into the Resolved Index + Run History: TestSpectatorTroops iter264/266, TestSiege iter265, forest-track iter260, realm_notice VO iter286, events-too-rare iter252, autoplay-grow iter254. Only genuinely-OPEN items remain below.)
-- **Phase 2 (deferred, user-agreed): physical AI cities** — prototype ONE AI city running CitizenSystem hauling; measure FPS/tick cost before committing.
+- **Phase 2 (deferred, user-agreed): physical AI cities** — prototype ONE AI city running CitizenSystem hauling; measure FPS/tick cost before committing. (iter290: `tools/BenchTick.gd` now measures the seat-sim cost — use it before committing to physical AI cities.)
+- **PERF (iter290, scaling concern — known limitation):** `CitizenSystem.tick` is ~95% of `simulate_tick` and the only population-scaling phase (~250 µs/citizen; ≈18 ms/tick at 60 citizens — a fast-speed/large-town concern). Everything else (economy/units/wildlife) is <600 µs total. ✅ iter290 shipped a safe behaviour-identical separation-sqrt cull. The bigger lever — per-target A* re-pathing frequency (hauling re-targets often; separation jostle knocks pawns off the cached path → re-path) — is a deeper, behaviour-coupled optimization (path-reuse throttle / move-cooldown gate / spatial separation index) that needs careful planning + on-screen validation against the hauling economy. Baseline tool: `tools/BenchTick.gd`.
 - **Visual polish (POLISH — wall "clustering" TRIAGED iter289 as acceptable):** the grey-stone defensive works (gatehouse / stone_wall / great_tower) share one pale-grey palette, but that's CORRECT (they're all stone) and they're clearly distinguished by SHAPE (box-with-door vs low slab vs tall crenellated tower); the wooden_palisade is distinctly brown. Verified on the building-showcase crop — not a real readability problem, no change warranted. (✅ well enlarged iter288; market painted iter209; winter roof/wall snow iter258-259.)
 - **OBSERVATION — night dead-space (taste, USER call, NOT a bug):** deep-night `NightLayer.MAX_DARK = 0.92` (confirmed iter288) + depopulated night ⇒ ~5 min/cycle dark+empty. Soften MAX_DARK or add night ambient life only if the user wants less dead time.
 - **WATCH-ITEM — late-game drought food crash:** food can crash to 0 mid-late game on a drought seed (seen min_pop 27.9 on seed 12345; NO seed has actually revolted/lost). NOT fixed by design (user wants calm, not easier; a real player has the low-food warning + rations to cope). Buff the drought food buffer only if a seed actually revolts OR the user asks for drought-robustness.
@@ -148,6 +149,33 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 - **Save/load LIFTED trade embargoes (iter278):** `DiplomacySystem.is_embargoed` tested `player_id in embargoed_players`, but Godot's `Array.has()`/`in` is type-strict (`0 in [0.0]` is false) and JSON loads the stored int ids as floats — so after a save/load the embargo membership failed and the market trade penalty (keyed on is_embargoed) silently vanished; the same pattern in refuse()/MerchantPrince accumulated duplicate float/int ids. Fix: is_embargoed compares ids numerically; a centralized `mark_embargoed` appends with numeric de-dup; refuse + MerchantPrince route through it. Audited all other `in persisted-array` checks — the rest are string membership (round-trip safe). Ev: new TestSaveLoadDiplomacy 15/0 (embargo/grievance/tribute deadline/pending events/clock all survive a real JSON round-trip); TestMarket 72/0, TestStrategicAI 91/0, TestPhase6 104/0, TestSaveLoad 13/0. WATCH: any `int in persisted_array` is a latent save/load bug.
 - **Modal audit + tribute "Decide Later" (iter277):** audited ModalGate — sound (2 participants gate/queue correctly; the tutorial/reign/game-over overlays don't realistically co-occur in real play). Real gap: the tribute panel (correctly NOT paused — it's a decide-at-leisure ultimatum per iter275/276; a prototyped pause was reverted as it'd softlock a poor ruler into Refuse) offered only Accept (often disabled when broke) + Refuse (consequential), cornering a poor/busy ruler. Fix: added a "Decide Later" dismiss — demand stays unfulfilled (no spend/peace/grievance), re-presents on return (iter276) or pays once funds allow. Ev: on-screen 3-button panel (SR_DIPLO_DEMO); TestDiplomacyTribute 29/0, TestDiplomacyRepresent 11/0, TestPhase6 104/0.
 - **(Durable, older — see Current Targets):** Day-100 FLOOR multi-seed survival; Reeve→King climb on 5 seeds ≤113d; late-game coalition-vs-leader; on-screen in-city FLOOR survival (iter158).
+
+---
+
+## Iteration 290 — 2026-06-22  (PERFORMANCE — profiled simulate_tick; CitizenSystem dominates; safe separation cull)
+
+The non-gated substantive option (the objective lists "Performance concerns"; the sim hadn't been profiled since
+the iter127/264 combat opts). Built a reusable benchmark — **`tools/BenchTick.gd`** — that stands up a heavy
+seat (60 citizens, 14 staffed buildings, 24 player + 24 enemy units, a wildlife herd) and times steady-state
+ticks with variant + per-phase attribution.
+
+- **Finding — the citizen economy IS the sim cost:** per-phase timing on the heavy state — `_tick_player_economy`
+  **18 µs**, `_tick_player_unit_movement` **132 µs**, `_tick_force_units` (a 24-unit warband) **45 µs**,
+  `WildlifeSystem.tick` **334 µs**, `_gather_wildlife_threats` **17 µs** — all cheap. `CitizenSystem.tick` is
+  **~95% of the whole tick**, and it's the ONLY phase that scales with population (~250 µs/citizen; 60 citizens ≈
+  18 ms/tick). Combat is well-optimized (iter127/264 held up). Driven by per-target A* re-pathing (the hauling
+  cycle re-targets often, and the crowd-separation push knocks pawns off their cached waypoint → re-path) plus the
+  O(n²) separation scan. (Absolute ms is an upper bound — hand-placed real towns path less than the benchmark's
+  clumped spawn — but the SHAPE, citizen-tick = ~all of it, is unambiguous.)
+- **Safe optimization shipped:** `CitizenSystem._separation` computed a `length()` **sqrt for every citizen PAIR**
+  each tick (O(n²)), even the far-apart majority that contribute nothing. Now it culls by SQUARED distance first and
+  only sqrt's the nearby pushing pairs — **behaviour-identical**, just skips the wasted roots (helps more as towns
+  grow). Validated: TestEconomy 18/0, TestWorkers 21/0, TestPeople 21/0, TestNeeds 23/0, TestChat 4/0,
+  TestTownAgents 16/0 — the hauling/lifecycle behaviour is unchanged.
+- **Logged a known-limitation / future target** (see Active Backlog): the citizen-tick A* re-path frequency is the
+  real scaling cost for very large/late-game towns at fast speed — a deeper, behaviour-coupled optimization (path
+  re-use throttle / move-cooldown gating / a spatial index for separation) that wants careful planning + on-screen
+  validation, NOT a blind change to the most behaviour-critical system. The benchmark tool now gives it a baseline.
 
 ---
 

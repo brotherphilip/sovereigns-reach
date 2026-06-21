@@ -1175,14 +1175,20 @@ static func _separation(c: Dictionary, citizens: Array) -> Vector2:
 	var push := Vector2.ZERO
 	var p := Vector2(c["x"], c["y"])
 	var cid: int = int(c.get("id", -1))
+	# Cull by SQUARED distance before the sqrt. This runs for every citizen PAIR each tick (it's
+	# O(n²) — _step_to calls it per moving pawn), and almost all pairs are far apart and contribute
+	# nothing — yet the old code paid for a `length()` sqrt on every one. Now only the nearby pairs
+	# that actually push take the sqrt. Behaviour-identical; just skips wasted roots. (iter290)
+	var sep_sq: float = SEP_RADIUS * SEP_RADIUS
 	for o in citizens:
 		if not (o is Dictionary and o.get("is_alive", false)):
 			continue
 		if int(o.get("id", -2)) == cid:
 			continue
 		var d := p - Vector2(o["x"], o["y"])
-		var dl := d.length()
-		if dl > 0.001 and dl < SEP_RADIUS:
+		var dsq := d.length_squared()
+		if dsq > 0.000001 and dsq < sep_sq:
+			var dl := sqrt(dsq)
 			push += (d / dl) * ((SEP_RADIUS - dl) / SEP_RADIUS)
 	return push
 

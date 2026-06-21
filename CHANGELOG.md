@@ -2,6 +2,21 @@
 
 ---
 
+## 2026-06-22 — Profiled the simulation; trimmed wasted math in villager crowd-avoidance (iter290)
+
+- **[Performance] Faster villager separation:** profiled the game's per-tick simulation (new dev benchmark
+  `tools/BenchTick.gd`) and found the villager/economy update dominates the cost, while combat, buildings, and
+  wildlife are cheap. Trimmed an avoidable square-root in the villagers' crowd-avoidance math (it was run for every
+  pair of villagers each tick, even ones nowhere near each other) — now only the genuinely-close pairs do the full
+  calculation. Behaviour is identical; it just stops doing wasted work, and the saving grows with town size.
+- The profiling flagged the villagers' path-finding frequency as the main thing that gets heavy in very large
+  late-game towns at fast speed — logged as a known limitation with a baseline benchmark, to be optimized carefully
+  later rather than risk the hauling economy with a blind change.
+- **Validated:** the economy, worker, people, needs, chat, and town-roster tests all pass (behaviour unchanged).
+  (simulation/world/CitizenSystem.gd, tools/BenchTick.gd.)
+
+---
+
 ## 2026-06-22 — The well is now a recognizable well (iter288)
 
 - **[Visual polish] Wells are legible again:** the well used to render as a tiny disc that vanished among the
