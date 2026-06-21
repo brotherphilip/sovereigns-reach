@@ -157,6 +157,19 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 309 — 2026-06-22  (REGRESSION REVIEW — 24-suite sweep after iter294–308: 620/0, all green)
+
+Autonomous cycle, REGRESSION-REVIEW phase. After ~15 iterations of changes (siege physicalization, the full fire
+arc, save/load fixes, dead-code removal, feedback alerts, self-repair), ran a broad sweep of every suite touching
+those areas — **24 suites, 620 assertions, 0 failures** (TestSiege/Reach/Physical, Survival, StrategicAI, People,
+Needs, Workers, Economy, Phase2/4/7, SaveLoad/Citizens/SeatPersistence, Refound, DiseaseAlert, FireAlert,
+ShireLossAlert, BuildingRepair, Pathfinding, UnitAI, Objectives, Paths). Plus a clean ~18s live autoplay-grow run
+(zero runtime errors) and both CityView + WorldMap scenes booting. No regressions from any of iter294–308. Recorded
+in the `test-suite-state` memory. (No code change — verification milestone; full 55-suite sweep still worth a periodic
+re-run as the focused sweep skipped the untouched suites.)
+
+---
+
 ## Iteration 308 — 2026-06-22  (MISSING RECOVERY — non-seat buildings now self-repair scrapes; HP bar clears)
 
 Autonomous cycle. Tied back to the user's ORIGINAL "empty bar above buildings" report: a non-seat building scraped by
