@@ -108,7 +108,7 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 ## Live Backlog & Resolved Index  (compacted iter201 — Phase 1 reads THIS; the per-iteration `### Active Backlog` blocks in Run History below are historical snapshots, superseded here. iter201 compact: collapsed the scattered art items → one line + the SR_SEASON/SR_SEED dev hooks → one line; verified no Active/Resolved overlap; Run History untouched)
 
 ### Active Backlog (Base Game) — deduplicated
-- **[QA — open, ROOT-CAUSED iter263] TestSpectatorTroops — spectator siege battle doesn't fight.** A spectated besieged city spawns both forces but exchanges ZERO casualties (a tableau, not the iter108 live battle). **Root cause (via `tools/ProbeSpectatorSiege.gd`):** the besiegers correctly march in, acquire ATTACK orders, and close to **min_gap 3.6** by day ~14 — then STALL: they're melee (range 0) but the garrison defenders muster at the town CENTRE, walled in by the spectated city's buildings, so the besiegers can't path the last few tiles to melee contact. Two coupled problems: **(a) engagement** — the forces aren't in mutually-reachable open ground; **(b) perf** — `_tick_unit_attack` does an expensive FAILING A* (whole-map explore) every step toward an unreachable target. **iter263 fix attempt REVERTED:** mustering defenders "forward" via `_nearest_free_cell` snapped them into an isolated open POCKET (still unreachable) AND made the besiegers fail-A* from day 0 → ~4× sim slowdown (would slow real spectated sieges). **Robust fix (next):** stage BOTH forces in a VERIFIED mutually-reachable clearing (e.g. place defenders on tiles along a besieger→keep path, or flood-fill a shared open area), AND/OR make `_tick_unit_attack` back off when `find_path` returns empty (a general perf win). Probe + precise repro committed.
+- **✅ [QA — RESOLVED iter264] TestSpectatorTroops — spectator siege battle now fights (10/0).** Was: a spectated besieged city exchanged ZERO casualties (a tableau). Root cause (iter263 via `tools/ProbeSpectatorSiege.gd`): besiegers stall at min_gap 3.6 — melee (range 0), but the garrison mustered at the building-packed town CENTRE so they couldn't path the last few tiles in; AND `_tick_unit_attack` re-ran a whole-map FAILING A* EVERY tick toward the unreachable target (a successful step sets the move cooldown, a failed pathfind didn't), a real hotspot. **Two-part fix (iter264):** (1) the failing-A* perf guard — set `step_cd` on an empty path so the retry is throttled to the normal step cadence (general win, also in `_tick_unit_patrol`; no behaviour change for reachable targets); (2) muster the garrison FORWARD on open ground toward the attackers when besieged so the besiegers reach them — they charge in and fall to the militia's retaliation → casualties. (iter263's identical forward-muster *appeared* broken only because the missing guard made the sim too slow to ever progress past day 0.) Validated: TestSpectatorTroops 10/0 (was 9/1); the probe runs the forward-muster scenario ~10× faster (>90s→9.5s/12 days). Possible future polish: tick the defenders too for a fully two-sided clash (the guard now makes that cheap).
 - **[QA — open from iter262] TestSiege impractically slow (>5 min).** Bounded (no hang) but runs ~110k full `simulate_tick`s (460 game-days); per-tick cost grew with NeedsSystem/forest/wildlife. Effectively un-runnable in a normal suite (this is why suite drift hid). Fix: shrink day-windows that still cross siege thresholds, OR a siege-only fast-sim path, OR profile+cut per-tick cost.
 - **Phase 2 (deferred, user-agreed): physical AI cities** — prototype ONE AI city running CitizenSystem hauling; measure FPS/tick cost before committing.
 - **Visual polish (POLISH):** WALL colours still cluster (tan-timber / grey-stone / wood-plank); `market` reads sparse and `well` is tiny at play-zoom. ✅ **iter258: winter roof snow landed** — the shared roof primitives (`_gable`/`_hip`/`_cone`, covering 28 building types) now lay a pale dusting on their upper faces in winter, so the town reads wintry alongside the already-snowy terrain+trees (resolves the iter245 incongruity: ground/trees snowed but roofs stayed summer-bright). The dusting hugs the ridge/apex and leaves the eaves clear, so each roof's type-distinguishing colour still reads. ✅ **iter259 extended it to the defensive perimeter** — snow-capped crenellations (`_merlons` → keep/great_tower/stone_wall/gatehouse), dusted wall-walks/parapets (`_snow_top`), snow-tipped palisade stakes, and a snowcap on the watchtower's thatch hip — so the walls/towers (which bypass the roof primitives) now join the winter scene too. (Roofs diversified iter175; villager tunics iter191; watchtower rebuilt iter193.)
@@ -140,6 +140,41 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 - **Intermediate-clog PREVENTION (iter205, follow-up):** the deeper root of the woodcutter freeze — a `wheat_farm`/`hops_farm` with no `mill`/`brewery` banks an intermediate that's useless and only clogs the shared raw pool. Now such a farm TENDS its rows but banks nothing until its processor exists (`CitizenSystem._farm_output_blocked`), so a new player's wheat farm can't silently strangle their wood/stone economy. Ev: ProbeWoodcutter — wood now flows continuously (0→465 climbing, wheat stays 0) where it previously froze at 113; TestEconomy 18/0.
 - **Painted building sprites (iter203):** buildings can now wear hand-painted iso art over the procedural model (`view/micro/BuildingSpriteOverlay.gd`, additive — finished buildings only, auto procedural fallback). First asset: a detailed **Village Hall** replacing the flat procedural roof-diamond. Local ComfyUI art pipeline in `tools/artgen/`; raw candidate renders (multi-GB) git-ignored, only chosen source + keyed sprite committed. Ev: before/after `_SpriteTrial.tscn` render + in-world placement (Xvfb), TestSurvival 6/0.
 - **(Durable, older — see Current Targets):** Day-100 FLOOR multi-seed survival; Reeve→King climb on 5 seeds ≤113d; late-game coalition-vs-leader; on-screen in-city FLOOR survival (iter158).
+
+---
+
+## Iteration 264 — 2026-06-21  (SHIP — failing-A* perf guard FIXES the spectator-siege battle; TestSpectatorTroops 9/1→10/0)
+
+Built on iter263's root cause. The breakthrough: iter263 blamed the forward-muster engagement fix, but the
+REAL blocker was a hidden perf bug — and fixing it revealed the muster had worked all along.
+
+### Root cause (the perf half iter263 under-weighted)
+In `_tick_unit_attack`, a unit chasing an out-of-range target only sets its move cooldown via a SUCCESSFUL
+`_advance_step`. When the target is UNREACHABLE, `Pathfinder.find_path` returns empty → no step → `step_cd`
+stays 0 → it re-runs the whole-map failing A* **every tick** (not every step-cooldown). A force blocked from
+its target (besiegers vs walled-in defenders) pegs the CPU — this is what made iter263's forward-muster run
+~10× too slow (couldn't finish day 1 in 20s), so the sim never progressed far enough to show that the
+besiegers actually do reach forward-mustered defenders and die.
+
+### Fix (two parts)
+1. **Perf guard** (`_tick_unit_attack` + `_tick_unit_patrol`): on an empty `find_path`, set
+   `step_cd = _unit_step_ticks(...)` so the failing retry is throttled to the normal step cadence. ZERO
+   behaviour change for reachable targets (they advance, which already sets the cooldown); strictly fewer A*
+   calls for unreachable ones. A general hotspot fix (helps any walled-in siege, not just spectator).
+2. **Forward muster** (`_spawn_spectator_military`): when besieged, the garrison forms up FORWARD on open
+   ground toward the attackers (snapped to a free, unbuilt cell) instead of buried in the building-packed
+   centre — so the melee besiegers can reach them. They charge and fall to the militia's retaliation.
+
+### Validation
+- **TestSpectatorTroops 9/1 → 10/0** ("the besieging battle is fought" now PASSES), runs in 21s.
+- Perf proven via `ProbeSpectatorSiege`: the forward-muster scenario that took >90s/12 days (iter263, no
+  guard) now runs **9.5s/12 days** (~10×), and the besiegers visibly fall (10→2 alive).
+- Combat-regression sweep GREEN: TestUnitAI 23/0, TestMarchArmy 11/0, TestPathfinding 17/0,
+  TestStrategicAI 91/0, TestSurvival 6/0 (TestSiege running).
+
+### Files
+- `simulation/core/GameState.gd` — failing-A* guard (attack + patrol); besieged garrison forward-muster.
+- `tools/ProbeSpectatorSiege.gd` — the diagnostic that cracked it (kept).
 
 ---
 

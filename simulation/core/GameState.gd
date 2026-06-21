@@ -934,6 +934,10 @@ func _tick_unit_patrol(owner: Dictionary, unit: Dictionary, tick: int, tpd: int,
 	var path: Array = Pathfinder.find_path(_grid, unit.get("pos_x", 0), unit.get("pos_y", 0), wx, wy)
 	if not path.is_empty():
 		_advance_step(owner, unit, path[0][0], path[0][1], tpd)
+	else:
+		# Waypoint unreachable: throttle the retry to the step cadence so a blocked patroller
+		# doesn't re-run the whole-map A* every tick (same guard as the attack-move path).
+		unit["step_cd"] = _unit_step_ticks(owner, unit, tpd)
 
 # S2: advance a unit's barracks training. Required time scales down with the
 # training_rate_bonus tech modifier (GDD §7.3 / training_speed tech). On
@@ -1137,6 +1141,12 @@ func _tick_unit_attack(owner: Dictionary, unit: Dictionary, tick: int, ticks_per
 		var path: Array = Pathfinder.find_path(_grid, ux, uy, tx, ty)
 		if not path.is_empty():
 			_advance_step(owner, unit, path[0][0], path[0][1], ticks_per_day)
+		else:
+			# Target UNREACHABLE (e.g. walled off behind buildings): a successful step sets the
+			# move cooldown, but a FAILED pathfind doesn't — so without this the unit re-runs the
+			# whole-map A* EVERY tick, a real hotspot when a force is blocked from its target
+			# (iter263 spectator-siege slowdown). Throttle the retry to the normal step cadence.
+			unit["step_cd"] = _unit_step_ticks(owner, unit, ticks_per_day)
 		return
 
 	# In range: strike on a steady cadence (~8 strikes per game-day).
@@ -1641,22 +1651,32 @@ func _spawn_spectator_military(city: Dictionary, cx: int, cy: int) -> void:
 	players[0]["keep_x"] = cx
 	players[0]["keep_y"] = cy
 	var owner_fid: int = CampaignMap.owner_of(city)
+	# Detect a besieging army FIRST so the garrison can form up to meet it.
+	ai_factions = []
+	var siege: Dictionary = _find_besieging_army(city.get("id", -1), owner_fid)
+	var besieged: bool = not siege.is_empty()
 	# ── Home garrison → visible defenders (rendered as the town's own units). ──
+	# When besieged they muster FORWARD on OPEN ground toward the attackers (snapped to a free,
+	# unbuilt cell) rather than buried in the building-packed centre — otherwise the melee besiegers
+	# can't path the last few tiles in and the "live battle" stalls as a tableau (iter263/264).
+	# Otherwise they stand near the town centre.
 	var garrison: int = int(city.get("garrison", 0))
 	var n_def: int = clampi(garrison / 4, 0, 12)
 	var defenders: Array = []
 	for i in range(n_def):
 		var dx: int = cx - 3 + (i % 4) * 2
 		var dy: int = cy - 2 + (i / 4) * 2
+		if besieged:
+			var fwd := _nearest_free_cell(cx + 5 - 2 + (i % 4) * 2, cy + 3 - 1 + (i / 4) * 2)
+			if fwd.x >= 0:
+				dx = fwd.x; dy = fwd.y
 		var u: Dictionary = UnitState.create("militia", 0, dx, dy, _next_unit_id)
 		if not u.is_empty():
 			_next_unit_id += 1
 			defenders.append(u)
 	players[0]["units"] = defenders
 	# ── A hostile army targeting this city → visible besiegers at the gates. ──
-	ai_factions = []
-	var siege: Dictionary = _find_besieging_army(city.get("id", -1), owner_fid)
-	if not siege.is_empty():
+	if besieged:
 		var army: Dictionary = siege["army"]
 		var kingdom: Dictionary = siege["kingdom"]
 		var n_atk: int = clampi(int(army.get("size", 0)) / 4, 1, 12)

@@ -2,6 +2,20 @@
 
 ---
 
+## 2026-06-21 — Spectator siege battle fixed + combat perf guard (iter264)
+
+- **[Perf] Failing-pathfind guard:** a unit chasing an UNREACHABLE target (e.g. besiegers walled off
+  from defenders) used to re-run a whole-map A* every tick — only a successful step set the move
+  cooldown, a failed pathfind didn't. Now a failed `find_path` sets the step cooldown too, throttling
+  the retry to the normal cadence (in both `_tick_unit_attack` and `_tick_unit_patrol`). No behaviour
+  change for reachable targets; a real hotspot fix for any blocked siege.
+- **[Bug fix] Spectated siege now plays a real battle:** when you watch a besieged city, the garrison
+  now musters forward on open ground to meet the attackers (instead of buried in the town's buildings
+  where the melee besiegers couldn't reach them). The besiegers charge and fall — a live clash, not a
+  frozen tableau. (TestSpectatorTroops 9/1 → 10/0.) (simulation/core/GameState.gd.)
+
+---
+
 ## 2026-06-21 — Full-suite truth check + fixes (iter262)
 
 - **[Bug fix] Game-speed clamp:** `set_speed` clamped stray/overflow values up to the ×20 DEBUG turbo
