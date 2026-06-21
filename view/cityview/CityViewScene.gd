@@ -1088,14 +1088,31 @@ func _on_unit_killed(unit_id: int, _killer_id: int, cause: String) -> void:
 			_hud.show_notification("Unit lost: %s (%s)" % [unit.get("type", "?"), cause], 3.0)
 			return
 
-func _on_building_destroyed(player_id: int, building_id: int, _cause: String) -> void:
+func _on_building_destroyed(player_id: int, building_id: int, cause: String) -> void:
 	if player_id != 0 or GameState.players.size() == 0: return
 	for bld in GameState.players[0].get("buildings", []):
 		if bld is Dictionary and bld.get("id", -1) == building_id:
 			var btype: String = bld.get("type", "")
-			_hud.show_notification("Building destroyed: %s!" % btype, 4.0)
 			if btype == "village_hall" or btype == "keep":
 				_show_game_over(false, "Your keep has fallen! The realm is lost.")
+				return
+			# Cause-aware, display-named loss notice (a hovel quietly vanishing reads as a glitch;
+			# "🔥 Your Hovel burned down" is unmistakable). iter305.
+			var BReg = preload("res://simulation/buildings/BuildingRegistry.gd")
+			var nm: String = BReg.lookup(btype).get("name", btype)
+			var msg: String
+			var col: Color
+			match cause:
+				"fire":
+					msg = "🔥 Your %s burned down." % nm
+					col = Color(1.0, 0.5, 0.2)
+				"siege":
+					msg = "⚔ Your %s was destroyed in the assault." % nm
+					col = Color(1.0, 0.45, 0.4)
+				_:
+					msg = "Your %s was destroyed." % nm
+					col = Color(1.0, 0.6, 0.4)
+			_hud.show_notification(msg, 4.5, col)
 			return
 
 func _on_ai_faction_defeated(faction_id: int) -> void:
