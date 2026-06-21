@@ -2,6 +2,15 @@
 
 ---
 
+## 2026-06-22 — Settlements now look busy and lived-in (iter311)
+
+- **[Visual] Yard clutter around buildings:** barrels, crates, sacks and stacked logs now sit at the fronts of your
+  buildings — woodcutters and workshops get log piles, the granary and bakery get grain sacks, the brewery and inn get
+  barrels, and so on. Combined with the worn-earth ground, your town reads as a busy, working place instead of tidy
+  empty boxes on a lawn. First-step visual pass continues.
+
+---
+
 ## 2026-06-22 — Buildings now sit on worn ground, not a lawn (iter310)
 
 - **[Visual] Structures look planted in the world:** every building now stands on a patch of trodden, packed earth

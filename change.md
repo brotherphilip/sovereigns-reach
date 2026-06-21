@@ -157,6 +157,20 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 311 — 2026-06-22  (AESTHETICS #2 — ambient yard props: barrels/crates/sacks/logs at building fronts)
+
+Continuing the visual-detail directive (iterative, render-verified). Added `BuildingModels._props` (called at the end
+of `draw_finished`, after the model so props sit in FRONT): deterministic per-tile, btype-flavoured scatter of 1–2
+yard props at a building's front corners — barrels, crates, sack-piles, log-piles — so the village reads as a busy,
+working, lived-in place. Reuses the file's EXISTING prop primitives (`_crate`/`_barrel`/`_sack`/`_log`) via a new
+`_prop` dispatcher + soft contact shadows; excludes walls/towers/fields/well/stockpile/pitch_rig (`_NO_PROP_BTYPES`).
+Woodcutters/workshops → log-piles, granary/bakery/mill → sacks, brewery/inn/tannery → barrels, others a generic mix.
+(Mid-cycle catch: the first draft DUPLICATED the existing `_barrel`/`_crate` → parse error; reused the existing
+primitives instead — a reminder to grep a 1348-line file for name clashes before adding.) Verified on a rendered
+autoplay-grow town (props clearly visible at market/granary/hall, grounded on the iter310 earth pads). View-only.
+
+---
+
 ## Iteration 310 — 2026-06-22  (AESTHETICS #1 — trodden-earth foundation pads ground every structure)
 
 **New standing user directive** (see memory `directive-variety-and-aesthetics`): (1) add emergent/unexpected gameplay
