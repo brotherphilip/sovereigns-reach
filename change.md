@@ -143,6 +143,28 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 272 — 2026-06-22  (BUG — the symmetric DEFEAT screen was also missing on the world map)
+
+The iter271 sibling I flagged: `player_realm_lost` (your LAST holding captured — the strategic loss
+condition) fires from the same strategic tick that runs on the world map, but its game-over was likewise
+wired ONLY in `CityViewScene`. So a realm wiped out on the map (rivals taking your final city — exactly
+where that happens) presented **no DEFEAT screen** — the run just… ended silently.
+
+- **Fix:** generalised iter271's `_show_victory` into `WorldMapScene._show_endgame(victory, message)`
+  (mirrors `CityViewScene._show_game_over`: gold "VICTORY!" border vs dark-red "DEFEAT"), and connected
+  `EventBus.player_realm_lost` → `_show_endgame(false, "Your last holding has fallen…")`. One-shot
+  (`_endgame_shown`); pauses the realm; Main-Menu button.
+- **Validated (Xvfb):** both panels render correctly — gold VICTORY (regression after the generalise) and
+  the new dark-red DEFEAT — via the `SR_WINTEST` hook (now `SR_WINTEST=defeat` previews the loss). Clean
+  boot. View-only.
+- Both world-map end-game outcomes now present wherever they're reached — the climb to King AND the
+  collapse to nothing both happen on this map.
+
+### Files
+- `view/worldmap/WorldMapScene.gd` — `_show_endgame` + `player_realm_lost` wiring + `SR_WINTEST=defeat`.
+
+---
+
 ## Iteration 271 — 2026-06-22  (BUG — the KING WIN screen never showed when you won on the world map)
 
 Following the iter270 world-map feedback thread, found a more serious sibling: the feudal-title promotion

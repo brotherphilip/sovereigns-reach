@@ -9,7 +9,7 @@ var _world_view: Control = null
 
 var _loading_canvas: CanvasLayer = null
 var _event_feed: Panel = null            # strategic realm_notice feed (iter270)
-var _victory_shown: bool = false         # the King-win screen fires at most once (iter271)
+var _endgame_shown: bool = false         # the win/defeat screen fires at most once (iter271/272)
 
 # "Watch the campaign" live strategic ticker.
 var _watching: bool = false
@@ -96,10 +96,14 @@ func _init_and_build() -> void:
 
 	_refresh_watch_btn()
 
-	# Dev/headless hook: preview the King WIN screen on the world map (the case this scene must
-	# present now that promotions fire here, not only in the city view).
+	# Dev/headless hook: preview the world-map end-game screens (the win/defeat this scene must now
+	# present, since both the climb to King and the loss of the last holding happen here). Use
+	# SR_WINTEST=defeat for the DEFEAT panel, anything else for the King VICTORY panel.
 	if OS.get_environment("SR_WINTEST") != "":
-		_on_title_promoted(6, "King")
+		if OS.get_environment("SR_WINTEST") == "defeat":
+			_show_endgame(false, "Your last holding has fallen. Your domain is no more.")
+		else:
+			_on_title_promoted(6, "King")
 
 	# Dev/headless hook: fast-forward the shared clock (used for screenshots).
 	if OS.get_environment("SR_AUTOWATCH") != "":
@@ -423,6 +427,10 @@ func _build_scene() -> void:
 	# is on this map — but the celebration + the King WIN screen were wired only in CityViewScene, so
 	# climbing to King by capturing the final city on the MAP showed nothing. Handle it here too.
 	EventBus.title_promoted.connect(_on_title_promoted)
+	# Symmetric DEFEAT: losing your LAST holding also happens on the map (rivals capture your cities
+	# during the strategic tick); that game-over was likewise city-view-only (iter272).
+	EventBus.player_realm_lost.connect(func():
+		_show_endgame(false, "Your last holding has fallen. Your domain is no more."))
 
 # Gold-bordered parchment styling for the bottom action buttons. The default theme
 # rendered them near-transparent over the busy map terrain (Raise/March/Diplomacy
@@ -776,17 +784,18 @@ func _on_title_promoted(_title_index: int, title_name: String) -> void:
 	if is_instance_valid(_event_feed):
 		_event_feed.push("👑 You have risen to %s!" % title_name, 8.0, Color(1.0, 0.85, 0.3))
 	if title_name == "King":
-		_show_victory("You have risen to KING — the realm is yours!")
+		_show_endgame(true, "You have risen to KING — the realm is yours!")
 
-# Minimal victory overlay (the world map has no game-over panel of its own). Pauses the realm,
-# congratulates the new sovereign, and offers a return to the main menu / a fresh game.
-func _show_victory(message: String) -> void:
-	if _victory_shown:
+# Minimal end-game overlay (the world map has no game-over panel of its own). Pauses the realm and
+# presents the win (King) or defeat (last holding lost), mirroring CityViewScene._show_game_over so
+# both outcomes present wherever they're reached — the climb AND the collapse happen on this map.
+func _show_endgame(victory: bool, message: String) -> void:
+	if _endgame_shown:
 		return
-	_victory_shown = true
+	_endgame_shown = true
 	SimulationClock.set_speed(SimulationClock.SPEED_PAUSED)
 	var overlay := CanvasLayer.new()
-	overlay.name = "VictoryOverlay"
+	overlay.name = "EndgameOverlay"
 	overlay.layer = 60
 	add_child(overlay)
 	var bg := ColorRect.new()
@@ -799,16 +808,16 @@ func _show_victory(message: String) -> void:
 	var style := StyleBoxFlat.new()
 	style.bg_color = Color(0.10, 0.12, 0.16, 0.98)
 	style.set_border_width_all(2)
-	style.border_color = Color.GOLD
+	style.border_color = Color.GOLD if victory else Color.DARK_RED
 	style.set_corner_radius_all(8)
 	panel.add_theme_stylebox_override("panel", style)
 	overlay.add_child(panel)
 	var title := Label.new()
-	title.text = "👑  VICTORY!"
+	title.text = "👑  VICTORY!" if victory else "DEFEAT"
 	title.position = Vector2(20, 24); title.size = Vector2(560, 50)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.add_theme_font_size_override("font_size", 32)
-	title.add_theme_color_override("font_color", Color.GOLD)
+	title.add_theme_color_override("font_color", Color.GOLD if victory else Color.ORANGE_RED)
 	panel.add_child(title)
 	var msg := Label.new()
 	msg.text = message; msg.position = Vector2(20, 92); msg.size = Vector2(560, 80)

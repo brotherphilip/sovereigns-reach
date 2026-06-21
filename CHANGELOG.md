@@ -2,6 +2,16 @@
 
 ---
 
+## 2026-06-22 — The defeat screen now shows when you lose on the world map (iter272)
+
+- **[Bug fix] The loss is no longer silent:** companion to iter271 — losing your last holding (the
+  strategic loss condition) happens on the world map as rivals take your final city, but the DEFEAT
+  screen was wired only in the city view, so a realm wiped on the map just ended silently. The world map
+  now raises a DEFEAT overlay (and the existing gold VICTORY one) for either outcome.
+  (view/worldmap/WorldMapScene.gd.)
+
+---
+
 ## 2026-06-22 — The King victory now shows when you win on the world map (iter271)
 
 - **[Bug fix] The win is no longer missed:** reaching King — the victory condition — is achieved by
