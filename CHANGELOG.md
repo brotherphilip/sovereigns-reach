@@ -2,6 +2,20 @@
 
 ---
 
+## 2026-06-21 — Full-suite truth check + fixes (iter262)
+
+- **[Bug fix] Game-speed clamp:** `set_speed` clamped stray/overflow values up to the ×20 DEBUG turbo
+  (contradicting its own "can't be hit by accident" intent). Now only an exact `SPEED_DEBUG` (the Alt+9
+  cheat) reaches turbo; everything else clamps to FASTEST. (simulation/core/SimulationClock.gd.)
+- **[Test health] Ran the full 41-suite suite** and found 5 silently-red suites (the "all green" claim
+  was stale — the suite goes unrun because TestSiege alone takes >5 min). Fixed: TestPhase1 (popularity
+  start is now 80, not 50), TestPhase2 (rivers now BLOCK / cross via bridge, not "wadeable"), TestPhase14
+  (used a fresh RNG per tick — pinned the chat-vs-wander roll; now uses one persistent RNG like the game).
+- **Logged for follow-up:** the spectator siege battle plays no combat (real regression), and TestSiege is
+  impractically slow — both inventoried in change.md.
+
+---
+
 ## 2026-06-21 — Market exploit fix + disease test isolation (iter261)
 
 - **[Exploit fix] Market self-arbitrage closed:** the sell-premium edict (+50%) and the buy-fee tech

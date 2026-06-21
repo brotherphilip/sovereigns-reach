@@ -103,7 +103,7 @@ func _test_game_state_init() -> void:
 
 	_ok(p["name"]        == "Lord Phillip", "player name set")
 	_ok(p["gold"]        == 400,            "starting gold 400")
-	_ok(p["popularity"]  == 50,             "starting popularity 50")
+	_ok(p["popularity"]  == 80,             "starting popularity 80 (a forgiving opening buffer)")
 	_ok(p["tax_rate"]    == 0,              "starting tax rate neutral (0)")
 	_ok(p["food_ration"] == 2,              "starting food ration normal (2)")
 	_ok(p["ale_ration"]  == 1,              "starting ale ration low (1)")

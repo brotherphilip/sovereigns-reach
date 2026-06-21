@@ -64,10 +64,14 @@ func _test_world_grid() -> void:
 	_ok(grid.get_terrain(10, 10) == WorldGrid.Terrain.FOREST, "set/get terrain FOREST")
 
 	grid.set_terrain(20, 20, WorldGrid.Terrain.RIVER)
-	# Water is now wadeable on foot (but very slow); horses/carts still can't ford.
-	_ok(grid.is_passable(20, 20, WorldGrid.PASSABLE_FOOT),        "river wadeable on foot")
-	_ok(not grid.is_passable(20, 20, WorldGrid.PASSABLE_CAVALRY), "river not passable for cavalry")
-	_ok(grid.get_move_cost(20, 20) > 3.0,                         "river greatly slows movement")
+	# Deep water now fully BLOCKS all movement — you cross only via a BRIDGE (BridgePlanner).
+	_ok(not grid.is_passable(20, 20, WorldGrid.PASSABLE_FOOT),    "river blocks foot (no fording)")
+	_ok(not grid.is_passable(20, 20, WorldGrid.PASSABLE_CAVALRY), "river blocks cavalry")
+	_ok(grid.get_move_cost(20, 20) > 3.0,                         "river is impassable terrain (high move cost)")
+	# A bridge laid over the water is the crossing — passable to foot and cavalry.
+	grid.set_terrain(20, 20, WorldGrid.Terrain.BRIDGE)
+	_ok(grid.is_passable(20, 20, WorldGrid.PASSABLE_FOOT),        "bridge carries foot across the water")
+	_ok(grid.is_passable(20, 20, WorldGrid.PASSABLE_CAVALRY),     "bridge carries cavalry across the water")
 	grid.set_terrain(21, 21, WorldGrid.Terrain.MOUNTAIN)
 	_ok(not grid.is_passable(21, 21, WorldGrid.PASSABLE_FOOT),    "mountain fully blocks foot")
 

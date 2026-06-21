@@ -34,8 +34,12 @@ func _run() -> void:
 	c0["state"] = CitizenSystem.STATE_IDLE
 	c0["state_ticks"] = 1
 	var saw_wander := false
+	# Use ONE persistent RNG across the loop (as the real game does — GameState._citizen_rng is
+	# seeded once). Re-seeding a fresh RNG every tick pins the chat-vs-wander roll to a fixed
+	# pattern and can starve the wander branch entirely — a test artifact, not real behaviour.
+	var rng := _rng(99)
 	for t in range(600):
-		CitizenSystem.tick(cz, [], _rng(t + 1), t)
+		CitizenSystem.tick(cz, [], rng, t)
 		if c0["state"] == CitizenSystem.STATE_WANDER:
 			saw_wander = true
 	ok("citizens idle→wander", saw_wander)

@@ -78,7 +78,14 @@ func _advance_tick() -> void:
 
 func set_speed(speed: int) -> void:
 	var old_speed: int = game_speed
-	game_speed = clampi(speed, SPEED_PAUSED, SPEED_DEBUG)
+	# SPEED_DEBUG (×20 turbo) is a deliberate cheat — reachable ONLY by passing it exactly (the
+	# Alt+9 hook), never by an out-of-range/overflow value, which tops out at FASTEST. This is
+	# what keeps the turbo "above the normal ceiling so it can't be hit by accident" (its stated
+	# intent): a stray set_speed(999) lands on FASTEST, not the ×20 debug speed.
+	if speed == SPEED_DEBUG:
+		game_speed = SPEED_DEBUG
+	else:
+		game_speed = clampi(speed, SPEED_PAUSED, SPEED_FASTEST)
 	if old_speed != game_speed:
 		EventBus.game_speed_changed.emit(SPEED_MULTIPLIERS.get(game_speed, 1.0))
 

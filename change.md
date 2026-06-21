@@ -108,6 +108,8 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 ## Live Backlog & Resolved Index  (compacted iter201 — Phase 1 reads THIS; the per-iteration `### Active Backlog` blocks in Run History below are historical snapshots, superseded here. iter201 compact: collapsed the scattered art items → one line + the SR_SEASON/SR_SEED dev hooks → one line; verified no Active/Resolved overlap; Run History untouched)
 
 ### Active Backlog (Base Game) — deduplicated
+- **[QA — open from iter262 full-suite audit] TestSpectatorTroops — spectator siege battle doesn't fight.** When spectating a besieged city, besiegers + garrison spawn correctly but exchange ZERO casualties over 25 days (a tableau, not the intended live battle, iter108). Narrowed to `GameState.simulate_tick` spectator combat branch (~L1309–1317). Needs instrumented debugging (besieger positions/orders over the sim) — a focused next iteration.
+- **[QA — open from iter262] TestSiege impractically slow (>5 min).** Bounded (no hang) but runs ~110k full `simulate_tick`s (460 game-days); per-tick cost grew with NeedsSystem/forest/wildlife. Effectively un-runnable in a normal suite (this is why suite drift hid). Fix: shrink day-windows that still cross siege thresholds, OR a siege-only fast-sim path, OR profile+cut per-tick cost.
 - **Phase 2 (deferred, user-agreed): physical AI cities** — prototype ONE AI city running CitizenSystem hauling; measure FPS/tick cost before committing.
 - **Visual polish (POLISH):** WALL colours still cluster (tan-timber / grey-stone / wood-plank); `market` reads sparse and `well` is tiny at play-zoom. ✅ **iter258: winter roof snow landed** — the shared roof primitives (`_gable`/`_hip`/`_cone`, covering 28 building types) now lay a pale dusting on their upper faces in winter, so the town reads wintry alongside the already-snowy terrain+trees (resolves the iter245 incongruity: ground/trees snowed but roofs stayed summer-bright). The dusting hugs the ridge/apex and leaves the eaves clear, so each roof's type-distinguishing colour still reads. ✅ **iter259 extended it to the defensive perimeter** — snow-capped crenellations (`_merlons` → keep/great_tower/stone_wall/gatehouse), dusted wall-walks/parapets (`_snow_top`), snow-tipped palisade stakes, and a snowcap on the watchtower's thatch hip — so the walls/towers (which bypass the roof primitives) now join the winter scene too. (Roofs diversified iter175; villager tunics iter191; watchtower rebuilt iter193.)
 - **OBSERVATION — night dead-space (taste, needs USER call, NOT a bug):** deep-night `NightLayer.MAX_DARK = 0.92` (near-black away from lamps) + depopulated night (skeleton crew) ⇒ ~5 min/cycle dark+empty. Soften MAX_DARK or add night ambient life only if the user wants less dead time.
@@ -138,6 +140,53 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 - **Intermediate-clog PREVENTION (iter205, follow-up):** the deeper root of the woodcutter freeze — a `wheat_farm`/`hops_farm` with no `mill`/`brewery` banks an intermediate that's useless and only clogs the shared raw pool. Now such a farm TENDS its rows but banks nothing until its processor exists (`CitizenSystem._farm_output_blocked`), so a new player's wheat farm can't silently strangle their wood/stone economy. Ev: ProbeWoodcutter — wood now flows continuously (0→465 climbing, wheat stays 0) where it previously froze at 113; TestEconomy 18/0.
 - **Painted building sprites (iter203):** buildings can now wear hand-painted iso art over the procedural model (`view/micro/BuildingSpriteOverlay.gd`, additive — finished buildings only, auto procedural fallback). First asset: a detailed **Village Hall** replacing the flat procedural roof-diamond. Local ComfyUI art pipeline in `tools/artgen/`; raw candidate renders (multi-GB) git-ignored, only chosen source + keyed sprite committed. Ev: before/after `_SpriteTrial.tscn` render + in-world placement (Xvfb), TestSurvival 6/0.
 - **(Durable, older — see Current Targets):** Day-100 FLOOR multi-seed survival; Reeve→King climb on 5 seeds ≤113d; late-game coalition-vs-leader; on-screen in-city FLOOR survival (iter158).
+
+---
+
+## Iteration 262 — 2026-06-21  (FULL-SUITE TRUTH CHECK — the "41 suites green" claim was STALE; 5 suites were red)
+
+iter261 found a silently-red test, so I ran the WHOLE suite (41 files, background). Result: **5 genuinely
+red suites** (the docs/bibliography claimed all green). Root reason the drift went unnoticed: **TestSiege
+alone takes >5 min** (460 game-days × full `simulate_tick`), so nobody runs the full suite. Triaged each as
+real-bug vs stale/fragile-test and fixed 4; inventoried 2 deeper ones.
+
+### FIXED this iteration
+- **[REAL CODE BUG] Speed clamp let stray values hit ×20 debug turbo.** `SimulationClock.set_speed` clamped
+  to `[PAUSED, SPEED_DEBUG]`, so `set_speed(999)` (or any value ≥4) landed on SPEED_DEBUG — contradicting the
+  code's own comment that DEBUG is "above the normal ceiling so it can't be hit by accident." Fix: only an
+  EXACT `SPEED_DEBUG` reaches turbo (the Alt+9 cheat); every other value clamps to FASTEST. (TestPhase1's
+  `set_speed(999)→FASTEST` assertion was correct all along — the code had drifted when DEBUG was added.)
+- **[STALE TEST] TestPhase1 "starting popularity 50".** `initialize_player` now starts popularity at **80**
+  (a deliberate forgiving opening buffer) — updated the assertion.
+- **[STALE TEST] TestPhase2 "river wadeable on foot".** The design changed to **rivers fully BLOCK, cross via
+  BRIDGE** (`TERRAIN_PASSABILITY[RIVER]=0`); the test still asserted the old "wadeable but slow" rule. Rewrote
+  to assert rivers block foot+cavalry AND that a BRIDGE carries both across (+2 new assertions).
+- **[FRAGILE TEST] TestPhase14 "citizens idle→wander".** The test re-seeded a FRESH RNG every tick
+  (`_rng(t+1)`), pinning the chat-vs-wander roll to a fixed pattern that starved the wander branch. The real
+  game uses ONE persistent `_citizen_rng` (seeded once). Fixed the test to use a persistent RNG (mirrors real
+  play) — idle→wander now exercised. The idle→wander code was never broken.
+
+### INVENTORIED (deeper — for dedicated follow-up iterations)
+- **[TEST PERF] TestSiege is impractically slow (>5 min, exceeds even a 300s timeout).** Not a hang (bounded
+  loops) — it runs `_run_days(260)+100+100` = ~110k full `simulate_tick`s, and the per-tick cost has grown a
+  lot (NeedsSystem per-citizen iter257, living forest iter238, wildlife, lifecycle…). This is why the suite
+  drift hid. Fix candidates: shrink the day-windows while still crossing the siege thresholds, OR a
+  siege-only fast-sim path that skips the heavy economy/citizen systems, OR profile + cut per-tick cost.
+- **[REAL REGRESSION] TestSpectatorTroops "the besieging battle is fought (casualties occur)".** When
+  spectating a besieged city, both forces spawn correctly (besiegers ~8–10 tiles out, garrison at the centre;
+  all setup asserts pass) but exchange ZERO casualties over 25 game-days — a watcher sees a tableau, not the
+  intended live battle (iter108 feature). Narrowed to the spectator combat branch (`GameState.simulate_tick`
+  ~L1309–1317: only AI besiegers are ticked toward the centre; `_tick_unit_idle` should march + auto-aggro).
+  Next: instrument besieger positions/orders over the sim to find where engagement stalls (branch reached?
+  rally-ring keeps them off the defenders? aggro radius? attack resolution?).
+
+### Validation
+TestPhase1 69/0, TestPhase2 96/0, TestPhase14 14/0, TestSurvival 6/0 (sim unaffected by the clock change).
+Full re-sweep of the other 36 suites remained green in the audit run.
+
+### Files
+- `simulation/core/SimulationClock.gd` — speed-clamp fix. `tests/TestPhase1.gd` (popularity 80),
+  `tests/TestPhase2.gd` (rivers block + bridge), `tests/TestPhase14.gd` (persistent RNG).
 
 ---
 
