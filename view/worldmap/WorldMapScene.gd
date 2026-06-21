@@ -398,6 +398,21 @@ func _build_scene() -> void:
 	_world_view.city_selected.connect(_on_city_selected)
 	_world_view.army_inspected.connect(_on_army_inspected)
 
+	# Strategic event feed: surface the same realm_notice toasts the CITY HUD shows — campaign
+	# results ("⚔ Your host has taken X!", "X seized your city!"), plagues, low-stores warnings —
+	# so they aren't LOST while the player is on the world map (where they actually launch the
+	# campaigns whose outcomes these announce). Mirrors CityViewScene's realm_notice wiring;
+	# left side, under the top bar. The connection dies with the scene on the way back to a city.
+	var feed: Panel = preload("res://view/hud/NotificationFeed.gd").new()
+	feed.name = "WorldEventFeed"
+	feed.position = Vector2(8, 44)
+	canvas.add_child(feed)
+	EventBus.realm_notice.connect(func(text: String, tone: String):
+		var col: Color = Color(0.95, 0.85, 0.55)
+		if tone == "bad": col = Color(0.92, 0.6, 0.5)
+		elif tone == "good": col = Color(0.6, 0.9, 0.6)
+		feed.push("📜 " + text, 7.0, col))
+
 # Gold-bordered parchment styling for the bottom action buttons. The default theme
 # rendered them near-transparent over the busy map terrain (Raise/March/Diplomacy
 # labels floated illegibly); this gives each a solid dark backing + gold edge with

@@ -2,6 +2,15 @@
 
 ---
 
+## 2026-06-22 — Strategic event feed on the world map (iter270)
+
+- **[Missing-feedback fix] The world map now shows the event feed:** campaign results ("⚔ Your host has
+  taken X!", "Your assault on Y was thrown back"), captures, plagues and warnings used to appear only in
+  the city HUD — so while you were on the strategic map (where you launch campaigns) you saw nothing of
+  their outcomes. The world map now carries the same realm_notice feed. (view/worldmap/WorldMapScene.gd.)
+
+---
+
 ## 2026-06-22 — Choice-event reward re-banking fixed (iter269)
 
 - **[Exploit fix] World-event decisions can't be re-banked:** a World Event that offers a choice applies
