@@ -2,6 +2,19 @@
 
 ---
 
+## 2026-06-22 — A village that loses everyone can rise again (iter293)
+
+- **[Softlock fix] Wandering settlers refound a depopulated village:** if your settlement ever lost every last
+  villager (e.g. a late-game generation aging out faster than children replace them), it became a silent dead-end —
+  with no people there's no one to have children, so the population could never recover, and the game didn't treat
+  it as a defeat either. Now, when a settlement is fully emptied, a few wandering settlers arrive to refound it (with
+  an on-screen notice), so your realm endures and you get a fresh start. It's throttled so it's a rare safety net,
+  not a way to farm free population, and it never triggers while you still have people.
+- **Validated:** new `tests/TestRefound.gd` (6/0) plus a diagnostic probe confirm a fully-emptied settlement now
+  recovers; survival, people, needs, and objective tests pass unchanged. (simulation/core/GameState.gd.)
+
+---
+
 ## 2026-06-22 — More villager-update math hygiene; performance follow-up (iter291)
 
 - **[Performance] Another wasted square-root removed:** the villager movement code checked, every tick, whether a

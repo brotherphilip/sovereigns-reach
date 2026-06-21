@@ -633,6 +633,11 @@ func _tick_player_economy(player: Dictionary, tick: int) -> void:
 # S4: village hall / keep baseline housing. Hovels add their population_cap on top.
 const BASE_POPULATION_CAP: int = 50
 
+# Refounding safety net: a seat that drops to 0 population can't recover on its own (births need a
+# fertile pair) and there is no loss condition for it — so wandering settlers refound it. (iter293)
+const REFOUND_SETTLERS: int = 4          # settlers that arrive to refound a fully-depopulated seat
+const REFOUND_COOLDOWN_DAYS: int = 30    # min game-days between refoundings (a rare safety net, not free pop)
+
 # Maximum population the village can house: baseline (if a hall/keep exists) plus
 # every active building's population_cap output (hovels grant 8 each).
 func _get_population_cap(player: Dictionary) -> int:
@@ -1383,6 +1388,21 @@ func simulate_tick(tick: int) -> void:
 			var prev: int = players[0].get("population", 0)
 			players[0]["population"] = living
 			EventBus.population_changed.emit(0, prev, living)
+		# Refounding safety net (iter293): a seat that loses ALL its villagers (population 0) would
+		# otherwise sit in a PERMANENT LIMBO — births need a fertile pair so 0 can never recover on its
+		# own, yet there is NO loss condition for it (food isn't consumed and popularity doesn't read
+		# population, so the empty seat just persists, silent, with no way forward). Wandering settlers
+		# arrive to refound the village so the realm endures — rare (only when truly depopulated),
+		# throttled by a cooldown, aligned with the calm-realm directive.
+		if not spectator_mode and living == 0 and tick >= int(world.get("seat_refound_until", 0)):
+			_next_citizen_id = CitizenSystem.spawn(citizens, REFOUND_SETTLERS,
+				float(players[0].get("keep_x", 100)), float(players[0].get("keep_y", 100)),
+				_citizen_rng, _next_citizen_id)
+			_snap_citizens_to_grass()
+			players[0]["population"] = PeopleSystem.living_count(citizens)
+			world["seat_refound_until"] = tick + REFOUND_COOLDOWN_DAYS * SimulationClock.TICKS_PER_GAME_DAY
+			EventBus.realm_notice.emit(
+				"✦ Wandering settlers arrive and refound your village — your people endure.", "good")
 		# An AI-run town (the one being spectated) manages its own labour: it staffs its
 		# buildings from its workforce and raises hovels when it needs more workers — so
 		# its villagers visibly work, just like the player's.
