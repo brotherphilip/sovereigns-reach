@@ -2,6 +2,15 @@
 
 ---
 
+## 2026-06-22 — Two-sided spectator siege battle (iter266)
+
+- **[Polish] Spectated siege is now a real two-sided clash:** the besieged city's garrison now sallies
+  to meet the attackers (auto-aggros back) instead of standing passively and only retaliating, so a
+  watcher sees both sides maneuver and fight. Made cheap by the iter264 failing-A* guard; confined to
+  spectator mode (no effect on normal play). (simulation/core/GameState.gd; TestSpectatorTroops 10/0.)
+
+---
+
 ## 2026-06-21 — TestSiege made runnable; full test suite green again (iter265)
 
 - **[Test perf] TestSiege >400s → 1.5s (test-only):** the end-to-end siege regression ran the full

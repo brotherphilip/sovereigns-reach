@@ -1322,9 +1322,17 @@ func simulate_tick(tick: int) -> void:
 		# defenders auto-aggro back — so the player watches a live battle, not a tableau.
 		var ctr := Vector2i(int(players[0].get("keep_x", 100)), int(players[0].get("keep_y", 100)))
 		var defenders: Array = _enemies_of_faction()
+		var besieger_units: Array = []
 		for fac in ai_factions:
 			if fac is Dictionary and fac.get("is_alive", false):
 				_tick_force_units(fac, fac.get("units", []), defenders, tick, ctr)
+				besieger_units.append_array(fac.get("units", []))
+		# The garrison auto-aggros the attackers BACK (rally=-1 → leashed hold + auto-acquire any
+		# attacker inside the aggro radius), so it SALLIES to meet the charge instead of standing as
+		# passive statues that merely retaliated — the clash reads as a real two-sided engagement.
+		# This is what the comment above always promised; only besieger-ticking was wired before.
+		# The iter264 failing-A* guard keeps it cheap even when a foe is briefly unreachable.
+		_tick_force_units(players[0], defenders, besieger_units, tick, Vector2i(-1, -1))
 
 	# Wildlife roams every tick (smooth) and flees nearby units / the tracked cursor.
 	if not wildlife.is_empty():
