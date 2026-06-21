@@ -91,6 +91,13 @@ func _run_cityview(gs, sc) -> void:
 	var cit_before: int = gs.citizens.size()
 	var gold_before: int = int(p.gold)
 	var terr_before: int = gs._grid.get_terrain(100, 100)
+	# The apple_orchard stamps a field CROP onto the grid (_field_crop), which the field-ground
+	# layers render from. It is NOT in WorldGrid.serialize(), so it must be rebuilt on load — guard it.
+	var orchard_xy := Vector2i(-1, -1)
+	for b in p.buildings:
+		if b is Dictionary and String(b.get("type", "")) == "apple_orchard":
+			orchard_xy = Vector2i(int(b.get("grid_x", 0)), int(b.get("grid_y", 0))); break
+	var crop_before: int = gs.get_field_crop_at(orchard_xy.x, orchard_xy.y) if orchard_xy.x >= 0 else 0
 
 	gs.save_state_to(SAVE_PATH) if gs.has_method("save_state_to") else SM.save(gs.serialize(), SAVE_PATH)
 	gs.world = {}; gs.players = []; gs._grid = null; gs.citizens = []
@@ -102,3 +109,5 @@ func _run_cityview(gs, sc) -> void:
 	ok("buildings preserved (%d)" % bld_before, p2 is Dictionary and p2.get("buildings", []).size() == bld_before and bld_before >= 2)
 	ok("citizens preserved (%d)" % cit_before, gs.citizens.size() == cit_before and cit_before > 0)
 	ok("gold preserved", p2 is Dictionary and int(p2.get("gold", -1)) == gold_before)
+	ok("field CROP preserved across save/load (farmland ground restored)",
+		orchard_xy.x >= 0 and crop_before != 0 and gs.get_field_crop_at(orchard_xy.x, orchard_xy.y) == crop_before)

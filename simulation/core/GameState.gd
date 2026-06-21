@@ -3624,23 +3624,14 @@ func deserialize(data: Dictionary) -> void:
 	if world.has("grid"):
 		_grid = WorldGrid.new()
 		_grid.deserialize(world["grid"])
-		# Repopulate building_id tiles from player building state
+		# Repopulate building_id + field + CROP tiles from saved building state, via the canonical
+		# _register_buildings_in_grid. WorldGrid.serialize() omits _building_id/_field/_field_crop
+		# (deserialize zeroes them), so they must be rebuilt from the buildings — and CROP must be
+		# included or a save/load drops ALL farmland ground (TerrainChunk + GrassDetailLayer render
+		# from get_field_crop_at). The old inline loop set building_id + field but NOT crop, so fields
+		# came back as plain grass after a load. (iter299 — fix + de-dup vs the canonical helper.)
 		for player in players:
-			for building in player.get("buildings", []):
-				if not building is Dictionary:
-					continue
-				var btype: String = building.get("type", "")
-				var defn: Dictionary = BuildingRegistry.lookup(btype)
-				var w: int = defn.get("width", 1)
-				var h: int = defn.get("height", 1)
-				var gx: int = building.get("grid_x", 0)
-				var gy: int = building.get("grid_y", 0)
-				var bid: int = building.get("id", 0)
-				var field: bool = defn.get("field", false)
-				for dy in range(h):
-					for dx in range(w):
-						_grid.set_building_at(gx + dx, gy + dy, bid)
-						_grid.set_field_at(gx + dx, gy + dy, field)
+			_register_buildings_in_grid(player.get("buildings", []))
 
 	if world.has("shires"):
 		_shire_map = ShireMap.new()
