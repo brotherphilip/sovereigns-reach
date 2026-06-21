@@ -343,6 +343,11 @@ func _build_scene() -> void:
 	# (no abstract strike). Verifies the iter295 "a unit must actually strike the building" model.
 	if OS.get_environment("SR_SIEGEDEMO") != "":
 		_dev_siege_demo()
+	# Dev/headless hook: set a couple of the player's buildings alight so the FIRE visuals (flames +
+	# HP bar) can be captured on-screen — fire is the only thing that drains a building's HP with no
+	# attacker, so it must read CLEARLY as fire (iter304).
+	if OS.get_environment("SR_FIREDEMO") != "":
+		_dev_fire_demo()
 	# Dev hook: pop the "20 minutes reached" reign-milestone overlay shortly after boot.
 	if OS.get_environment("SR_REIGN") != "":
 		_dev_reign_preview()
@@ -694,6 +699,24 @@ func _dev_spawn_units() -> void:
 		for u in GameState.players[0].get("units", []):
 			GameState._cmd_issue_move_order({"player_id": 0, "payload":
 				{"unit_id": u.get("id"), "target_x": tgtx, "target_y": tgty}})
+
+func _dev_fire_demo() -> void:
+	# Place a few flammable hovels right beside the keep and set them alight so the flame VFX + the
+	# dropping HP bar render clearly for capture.
+	var BS = preload("res://simulation/buildings/BuildingState.gd")
+	GameState.prepare_starting_area(_keep_x, _keep_y, 6)
+	var spots := [Vector2i(_keep_x + 2, _keep_y), Vector2i(_keep_x - 2, _keep_y), Vector2i(_keep_x, _keep_y + 2)]
+	for s in spots:
+		var b: Dictionary = BS.create("hovel", 0, s.x, s.y, GameState._next_building_id)
+		GameState._next_building_id += 1
+		b["built"] = true
+		BS.ignite(b)
+		GameState.players[0]["buildings"].append(b)
+	GameState._register_buildings_in_grid(GameState.players[0]["buildings"])
+	# Also light any existing flammable building.
+	for eb in GameState.players[0].get("buildings", []):
+		if eb is Dictionary and eb.get("built", true):
+			BS.ignite(eb)
 
 func _dev_siege_demo() -> void:
 	# Stand a besieger warband right at the keep so the physical siege is visible immediately: the

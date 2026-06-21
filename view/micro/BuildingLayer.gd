@@ -276,16 +276,25 @@ func _draw_building(b: Dictionary, is_enemy: bool) -> void:
 		)
 		draw_rect(Rect2(bar_x, bar_y, bar_w * hp_ratio, 4.0), hp_col)
 
-	# ── Fire indicator (animated flicker) ────────────────────────────────────
+	# ── Fire indicator (animated flicker + rising smoke) ─────────────────────
+	# Made bold + smoky (iter304): fire is the ONLY thing that drains a building's HP with no attacker
+	# on the field, so a burning building MUST read unmistakably as fire — not an "invisible attack".
 	if vs.get("show_fire", false):
 		var t: float       = Time.get_ticks_msec() * 0.001
 		var f1: float      = 0.70 + 0.30 * sin(t * 7.3)
 		var f2: float      = 0.80 + 0.20 * sin(t * 11.7 + 1.2)
 		var fire_c: Vector2 = center + Vector2(0, -wall_height * 0.55)
-		draw_circle(fire_c, 11.0 * f1, Color(1.0, 0.20, 0.0, 0.28))
-		draw_circle(fire_c + Vector2(sin(t * 5.1) * 2.0, 0), 7.5 * f2, Color(1.0, 0.42, 0.0, 0.85))
-		draw_circle(fire_c + Vector2(sin(t * 8.7) * 1.5, -2.5 * f1), 4.5 * f2, Color(1.0, 0.78, 0.1, 0.90))
-		draw_circle(fire_c + Vector2(sin(t * 13.1) * 1.0, -5.0 * f2), 2.2 * f1, Color(1.0, 1.0, 0.65, 0.80))
+		# Rising smoke plume — dark puffs drifting up; recognisable as fire even at a glance / zoomed out.
+		for i in range(3):
+			var rise: float = fmod(t * 17.0 + float(i) * 9.0, 27.0)
+			var sway: float = sin(t * 2.0 + float(i)) * 4.0
+			var puff_a: float = clampf(0.36 - rise / 80.0, 0.0, 0.36)
+			draw_circle(fire_c + Vector2(sway, -10.0 - rise), 5.0 + rise * 0.24, Color(0.17, 0.15, 0.14, puff_a))
+		# Flames — larger + brighter than before.
+		draw_circle(fire_c, 16.0 * f1, Color(1.0, 0.25, 0.0, 0.32))
+		draw_circle(fire_c + Vector2(sin(t * 5.1) * 2.5, 1.0), 11.0 * f2, Color(1.0, 0.42, 0.0, 0.9))
+		draw_circle(fire_c + Vector2(sin(t * 8.7) * 2.0, -4.0 * f1), 7.0 * f2, Color(1.0, 0.78, 0.1, 0.95))
+		draw_circle(fire_c + Vector2(sin(t * 13.1) * 1.5, -8.0 * f2), 3.6 * f1, Color(1.0, 1.0, 0.7, 0.9))
 
 # Natural material palette (wall / roof / trim) per building, so structures read
 # like the trees and rocks rather than flat category swatches.

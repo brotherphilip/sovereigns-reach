@@ -539,6 +539,13 @@ func _tick_player_economy(player: Dictionary, tick: int) -> void:
 			if ReligionSystem.is_blessing_active(player, tick):
 				fire_risk = maxf(0.0, fire_risk * (1.0 - ReligionSystem.BLESSING_FIRE_REDUCTION))
 		if fire_risk > 0.0:
+			# Was anything ALREADY ablaze this realm? (so the alert is one-shot per outbreak, not per tile)
+			var _any_on_fire: bool = false
+			for b in player.get("buildings", []):
+				if b is Dictionary and b.get("is_on_fire", false):
+					_any_on_fire = true
+					break
+			var _new_fire: bool = false
 			for building in player.get("buildings", []):
 				if not building is Dictionary or not building.get("is_active", true):
 					continue
@@ -550,7 +557,13 @@ func _tick_player_economy(player: Dictionary, tick: int) -> void:
 				if per_bld_risk == 0.0:
 					continue
 				if _fire_rng.randf() < fire_risk * (per_bld_risk / 0.04):
-					BuildingState.ignite(building)
+					if BuildingState.ignite(building):
+						_new_fire = true
+			# ALERT on a fresh outbreak. Fire is the ONLY thing that drains a building's HP with no
+			# attacker on the field, so without this a burning building reads as an "invisible attack"
+			# (player report, iter304). One-shot per outbreak; player seat / watched town only.
+			if _new_fire and not _any_on_fire and int(player.get("id", -1)) == 0:
+				EventBus.realm_notice.emit("🔥 A building has caught fire! It will burn until the weather turns — rain douses it and stone resists; space flammable buildings apart.", "bad")
 
 		# Phase 2 food consumption (ResourceTick handles production quantities)
 		var food_changes: Dictionary = ResourceTick.tick_food_consumption(player, tick)
@@ -1724,8 +1737,10 @@ func enter_spectator_city(city_id: int, center_x: int, center_y: int, seed_val: 
 # Spectated cities used to show only villagers — their garrison was a number in the banner
 # and a besieging army was purely abstract, so a city you were told was "under attack" looked
 # empty of soldiers. Spawn a VISIBLE representative force: the home garrison as defenders, and,
-# if a hostile strategic army targets this city, the besiegers drawn up at the gates. These are
-# display-only (AI factions aren't ticked in spectator_mode) so the snapshot stays a snapshot.
+# if a hostile strategic army targets this city, the besiegers drawn up at the gates. NOTE: since the
+# iter263/264 "live battle", these forces ARE ticked in spectator_mode — the besiegers march on the
+# town and the garrison sallies to meet them (and besiegers physically batter buildings, iter295) —
+# so it's a real engagement, not a frozen snapshot. They're always rendered (UnitLayer + minimap).
 func _spawn_spectator_military(city: Dictionary, cx: int, cy: int) -> void:
 	if players.is_empty():
 		return
