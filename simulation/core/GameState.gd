@@ -449,14 +449,24 @@ func _tick_player_economy(player: Dictionary, tick: int) -> void:
 				changes["gold"] = int(ceil(float(changes["gold"]) * (1.0 + _biome_trade_bonus)))
 			ResourceTick.apply_changes(player, changes)
 
-	# Fire damage tick — applies each game-tick for burning buildings
+	# Fire damage tick — applies each game-tick for burning buildings. Wet weather (rain/snow) DOUSES
+	# fires (iter307) — the fire alert promises "rain douses it", so make that true and give a blaze a
+	# way to end other than burning the building down.
+	var _wet: bool = int(weather.get("current", -1)) in [WeatherSystem.WeatherType.RAIN, WeatherSystem.WeatherType.SNOW]
+	var _doused: bool = false
 	for building in player.get("buildings", []):
 		if not building is Dictionary:
+			continue
+		if _wet and building.get("is_on_fire", false):
+			building["is_on_fire"] = false   # the rains put it out
+			_doused = true
 			continue
 		if BuildingState.tick_fire(building):
 			building["is_on_fire"] = false  # extinguish so ruin doesn't render as burning
 			PrestigeSystem.apply_defeat_loss(player)
 			EventBus.building_destroyed.emit(player.get("id", 0), building.get("id", -1), "fire")
+	if _doused and int(player.get("id", -1)) == 0:
+		EventBus.realm_notice.emit("🌧 The rains have doused the fires — your buildings are spared.", "good")
 
 	# Phase 4: update live coverage values every tick (needed by PopularityEngine)
 	var _ale_result: Dictionary = AleSystem.tick(player, tick)

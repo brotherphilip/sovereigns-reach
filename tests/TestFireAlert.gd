@@ -7,9 +7,11 @@ extends SceneTree
 # Run: godot --headless --script tests/TestFireAlert.gd
 
 const BuildingState = preload("res://simulation/buildings/BuildingState.gd")
+const WeatherSystem = preload("res://simulation/world/WeatherSystem.gd")
 const DROUGHT := 2
 
 var _fire_notices := 0
+var _doused_notices := 0
 var _pass := 0
 var _fail := 0
 
@@ -27,7 +29,9 @@ func _init() -> void:
 
 func _on_notice(text, _tone) -> void:
 	var s := String(text)
-	if s.findn("fire") >= 0 or s.find("🔥") >= 0:
+	if s.findn("doused") >= 0 or s.find("🌧") >= 0:
+		_doused_notices += 1
+	elif s.findn("fire") >= 0 or s.find("🔥") >= 0:
 		_fire_notices += 1
 
 func ok(label: String, cond: bool) -> void:
@@ -61,3 +65,19 @@ func _run(gs, clock) -> void:
 	ok("a flammable building ignited under fire-risk weather", on_fire)
 	ok("ignition raised a player-facing FIRE notice", _fire_notices >= 1)
 	ok("the alert is ONE-SHOT (two buildings igniting → a single notice)", _fire_notices == 1)
+
+	# iter307: the burn is slow enough to be seen — a hovel (60 HP @ 3/tick) is NOT gone instantly.
+	ok("the building did not burn down instantly (still standing just after ignition)", on_fire)
+
+	# iter307: rain DOUSES the blaze (the alert promises it). Switch to wet weather, tick once.
+	gs.weather = {"current": WeatherSystem.WeatherType.RAIN, "ticks_remaining": 9999999,
+		"duration_ticks": 9999999, "effects": {"fire_risk": 0.0}}
+	_doused_notices = 0
+	clock.current_tick = 241
+	gs.simulate_tick(241)
+	var still_burning := false
+	for bb in p.get("buildings", []):
+		if bb is Dictionary and bb.get("is_on_fire", false):
+			still_burning = true
+	ok("rain douses the fire (nothing left burning)", not still_burning)
+	ok("a 'doused' notice told the player the rains saved them", _doused_notices >= 1)

@@ -84,11 +84,18 @@ static func ignite(building: Dictionary) -> bool:
 		return true
 	return false
 
+# HP lost per tick while burning. Tuned DOWN from 8 (iter307): at 8/tick a 60-HP hovel burned down
+# in ~8 ticks (≈0.4s at normal speed) — too fast to see the flames/smoke or react, so a fire read as
+# an instant "invisible" deletion. At 3/tick the smallest building burns over ~1s and larger ones over
+# 2–4s: the fire is visibly ON FIRE, the alert is actionable, and rain has a chance to douse it.
+const FIRE_DAMAGE_PER_TICK: int = 3
+const FIRE_DAMAGE_EXPLOSIVE: int = 40   # pitch/armory still go up fast (they "explode")
+
 # Fire spread tick — returns true if building was destroyed by fire this tick
 static func tick_fire(building: Dictionary) -> bool:
 	if not building.get("is_on_fire", false):
 		return false
-	var fire_damage: int = 8  # HP lost per tick while burning
+	var fire_damage: int = FIRE_DAMAGE_PER_TICK
 	if building.get("type", "") == "pitch_rig" or building.get("type", "") == "armory":
-		fire_damage = 40  # Pitch and armory burn fast and explode
+		fire_damage = FIRE_DAMAGE_EXPLOSIVE  # Pitch and armory burn fast and explode
 	return take_damage(building, fire_damage)
