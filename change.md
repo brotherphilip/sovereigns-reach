@@ -157,6 +157,20 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 308 — 2026-06-22  (MISSING RECOVERY — non-seat buildings now self-repair scrapes; HP bar clears)
+
+Autonomous cycle. Tied back to the user's ORIGINAL "empty bar above buildings" report: a non-seat building scraped by
+fire (then doused, iter307) or a raid had NO way to recover HP — `grep` confirmed the only repair paths were the SEAT
+(`KEEP_REPAIR_PER_DAY`, defence-gated) and DEFENSE buildings (a `wall_repair_amount` edict). So a granary/market/farm
+left at partial HP showed a permanent HP bar the player couldn't fix except by demolish+rebuild. The village now
+slowly patches up non-seat structures at `BUILDING_REPAIR_PER_DAY` (3/day) on the day boundary, so transient damage
+heals and the bar clears — calm-realm-aligned. The SEAT is EXCLUDED (keeps its defence-gated repair, so an undefended
+seat still falls — TestSiege 9/0 confirms the endgame balance is intact); burning buildings don't repair; needs
+people present. Validated: new `tests/TestBuildingRepair.gd` 4/0 (non-seat heals by 3/day; seat excluded; burning
+excluded); TestSiege 9/0, TestSurvival 6/0, TestEconomy 18/0; clean boot.
+
+---
+
 ## Iteration 307 — 2026-06-22  (FIRE PACING — make it visible & fair; "rain douses it" is now TRUE)
 
 Autonomous cycle. Auditing the iter304 fire fix end-to-end surfaced two problems that undermined it:

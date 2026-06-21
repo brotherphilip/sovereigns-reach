@@ -2,6 +2,18 @@
 
 ---
 
+## 2026-06-22 — Damaged buildings now slowly repair themselves (iter308)
+
+- **[Gameplay] Your buildings heal over time:** a building scraped by a fire or a raid used to stay damaged forever —
+  a permanent health bar you couldn't clear without tearing it down and rebuilding. Now your villagers slowly patch up
+  damaged buildings, so minor damage heals on its own and the health bar goes away. Your seat (hall/keep) is the
+  exception — defending it still matters, so it only mends when you've prepared its defences. Buildings actively on
+  fire don't repair until the flames are out.
+- **Validated:** new test confirms non-seat buildings heal while the seat stays defence-gated; siege/survival/economy
+  tests pass; clean boot.
+
+---
+
 ## 2026-06-22 — Fires now burn visibly and rain puts them out (iter307)
 
 - **[Gameplay] Fire is slower, visible, and fair:** buildings used to burn down almost instantly (under a second), so
