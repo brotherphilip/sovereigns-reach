@@ -167,6 +167,8 @@ Full 260-day coverage window kept (speed now comes from how it ticks, not from t
 ### Result
 **>400s (timeout) → 1.56s, 9/0 unchanged.** ~270×. The 5 suites the iter262 audit found red are now ALL
 resolved (Phase1/2/14 iter262, Spectator iter264, Siege iter265) → the full suite is runnable end-to-end.
+**Capstone confirmation: a complete exit-code-based suite run reports 47 suites OK, 0 fail** — the whole
+suite is GREEN and completable again (it had been un-runnable since the per-tick cost ballooned TestSiege).
 
 ### Files
 - `tests/TestSiege.gd` (test-only; no game code touched).
