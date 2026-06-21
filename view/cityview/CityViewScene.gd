@@ -338,6 +338,11 @@ func _build_scene() -> void:
 	# fell→prep→barrow work cycle + chop-shake/topple animations can be captured on-screen.
 	if OS.get_environment("SR_FELLDEMO") != "":
 		_dev_fell_demo()
+	# Dev/headless hook: ring the keep with a besieger warband so the PHYSICAL siege can be
+	# captured on-screen — units stand at the wall and batter the hall, its HP bar ticking down
+	# (no abstract strike). Verifies the iter295 "a unit must actually strike the building" model.
+	if OS.get_environment("SR_SIEGEDEMO") != "":
+		_dev_siege_demo()
 	# Dev hook: pop the "20 minutes reached" reign-milestone overlay shortly after boot.
 	if OS.get_environment("SR_REIGN") != "":
 		_dev_reign_preview()
@@ -689,6 +694,26 @@ func _dev_spawn_units() -> void:
 		for u in GameState.players[0].get("units", []):
 			GameState._cmd_issue_move_order({"player_id": 0, "payload":
 				{"unit_id": u.get("id"), "target_x": tgtx, "target_y": tgty}})
+
+func _dev_siege_demo() -> void:
+	# Stand a besieger warband right at the keep so the physical siege is visible immediately: the
+	# units batter the hall (HP bar drops) without any abstract strike. Past-grace so the siege chain
+	# is "live", but the battering is driven purely by their presence at the wall.
+	var US = preload("res://simulation/units/UnitState.gd")
+	var AIF = preload("res://simulation/ai/AIFaction.gd")
+	GameState.prepare_starting_area(_keep_x, _keep_y, 8)
+	if GameState.ai_factions.is_empty():
+		GameState.add_ai_faction("bandit_king", _keep_x + 12, _keep_y)
+	var fac: Dictionary = GameState.ai_factions[0]
+	fac["days_alive"] = AIF.PLAYER_GRACE_DAYS + 10
+	var ring := [
+		Vector2i(_keep_x - 1, _keep_y - 1), Vector2i(_keep_x, _keep_y - 1), Vector2i(_keep_x + 1, _keep_y - 1),
+		Vector2i(_keep_x - 1, _keep_y + 1), Vector2i(_keep_x, _keep_y + 1), Vector2i(_keep_x + 1, _keep_y + 1),
+		Vector2i(_keep_x - 1, _keep_y), Vector2i(_keep_x + 1, _keep_y),
+	]
+	var foes := ["armed_peasant", "armed_peasant", "archer", "militia", "armed_peasant", "archer", "battering_ram", "militia"]
+	for i in ring.size():
+		fac["units"].append(US.create(foes[i], int(fac.get("id", 0)), ring[i].x, ring[i].y, int(fac.get("id", 0)) * 10000 + 700 + i))
 
 func _add_spectator_banner() -> void:
 	var overlay := CanvasLayer.new()

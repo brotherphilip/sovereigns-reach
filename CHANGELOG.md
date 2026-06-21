@@ -2,6 +2,22 @@
 
 ---
 
+## 2026-06-22 — Sieges are now physical: enemy troops actually attack your buildings (iter295)
+
+- **[Gameplay] A building only loses HP when an enemy is physically striking it:** following on from iter294, the
+  siege is now fully physical. When you're at your town, besieging troops march up to your buildings and *attack them
+  directly* — the structure's health drops with each blow, and you can watch it happen. There's no longer any
+  behind-the-scenes "siege strike." If you kill the attackers (or wall them out so they can't reach), the assault
+  simply stops. Rams and catapults batter structures far harder than footmen.
+- **Note:** as before, if you're away on the world map when a siege lands, it still resolves abstractly (you weren't
+  there to defend) — the new physical model is what you see when you're present at your seat.
+- **Validated:** new `tests/TestSiegePhysical.gd` (5/0) confirms besiegers at the wall drop a hall's HP per strike
+  and eventually raze it, while an unbesieged hall is never touched. Siege/survival/strategic/unit-AI regressions all
+  pass (TestSiege 9/0, TestSiegeReach 8/0, TestSurvival 6/0, TestStrategicAI 91/0, TestUnitAI 23/0). New `SR_SIEGEDEMO`
+  dev hook renders the assault on-screen. (simulation/core/GameState.gd, view/cityview/CityViewScene.gd.)
+
+---
+
 ## 2026-06-22 — Your buildings no longer take siege damage with no enemy in sight (iter294)
 
 - **[Bug fix — player-reported] Sieges only damage your seat when the enemy actually reaches it:** players saw town

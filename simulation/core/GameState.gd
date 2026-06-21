@@ -775,6 +775,16 @@ const SIEGE_DAMAGE_UNDEFENDED: int = 110  # still punishing if you never defend 
 # assembly timer, decoupled from the physical warband). Sized to cover the ~14-tile staging ring
 # (a warband marches in to the walls in live play; in catch-up regressions it sits at the ring).
 const SIEGE_REACH_TILES: int = 24
+# PHYSICAL SIEGE (player present at the live seat): a besieging unit that REACHES a seat building
+# batters it directly — each strike takes SIEGE_HIT_DAMAGE off the structure's HP (rams/catapults hit
+# ×SIEGE_RAM_MULT harder). There is NO abstract "strike" while you defend your own walls: a building
+# only loses HP when an enemy is physically beside it striking, and killing the besiegers stops it
+# cold. The abstract assembly-timer strike survives ONLY for catch-up fast-forward (you're away, the
+# grid units don't march) — see the siege_assembled handler. Damage is a FIXED per-hit value (not the
+# unit's anti-infantry attack) so structure pacing is independent of unit-vs-unit balance.
+const SIEGE_HIT_DAMAGE: int = 4          # HP per besieger strike (~4 strikes/day/unit → a warband razes an undefended 500-HP hall in ~1 week)
+const SIEGE_RAM_MULT: int = 4            # siege engines (rams/catapults) batter structures far harder
+const SIEGE_ASSAULT_RANGE: int = 8       # a rallying raider switches from "march on the keep" to "batter the structure" within this many tiles
 # A living realm patches its seat between assaults (builders shore up the keep). Tuned (iter120)
 # so a DEFENDED seat under the live two-faction siege (≈5.3 dmg/day at 50/strike) RECOVERS and can
 # hold indefinitely with good play, while an UNDEFENDED seat (≈15.8/day at 150) still falls — so
@@ -900,6 +910,14 @@ func _tick_unit_idle(owner: Dictionary, unit: Dictionary, tick: int, tpd: int, e
 			return
 	if unit.has("patrol_a"):
 		unit["order"] = UnitState.ORDER_PATROL
+		return
+	# A raider that has reached the seat batters the nearest structure DIRECTLY (physical siege)
+	# instead of just standing by it — this is what takes a building's HP down when you're present to
+	# watch, and it keeps battering even after the siege "assembles" (rally clears) so long as it's at
+	# the wall. Only fires when it's actually close to a seat building (handled inside; foreign units at
+	# their own camp find nothing in range and fall through); otherwise the rally march below advances
+	# it on the keep.
+	if unit.get("attack", 0) > 0 and _besieger_assault(owner, unit, tick, tpd):
 		return
 	# Rally march (AI raiders advancing on the enemy seat). Each unit gets its own
 	# spot in a ring around the rally point so the warband fans out instead of
@@ -1583,20 +1601,24 @@ func simulate_tick(tick: int) -> void:
 										shire["owner_is_player"] = false
 										EventBus.shire_ownership_changed.emit(captured_id, old_owner, faction.get("id", -1))
 										break
-							# Siege damage to the seat. A PREPARED ruler (walls/towers/garrison)
-							# blunts the assault badly; an undefended seat is gutted — so the
-							# pre-siege warning is actionable and defending genuinely pays off.
-							var defended_seat: bool = is_siege_ready(tgt)
-							var siege_dmg: int = SIEGE_DAMAGE_DEFENDED if defended_seat else SIEGE_DAMAGE_UNDEFENDED
-							EventBus.ai_siege_struck.emit(faction.get("id", -1), target_pid, defended_seat, siege_dmg)
-							for bld in tgt.get("buildings", []):
-								if not bld is Dictionary:
-									continue
-								if bld.get("type", "") in ["village_hall", "keep"]:
-									if BuildingState.take_damage(bld, siege_dmg):
-										PrestigeSystem.apply_defeat_loss(tgt)
-										EventBus.building_destroyed.emit(tgt.get("id", 0), bld.get("id", -1), "siege")
-									break
+							# Seat damage — ONLY while the player is AWAY (catch-up fast-forward): the grid
+							# units don't march then, so this abstract strike stands in for the strategic
+							# assault you weren't there to defend. When the player is PRESENT, the besieging
+							# warband physically batters the seat (see _besieger_assault) and there is no
+							# abstract hit — a building only loses HP when an enemy is beside it striking.
+							# A PREPARED ruler (walls/towers/garrison) blunts the abstract assault badly.
+							if _catch_up_mode:
+								var defended_seat: bool = is_siege_ready(tgt)
+								var siege_dmg: int = SIEGE_DAMAGE_DEFENDED if defended_seat else SIEGE_DAMAGE_UNDEFENDED
+								EventBus.ai_siege_struck.emit(faction.get("id", -1), target_pid, defended_seat, siege_dmg)
+								for bld in tgt.get("buildings", []):
+									if not bld is Dictionary:
+										continue
+									if bld.get("type", "") in ["village_hall", "keep"]:
+										if BuildingState.take_damage(bld, siege_dmg):
+											PrestigeSystem.apply_defeat_loss(tgt)
+											EventBus.building_destroyed.emit(tgt.get("id", 0), bld.get("id", -1), "siege")
+										break
 				if ev in ["bandit_raid_started", "ironhand_siege_started", "ashen_siege_started", "merchant_siege_started"]:
 					var asm: Dictionary = faction.get("siege_assembly", {})
 					EventBus.ai_siege_assembling.emit(
@@ -1813,6 +1835,91 @@ func _besiegers_at_seat(faction: Dictionary, kx: int, ky: int) -> int:
 		if dx * dx + dy * dy <= reach_sq:
 			n += 1
 	return n
+
+# Physical siege step for one besieging raider that has reached the seat: it closes to weapon range
+# of the nearest seat building (the keep is the rally point, so the warband converges on it) and
+# STRIKES the structure on the combat cadence, taking SIEGE_HIT_DAMAGE off its HP. This is the only
+# thing that damages a building while the player is present — no abstract strike — so killing the
+# besiegers (or walling them out of reach) stops the assault. Returns true if it took over the unit
+# (so the caller skips the rally-ring march); false if the unit is still too far and should march in.
+func _besieger_assault(owner: Dictionary, unit: Dictionary, tick: int, tpd: int) -> bool:
+	if players.is_empty() or _grid == null:
+		return false
+	var seat: Dictionary = players[0]
+	if not owner.has("archetype"):
+		return false  # only AI factions besiege; the seat's own forces never batter it
+		              # (player and faction ids share a 0-based namespace, so compare by kind, not id)
+	var ux: int = int(unit.get("pos_x", 0))
+	var uy: int = int(unit.get("pos_y", 0))
+	var bld: Dictionary = _nearest_seat_building(seat, ux, uy, SIEGE_ASSAULT_RANGE)
+	if bld.is_empty():
+		return false  # no structure close yet — keep marching on the keep
+	var bx: int = int(bld.get("grid_x", 0))
+	var by: int = int(bld.get("grid_y", 0))
+	var rng: int = maxi(1, int(unit.get("range", 0)))
+	var d: int = maxi(absi(bx - ux), absi(by - uy))
+	if d > rng:
+		# Close in: step to a free tile within reach of the structure.
+		var adj: Vector2i = _free_tile_adjacent_to(bx, by, ux, uy)
+		if adj.x >= 0:
+			var path: Array = Pathfinder.find_path(_grid, ux, uy, adj.x, adj.y)
+			if not path.is_empty():
+				unit["order"] = UnitState.ORDER_MOVE
+				unit["move_path"] = path
+				unit["target_x"] = adj.x
+				unit["target_y"] = adj.y
+		return true
+	# In reach — batter the structure. Face it (so the unit art reads as assaulting it).
+	unit["target_x"] = bx
+	unit["target_y"] = by
+	var is_ram: bool = String(unit.get("attack_type", "")) == UnitRegistry.ATTACK_SIEGE
+	if rng >= 2 or is_ram:
+		EventBus.projectile_fired.emit(ux, uy, bx, by, "stone" if is_ram else "arrow")
+	var dmg: int = SIEGE_HIT_DAMAGE * (SIEGE_RAM_MULT if is_ram else 1)
+	# Throttle the VO/HUD "struck" beat to ~once per day per faction so continuous battering doesn't spam.
+	if tick - int(owner.get("_last_batter_tick", -1000000)) >= tpd:
+		owner["_last_batter_tick"] = tick
+		EventBus.ai_siege_struck.emit(int(owner.get("id", -1)), int(seat.get("id", 0)), is_siege_ready(seat), dmg)
+	if BuildingState.take_damage(bld, dmg):
+		if String(bld.get("type", "")) in ["village_hall", "keep"]:
+			PrestigeSystem.apply_defeat_loss(seat)
+		EventBus.building_destroyed.emit(int(seat.get("id", 0)), int(bld.get("id", -1)), "siege")
+	return true
+
+# The player seat's nearest BUILT, still-standing building within max_tiles (Chebyshev) of (x,y); {} if none.
+func _nearest_seat_building(seat: Dictionary, x: int, y: int, max_tiles: int) -> Dictionary:
+	var best: Dictionary = {}
+	var best_d: int = max_tiles + 1
+	for b in seat.get("buildings", []):
+		if not (b is Dictionary and b.get("built", true) and int(b.get("hp", 0)) > 0):
+			continue
+		var d: int = maxi(absi(int(b.get("grid_x", 0)) - x), absi(int(b.get("grid_y", 0)) - y))
+		if d < best_d:
+			best_d = d
+			best = b
+	return best
+
+# A passable, building-free tile adjacent to (bx,by), the one closest to (fromx,fromy). (-1,-1) if none.
+func _free_tile_adjacent_to(bx: int, by: int, fromx: int, fromy: int) -> Vector2i:
+	var best: Vector2i = Vector2i(-1, -1)
+	var best_d: int = 1 << 30
+	for dx in [-1, 0, 1]:
+		for dy in [-1, 0, 1]:
+			if dx == 0 and dy == 0:
+				continue
+			var gx: int = bx + dx
+			var gy: int = by + dy
+			if not _grid.in_bounds(gx, gy):
+				continue
+			if not _grid.is_passable(gx, gy, WorldGrid.PASSABLE_FOOT):
+				continue
+			if _grid.get_building_at(gx, gy) != 0:
+				continue
+			var d: int = maxi(absi(gx - fromx), absi(gy - fromy))
+			if d < best_d:
+				best_d = d
+				best = Vector2i(gx, gy)
+	return best
 
 # The first hostile strategic army marching on (or sitting at) the given city, or {} if none.
 func _find_besieging_army(city_id: int, owner_fid: int) -> Dictionary:
