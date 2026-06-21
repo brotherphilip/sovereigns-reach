@@ -2356,6 +2356,14 @@ func _cmd_demolish_building(cmd: Dictionary) -> bool:
 		if building.get("id", -1) != bid:
 			continue
 
+		# The SEAT (village hall / keep) can't be razed by hand — losing it is a DEFEAT (siege),
+		# not a build choice; demolishing it would leave a seat-less, half-broken realm without
+		# even firing the loss screen (demolish emits building_demolished, not building_destroyed).
+		# The HUD hides the Demolish button for the seat, but the Delete-key path didn't guard it —
+		# so enforce it here, in the authoritative command, where EVERY path converges. (iter281)
+		if building.get("type", "") in ["village_hall", "keep"]:
+			return false
+
 		# Clear grid cells
 		if _grid != null:
 			var btype: String = building.get("type", "")

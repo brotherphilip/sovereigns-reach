@@ -2,6 +2,22 @@
 
 ---
 
+## 2026-06-22 — You can no longer accidentally demolish your own seat (iter281)
+
+- **[Bug fix] The village hall / keep can't be torn down by hand:** the demolish button in the building panel
+  already hid itself for your seat (losing your seat is a defeat, not a build choice), but the **Delete key**
+  bypassed that — selecting your hall and pressing Delete razed it with no refund and *without* triggering the
+  defeat screen, leaving a seat-less, broken realm that wasn't even game-over. The protection now lives in the
+  underlying demolish command, so no input path (button, Delete key, or anything else) can raze the seat; normal
+  buildings still demolish as before.
+- An expert-QA pass over the spend commands (research, edicts, demolish) found the rest sound — you can't research
+  or enact something you can't afford, can't re-trigger an edict's one-off bonus (cost + cooldown gates), and
+  demolishing never refunds, so there's no build-and-demolish exploit.
+- **Validated:** new `tests/TestDemolishSeat.gd` 8/0; regression `TestPhase3` 88/0, `TestWorkers` 21/0,
+  `TestSurvival` 6/0. (simulation/core/GameState.gd.)
+
+---
+
 ## 2026-06-22 — The "managed growth" demo now actually grows instead of dying to a plague (iter280)
 
 - **[Tooling / showcase fix] `SR_AUTOPLAY=grow` shows sustainable growth again:** the managed-growth autoplay (a
