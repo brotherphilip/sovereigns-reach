@@ -330,6 +330,8 @@ func test_validator_missing_gold() -> void:
 	var result = PlacementValidator.validate("barracks", 5, 5, grid, player, {})
 	expect("barracks without gold fails", result["ok"] == false)
 	expect("missing resources code", result["code"] == VR_MISSING_RESOURCES)
+	# iter287: the message must be ACTIONABLE (say how to remedy it, not just "Not enough gold").
+	expect("gold-shortage message names the market", "market" in String(result.get("message", "")))
 
 func test_validator_missing_wood() -> void:
 	var grid = _make_grass_grid()
@@ -337,6 +339,11 @@ func test_validator_missing_wood() -> void:
 	var result = PlacementValidator.validate("hovel", 5, 5, grid, player, {})
 	expect("hovel without wood fails", result["ok"] == false)
 	expect("missing resources code for wood", result["code"] == VR_MISSING_RESOURCES)
+	# iter287: a raw-resource shortage tells the player to gather OR buy it (the tutorial never
+	# teaches a stone source, so "Not enough X" alone strands a new player).
+	var msg: String = String(result.get("message", ""))
+	expect("wood-shortage message names the resource", "wood" in msg)
+	expect("wood-shortage message says how to remedy it (gather/market)", "gather" in msg or "market" in msg)
 
 func test_validator_inside_shire_radius() -> void:
 	var grid = _make_grass_grid(100, 100)

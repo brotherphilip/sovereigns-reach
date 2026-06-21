@@ -2,6 +2,21 @@
 
 ---
 
+## 2026-06-22 — "Can't build" messages now tell you how to fix it (iter287)
+
+- **[Feedback] Resource-shortage build messages are actionable:** trying to place a building you can't afford used
+  to just say "Not enough stone". It now tells you how to remedy it — "Not enough stone — gather more
+  (quarry/woodcutter/mine) or buy it at the market" (and for gold, "sell goods at the market for coin"). This
+  matters most early on, where the tutorial asks you to build stone structures (barracks, watchtower) before you've
+  set up a stone source.
+- A softlock review of the tutorial confirmed it can't get permanently stuck: stone is buyable at the market
+  (taught before the stone buildings), and decree points and prestige accrue over time, so every guided step is
+  reachable.
+- **Validated:** `TestPhase3` 91/0 (now also checks the shortage messages name the resource and a remedy); building
+  and pathing tests green. (simulation/buildings/PlacementValidator.gd.)
+
+---
+
 ## 2026-06-22 — The herald now voices your strategic victories and defeats (iter286)
 
 - **[Missing audio / feedback] Conquest beats are no longer silent:** the on-screen toasts for the big strategic

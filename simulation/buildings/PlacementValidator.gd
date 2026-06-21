@@ -118,10 +118,15 @@ static func validate(
 	for res in cost:
 		if res == "gold":
 			if player.get("gold", 0) < cost[res]:
-				return _fail(ValidationResult.MISSING_RESOURCES, "Not enough gold")
+				return _fail(ValidationResult.MISSING_RESOURCES, "Not enough gold — sell goods at the market for coin")
 		else:
 			if player.get("resources", {}).get(res, 0) < cost[res]:
-				return _fail(ValidationResult.MISSING_RESOURCES, "Not enough %s" % res)
+				# Say HOW to remedy it, not just WHAT: a raw resource (stone/wood/iron…) can be
+				# gathered (quarry/woodcutter/mine) OR bought at the market. The tutorial asks for
+				# stone-cost buildings (barracks/tower) without teaching a stone source, so a new
+				# player who hits "Not enough stone" needs the next step spelled out. (iter287)
+				return _fail(ValidationResult.MISSING_RESOURCES,
+					"Not enough %s — gather more (quarry/woodcutter/mine) or buy it at the market" % res)
 
 	# No build-area restriction: buildings may be placed on any valid free tile,
 	# anywhere on the map (the old shire-influence radius limit was removed).
