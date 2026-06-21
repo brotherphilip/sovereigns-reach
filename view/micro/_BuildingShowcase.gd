@@ -9,6 +9,7 @@ const TYPES: Array = [
 	"hovel","granary","bakery","brewery","mill","dairy_farm","apple_orchard","wheat_farm",
 	"blacksmith","armory","barracks","siege_workshop","tannery","woodcutter_camp",
 	"stone_quarry","iron_mine","watchtower","gatehouse","stone_wall","apothecary",
+	"wooden_palisade","great_tower","pig_farm","hops_farm","pitch_rig","fletcher",
 ]
 
 func _ready() -> void:

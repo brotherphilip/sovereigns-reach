@@ -2,6 +2,17 @@
 
 ---
 
+## 2026-06-21 — Winter snow on walls & towers (iter259)
+
+- **Seasonal cohesion (defensive perimeter):** the walls and towers — which draw their tops
+  manually and so were missed by the iter258 roof-primitive snow — now join the winter scene.
+  Snow-capped crenellations (keep, great tower, stone wall, gatehouse), dusted wall-walks /
+  parapets, snow-tipped palisade stakes, and a snowcap on the watchtower's thatch hip. All
+  gated on the winter flag (other seasons unchanged). (view/micro/BuildingModels.gd; the
+  dev-only `_BuildingShowcase` catalog now includes the palisade & great tower.)
+
+---
+
 ## 2026-06-21 — Winter roof snow (iter258)
 
 - **Seasonal cohesion:** building roofs now carry a light snow dusting in winter, matching the

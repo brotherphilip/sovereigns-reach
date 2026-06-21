@@ -109,7 +109,7 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ### Active Backlog (Base Game) — deduplicated
 - **Phase 2 (deferred, user-agreed): physical AI cities** — prototype ONE AI city running CitizenSystem hauling; measure FPS/tick cost before committing.
-- **Visual polish (POLISH):** WALL colours still cluster (tan-timber / grey-stone / wood-plank); `market` reads sparse and `well` is tiny at play-zoom. ✅ **iter258: winter roof snow landed** — the shared roof primitives (`_gable`/`_hip`/`_cone`, covering 28 building types) now lay a pale dusting on their upper faces in winter, so the town reads wintry alongside the already-snowy terrain+trees (resolves the iter245 incongruity: ground/trees snowed but roofs stayed summer-bright). The dusting hugs the ridge/apex and leaves the eaves clear, so each roof's type-distinguishing colour still reads. (Roofs diversified iter175; villager tunics iter191; watchtower rebuilt iter193.)
+- **Visual polish (POLISH):** WALL colours still cluster (tan-timber / grey-stone / wood-plank); `market` reads sparse and `well` is tiny at play-zoom. ✅ **iter258: winter roof snow landed** — the shared roof primitives (`_gable`/`_hip`/`_cone`, covering 28 building types) now lay a pale dusting on their upper faces in winter, so the town reads wintry alongside the already-snowy terrain+trees (resolves the iter245 incongruity: ground/trees snowed but roofs stayed summer-bright). The dusting hugs the ridge/apex and leaves the eaves clear, so each roof's type-distinguishing colour still reads. ✅ **iter259 extended it to the defensive perimeter** — snow-capped crenellations (`_merlons` → keep/great_tower/stone_wall/gatehouse), dusted wall-walks/parapets (`_snow_top`), snow-tipped palisade stakes, and a snowcap on the watchtower's thatch hip — so the walls/towers (which bypass the roof primitives) now join the winter scene too. (Roofs diversified iter175; villager tunics iter191; watchtower rebuilt iter193.)
 - **OBSERVATION — night dead-space (taste, needs USER call, NOT a bug):** deep-night `NightLayer.MAX_DARK = 0.92` (near-black away from lamps) + depopulated night (skeleton crew) ⇒ ~5 min/cycle dark+empty. Soften MAX_DARK or add night ambient life only if the user wants less dead time.
 - **WATCH-ITEM — late-game drought food crash (strengthened iter200):** food can crash to 0 mid-late game on a drought seed (a prolonged drought + a thin food workforce as a worker ages out). Now seen on **2 of 3 Day-150 seeds** — 31337 (min_pop 47.7, recovered) and 12345 (min_pop **27.9** — a PASSIVE autoplay eroded much closer to the revolt threshold of 10). 4242 was clean (min_food 70). NO seed has actually revolted/lost, and a real player has the low-food warning + ration control to cope (the passive autoplay can't react, so 27.9 is a worst case). NOT fixed (no loss; user wants calm, not easier). IF a future seed actually revolts, OR if the user wants drought-robustness, buff the drought-time food buffer (bigger granary base, deeper off-season/drought trickle, or auto-lower rations under famine).
 - **OBSERVATION — peaceful 100-day life (from the 10-cycle peace, user-directed):** the FLOOR run (iter194) reached day 114 with NO siege (King's Peace until day 750) while the standing objective still says "ready your defences — build a Barracks, Wall or Tower." The defence prompt is premature now; consider deferring it (or the King's-Peace-ending telegraph) closer to when threats actually arrive. Stems from the user's calm-realm directive — needs a user call before changing.
@@ -138,6 +138,38 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 - **Intermediate-clog PREVENTION (iter205, follow-up):** the deeper root of the woodcutter freeze — a `wheat_farm`/`hops_farm` with no `mill`/`brewery` banks an intermediate that's useless and only clogs the shared raw pool. Now such a farm TENDS its rows but banks nothing until its processor exists (`CitizenSystem._farm_output_blocked`), so a new player's wheat farm can't silently strangle their wood/stone economy. Ev: ProbeWoodcutter — wood now flows continuously (0→465 climbing, wheat stays 0) where it previously froze at 113; TestEconomy 18/0.
 - **Painted building sprites (iter203):** buildings can now wear hand-painted iso art over the procedural model (`view/micro/BuildingSpriteOverlay.gd`, additive — finished buildings only, auto procedural fallback). First asset: a detailed **Village Hall** replacing the flat procedural roof-diamond. Local ComfyUI art pipeline in `tools/artgen/`; raw candidate renders (multi-GB) git-ignored, only chosen source + keyed sprite committed. Ev: before/after `_SpriteTrial.tscn` render + in-world placement (Xvfb), TestSurvival 6/0.
 - **(Durable, older — see Current Targets):** Day-100 FLOOR multi-seed survival; Reeve→King climb on 5 seeds ≤113d; late-game coalition-vs-leader; on-screen in-city FLOOR survival (iter158).
+
+---
+
+## Iteration 259 — 2026-06-21  (SHIP — winter snow on the defensive perimeter; completes town-wide cohesion)
+
+Follow-up to iter258. iter258 snowed every ROOF (via the `_gable`/`_hip`/`_cone` primitives), but the
+**walls and towers draw their tops manually** and so stayed bare — a walled winter town had snowy roofs
+beside snow-free battlements. This iter completes the cohesion across the structures that bypass the roof
+primitives.
+
+### Changes (all gated on the iter258 `_winter` flag — no other-season effect)
+- **`_merlons` (one edit → 4 structures):** a snow cap on every crenellation. Covers `keep`,
+  `great_tower`, `stone_wall`, `gatehouse` (verified: exactly those 4 call `_merlons`, no unintended
+  coverage). Highest-leverage change — snowy battlements everywhere for one helper edit.
+- **New `_snow_top(ci, c, alpha)` helper:** a translucent snow dusting over an exposed box-top diamond
+  (wall-walk / parapet); early-returns when not winter. Called by `stone_wall` (0.55), `gatehouse` (0.5),
+  `keep` (0.45), `great_tower` (0.45), drawn after the box but before the merlons so the capped merlons
+  sit on top.
+- **`_palisade`:** a snow dab capping each sharpened timber stake.
+- **`_watchtower`:** a snowcap on the (manually-drawn) thatch hip, mirroring the `_hip` apex-fan pattern.
+
+### Verified (real Xvfb showcase renders)
+- Winter sheet: keep (dusted parapet + capped merlons + snowy turret cone), stone_wall & gatehouse
+  (capped merlons + dusted walk), watchtower (snowy thatch), palisade (snow-tipped stakes), great_tower
+  (capped merlons + dusted parapet + snowy cone) — all read as wintry, stone/timber still legible beneath.
+- Summer A/B sheet: zero snow leakage (merlons grey, stakes bare, thatch tan) — the `_winter` gate holds.
+- Also added `wooden_palisade`/`great_tower` (+ pig_farm/hops_farm/pitch_rig/fletcher) to the dev-only
+  `_BuildingShowcase` catalog, which previously omitted them (so their snow could be inspected).
+
+### Files
+- `view/micro/BuildingModels.gd` — `_snow_top` helper; snow in `_merlons`/`_palisade`/`_watchtower`; `_snow_top` calls in `_stone_wall`/`_gatehouse`/`_keep`/`_great_tower`.
+- `view/micro/_BuildingShowcase.gd` — catalog now includes the palisade/great_tower (+4 more) for inspection.
 
 ---
 

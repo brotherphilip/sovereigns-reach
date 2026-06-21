@@ -451,6 +451,7 @@ static func _keep(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vector2
 		bx + Vector2(3.5, 18), bx + Vector2(0, 21), bx + Vector2(-3.5, 18)]), RED)
 	ci.draw_circle(bx + Vector2(0, 9), 2.2, GOLD)
 	# crenellated parapet around the top diamond
+	_snow_top(ci, c, 0.45)   # snow on the parapet walk
 	_merlons(ci, c[3], c[2], STONE_L, 4)
 	_merlons(ci, c[2], c[1], STONE_L, 4)
 	# corner turret with conical roof + flag
@@ -465,6 +466,14 @@ static func _merlons(ci: CanvasItem, a: Vector2, bb: Vector2, col: Color, n: int
 	for i in range(n):
 		var p: Vector2 = a.lerp(bb, (float(i) + 0.5) / float(n))
 		ci.draw_rect(Rect2(p.x - 2.4, p.y - 4.5, 4.8, 4.5), col)
+		if _winter:   # snow piled on each crenellation
+			ci.draw_rect(Rect2(p.x - 2.7, p.y - 5.7, 5.4, 1.7), SNOW)
+
+# Translucent snow dusting over a box's top diamond (an exposed wall-walk / parapet).
+static func _snow_top(ci: CanvasItem, c: PackedVector2Array, alpha: float = 0.5) -> void:
+	if not _winter:
+		return
+	ci.draw_colored_polygon(PackedVector2Array([c[0], c[1], c[2], c[3]]), Color(SNOW, alpha))
 
 static func _hovel(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vector2, time: float = 0.0) -> void:
 	var c := _box(ci, t, r, b, l, 17.0, Color(0.72, 0.62, 0.45))
@@ -1188,14 +1197,18 @@ static func _palisade(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vec
 		var p: Vector2 = l.lerp(r, float(f) / 6.0)
 		var tp := _post(ci, p + Vector2(0, 2), 14.0, WOOD, 2.2)
 		ci.draw_colored_polygon(PackedVector2Array([tp + Vector2(-1.6, 0), tp + Vector2(1.6, 0), tp + Vector2(0, -3)]), WOOD_L)
+		if _winter:   # snow dab capping each sharpened stake
+			ci.draw_colored_polygon(PackedVector2Array([tp + Vector2(-1.6, 0), tp + Vector2(1.6, 0), tp + Vector2(0, -2.4)]), SNOW)
 
 static func _stone_wall(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vector2) -> void:
 	var c := _box(ci, t, r, b, l, 13.0, STONE, TEX_STONE)
+	_snow_top(ci, c, 0.55)   # snow on the wall-walk
 	_merlons(ci, c[3], c[2], STONE_L, 3)
 	_merlons(ci, c[2], c[1], STONE_L, 3)
 
 static func _gatehouse(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vector2, ctr: Vector2) -> void:
 	var c := _box(ci, t, r, b, l, 20.0, STONE, TEX_STONE)
+	_snow_top(ci, c, 0.5)   # snow on the parapet walk
 	# archway through the front
 	var ar := l.lerp(b, 0.5)
 	ci.draw_colored_polygon(PackedVector2Array([ar + Vector2(-4, 0), ar + Vector2(4, 0), ar + Vector2(4, -10), ar + Vector2(0, -14), ar + Vector2(-4, -10)]), Color(0.06, 0.06, 0.08))
@@ -1243,6 +1256,12 @@ static func _watchtower(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: V
 	ci.draw_colored_polygon(PackedVector2Array([rail[0], rail[1], apex]), THATCH)
 	ci.draw_colored_polygon(PackedVector2Array([rail[1], rail[2], apex]), THATCH_D.darkened(0.06))
 	ci.draw_colored_polygon(PackedVector2Array([rail[2], rail[3], apex]), THATCH_D)
+	if _winter:   # snowcap on the lookout's thatch hip
+		var rl := [rail[3], rail[0], rail[1], rail[2]]
+		for k in range(4):
+			ci.draw_colored_polygon(PackedVector2Array([apex,
+				rl[k].lerp(apex, 0.55), rl[(k + 1) % 4].lerp(apex, 0.55)]),
+				Color(SNOW, 0.86 if k == 1 else 0.74))
 	# Pennant on the apex.
 	ci.draw_line(apex, apex + Vector2(0, -6), WOOD_D, 1.0)
 	ci.draw_colored_polygon(PackedVector2Array([apex + Vector2(0, -6), apex + Vector2(6, -4), apex + Vector2(0, -2)]), Color(0.66, 0.22, 0.20))
@@ -1250,6 +1269,7 @@ static func _watchtower(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: V
 static func _great_tower(ci: CanvasItem, t: Vector2, r: Vector2, b: Vector2, l: Vector2, ctr: Vector2) -> void:
 	var c := _box(ci, t, r, b, l, 38.0, STONE, TEX_STONE)
 	_door(ci, l, b, 38.0, Color(0.18, 0.12, 0.10))
+	_snow_top(ci, c, 0.45)   # snow on the parapet walk
 	_merlons(ci, c[3], c[2], STONE_L, 4)
 	_merlons(ci, c[2], c[1], STONE_L, 4)
 	# small corner turret
