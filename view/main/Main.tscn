@@ -1,6 +1,0 @@
-[gd_scene load_steps=2 format=3 uid="uid://sr_main_root01"]
-
-[ext_resource type="Script" path="res://view/main/GameBootstrap.gd" id="1_bootstrap"]
-
-[node name="Main" type="Node"]
-script = ExtResource("1_bootstrap")

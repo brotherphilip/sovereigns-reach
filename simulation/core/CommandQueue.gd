@@ -1,6 +1,6 @@
 extends Node
 # Autoload singleton. All player intent flows through here as typed Command dictionaries.
-# Nothing in the simulation reads Input directly — InputMapper enqueues here,
+# Nothing in the simulation reads Input directly — PlayerInputHandler enqueues here,
 # SimulationClock drains here at each fixed tick.
 
 enum CommandType {

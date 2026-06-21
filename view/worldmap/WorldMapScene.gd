@@ -14,7 +14,6 @@ var _endgame_shown: bool = false         # the win/defeat screen fires at most o
 # "Watch the campaign" live strategic ticker.
 var _watching: bool = false
 var _watch_accum: float = 0.0
-var _watch_speed: int = 1               # (legacy) retained for dev hooks
 var _last_seen_day: int = -1            # last strategic day the view synced to
 var _watch_btn: Button = null
 var _watch_speed_btn: Button = null
@@ -27,10 +26,8 @@ var _march_btn: Button = null
 var _diplo_btn: Button = null
 var _action_city_id: int = -1     # right-click-selected city for strategic orders
 var _diplo_faction_id: int = -1   # owner kingdom of a selected rival city (diplomacy target)
-var _campaign_army_id: int = -1   # >=0 = awaiting a march target (legacy gold-army targeting)
 var _march_arming: bool = false   # true = awaiting a target for the real-troop host march
 var _march_source_city: int = -1  # the owned city the marching host departs from
-const RAISE_BATCH: int = 10       # (legacy) soldiers levied per Raise Army click
 const WATCH_INTERVAL: float = 0.45      # real seconds per strategic day at speed 1
 
 func _ready() -> void:

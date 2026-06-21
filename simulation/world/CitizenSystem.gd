@@ -39,7 +39,6 @@ const PH_WAIT     = "wait"       # store full / no node — pause and retry
 
 const PREP_TICKS: int = 60        # dwell bucking the felled trunk into haulable logs
 
-const NODE_RADIUS: int = 16       # legacy ring step (kept for other callers)
 const SEEK_TICKS_PER_TILE: int = 70  # travel budget per tile to a distant resource node
 const HARVEST_TICKS: int = 90     # dwell felling/digging/picking
 const PROCESS_TICKS: int = 70     # dwell working raw into output
