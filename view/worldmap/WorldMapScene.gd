@@ -8,6 +8,8 @@ const _CampaignMap = preload("res://simulation/strategic/CampaignMap.gd")
 var _world_view: Control = null
 
 var _loading_canvas: CanvasLayer = null
+var _event_feed: Panel = null            # strategic realm_notice feed (iter270)
+var _victory_shown: bool = false         # the King-win screen fires at most once (iter271)
 
 # "Watch the campaign" live strategic ticker.
 var _watching: bool = false
@@ -93,6 +95,11 @@ func _init_and_build() -> void:
 		_loading_canvas = null
 
 	_refresh_watch_btn()
+
+	# Dev/headless hook: preview the King WIN screen on the world map (the case this scene must
+	# present now that promotions fire here, not only in the city view).
+	if OS.get_environment("SR_WINTEST") != "":
+		_on_title_promoted(6, "King")
 
 	# Dev/headless hook: fast-forward the shared clock (used for screenshots).
 	if OS.get_environment("SR_AUTOWATCH") != "":
@@ -403,15 +410,19 @@ func _build_scene() -> void:
 	# so they aren't LOST while the player is on the world map (where they actually launch the
 	# campaigns whose outcomes these announce). Mirrors CityViewScene's realm_notice wiring;
 	# left side, under the top bar. The connection dies with the scene on the way back to a city.
-	var feed: Panel = preload("res://view/hud/NotificationFeed.gd").new()
-	feed.name = "WorldEventFeed"
-	feed.position = Vector2(8, 44)
-	canvas.add_child(feed)
+	_event_feed = preload("res://view/hud/NotificationFeed.gd").new()
+	_event_feed.name = "WorldEventFeed"
+	_event_feed.position = Vector2(8, 44)
+	canvas.add_child(_event_feed)
 	EventBus.realm_notice.connect(func(text: String, tone: String):
 		var col: Color = Color(0.95, 0.85, 0.55)
 		if tone == "bad": col = Color(0.92, 0.6, 0.5)
 		elif tone == "good": col = Color(0.6, 0.9, 0.6)
-		feed.push("📜 " + text, 7.0, col))
+		if is_instance_valid(_event_feed): _event_feed.push("📜 " + text, 7.0, col))
+	# Title promotions (Reeve→…→King) fire from the strategic tick, which advances WHILE the player
+	# is on this map — but the celebration + the King WIN screen were wired only in CityViewScene, so
+	# climbing to King by capturing the final city on the MAP showed nothing. Handle it here too.
+	EventBus.title_promoted.connect(_on_title_promoted)
 
 # Gold-bordered parchment styling for the bottom action buttons. The default theme
 # rendered them near-transparent over the busy map terrain (Raise/March/Diplomacy
@@ -757,3 +768,64 @@ func _on_city_hovered(city_id: int) -> void:
 	info.text = "%s — %s\nDevelopment %d · Garrison ⚔ %d\n(click to enter)" % [
 		city.get("name", "City"), fac_name, dev, gar]
 	info.add_theme_color_override("font_color", fac_col)
+
+# A feudal title rose (Reeve→…→King). The strategic tick fires this while the player is on this
+# map (capturing cities), so the celebration + the King WIN must present HERE, not only in the city
+# view. Mirrors CityViewScene._on_title_promoted.
+func _on_title_promoted(_title_index: int, title_name: String) -> void:
+	if is_instance_valid(_event_feed):
+		_event_feed.push("👑 You have risen to %s!" % title_name, 8.0, Color(1.0, 0.85, 0.3))
+	if title_name == "King":
+		_show_victory("You have risen to KING — the realm is yours!")
+
+# Minimal victory overlay (the world map has no game-over panel of its own). Pauses the realm,
+# congratulates the new sovereign, and offers a return to the main menu / a fresh game.
+func _show_victory(message: String) -> void:
+	if _victory_shown:
+		return
+	_victory_shown = true
+	SimulationClock.set_speed(SimulationClock.SPEED_PAUSED)
+	var overlay := CanvasLayer.new()
+	overlay.name = "VictoryOverlay"
+	overlay.layer = 60
+	add_child(overlay)
+	var bg := ColorRect.new()
+	bg.color = Color(0.0, 0.0, 0.0, 0.72)
+	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	overlay.add_child(bg)
+	var panel := Panel.new()
+	panel.position = Vector2(340, 210)
+	panel.size = Vector2(600, 280)
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.10, 0.12, 0.16, 0.98)
+	style.set_border_width_all(2)
+	style.border_color = Color.GOLD
+	style.set_corner_radius_all(8)
+	panel.add_theme_stylebox_override("panel", style)
+	overlay.add_child(panel)
+	var title := Label.new()
+	title.text = "👑  VICTORY!"
+	title.position = Vector2(20, 24); title.size = Vector2(560, 50)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 32)
+	title.add_theme_color_override("font_color", Color.GOLD)
+	panel.add_child(title)
+	var msg := Label.new()
+	msg.text = message; msg.position = Vector2(20, 92); msg.size = Vector2(560, 80)
+	msg.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	msg.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	msg.add_theme_font_size_override("font_size", 16)
+	msg.add_theme_color_override("font_color", Color.WHITE_SMOKE)
+	panel.add_child(msg)
+	var day_lbl := Label.new()
+	day_lbl.text = "Day %d reached." % SimulationClock.game_day()
+	day_lbl.position = Vector2(20, 172); day_lbl.size = Vector2(560, 24)
+	day_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	day_lbl.add_theme_font_size_override("font_size", 13)
+	day_lbl.add_theme_color_override("font_color", Color.LIGHT_GRAY)
+	panel.add_child(day_lbl)
+	var menu_btn := Button.new()
+	menu_btn.text = "Main Menu"; menu_btn.position = Vector2(230, 216); menu_btn.size = Vector2(140, 40)
+	menu_btn.add_theme_font_size_override("font_size", 14)
+	menu_btn.pressed.connect(func(): get_tree().change_scene_to_file("res://view/menu/MainMenuScene.tscn"))
+	panel.add_child(menu_btn)

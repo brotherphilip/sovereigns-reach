@@ -143,6 +143,28 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 271 — 2026-06-22  (BUG — the KING WIN screen never showed when you won on the world map)
+
+Following the iter270 world-map feedback thread, found a more serious sibling: the feudal-title promotion
+handler — including the **King = VICTORY screen** — was wired ONLY in `CityViewScene`. But `title_promoted`
+fires from the STRATEGIC tick (`_tick_strategic_layer`), which advances while the player is on the WORLD
+MAP, and the title climb culminates by capturing the final city *on that map*. So a player who reached King
+on the world map (the common path) got **no "👑 You have risen to King!", and — critically — NO VICTORY
+SCREEN**: the win was reached but never presented. (`title_promoted` is one-shot, so entering a city later
+wouldn't re-trigger it either.)
+
+- **Fix:** `WorldMapScene` now connects `EventBus.title_promoted` too — every promotion pushes a
+  "👑 You have risen to X!" line to the strategic event feed (iter270), and reaching **King** raises a gold
+  victory overlay ("VICTORY! — the realm is yours", day reached, Main Menu) mirroring the city-view game-over
+  panel. One-shot (`_victory_shown`); pauses the realm.
+- **Validated (Xvfb):** clean boot with the new handlers; new `SR_WINTEST` dev hook previews the world-map
+  win screen on demand — the gold VICTORY panel renders correctly over the map. View-only change.
+
+### Files
+- `view/worldmap/WorldMapScene.gd` — title-promotion notice + King victory overlay + `SR_WINTEST` hook.
+
+---
+
 ## Iteration 270 — 2026-06-22  (PLAYER-EXPERIENCE — strategic event feed was MISSING on the world map)
 
 Rendered the strategic `WorldMapScene` (a driven King climb) and audited its feedback. The map itself is

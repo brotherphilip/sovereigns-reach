@@ -2,6 +2,16 @@
 
 ---
 
+## 2026-06-22 — The King victory now shows when you win on the world map (iter271)
+
+- **[Bug fix] The win is no longer missed:** reaching King — the victory condition — is achieved by
+  capturing your final city on the world map, but the "👑 You have risen to King!" celebration and the
+  VICTORY screen were wired only in the city view. So winning on the map presented *nothing*. The world
+  map now shows every title promotion in its event feed and raises a gold VICTORY overlay when you reach
+  King. (view/worldmap/WorldMapScene.gd.)
+
+---
+
 ## 2026-06-22 — Strategic event feed on the world map (iter270)
 
 - **[Missing-feedback fix] The world map now shows the event feed:** campaign results ("⚔ Your host has
