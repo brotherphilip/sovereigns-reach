@@ -2,6 +2,22 @@
 
 ---
 
+## 2026-06-22 — Siege-engine arrow immunity is now data-driven (iter285)
+
+- **[Consistency fix] "Immune to arrows" actually works off its flag now:** the battering ram is marked
+  arrow-immune in unit data, but the combat code ignored that flag and instead special-cased the ram by name — so
+  a designer marking a *new* siege engine (a mantlet or siege tower) arrow-immune would have gotten nothing, with
+  the unit still taking full arrow damage. The immunity now reads the unit's `immune_to_arrows` flag directly, so
+  it's truly data-driven and future-proof. The ram behaves exactly as before (it's the only arrow-immune unit
+  today); this just makes the flag honest.
+- A full expert-QA pass over combat confirmed the rest is sound — killed units actually die (no zombies), you
+  can't order a unit to attack a friendly, and ranged units only get hit back when the foe is in reach.
+- **Validated:** the ram immunity test was strengthened (`TestPhase6` 107/0 — confirms arrows do 0 to the ram and
+  that the immunity is arrow-specific, so melee still hurts it); combat suites green (TestUnitAI 23/0, TestSiege
+  9/0, TestSpectatorTroops 10/0). (simulation/combat/CombatSystem.gd.)
+
+---
+
 ## 2026-06-22 — Win/loss screens unified into one shared component (iter284)
 
 - **[Tech-debt / consistency] One game-over screen, used everywhere:** the victory/defeat screen was hand-built

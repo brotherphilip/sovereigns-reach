@@ -34,9 +34,14 @@ static func calculate_damage(attacker: Dictionary, defender: Dictionary) -> Dict
 	var anti_armor: float = UnitRegistry.lookup(attacker.get("type", "")).get("anti_armor_bonus", 0.0)
 	if anti_armor > 0.0 and defender.get("armor_type", "") == UnitRegistry.ARMOR_HEAVY:
 		raw = int(float(raw) * (1.0 + anti_armor))
-	# Ram immune-to-arrows: pierce has no effect on battering_ram
-	if defender.get("type", "") == "battering_ram" and atk_type == UnitRegistry.ATTACK_PIERCE:
-		return {"damage": 0, "kills": false, "remaining_hp": defender.get("hp", 0)}
+	# Arrow-immune siege engines (the battering ram, GDD §6.4.1) shrug off PIERCE attacks. Driven by
+	# the registry's `immune_to_arrows` flag rather than a hard-coded type, so flagging a NEW unit (a
+	# mantlet / siege tower) immune actually takes effect — the flag was previously declared on the
+	# ram but never read, and the type was hard-coded. (Key is "killed" to match every other return
+	# path and all callers — it was a stray "kills" here.) (iter285)
+	if atk_type == UnitRegistry.ATTACK_PIERCE \
+			and UnitRegistry.lookup(defender.get("type", "")).get("immune_to_arrows", false):
+		return {"killed": false, "damage": 0, "remaining_hp": defender.get("hp", 0)}
 	return UnitState.apply_damage(defender, raw, atk_type)
 
 # ── Captain morale buff ───────────────────────────────────────────────────────

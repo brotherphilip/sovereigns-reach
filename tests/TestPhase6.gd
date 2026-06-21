@@ -274,12 +274,22 @@ func _test_combat_system() -> void:
 	var heavy_dmg: int = heavy_hp_before - int(heavy_target.get("hp", 0))
 	ok("siege vs structure > siege vs heavy", wall_dmg > heavy_dmg)
 
-	# 4. arrows cannot damage battering_ram (immune_to_arrows)
+	# 4. arrows cannot damage battering_ram (immune_to_arrows). iter285: the immunity is now driven
+	# by the registry flag (not a hard-coded type), reports the standard "killed" key, and is
+	# PIERCE-only — a melee/siege attacker still damages the ram.
 	var archer3: Dictionary = UnitState.create("archer", 0, 0, 0, 10)
 	var ram3: Dictionary = UnitState.create("battering_ram", 1, 0, 0, 11)
 	var ram_hp_before: int = ram3.get("hp", 0)
-	CombatSystem.calculate_damage(archer3, ram3)
+	var pierce_res: Dictionary = CombatSystem.calculate_damage(archer3, ram3)
 	ok("pierce attack does 0 to battering_ram", int(ram3.get("hp", 0)) == ram_hp_before)
+	ok("pierce-vs-ram reports killed=false via the standard key", pierce_res.get("killed", true) == false)
+	ok("pierce-vs-ram reports 0 damage", int(pierce_res.get("damage", -1)) == 0)
+	# Immunity is specific to PIERCE — a melee attacker still bites into the ram (min 1 dmg).
+	var peasant_m: Dictionary = UnitState.create("armed_peasant", 0, 0, 0, 12)
+	var ram4: Dictionary = UnitState.create("battering_ram", 1, 0, 0, 13)
+	var ram4_hp: int = ram4.get("hp", 0)
+	CombatSystem.calculate_damage(peasant_m, ram4)
+	ok("a melee attacker still damages the ram (immunity is pierce-only)", int(ram4.get("hp", 0)) < ram4_hp)
 
 	# 5. captain morale buff
 	var army_with_captain: Array = [
