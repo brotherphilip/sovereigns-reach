@@ -1286,9 +1286,15 @@ func _refresh_tech_panel() -> void:
 			_add_tech_item(vbox, item, player)
 
 func _add_tech_item(parent: VBoxContainer, item: Dictionary, player: Dictionary) -> void:
+	# A tech is a small two-line card: the name+cost+Research row, then an always-visible one-line
+	# summary of what it gets you (unlocks/effect) — so the tree reads as choices, not bare names.
+	var card := VBoxContainer.new()
+	card.add_theme_constant_override("separation", 0)
+	parent.add_child(card)
+
 	var row := HBoxContainer.new()
-	row.custom_minimum_size = Vector2(0, 28)
-	parent.add_child(row)
+	row.custom_minimum_size = Vector2(0, 24)
+	card.add_child(row)
 
 	var status: String = item.get("status", "locked")
 	var status_sym: String = {"researched": "✓", "available": "◆", "unaffordable": "◇", "locked": "·"}.get(status, "?")
@@ -1310,6 +1316,16 @@ func _add_tech_item(parent: VBoxContainer, item: Dictionary, player: Dictionary)
 		btn.tooltip_text = "Research %s for %d prestige\n%s" % [item.get("name", ""), int(item.get("cost_prestige", 0)), hint]
 		btn.pressed.connect(func(): tech_research_requested.emit(tech_id))
 		row.add_child(btn)
+
+	var summary: String = TechTreePanelController.get_tech_summary(item)
+	if summary != "":
+		var sub := Label.new()
+		sub.text = "    " + summary
+		sub.add_theme_font_size_override("font_size", 9)
+		sub.add_theme_color_override("font_color",
+			Color(0.66, 0.72, 0.54) if status != "locked" else Color(0.50, 0.48, 0.44))
+		sub.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		card.add_child(sub)
 
 func _toggle_tech_panel() -> void:
 	_edict_panel.visible = false

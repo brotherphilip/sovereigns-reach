@@ -49,6 +49,25 @@ static func get_tech_status(player: Dictionary, tech_id: String) -> String:
 	return STATUS_LOCKED
 
 # Returns a plain-language benefit summary for a tech definition dict.
+# A SHORT one-line payoff summary for the always-visible tech row (the full breakdown stays in the
+# Research-button tooltip). Prefers what it UNLOCKS — what a planning player most wants — else its
+# headline modifier. So the tech list reads as "what does this get me", not bare names + costs.
+static func get_tech_summary(defn: Dictionary) -> String:
+	var ub: Array = defn.get("unlocks_buildings", [])
+	if not ub.is_empty():
+		var names: Array = []
+		for u in ub:
+			names.append(String(u).replace("_", " ").capitalize())
+		return "Unlocks " + ", ".join(names)
+	var m: Dictionary = defn.get("modifiers", {})
+	for key in m:
+		var val = m[key]
+		var dk: String = key.replace("_", " ").capitalize()
+		if (val is float or val is int) and float(val) < 5.0:
+			return "%s %+.0f%%" % [dk, float(val) * 100.0]
+		return "%s: %s" % [dk, str(val)]
+	return String(defn.get("description", ""))
+
 static func get_tech_hint_text(defn: Dictionary) -> String:
 	var lines: Array = []
 	var unlocks: Array = defn.get("unlocks_buildings", [])

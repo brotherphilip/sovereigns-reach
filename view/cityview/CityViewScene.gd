@@ -378,6 +378,9 @@ func _build_scene() -> void:
 	# Dev hook: pop a sample World-Event decision modal (for capturing the choice panel).
 	if OS.get_environment("SR_EVENTDEMO") != "":
 		_dev_event_demo()
+	# Dev hook: open a side panel for capture (SR_PANEL=tech|edict).
+	if OS.get_environment("SR_PANEL") != "":
+		_dev_panel_demo(OS.get_environment("SR_PANEL"))
 	# Dev hook: preview the shared end-game overlay (iter284). SR_GAMEOVER=victory → gold VICTORY
 	# panel, anything else → dark-red DEFEAT panel. Lets the city-view game-over be render-tested
 	# (mirrors the world map's SR_WINTEST).
@@ -1343,6 +1346,15 @@ func _dev_build_demo() -> void:
 func _dev_obj_demo() -> void:
 	await get_tree().create_timer(2.0).timeout
 	EventBus.objective_completed.emit("village_hall", "Found your seat — build a Village Hall")
+
+func _dev_panel_demo(which: String) -> void:
+	await get_tree().create_timer(2.0).timeout
+	if _hud == null:
+		return
+	if which == "tech":
+		_hud._toggle_tech_panel()
+	elif which == "edict":
+		_hud._toggle_edict_panel()
 
 func _dev_event_demo() -> void:
 	await get_tree().create_timer(2.0).timeout

@@ -2,6 +2,20 @@
 
 ---
 
+## 2026-06-23 — The tech tree now shows what each technology gets you (iter338)
+
+- **[Clarity] Always-visible payoff line on every tech:** the technology panel listed techs as a name +
+  prestige cost + status symbol, but what each one actually *unlocks or improves* was hidden in the
+  Research-button hover tooltip — and only for techs you could already afford. A player planning a path
+  (e.g. "which tech gets me a Barracks?") had to hover each one, and couldn't inspect locked techs at all.
+  Now every tech row carries a short, always-visible summary underneath — **"Unlocks Watchtower, Barracks"**
+  or **"Farm Yield +20%"** — so the tree reads as a set of *choices* with consequences instead of bare
+  names and numbers (the full breakdown remains in the tooltip). Same clarity treatment the build menu got
+  in iter333. Verified by render; view-only. (Also added an `SR_PANEL=tech|edict` dev hook so the side
+  panels can be render-tested — the Edict panel already shows per-edict effects and was left as-is.)
+
+---
+
 ## 2026-06-23 — Re-baseline the stale first-impression critique to match reality (iter336)
 
 - **[Docs/Process] `phase plan.md` rewritten as an accurate status ledger:** the original tier-0..4

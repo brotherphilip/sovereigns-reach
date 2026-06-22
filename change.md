@@ -157,6 +157,22 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 338 — 2026-06-23  (CLARITY — tech tree shows what each tech unlocks; resumed active cadence)
+
+**User re-ran /loop right after I slowed to maintenance → resumed active work.** Examined an UNEXAMINED
+core system: the Tech tree + Edicts panels (added `SR_PANEL=tech|edict` dev hook to render them). Finding:
+the **tech panel** listed name + cost + status only — what each tech UNLOCKS/does was hover-only (Research
+button tooltip, available techs only), so planning a path meant hovering each and locked techs showed nothing.
+
+**Fix (view-only):** new `TechTreePanelController.get_tech_summary()` → a short payoff line (prefers
+"Unlocks <Buildings>", else the headline modifier like "Farm Yield +20%"). `_add_tech_item` is now a 2-line
+card (name+cost+Research row, then the always-visible summary). Same treatment the build menu got iter333.
+The **Edict panel already shows per-edict effects** — left as-is.
+
+**Verified:** render of the tech panel — every tech now shows what it gets you. Boots clean; view-only.
+
+---
+
 ## Iteration 337 — 2026-06-23  (VERIFICATION — last city-view visual candidate confirmed resolved)
 
 Worked the re-baseline's open candidates. **Orchard/farm growth life → RESOLVED:** rendered fields across
