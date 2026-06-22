@@ -6,8 +6,8 @@ extends Node2D
 
 const SeasonSystem = preload("res://simulation/world/SeasonSystem.gd")
 
-const MAX_DARK: float = 0.92        # deepest-night wash alpha — away from torchlight it is VERY dark
-const NIGHT_TINT: Color = Color(0.015, 0.02, 0.06)  # near-black, faint cold blue
+const MAX_DARK: float = 0.70        # deepest-night wash alpha — moonlit, not pitch-black (roofs/ground stay legible)
+const NIGHT_TINT: Color = Color(0.12, 0.15, 0.27)   # deep moonlight blue (lifted floor — readable, not a cave)
 const DUSK_TINT: Color  = Color(0.34, 0.15, 0.05)   # warm sunset/sunrise glow
 
 var _night: float = 0.0

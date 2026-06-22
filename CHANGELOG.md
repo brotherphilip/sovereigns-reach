@@ -2,6 +2,26 @@
 
 ---
 
+## 2026-06-22 — Night is a readable, lamplit village instead of a black screen (iter321)
+
+- **[Visual] Night-lighting redesign — the loop's most-flagged "hate" fixed (player-experience pass):**
+  deep night used to crush to near-black (committed wash `MAX_DARK 0.92` over a near-black tint) while
+  every torch threw a wide additive glow circle — dozens stacked into a shapeless orange "Photoshop
+  glow-brush" smear with no legible buildings, ground, or pawns. You literally could not see your own
+  town at night. Redesigned (view-only): instead of per-torch town-wide circles, **each lit building now
+  casts one warm, iso-elliptical pool of light hugging its footprint** (`NightLampLayer`), so a structure
+  and the lane in front of it read as a cosy lamplit home. Per-source intensities are kept low on purpose
+  — additive light sums, so a dense town stays a *constellation of warm hearths* that blend to amber
+  rather than blowing out to white, with pockets of moonlit dark between them. Small, defined flames sit
+  at the two door corners and 1–2 windows glow on the front wall. Because the lamp layer draws above the
+  darkening wash, a pool genuinely brightens the building **and any pawn standing in it**. The wash
+  (`NightLayer`) was lifted to `MAX_DARK 0.70` over a deep moonlight-blue so the countryside between
+  pools stays navigable. Day view is untouched (both the lamp layer and the wash early-out before dusk).
+  Verified by render at deep night, wide and 2.4× close-up — Granary / Village Hall / orchards now read
+  individually in lamplight; `TestSurvival` 6/0.
+
+---
+
 ## 2026-06-22 — Every army on the map is now a real, typed host (iter320)
 
 - **[Systems] AI armies march real units, not abstract numbers (player pick):** previously only the player's

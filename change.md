@@ -157,6 +157,27 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 321 — 2026-06-22  (PLAYER-EXPERIENCE — night redesign: a readable, lamplit village)
+
+**Playtest finding (render):** rendered the real CityViewScene at forced deep night (`SR_NIGHT`) — the
+single ugliest, most-flagged screen in the game. Committed night crushed to near-black (`MAX_DARK 0.92`,
+near-black tint) while every torch threw a wide additive glow circle; dozens stacked into a shapeless
+orange "Photoshop glow-brush" smear with NO legible buildings, ground, or pawns. You could not see — or
+play — your own town at night. Cited repeatedly across prior critiques → redesign, not another tweak.
+
+**Fix (view-only):** `NightLampLayer` rebuilt — the per-torch town-wide circle is gone; each LIT building
+now casts ONE warm iso-elliptical light-pool hugging its footprint (low per-source alpha so a dense town's
+overlapping pools sum to warm amber, not blown white, leaving pockets of moonlit dark between them), + two
+small defined door-flames + 1–2 windows aglow. The additive lamp layer sits above the wash, so a pool
+lights the building AND any pawn standing in it. `NightLayer` wash lifted to `MAX_DARK 0.70` over a deep
+moonlight-blue (`0.12,0.15,0.27`) so the land between pools stays navigable. Day view untouched (both the
+lamp layer and the wash early-out before dusk).
+
+**Verified:** render wide + 2.4× close-up at deep night — Granary / Village Hall / orchards now read
+individually in cosy lamplight (before: black + orange blobs). `TestSurvival` 6/0.
+
+---
+
 ## Iteration 320 — 2026-06-22  (MAIN-MAP FOCUS loop 7/7 — AI armies march REAL typed units)
 
 **USER PICK** (from the iter319 troop-flow question, options): *"AI armies use real units first"* — close the data
