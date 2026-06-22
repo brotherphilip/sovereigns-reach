@@ -157,6 +157,26 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 332 — 2026-06-23  (ENGAGEMENT — world-event decrees command the screen)
+
+**Probed engagement/content (top "Fun" priority).** Finding: the event system is actually solid — 26/59
+events carry real CHOICES with tradeoffs, presented as a pausing ModalGate modal (good content + flow, NOT
+the weak link I assumed). The gap was PRESENTATION: the choice modal was a plain gold panel floating over a
+still-bright busy scene — didn't read as stop-and-decide, and a bandit threat looked like a feast.
+
+**Fix (view-only, `EventChoicePanel`):** full-screen dim behind the panel (MOUSE_FILTER_STOP swallows world
+clicks); tone-accented frame (danger-red for hostile/bad, green for good, gold neutral) + matching title
+tint; soft fade-in. Dev hook SR_EVENTDEMO (bypasses the autoplay auto-resolve so the modal can be captured).
+
+**Verified:** render of the hostile "Bandits on the Road" decree — red frame over a dimmed realm, two clear
+choices. TestEventChoice 7/0, TestWorldEvents 46/0.
+
+**Reassessment for the loop:** the game is now well-developed across visuals, feedback, progression-clarity,
+AND event engagement. Diminishing returns on "find a gap"; remaining big items are content-authoring
+(narration VOs — needs the TTS studio) and deeper balance/long-game design (needs user steer).
+
+---
+
 ## Iteration 331 — 2026-06-23  (CLARITY/MOTIVATION — idle inspector → realm-at-a-glance)
 
 **Fresh playtest finding:** the bottom-right selection panel sits idle most of the game (already collapsed

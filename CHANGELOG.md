@@ -2,6 +2,21 @@
 
 ---
 
+## 2026-06-23 — A ruler's decree now commands the screen (iter332)
+
+- **[Engagement/Immersion] World-event decision modals dim the screen and frame the stakes:** the game
+  already has good content here — 26 of its 59 realm events offer real *choices* with tradeoffs (pay the
+  bandits' toll vs. drive them off; accept a baron's loan vs. stay independent), presented as a pausing
+  modal. But that modal was a plain gold-bordered panel floating over a still-bright, still-busy scene — it
+  didn't read as a *stop-and-decide* moment, and a bandit threat looked identical to a wedding feast. Now
+  the panel **dims the whole screen behind it** (a proper modal that swallows clicks on the world), **tone-
+  accents its frame** — danger-red for a hostile/bad decree, green for a boon, gold for neutral — and
+  **fades in** softly. A decision now feels like one. View-only (`EventChoicePanel`); verified by render of
+  a hostile event (red frame over a dimmed realm) and regression tests (TestEventChoice 7/0, TestWorldEvents
+  46/0). Added an `SR_EVENTDEMO` dev hook to capture the modal.
+
+---
+
 ## 2026-06-23 — The idle inspector now shows your realm at a glance (iter331)
 
 - **[Clarity/Motivation] A realm summary fills the bottom-right panel when nothing is selected:** that panel

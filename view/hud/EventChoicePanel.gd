@@ -7,7 +7,9 @@ extends Control
 const CT_RESOLVE_EVENT_CHOICE := 31   # CommandQueue.CommandType.RESOLVE_EVENT_CHOICE
 const ModalGate = preload("res://view/hud/ModalGate.gd")
 
+var _dim: ColorRect = null
 var _panel: Panel = null
+var _panel_style: StyleBoxFlat = null
 var _title: Label = null
 var _body: RichTextLabel = null
 var _btn_box: VBoxContainer = null
@@ -19,16 +21,24 @@ func _ready() -> void:
 	visible = false
 	custom_minimum_size = Vector2(360, 0)
 
+	# Full-screen dim behind the panel so a decree reads as a STOP-AND-DECIDE moment, not a floating
+	# note over a still-busy scene. Sized/placed in _present (it must cover the screen from this
+	# Control's offset position). Added first → drawn behind the panel.
+	_dim = ColorRect.new()
+	_dim.color = Color(0.0, 0.0, 0.02, 0.55)
+	_dim.mouse_filter = Control.MOUSE_FILTER_STOP   # swallow clicks on the world behind the decree
+	add_child(_dim)
+
 	_panel = Panel.new()
 	_panel.size = Vector2(360, 150)
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.12, 0.10, 0.14, 0.97)
-	style.set_border_width_all(2)
-	style.border_color = Color(0.82, 0.70, 0.35)
-	style.set_corner_radius_all(8)
-	style.shadow_color = Color(0, 0, 0, 0.6)
-	style.shadow_size = 12
-	_panel.add_theme_stylebox_override("panel", style)
+	_panel_style = StyleBoxFlat.new()
+	_panel_style.bg_color = Color(0.12, 0.10, 0.14, 0.97)
+	_panel_style.set_border_width_all(2)
+	_panel_style.border_color = Color(0.82, 0.70, 0.35)
+	_panel_style.set_corner_radius_all(8)
+	_panel_style.shadow_color = Color(0, 0, 0, 0.6)
+	_panel_style.shadow_size = 12
+	_panel.add_theme_stylebox_override("panel", _panel_style)
 	add_child(_panel)
 
 	var vb := VBoxContainer.new()
@@ -64,7 +74,7 @@ func _on_world_event(ev: Dictionary) -> void:
 	# modal would PAUSE the sim forever (the run freezes at the event's day). Auto-resolve
 	# with the conservative LAST option (usually decline/pass — no resource drain) and keep
 	# running, so unattended FLOOR runs survive a choice event instead of stalling.
-	if OS.get_environment("SR_AUTOPLAY") != "":
+	if OS.get_environment("SR_AUTOPLAY") != "" and OS.get_environment("SR_EVENTDEMO") == "":
 		CommandQueue.enqueue(CT_RESOLVE_EVENT_CHOICE, {
 			"event_id": ev.get("id", ""),
 			"choice_index": maxi(0, choices.size() - 1),
@@ -81,6 +91,20 @@ func _present(ev: Dictionary) -> void:
 	_current_id = ev.get("id", "")
 	_title.text = "⚜  " + String(ev.get("title", "A Decision"))
 	_body.text = "[i]%s[/i]" % String(ev.get("text", ""))
+	# Dim the whole screen behind the modal (offset back to the screen origin from our position).
+	_dim.position = -position
+	_dim.size = get_viewport_rect().size
+	# Tone-accent the frame: a hostile/bad decree is framed in danger-red, a boon in green, else gold.
+	var tone: String = String(ev.get("tone", "neutral"))
+	if ev.get("hostile", false) or tone == "bad":
+		_panel_style.border_color = Color(0.88, 0.36, 0.30)
+		_title.add_theme_color_override("font_color", Color(1.0, 0.66, 0.55))
+	elif tone == "good":
+		_panel_style.border_color = Color(0.58, 0.82, 0.42)
+		_title.add_theme_color_override("font_color", Color(0.84, 1.0, 0.70))
+	else:
+		_panel_style.border_color = Color(0.82, 0.70, 0.35)
+		_title.add_theme_color_override("font_color", Color(1.0, 0.90, 0.55))
 
 	for c in _btn_box.get_children():
 		c.queue_free()
@@ -93,9 +117,11 @@ func _present(ev: Dictionary) -> void:
 		btn.pressed.connect(func(): _choose(idx))
 		_btn_box.add_child(btn)
 
-	# Size the panel to its content and reveal it.
+	# Size the panel to its content and reveal it with a soft fade so the decree settles in.
 	_panel.size.y = 96.0 + choices.size() * 30.0
 	visible = true
+	modulate.a = 0.0
+	create_tween().tween_property(self, "modulate:a", 1.0, 0.25)
 	# A decree deserves the lord's full attention: hold time while you decide (and
 	# restore the prior speed afterwards) so a decision is never missed at fast-forward.
 	_prev_speed = SimulationClock.game_speed

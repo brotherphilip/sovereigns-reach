@@ -375,6 +375,9 @@ func _build_scene() -> void:
 	# Dev hook: fire an objective-complete flourish on the HUD panel (for capturing it).
 	if OS.get_environment("SR_OBJDEMO") != "":
 		_dev_obj_demo()
+	# Dev hook: pop a sample World-Event decision modal (for capturing the choice panel).
+	if OS.get_environment("SR_EVENTDEMO") != "":
+		_dev_event_demo()
 	# Dev hook: preview the shared end-game overlay (iter284). SR_GAMEOVER=victory → gold VICTORY
 	# panel, anything else → dark-red DEFEAT panel. Lets the city-view game-over be render-tested
 	# (mirrors the world map's SR_WINTEST).
@@ -1340,6 +1343,18 @@ func _dev_build_demo() -> void:
 func _dev_obj_demo() -> void:
 	await get_tree().create_timer(2.0).timeout
 	EventBus.objective_completed.emit("village_hall", "Found your seat — build a Village Hall")
+
+func _dev_event_demo() -> void:
+	await get_tree().create_timer(2.0).timeout
+	EventBus.world_event.emit({
+		"id": "bandit_toll", "tone": "bad", "hostile": true,
+		"title": "Bandits on the Road",
+		"text": "Raiders have blocked the eastern road and demand forty gold to let your carts pass.",
+		"choices": [
+			{"label": "Pay the toll  (−40 gold)", "effect": {"gold": -40}},
+			{"label": "Clear them by force  (−20 food, +6 popularity)", "effect": {"food": -20, "popularity": 6}},
+		],
+	})
 
 # A feudal promotion is the CORE long-term reward (Reeve → … → King). It used to pass as a 7-second
 # toast — the same weight as a weather note. Now each rung is a held, animated ENNOBLEMENT (shared with
