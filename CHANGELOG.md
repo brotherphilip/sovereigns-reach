@@ -2,6 +2,15 @@
 
 ---
 
+## 2026-06-22 — New random events keep each game fresh (iter313)
+
+- **[Content] Seven new world events:** a buried hoard of old coins, a craftsman defecting from a rival, a stray
+  hunting hound that wins the village over, a comet read as an omen, and three decisions — a barter caravan (sell
+  grain for gold or trade timber for iron), a demanded feast (throw it for goodwill or let them grumble), and a
+  dowser's gamble (fund a dig or send the charlatan off). More surprises that pull you off the optimal routine.
+
+---
+
 ## 2026-06-22 — Rival towns show real, ongoing construction (iter312)
 
 - **[Fix] AI towns no longer "pop in" fully-built when you visit them:** spectating a rival city used to regenerate it

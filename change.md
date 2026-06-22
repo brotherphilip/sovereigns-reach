@@ -157,6 +157,20 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 313 — 2026-06-22  (VARIETY — 7 new world events to break the optimal-play loop)
+
+Emergent-gameplay half of the directive. The `WorldEventSystem` is data-driven ("content compounds"), so added 7
+fresh events: `buried_hoard` (rare coin windfall), `rival_defector` (a craftsman flees a rival → +pop +1 soul),
+`stray_warhound` (charming +pop), `comets_passage` (omen +prestige), and three CHOICE events — `barter_caravan` (sell
+grain for gold / trade timber for iron / pass), `feast_demanded` (throw a feast vs let them grumble), `dowsers_promise`
+(fund a dig gamble vs decline). All use the existing effect vocabulary; no id clashes. The choice events especially
+pull the player off the optimal build order. Validated: TestWorldEvents 46/0, TestEventChoice 7/0; clean boot.
+
+**USER DIRECTIVE (mid-iter313): the next 7 loops focus SOLELY on the MAIN (world) MAP** — WorldMapScene visuals,
+strategic-layer gameplay, feedback, polish. Tracked as "MAIN-MAP FOCUS (loop N of 7)" in the loop prompt.
+
+---
+
 ## Iteration 312 — 2026-06-22  (USER REPORT — AI town construction now real-time-consistent across spectator visits)
 
 **User report:** AI buildings "only seem to be built when you click in to view," and construction resets/jumps —
