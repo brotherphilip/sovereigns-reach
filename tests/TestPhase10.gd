@@ -69,6 +69,12 @@ func _land_siege(faction: Dictionary) -> void:
 func _test_siege_survival() -> void:
 	print("\n--- Siege survival: prepared vs unprepared ---")
 	_siege_test_day = 0
+	# The defended/undefended seat-damage CONSTANTS are the ABSTRACT strike applied only while the
+	# ruler is AWAY (catch-up fast-forward, _catch_up_mode); when the player is present, besiegers
+	# batter the seat PHYSICALLY on the grid (covered by TestSiegePhysical) and there is no abstract
+	# hit. This test asserts those constants, so it must exercise the away-path — enable catch-up
+	# mode for the duration, and reset it at the end so later TestPhase10 cases run normally.
+	_gs._catch_up_mode = true
 	# Defended: hall + 3 watchtowers → siege-ready → reduced (defended) damage/siege, weathers many.
 	var p := _fresh_player(60)
 	_gs.citizens = []
@@ -104,6 +110,7 @@ func _test_siege_survival() -> void:
 	_land_siege(faction2)
 	var drop_u: int = u0 - int(hall2.get("hp", 0))
 	ok("undefended seat takes the full undefended damage", drop_u == _gs.SIEGE_DAMAGE_UNDEFENDED)
+	_gs._catch_up_mode = false   # restore: don't leak away-mode into later TestPhase10 cases
 
 func ok(label: String, cond: bool) -> void:
 	if cond:

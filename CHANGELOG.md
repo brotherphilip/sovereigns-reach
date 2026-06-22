@@ -2,6 +2,21 @@
 
 ---
 
+## 2026-06-23 — Restore the siege-balance regression guard (iter326)
+
+- **[Test] Fix the stale `TestPhase10` siege-survival case (3 pre-existing reds → green; confirms a core
+  balance):** the test asserts the seat-damage constants for a defended vs undefended seat, but those
+  constants are the *abstract* strike that only lands while the ruler is **away** (catch-up fast-forward);
+  when the player is present, besiegers batter the seat physically on the grid (covered by
+  `TestSiegePhysical`). The case never enabled catch-up mode, so the abstract path never ran and all three
+  assertions failed (no damage landed). Fixed by exercising the away-path (set `_catch_up_mode` for the
+  case, reset after). This **confirms the siege balance is working as intended** — a prepared seat
+  (walls/towers/garrison) takes **32** damage per strike vs **110** undefended, so investing in defence
+  blunts a siege ~3.4×. No gameplay change — the balance was already live; this restores the guard that
+  protects it from silent drift. `TestPhase10` now 80/0; known-red baseline 6 → 5.
+
+---
+
 ## 2026-06-23 — Fireflies turn the lamplit night into a magical one (iter325)
 
 - **[Visual] Ambient drifting motes — fireflies at night, pollen by day (player-experience pass):**

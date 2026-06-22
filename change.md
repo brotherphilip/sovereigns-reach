@@ -157,6 +157,21 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 326 — 2026-06-23  (CORE-LOOP GUARD — siege-balance test restored; defending confirmed to pay off)
+
+**Investigated the iter324-flagged "possible siege bug" (TestPhase10 3 reds).** Phase-4 "what the player
+thinks vs what actually happens": traced `GameState.gd:1663` — the abstract defended/undefended seat-damage
+only fires in `_catch_up_mode` (ruler AWAY); when present, besiegers batter the seat physically on the grid
+(`TestSiegePhysical`, green). So the core siege loop is FINE — the test was stale (never set catch-up mode,
+so its abstract-damage assertions never ran → drop==0).
+
+**Fix:** `TestPhase10._test_siege_survival` now runs the away-path (set `_catch_up_mode`, reset after).
+Confirms the balance: prepared seat takes **32**/strike vs **110** undefended (~3.4× payoff for walls/
+towers). No gameplay change — restores the guard so siege-balance drift becomes visible. TestPhase10 80/0;
+known-red baseline 6 → 5 (remaining: 4 `--script` CommandQueue compile quirks + TestNarration 7 missing-VOs).
+
+---
+
 ## Iteration 325 — 2026-06-23  (PLAYER-EXPERIENCE — fireflies make the lamplit night magical)
 
 **Finding:** with night now readable (iter321 lamplit village) and the meadow alive (iter322), the open
