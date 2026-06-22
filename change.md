@@ -157,6 +157,33 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 324 — 2026-06-23  (HOUSEKEEPING — consolidate verified prior-loop WIP; unblock view work)
+
+**Why:** for 3 iterations a 37-file uncommitted working set (pawn-LOD glyphs, PlayBot, view polish across
+buildings/water/trees/wildlife/world-map + sim tweaks) had been blocking clean per-iteration commits —
+any NEW render layer must touch the WIP'd `CityViewScene`. Flagged it 3×; player chose "commit it."
+
+**Due diligence before committing (proved no regression vs HEAD):**
+- Full 62-suite headless sweep: 56 green. The 6 reds are ALL pre-existing at HEAD/iter320 —
+  • 4 compile errors (`Identifier not found: CommandQueue` at `SimulationClock.gd:73`, a `--script`-mode
+    autoload-reload quirk) in TestPhase7/11/12/Tutorial — those test + source files are UNCHANGED vs HEAD.
+  • TestNarration 7 fails = known missing VO files (pre-existing).
+  • TestPhase10 3 fails = siege-damage assertions; re-ran with HEAD's `GameState` stashed in → IDENTICAL
+    77/3, so NOT WIP-induced.
+- Renders verified correct across day / night / water / world-map.
+
+**Action:** committed the WIP as iter324 checkpoint (excluding my unwired AmbientMotesLayer.gd → iter325).
+Tree is now clean; future iterations build on it directly.
+
+**Carryover findings (pre-existing, logged for later):**
+- [TEST-INFRA] 4 suites can't compile under `--script` due to a CommandQueue autoload-reload quirk
+  (`SimulationClock.gd:73`). Game runs fine; tests-only. Fix = lazy `get_node("/root/CommandQueue")`,
+  but risks the hot tick path; deferred (player-invisible).
+- [CONTENT] TestNarration: 7 popups missing VO files (the "every pop-up needs a VO" rule).
+- [BALANCE] TestPhase10: 3 siege-damage assertions failing at HEAD — worth a look.
+
+---
+
 ## Iteration 323 — 2026-06-22  (PLAYER-EXPERIENCE — mixed woodland: conifers break the cloned forest)
 
 **Playtest finding (render):** rendered fresh day/close/water views of the CURRENT (WIP) build. Two prior

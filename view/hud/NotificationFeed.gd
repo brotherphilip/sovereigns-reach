@@ -10,10 +10,14 @@ const EXPANDED_H: float   = 360.0   # dropped-down — scroll back through histo
 const MAX_HISTORY: int    = 200
 const FADE_IN_DUR: float  = 0.25
 
+const DEDUPE_WINDOW_SEC: float = 6.0   # drop a message identical to the last within this window
+
 var _log: VBoxContainer = null
 var _scroll: ScrollContainer = null
 var _toggle: Button = null
 var _expanded: bool = false
+var _last_text: String = ""
+var _last_text_time: float = -1000.0
 
 func _ready() -> void:
 	custom_minimum_size = Vector2(WIDTH, COLLAPSED_H)
@@ -65,6 +69,13 @@ func _ready() -> void:
 func push(text: String, _duration: float = 3.0, color: Color = Color.YELLOW) -> void:
 	if _log == null:
 		return
+	# Spam guard: ignore a message identical to the most recent one if it arrives within a
+	# few seconds, so no channel (weather, etc.) can flood the feed with repeats.
+	var now: float = float(Time.get_ticks_msec()) / 1000.0
+	if text == _last_text and (now - _last_text_time) < DEDUPE_WINDOW_SEC:
+		return
+	_last_text = text
+	_last_text_time = now
 	while _log.get_child_count() >= MAX_HISTORY:
 		var oldest := _log.get_child(_log.get_child_count() - 1)   # oldest is at the bottom now
 		_log.remove_child(oldest)

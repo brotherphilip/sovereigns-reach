@@ -9,6 +9,7 @@ extends RefCounted
 # (crude local avoidance). State drives the animation.
 
 const BuildingRegistry = preload("res://simulation/buildings/BuildingRegistry.gd")
+const BuildingState    = preload("res://simulation/buildings/BuildingState.gd")
 const WorkerJobs       = preload("res://simulation/world/WorkerJobs.gd")
 const Pathfinder       = preload("res://simulation/pathfinding/Pathfinder.gd")
 const SeasonSystem     = preload("res://simulation/world/SeasonSystem.gd")
@@ -178,6 +179,12 @@ static func tick(citizens: Array, player, rng: RandomNumberGenerator,
 	if not pdict.has("armory"): pdict["armory"] = {}
 	var buildings: Array = pdict.get("buildings", [])
 	var changed: Array = []
+
+	# Bucket brigade: while buildings burn and a well stands, idle townsfolk (and builders)
+	# are drafted to fetch water from the well and throw it on the fire. Runs day OR night and
+	# takes priority over routine work — fire is the emergency. Per-firefighter movement is in
+	# _tick_firefighter (dispatched from _tick_citizen).
+	_assign_firefighters(citizens, buildings, grid, rng)
 
 	# ── Night (opt-in via day_night; tests keep the old always-day behaviour) ──
 	# The idle townsfolk retire to their allotted houses to sleep; a small night shift
@@ -686,6 +693,112 @@ static func _record_tree_fall(x: int, y: int) -> void:
 		falls = falls.slice(falls.size() - 64)
 	_world["tree_falls"] = falls
 
+# ── Firefighting (bucket brigade) ──────────────────────────────────────────────
+
+# Draft / stand-down the brigade. While any building burns AND a built well exists, idle
+# villagers and builders become firefighters (a few per fire, capped). When the last fire is
+# out, every firefighter is released back to ordinary life.
+static func _assign_firefighters(citizens: Array, buildings: Array, grid: Object, rng: RandomNumberGenerator) -> void:
+	var n_fire: int = 0
+	var has_well: bool = false
+	for b in buildings:
+		if not b is Dictionary:
+			continue
+		if b.get("is_on_fire", false):
+			n_fire += 1
+		elif b.get("type", "") == "well" and b.get("built", true) and b.get("is_active", true):
+			has_well = true
+	if n_fire == 0 or not has_well:
+		for c in citizens:
+			if c is Dictionary and c.get("role", "") == "firefighter":
+				c["role"] = "villager"
+				c["state"] = STATE_IDLE
+				c["state_ticks"] = rng.randi_range(IDLE_TICKS.x, IDLE_TICKS.y)
+				c["carry"] = ""
+				c.erase("fire_phase"); c.erase("has_water")
+		return
+	var want: int = mini(n_fire * 3 + 1, 12)
+	var current: int = 0
+	for c in citizens:
+		if c is Dictionary and c.get("role", "") == "firefighter":
+			current += 1
+	var need: int = want - current
+	for c in citizens:
+		if need <= 0:
+			break
+		if not (c is Dictionary and c.get("is_alive", false)) or not _is_working_age(c):
+			continue
+		var role: String = c.get("role", "")
+		if role == "firefighter" or role == "worker":
+			continue   # keep producers at their jobs; draft idlers & builders
+		var st: String = c.get("state", "")
+		if role == "builder" or st == STATE_IDLE or st == STATE_WANDER or st == STATE_CHAT:
+			c["role"] = "firefighter"
+			c["has_water"] = false
+			c["fill_ticks"] = 0
+			c["douse_ticks"] = 0
+			need -= 1
+
+# One firefighter's tick: no water → fetch from the nearest well; with water → carry it to the
+# nearest fire and throw it (two loads put a blaze out, via BuildingState.douse).
+static func _tick_firefighter(c: Dictionary, buildings: Array, citizens: Array, grid: Object) -> void:
+	var pos := Vector2(c["x"], c["y"])
+	if not c.get("has_water", false):
+		var well: Dictionary = _nearest_building_of(buildings, ["well"], pos)
+		if well.is_empty():
+			c["state"] = STATE_IDLE
+			return
+		var spot := _reachable_spot(well, int(c.get("build_slot", 0)), c, grid, false, null)
+		c["tx"] = spot.x; c["ty"] = spot.y
+		if pos.distance_to(Vector2(spot.x, spot.y)) <= ARRIVE_DIST + 0.6:
+			c["state"] = STATE_WORK
+			c["work_anim"] = "draw"
+			c["vx"] = 0.0; c["vy"] = 0.0
+			c["fill_ticks"] = int(c.get("fill_ticks", 0)) + 1
+			if c["fill_ticks"] >= 8:
+				c["fill_ticks"] = 0
+				c["has_water"] = true
+				c["carry"] = "water"
+		else:
+			c["state"] = STATE_WALK
+			_follow_path(c, Vector2(spot.x, spot.y), citizens, grid)
+	else:
+		var fire: Dictionary = _nearest_fire(buildings, pos)
+		if fire.is_empty():
+			c["has_water"] = false
+			c["carry"] = ""
+			c["state"] = STATE_IDLE
+			return
+		var ctr := _site_center(fire)
+		var fspot := _reachable_spot(fire, int(c.get("build_slot", 0)), c, grid, false, null)
+		c["tx"] = fspot.x; c["ty"] = fspot.y
+		c["act_x"] = ctr.x; c["act_y"] = ctr.y
+		if pos.distance_to(Vector2(fspot.x, fspot.y)) <= ARRIVE_DIST + 0.8:
+			c["state"] = STATE_WORK
+			c["work_anim"] = "douse"
+			c["vx"] = 0.0; c["vy"] = 0.0
+			c["facing"] = 1.0 if ctr.x >= c["x"] else -1.0
+			c["douse_ticks"] = int(c.get("douse_ticks", 0)) + 1
+			if c["douse_ticks"] >= 8:
+				c["douse_ticks"] = 0
+				c["has_water"] = false
+				c["carry"] = ""
+				BuildingState.douse(fire)
+		else:
+			c["state"] = STATE_WALK
+			_follow_path(c, Vector2(fspot.x, fspot.y), citizens, grid)
+
+static func _nearest_fire(buildings: Array, from: Vector2) -> Dictionary:
+	var best: Dictionary = {}
+	var best_d: float = INF
+	for b in buildings:
+		if b is Dictionary and b.get("is_on_fire", false):
+			var d := from.distance_to(_site_center(b))
+			if d < best_d:
+				best_d = d
+				best = b
+	return best
+
 static func _nearest_building_of(buildings: Array, types: Array, from: Vector2) -> Dictionary:
 	var best: Dictionary = {}
 	var best_d: float = INF
@@ -782,6 +895,10 @@ static func _tick_citizen(c: Dictionary, buildings: Array, citizens: Array,
 		c["y"] = free.y
 		c["vx"] = 0.0
 		c["vy"] = 0.0
+	# Firefighters run their own well→fire bucket loop, not the normal job/idle machine.
+	if c.get("role", "") == "firefighter":
+		_tick_firefighter(c, buildings, citizens, grid)
+		return
 	var pos := Vector2(c["x"], c["y"])
 	match c.get("state", STATE_IDLE):
 		STATE_WALK:
@@ -1087,6 +1204,8 @@ static func _step_to(c: Dictionary, tgt: Vector2, citizens: Array, grid: Object)
 	# Terrain scales pace: villagers stride twice as fast on a path/road and slow in
 	# forest/water (mirrors the military _terrain_factor).
 	var spd: float = _walk_speed(grid, pos)
+	if c.get("role", "") == "firefighter":
+		spd *= 2.6   # firefighters RUN to the blaze — every second of a fire counts
 	var step := dir * spd
 	if grid != null and not _passable(grid, pos + step):
 		# Try fanning the heading out to slip around the obstacle.

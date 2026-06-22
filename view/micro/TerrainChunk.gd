@@ -22,7 +22,7 @@ const TERRAIN_COLORS: Array = [
 	Color(0.66, 0.43, 0.26),  # 6 ORE_VEIN
 	Color(0.50, 0.67, 0.35),  # 7 VALLEY — muted toward GRASS (was a bright 0.58,0.82,0.40 that popped as light squares against the warmed grass); kept a touch lighter/lusher so the biome still reads
 	Color(0.20, 0.44, 0.56),  # 8 COASTAL — muted deep base under the organic water layer (matches the shader's deep tone so the rounded banks read as deeper water, not a bright rim)
-	Color(0.84, 0.71, 0.47),  # 9 ROAD
+	Color(0.62, 0.47, 0.30),  # 9 ROAD — worn earthen path; darker/browner than the old pale tan so trodden roads read clearly against the green fields
 	Color(0.41, 0.33, 0.28),  # 10 RUIN
 	Color(0.12, 0.30, 0.44),  # 11 BRIDGE — dark water under the plank deck (deck drawn on top by BuildingLayer)
 ]
@@ -177,14 +177,20 @@ func _vary(base: Color, t: int, gx: int, gy: int) -> Color:
 		return base
 	# Soft patches (meadow clumps) — two low-freq waves blended.
 	var patch: float = 0.5 * sin(gx * 0.37 + gy * 0.21) + 0.5 * sin((gx + gy) * 0.17 + 1.3)
+	# A slower, larger color ZONE wave — broad warmer/cooler stretches of meadow so the
+	# field reads as textured ground with character, not one flat carpet (still calm).
+	var zone: float = sin(gx * 0.09 - gy * 0.07 + 2.1) * 0.6 + sin((gx - gy) * 0.05) * 0.4
 	# Fine per-tile grain — deterministic hash in [-0.5, 0.5].
 	var h: int = ((gx * 73856093) ^ (gy * 19349663)) & 0xffff
 	var grain: float = float(h) / 65535.0 - 0.5
-	var amt: float = patch * 0.045 + grain * 0.028       # softer: less per-tile square popping
+	var amt: float = patch * 0.050 + grain * 0.028 + zone * 0.022   # patches + soft zones + fine grain
 	var c: Color = base.lightened(amt) if amt >= 0.0 else base.darkened(-amt)
 	# Gentle hue drift: brighter patches lean warm/yellow-green, darker lean cool/blue-green.
 	c = c.lerp(Color(c.r * 1.06, c.g * 1.02, c.b * 0.90, c.a), clampf(patch, 0.0, 1.0) * 0.18)
 	c = c.lerp(Color(c.r * 0.92, c.g * 0.99, c.b * 1.08, c.a), clampf(-patch, 0.0, 1.0) * 0.18)
+	# Broad warm/cool color zones layered on top (low amplitude → reads as terrain, not noise).
+	c = c.lerp(Color(c.r * 1.05, c.g * 1.01, c.b * 0.92, c.a), clampf(zone, 0.0, 1.0) * 0.14)
+	c = c.lerp(Color(c.r * 0.94, c.g * 1.00, c.b * 1.06, c.a), clampf(-zone, 0.0, 1.0) * 0.14)
 	return Color(clampf(c.r, 0.0, 1.0), clampf(c.g, 0.0, 1.0), clampf(c.b, 0.0, 1.0), base.a)
 
 # Recolour a tile for the season: vegetation greens up in spring, deepens in summer,

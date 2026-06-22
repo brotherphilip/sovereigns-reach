@@ -25,7 +25,7 @@ func _ready() -> void:
 	material = ShaderMaterial.new()
 	material.shader = preload("res://view/micro/grass_detail.gdshader")
 	material.set_shader_parameter("grass_tex", preload("res://view/micro/textures/grass_detail.png"))
-	material.set_shader_parameter("strength", 0.7)   # visible turf detail without over-darkening
+	material.set_shader_parameter("strength", 0.85)   # crisper blade detail so grass reads as grass (not over-darkened)
 	set_process(true)
 	# Repaint when a building is placed/removed so freshly-stamped farmland tiles drop their grass
 	# blades (the field renders its own crop in TerrainChunk).

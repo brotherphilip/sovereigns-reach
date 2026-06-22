@@ -178,30 +178,36 @@ func setup_world(seed_value: int = 12345, shire_count: int = 8) -> void:
 	_forest_rng.seed = seed_value ^ 0xF0235711
 	ForestSystem.init_from_grid(world, _grid, _forest_rng)
 
-# Scatter a few deer herds across open grass/valley terrain.
+# Scatter mixed wildlife groups (deer, boar, rabbit, fox) across open grass/valley terrain.
 func _spawn_wildlife(seed_value: int) -> void:
 	_wildlife_rng.seed = seed_value ^ 0x0DEE12
 	wildlife = []
 	_next_animal_id = 1
-	var herds: int = 5
 	var w: int = server_config["map_width"]
 	var h: int = server_config["map_height"]
-	for herd_id in range(herds):
-		# Find an open spot for the herd centre.
-		var cx: float = 0.0
-		var cy: float = 0.0
-		for _attempt in range(20):
-			var tx: int = _wildlife_rng.randi_range(15, w - 15)
-			var ty: int = _wildlife_rng.randi_range(15, h - 15)
-			var t: int = _grid.get_terrain(tx, ty)
-			if t == WorldGrid.Terrain.GRASS or t == WorldGrid.Terrain.VALLEY:
-				cx = float(tx); cy = float(ty)
-				break
-		if cx == 0.0:
-			continue
-		var count: int = _wildlife_rng.randi_range(4, 6)
-		_next_animal_id = WildlifeSystem.spawn_herd(
-			wildlife, herd_id, cx, cy, count, _wildlife_rng, _next_animal_id)
+	# [species, number of groups]. Each group's size band comes from WildlifeSystem.TYPES.
+	var plan: Array = [["deer", 3], ["rabbit", 3], ["boar", 2], ["fox", 2]]
+	var herd_id: int = 0
+	for entry in plan:
+		var type: String = entry[0]
+		var band: Vector2i = WildlifeSystem.cfg(type)["herd"]
+		for _g in range(int(entry[1])):
+			# Find an open spot for the group centre.
+			var cx: float = 0.0
+			var cy: float = 0.0
+			for _attempt in range(20):
+				var tx: int = _wildlife_rng.randi_range(15, w - 15)
+				var ty: int = _wildlife_rng.randi_range(15, h - 15)
+				var t: int = _grid.get_terrain(tx, ty)
+				if t == WorldGrid.Terrain.GRASS or t == WorldGrid.Terrain.VALLEY:
+					cx = float(tx); cy = float(ty)
+					break
+			if cx == 0.0:
+				continue
+			var count: int = _wildlife_rng.randi_range(band.x, band.y)
+			_next_animal_id = WildlifeSystem.spawn_herd(
+				wildlife, herd_id, cx, cy, count, _wildlife_rng, _next_animal_id, type)
+			herd_id += 1
 
 # Positions (grid coords) the deer treat as threats: deployed units of any side,
 # plus the tracked cursor (set by the view for testing).
@@ -627,9 +633,14 @@ func _tick_player_economy(player: Dictionary, tick: int) -> void:
 		if player.get("id", -1) == 0:
 			MarketSystem.tick_prices(world, _disease_rng, tick)
 
-		# Popularity update
+		# Popularity update. While the TUTORIAL is still being taught, never let the player's
+		# popularity FALL — the opening lesson hasn't covered food/economy yet, so a new player
+		# shouldn't be able to start a death-spiral during step one. (Gains still apply.)
 		var old_pop: float = player.get("popularity", 50)
 		var new_pop: float = PopularityEngine.apply_tick(player, events)
+		if player.get("id", -1) == 0 and world.get("tutorial_active", false) and new_pop < old_pop:
+			player["popularity"] = old_pop
+			new_pop = old_pop
 		if old_pop != new_pop:
 			EventBus.popularity_changed.emit(player["id"], old_pop, new_pop)
 
@@ -1330,6 +1341,8 @@ func apply_command(command: Dictionary) -> void:
 			success = _cmd_resolve_event_choice(command)
 		CommandQueue.CommandType.SET_UNIT_STANCE:
 			success = _cmd_set_unit_stance(command)
+		CommandQueue.CommandType.DEBUG_SPAWN_ALL:
+			success = _cmd_debug_spawn_all(command)
 		CommandQueue.CommandType.SAVE_GAME:
 			EventBus.save_requested.emit()
 			success = true
@@ -1340,7 +1353,9 @@ func apply_command(command: Dictionary) -> void:
 # Phase 2: economy + weather tick
 func simulate_tick(tick: int) -> void:
 	var weather_event: Dictionary = WeatherSystem.tick(weather, _weather_rng, SeasonSystem.season_at_tick(tick))
-	if not weather_event.is_empty():
+	# A weather "transition" can re-roll the SAME type (e.g. Clear→Clear); only surface a
+	# notice when the weather actually CHANGES, so the feed never spams "Weather: Clear" runs.
+	if not weather_event.is_empty() and int(weather_event["new_weather"]) != int(weather_event["old_weather"]):
 		EventBus.weather_changed.emit(
 			WeatherSystem.weather_name(weather_event["new_weather"]),
 			weather_event["duration_ticks"]
@@ -3286,6 +3301,49 @@ func _cmd_recruit_unit(cmd: Dictionary) -> bool:
 			EventBus.realm_notice.emit("⚔ %s began training at the barracks." % uname, "neutral")
 		else:
 			EventBus.realm_notice.emit("⚔ %s mustered by the campfire — ready for your orders." % uname, "good")
+	return true
+
+# Developer cheat (the 'L' key): instantly muster a full army and overflow every
+# stockpile, bypassing tech/building/cost gates. For testing combat, buildings, and
+# the economy without grinding. Routed through the command queue so it lands inside
+# the deterministic tick (save-safe) like any other order.
+func _cmd_debug_spawn_all(cmd: Dictionary) -> bool:
+	var pid: int = cmd["player_id"]
+	if not _valid_player(pid):
+		return false
+	var player: Dictionary = players[pid]
+	# Brim every stockpile: raw resources, food larder, and crafted armory.
+	for r in player.get("resources", {}).keys():
+		player["resources"][r] = 9999
+	for f in player.get("food", {}).keys():
+		player["food"][f] = 9999
+	for a in player.get("armory", {}).keys():
+		player["armory"][a] = 9999
+	player["gold"] = 9999
+	# Muster 10 of every unit type, fanned out in a spiral around the muster point
+	# (the campfire once lit, else the keep). Units spawn ORDER_IDLE — ready at once,
+	# skipping the barracks training queue.
+	const N_PER_TYPE: int = 10
+	var cx: int = player.get("keep_x", 0)
+	var cy: int = player.get("keep_y", 0)
+	if pid == 0 and campfire.get("active", false):
+		cx = int(campfire.get("x", cx))
+		cy = int(campfire.get("y", cy))
+	var spawned: int = 0
+	for unit_type in UnitRegistry.get_all_types():
+		for _i in range(N_PER_TYPE):
+			var uid: int = _next_unit_id
+			_next_unit_id += 1
+			# Golden-angle spiral spreads the crowd so they don't stack on one tile.
+			var ang: float = float(uid) * 2.39996323
+			var rad: float = 2.0 + float(uid % 7) * 0.9
+			var sx: int = int(round(float(cx) + cos(ang) * rad))
+			var sy: int = int(round(float(cy) + sin(ang) * rad))
+			player["units"].append(UnitState.create(unit_type, pid, sx, sy, uid))
+			spawned += 1
+	if pid == 0:
+		EventBus.realm_notice.emit(
+			"🪄 Cheat: mustered %d soldiers and filled every stockpile." % spawned, "good")
 	return true
 
 func _cmd_issue_move_order(cmd: Dictionary) -> bool:

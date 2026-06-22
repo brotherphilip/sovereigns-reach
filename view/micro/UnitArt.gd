@@ -109,10 +109,12 @@ static func _draw_person(ci: CanvasItem, pos: Vector2, utype: String, team: Colo
 	var hip := Vector2(cx + lean * 0.5, feet - 7.0 - bob)
 	var sh := Vector2(cx + lean, feet - 15.0 - bob)
 	var head := Vector2(sh.x, sh.y - 4.5)
+	# Civilian women (some peasants/settlers/merchants) wear a gown + headscarf — a clear M/F read.
+	var female: bool = utype in ["peasant", "settler", "merchant"] and (uid % 2 == 1)
 
 	# Legs — two-segment, knees bending forward; the swinging foot lifts off the ground.
 	var leg_col: Color = STEEL_DK if plate else cloth.darkened(0.4)
-	if not s.get("robe", false):
+	if not s.get("robe", false) and not female:
 		var stride: float = (3.4 if walk else 1.3)
 		var lift_a: float = maxf(0.0, gait) * 2.4 if walk else 0.0
 		var lift_b: float = maxf(0.0, -gait) * 2.4 if walk else 0.0
@@ -120,6 +122,19 @@ static func _draw_person(ci: CanvasItem, pos: Vector2, utype: String, team: Colo
 		var foot_b := Vector2(cx - facing * gait * stride, feet - lift_b)
 		_limb2(ci, hip, foot_b, facing * (1.0 + lift_b), leg_col, 2.4)
 		_limb2(ci, hip, foot_a, facing * (1.0 + lift_a), leg_col.lightened(0.06), 2.4)
+		# Boots — a dark wedge at each foot so the figure is shod, not floating.
+		var boot := Color(0.22, 0.15, 0.10)
+		ci.draw_colored_polygon(PackedVector2Array([foot_b + Vector2(-1.2, 0), foot_b + Vector2(facing * 2.6, 0), foot_b + Vector2(facing * 2.6, 1.4), foot_b + Vector2(-1.2, 1.4)]), boot)
+		ci.draw_colored_polygon(PackedVector2Array([foot_a + Vector2(-1.2, 0), foot_a + Vector2(facing * 2.6, 0), foot_a + Vector2(facing * 2.6, 1.4), foot_a + Vector2(-1.2, 1.4)]), boot.lightened(0.06))
+	if female:
+		# A-line gown over the legs + a few fold lines + hem band.
+		var hemsw: float = gait * 1.8
+		var gcol: Color = cloth
+		ci.draw_colored_polygon(PackedVector2Array([hip + Vector2(-2.6, 0), hip + Vector2(2.6, 0),
+			Vector2(cx + 5.4 + hemsw, feet), Vector2(cx - 5.4 + hemsw * 0.6, feet)]), gcol)
+		for fx in [-0.45, 0.0, 0.45]:
+			ci.draw_line(hip + Vector2(2.6 * fx, 0), Vector2(cx + 5.4 * fx + hemsw * 0.7, feet), gcol.darkened(0.22), 0.7)
+		ci.draw_line(Vector2(cx - 5.4 + hemsw * 0.6, feet), Vector2(cx + 5.4 + hemsw, feet), gcol.lightened(0.25), 1.0)
 
 	# Cloak (behind torso) for scouts.
 	if s.has("cloak"):
@@ -139,7 +154,7 @@ static func _draw_person(ci: CanvasItem, pos: Vector2, utype: String, team: Colo
 
 	# Torso — a shaded body with a lit leading half and an outline so it reads at a glance.
 	var torso_col: Color = STEEL if plate else cloth
-	var tw: float = 5.2 if plate else 4.2
+	var tw: float = 5.2 if plate else (3.4 if female else 4.2)
 	var torso := PackedVector2Array([
 		hip + Vector2(-tw * 0.42, 0), hip + Vector2(tw * 0.42, 0),
 		sh + Vector2(tw * 0.5, 0), sh + Vector2(-tw * 0.5, 0)])
@@ -152,9 +167,18 @@ static func _draw_person(ci: CanvasItem, pos: Vector2, utype: String, team: Colo
 	# Neck.
 	ci.draw_line(sh, head + Vector2(0, 2.0), (STEEL if plate else SKIN).darkened(0.1), 1.7)
 	if plate:
-		ci.draw_circle(sh + Vector2(-2.6, 0), 1.6, STEEL.lightened(0.12))
-		ci.draw_circle(sh + Vector2(2.6, 0), 1.6, STEEL.lightened(0.12))
-		_limb(ci, hip + Vector2(0,-1), sh, STEEL_DK, 1.0)  # chest seam
+		# Pauldrons (shoulder plates) + a team-colour tabard down the chest + a faulds skirt.
+		ci.draw_circle(sh + Vector2(-2.9, -0.2), 2.0, STEEL.lightened(0.14))
+		ci.draw_circle(sh + Vector2(2.9, -0.2), 2.0, STEEL.lightened(0.14))
+		ci.draw_circle(sh + Vector2(facing * 2.9, -0.2), 2.0, STEEL.lightened(0.22))
+		ci.draw_colored_polygon(PackedVector2Array([sh + Vector2(-1.8, 0.6), sh + Vector2(1.8, 0.6),
+			hip + Vector2(1.5, 0), hip + Vector2(-1.5, 0)]), team.lerp(CLOTH_OFF, 0.2))   # tabard
+		ci.draw_line(sh + Vector2(0, 0.6), hip, team.darkened(0.3), 0.6)
+		_limb(ci, hip + Vector2(0, -1), sh, STEEL_DK, 1.0)  # chest seam
+	elif female:
+		# Bodice lacing + a scooped neckline on the gown.
+		for k in range(2):
+			ci.draw_line(sh + Vector2(-0.8, 1.4 + k * 1.6), sh + Vector2(0.8, 2.0 + k * 1.6), cloth.darkened(0.3), 0.5)
 
 	# Arms + weapon. The weapon arm animates for attacks.
 	var atk_cycle: float = (sin(phase * 0.9) * 0.5 + 0.5) if atk else 0.0  # 0..1
@@ -164,11 +188,19 @@ static func _draw_person(ci: CanvasItem, pos: Vector2, utype: String, team: Colo
 	if s.get("shield", "none") != "none":
 		_draw_shield(ci, sh, hip, facing, s["shield"], team)
 
-	# Head + helm.
+	# Head + face + helm.
 	ci.draw_circle(head, 3.4, OUTLINE)
 	ci.draw_circle(head, 3.0, SKIN)
 	ci.draw_circle(head + Vector2(-facing * 1.4, 0.4), 1.5, SKIN.darkened(0.12))   # cheek shadow
-	_draw_helm(ci, head, s.get("helm", "none"), team, facing)
+	if not plate:   # face reads on bare/light heads (helms cover it on plate troops)
+		ci.draw_line(head + Vector2(facing * 0.2, -1.0), head + Vector2(facing * 1.7, -0.7), Color(0.30, 0.20, 0.14), 0.7)  # brow
+		ci.draw_circle(head + Vector2(facing * 1.0, -0.1), 0.62, Color(0.12, 0.08, 0.07))   # eye
+		ci.draw_line(head + Vector2(facing * 0.3, 1.2), head + Vector2(facing * 1.2, 1.1), Color(0.5, 0.28, 0.24), 0.5)   # mouth
+	if female:
+		var oc: float = 0.0 if facing > 0.0 else PI
+		ci.draw_arc(head + Vector2(0, -0.3), 3.1, oc + 1.1, oc + TAU - 1.1, 12, Color(0.74, 0.42, 0.34), 2.0)   # headscarf
+	else:
+		_draw_helm(ci, head, s.get("helm", "none"), team, facing)
 
 	# Quiver on the back.
 	if s.get("quiver", false):
@@ -192,8 +224,8 @@ static func _draw_arms_and_weapon(ci: CanvasItem, sh: Vector2, hip: Vector2, fee
 	var arm_col: Color = STEEL if plate else SKIN
 	var weapon: String = s.get("weapon", "none")
 	var arm_swing: float = sin(phase) * 2.4 if walk else 0.0
-	# Off-hand (back arm) — simple swing.
-	_limb(ci, sh, Vector2(sh.x - facing * 2.0 - arm_swing, hip.y + 1.0), arm_col, 1.9)
+	# Off-hand (back arm) — a sleeved, articulated limb (sleeve in cloth, forearm bare; steel if plate).
+	_sarm(ci, sh, Vector2(sh.x - facing * 2.0 - arm_swing, hip.y + 1.0), cloth, plate, 1.9)
 
 	# Weapon hand position; attacks raise/extend it.
 	var hand := Vector2(sh.x + facing * 2.5, hip.y + 0.5)
@@ -327,6 +359,25 @@ static func _draw_helm(ci: CanvasItem, head: Vector2, kind: String, team: Color,
 
 static func _limb(ci: CanvasItem, a: Vector2, b: Vector2, col: Color, w: float) -> void:
 	ci.draw_line(a, b, col, w)
+
+# A sleeved, articulated arm: upper segment in the garment sleeve, forearm bare skin (or full steel
+# for plate), with a soft outline + hand cap — so arms read as clothed limbs, not straws.
+static func _sarm(ci: CanvasItem, a: Vector2, b: Vector2, sleeve: Color, plate: bool, w: float) -> void:
+	var dir := b - a
+	var L := dir.length()
+	if L < 0.01:
+		ci.draw_circle(a, w * 0.5, SKIN)
+		return
+	var n := Vector2(-dir.y, dir.x) / L
+	var elbow := (a + b) * 0.5 + n * 0.6
+	var upper: Color = STEEL if plate else sleeve
+	var lower: Color = STEEL.lightened(0.06) if plate else SKIN
+	ci.draw_line(a, elbow, OUTLINE, w + 0.6)
+	ci.draw_line(elbow, b, OUTLINE, w + 0.6)
+	ci.draw_line(a, elbow, upper, w)
+	ci.draw_line(elbow, b, lower, w * 0.88)
+	ci.draw_circle(elbow, w * 0.46, upper.darkened(0.1))
+	ci.draw_circle(b, w * 0.48, lower)
 
 # Two-segment limb that bends at a mid-joint, with a soft outline + rounded joints so
 # arms and legs read as articulated rather than as straws.

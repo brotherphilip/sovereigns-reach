@@ -126,7 +126,7 @@ func _draw_tile(gx: int, gy: int) -> void:
 			# joining the two adjacent edges, so the outline curves like a bank.
 			var p_in: Vector2 = c.lerp(corners[(i + 3) % 4], t)
 			var p_out: Vector2 = c.lerp(corners[(i + 1) % 4], t)
-			var seg: int = 4
+			var seg: int = 10
 			for s in range(seg + 1):
 				var u: float = float(s) / float(seg)
 				var iu: float = 1.0 - u

@@ -78,6 +78,7 @@ func run_all() -> void:
 	test_building_state_ignite_immune()
 	test_building_state_tick_fire_destroys()
 	test_building_state_tick_fire_armory_fast()
+	test_building_state_douse_extinguishes()
 	test_building_state_worker_efficiency_close()
 	test_building_state_worker_efficiency_far()
 
@@ -212,29 +213,41 @@ func test_building_state_ignite_immune() -> void:
 	expect("stone_wall is_on_fire=false", b.get("is_on_fire", true) == false)
 
 func test_building_state_tick_fire_destroys() -> void:
+	# New fire model: a fire burns SLOWLY and BURNS OUT on its own (MAX_FIRE_TICKS), so an
+	# ordinary building (a 60-HP hovel) is scorched but SURVIVES a single blaze — fire no
+	# longer razes the whole town.
 	var b = _make_test_building("hovel")  # hp=60
-	b["is_on_fire"] = true
+	BuildingState.ignite(b)
 	var destroyed = false
-	# At 8 HP/tick, 60 HP hovel burns in 8 ticks
-	for _i in range(8):
+	for _i in range(BuildingState.MAX_FIRE_TICKS + 5):
 		destroyed = BuildingState.tick_fire(b)
 		if destroyed:
 			break
-	expect("hovel destroyed by fire eventually", destroyed == true)
+	expect("hovel survives a single fire (not destroyed)", destroyed == false)
+	expect("hovel fire burns out by itself", b.get("is_on_fire", true) == false)
+	expect("hovel is scorched but still standing", int(b.get("hp", 0)) > 0)
 
 func test_building_state_tick_fire_armory_fast() -> void:
-	# Armory has much higher HP but burns at 40/tick
-	var b = _make_test_building("armory")
+	# Explosive stores (armory/pitch) are the exception — they go up fast and burn DOWN before
+	# the blaze would otherwise burn out.
+	var b = _make_test_building("armory")  # hp=150, FIRE_DAMAGE_EXPLOSIVE per tick
 	b["is_on_fire"] = true
-	var defn = BuildingRegistry.lookup("armory")
-	var max_hp = defn.get("hp", 100)
-	var ticks_to_destroy = int(ceil(float(max_hp) / 40.0))
+	b["fire_ticks"] = 0
 	var destroyed = false
-	for _i in range(ticks_to_destroy):
+	for _i in range(BuildingState.MAX_FIRE_TICKS):
 		destroyed = BuildingState.tick_fire(b)
 		if destroyed:
 			break
-	expect("armory destroyed by fire", destroyed == true)
+	expect("armory destroyed by explosive fire", destroyed == true)
+
+func test_building_state_douse_extinguishes() -> void:
+	# The bucket brigade: a delivered load of water puts the fire out and the building survives.
+	var b = _make_test_building("hovel")
+	BuildingState.ignite(b)
+	var hp_before = int(b.get("hp", 0))
+	var out = BuildingState.douse(b)
+	expect("a water load extinguishes the fire", out == true and b.get("is_on_fire", true) == false)
+	expect("dousing leaves the building standing", int(b.get("hp", 0)) >= hp_before)
 
 func test_building_state_worker_efficiency_close() -> void:
 	var b = _make_test_building("hovel", 0, 15, 15)

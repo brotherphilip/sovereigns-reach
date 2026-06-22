@@ -5,7 +5,7 @@ extends Node
 const SaveManager = preload("res://simulation/persistence/SaveManager.gd")
 const DifficultySystem = preload("res://simulation/core/DifficultySystem.gd")
 
-var _diff_btn: Button = null
+var _diff_val: Label = null
 var _title: Label = null
 var _title_shadow: Label = null
 var _t: float = 0.0
@@ -53,11 +53,11 @@ func _build_ui() -> void:
 		["Load Game", _on_load_game],
 		["Quit",      _on_quit],
 	])
-	var n_rows: int = buttons.size() + 1  # +1 for difficulty
 	const PW: float = 480.0
 	const ROW_H: float = 62.0
-	const BTN_TOP: float = 188.0
-	var ph: float = BTN_TOP + n_rows * ROW_H + 28.0
+	const BTN_TOP: float = 210.0
+	# Difficulty is a compact selector row (shorter than a full button row).
+	var ph: float = BTN_TOP + buttons.size() * ROW_H + 52.0 + 28.0
 
 	# Center panel — warm parchment-dark with a heavy gold frame and shadow.
 	var panel := Panel.new()
@@ -73,10 +73,16 @@ func _build_ui() -> void:
 	panel.add_theme_stylebox_override("panel", style)
 	canvas.add_child(panel)
 
+	# Heraldic crest above the title — a small shield with a crown motif, drawn
+	# procedurally each frame (it's cheap) in the gold/brown palette.
+	var crest := _Crest.new()
+	crest.position = Vector2(PW * 0.5, 56.0)
+	panel.add_child(crest)
+
 	# Title (with a drop shadow for weight)
 	var title_shadow := Label.new()
 	title_shadow.text = "Sovereign's Reach"
-	title_shadow.position = Vector2(3, 41)
+	title_shadow.position = Vector2(3, 99)
 	title_shadow.size = Vector2(PW, 60)
 	title_shadow.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title_shadow.add_theme_font_size_override("font_size", 42)
@@ -85,7 +91,7 @@ func _build_ui() -> void:
 	_title_shadow = title_shadow
 	var title := Label.new()
 	title.text = "Sovereign's Reach"
-	title.position = Vector2(0, 38)
+	title.position = Vector2(0, 96)
 	title.size = Vector2(PW, 60)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.add_theme_font_size_override("font_size", 42)
@@ -95,7 +101,7 @@ func _build_ui() -> void:
 
 	var subtitle := Label.new()
 	subtitle.text = "A Medieval Kingdom Builder"
-	subtitle.position = Vector2(0, 104)
+	subtitle.position = Vector2(0, 162)
 	subtitle.size = Vector2(PW, 24)
 	subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	subtitle.add_theme_font_size_override("font_size", 14)
@@ -105,61 +111,169 @@ func _build_ui() -> void:
 	# Gold divider
 	var div := ColorRect.new()
 	div.color    = Color(0.72, 0.56, 0.26, 0.7)
-	div.position = Vector2(40, 150)
+	div.position = Vector2(40, 192)
 	div.size     = Vector2(PW - 80, 2)
 	panel.add_child(div)
 
 	var bx: float = (PW - 360.0) * 0.5
 	var btn_y: float = BTN_TOP
-	for b in buttons:
-		var btn := _make_menu_button(b[0], Vector2(bx, btn_y), Vector2(360, 50), b[1])
+	# The first row is the PRIMARY action (Resume Save when a save exists, else
+	# New Game) and gets the dominant styling; everything else is secondary, and
+	# "Quit" is dimmed as a destructive/exit action.
+	for i in buttons.size():
+		var b = buttons[i]
+		var kind: int = BTN_SECONDARY
+		if i == 0:
+			kind = BTN_PRIMARY
+		elif b[0] == "Quit":
+			kind = BTN_QUIT
+		var btn := _make_menu_button(b[0], Vector2(bx, btn_y), Vector2(360, 50), b[1], kind)
 		panel.add_child(btn)
 		btn_y += ROW_H
 
-	# Difficulty selector — cycles PEACEFUL -> NORMAL -> HARD -> SIEGE_LORD
-	_diff_btn = _make_menu_button("Difficulty: " + DifficultySystem.level_name(DifficultySystem.current), Vector2(bx, btn_y), Vector2(360, 50), _on_cycle_difficulty)
-	panel.add_child(_diff_btn)
-	btn_y += ROW_H
+	# Difficulty selector — a distinct, muted settings-style control with a
+	# heading and ◀ / ▶ steppers, clearly NOT one of the action buttons.
+	_build_difficulty_selector(panel, Vector2(bx, btn_y + 4.0), 360.0)
 
-	# Version
+	# Version — clear of the parchment frame inset (16px) and brightened.
 	var ver := Label.new()
 	ver.text = "v2.0"
-	ver.position = Vector2(vp.x - 130, vp.y - 24)
+	ver.position = Vector2(vp.x - 150, vp.y - 46)
 	ver.size = Vector2(120, 20)
-	ver.add_theme_font_size_override("font_size", 10)
-	ver.add_theme_color_override("font_color", Color(0.5, 0.5, 0.4))
+	ver.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	ver.add_theme_font_size_override("font_size", 12)
+	ver.add_theme_color_override("font_color", Color(0.82, 0.74, 0.52, 0.85))
 	canvas.add_child(ver)
 
+# Button emphasis tiers (drives size / fill / border so the menu has hierarchy).
+const BTN_SECONDARY: int = 0
+const BTN_PRIMARY: int = 1
+const BTN_QUIT: int = 2
+
 func _make_menu_button(text: String, pos: Vector2, sz: Vector2,
-                        callback: Callable) -> Button:
+						callback: Callable, kind: int = BTN_SECONDARY) -> Button:
 	var btn := Button.new()
+	# The primary action grows a little taller and wider to dominate the column.
+	var rect_pos: Vector2 = pos
+	var rect_sz: Vector2 = sz
+	if kind == BTN_PRIMARY:
+		rect_pos = pos + Vector2(-14.0, -3.0)
+		rect_sz = sz + Vector2(28.0, 6.0)
 	btn.text     = text
-	btn.position = pos
-	btn.size     = sz
-	btn.add_theme_font_size_override("font_size", 17)
-	btn.add_theme_color_override("font_color", Color(0.94, 0.88, 0.72))
-	btn.add_theme_color_override("font_hover_color", Color(1.0, 0.96, 0.74))
-	btn.add_theme_color_override("font_pressed_color", Color(0.85, 0.70, 0.40))
+	btn.position = rect_pos
+	btn.size     = rect_sz
 	var normal := StyleBoxFlat.new()
-	normal.bg_color = Color(0.20, 0.15, 0.09, 0.96)
 	normal.set_corner_radius_all(7)
-	normal.set_border_width_all(2)
-	normal.border_color = Color(0.58, 0.45, 0.22, 0.95)
+	var hover := StyleBoxFlat.new()
+	hover.set_corner_radius_all(7)
+	if kind == BTN_PRIMARY:
+		# Dominant: larger font, warm bright fill, thick bright-gold border, accent bar.
+		btn.add_theme_font_size_override("font_size", 22)
+		btn.add_theme_color_override("font_color", Color(1.0, 0.95, 0.78))
+		btn.add_theme_color_override("font_hover_color", Color(1.0, 1.0, 0.92))
+		btn.add_theme_color_override("font_pressed_color", Color(0.92, 0.78, 0.46))
+		normal.bg_color = Color(0.40, 0.28, 0.12, 1.0)
+		normal.set_border_width_all(3)
+		normal.border_color = Color(0.95, 0.76, 0.34, 1.0)
+		normal.content_margin_left = 14.0
+		hover.bg_color = Color(0.56, 0.40, 0.16, 1.0)
+		hover.set_border_width_all(3)
+		hover.border_color = Color(1.0, 0.88, 0.46, 1.0)
+		hover.content_margin_left = 14.0
+	elif kind == BTN_QUIT:
+		# De-emphasised exit action: dimmer text, muted fill, faint border.
+		btn.add_theme_font_size_override("font_size", 16)
+		btn.add_theme_color_override("font_color", Color(0.72, 0.66, 0.56))
+		btn.add_theme_color_override("font_hover_color", Color(0.94, 0.84, 0.74))
+		btn.add_theme_color_override("font_pressed_color", Color(0.70, 0.58, 0.40))
+		normal.bg_color = Color(0.14, 0.11, 0.08, 0.92)
+		normal.set_border_width_all(1)
+		normal.border_color = Color(0.42, 0.34, 0.22, 0.7)
+		hover.bg_color = Color(0.30, 0.18, 0.14, 1.0)
+		hover.set_border_width_all(2)
+		hover.border_color = Color(0.78, 0.46, 0.32, 1.0)
+	else:
+		# Secondary action: the original mid-weight styling.
+		btn.add_theme_font_size_override("font_size", 17)
+		btn.add_theme_color_override("font_color", Color(0.94, 0.88, 0.72))
+		btn.add_theme_color_override("font_hover_color", Color(1.0, 0.99, 0.88))
+		btn.add_theme_color_override("font_pressed_color", Color(0.85, 0.70, 0.40))
+		normal.bg_color = Color(0.20, 0.15, 0.09, 0.96)
+		normal.set_border_width_all(2)
+		normal.border_color = Color(0.58, 0.45, 0.22, 0.95)
+		hover.bg_color = Color(0.44, 0.33, 0.15, 1.0)
+		hover.set_border_width_all(3)
+		hover.border_color = Color(1.0, 0.82, 0.40, 1.0)
 	btn.add_theme_stylebox_override("normal", normal)
-	var hover := normal.duplicate()
-	hover.bg_color = Color(0.36, 0.27, 0.13, 1.0)
-	hover.border_color = Color(0.90, 0.72, 0.34, 1.0)
 	btn.add_theme_stylebox_override("hover", hover)
+	# Keyboard focus should look like hover too (so Tab/arrow navigation is visible).
+	btn.add_theme_stylebox_override("focus", hover)
 	var pressed := normal.duplicate()
-	pressed.bg_color = Color(0.14, 0.10, 0.06, 1.0)
+	pressed.bg_color = normal.bg_color.darkened(0.3)
 	btn.add_theme_stylebox_override("pressed", pressed)
 	btn.pressed.connect(callback)
 	return btn
 
-func _on_cycle_difficulty() -> void:
-	DifficultySystem.current = (DifficultySystem.current + 1) % 4
-	if _diff_btn != null:
-		_diff_btn.text = "Difficulty: " + DifficultySystem.level_name(DifficultySystem.current)
+# Builds the difficulty control as a labelled stepper, deliberately distinct
+# from the action buttons (heading + ◀ value ▶ instead of a single tall button).
+func _build_difficulty_selector(parent: Control, pos: Vector2, width: float) -> void:
+	var hdr := Label.new()
+	hdr.text = "DIFFICULTY"
+	hdr.position = pos
+	hdr.size = Vector2(width, 16)
+	hdr.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	hdr.add_theme_font_size_override("font_size", 11)
+	hdr.add_theme_color_override("font_color", Color(0.66, 0.58, 0.42))
+	parent.add_child(hdr)
+
+	var row_y: float = pos.y + 18.0
+	var step_w: float = 34.0
+	# ◀ previous
+	var prev := _make_stepper("◀", Vector2(pos.x, row_y), Vector2(step_w, 30),
+		func(): _step_difficulty(-1))
+	parent.add_child(prev)
+	# ▶ next
+	var nxt := _make_stepper("▶", Vector2(pos.x + width - step_w, row_y), Vector2(step_w, 30),
+		func(): _step_difficulty(1))
+	parent.add_child(nxt)
+	# Value label between the arrows (re-used as the button reference for updates).
+	var val := Label.new()
+	val.text = DifficultySystem.level_name(DifficultySystem.current)
+	val.position = Vector2(pos.x + step_w, row_y)
+	val.size = Vector2(width - step_w * 2.0, 30)
+	val.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	val.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	val.add_theme_font_size_override("font_size", 16)
+	val.add_theme_color_override("font_color", Color(0.92, 0.82, 0.52))
+	parent.add_child(val)
+	_diff_val = val
+
+func _make_stepper(text: String, pos: Vector2, sz: Vector2, callback: Callable) -> Button:
+	var btn := Button.new()
+	btn.text = text
+	btn.position = pos
+	btn.size = sz
+	btn.add_theme_font_size_override("font_size", 15)
+	btn.add_theme_color_override("font_color", Color(0.84, 0.74, 0.50))
+	btn.add_theme_color_override("font_hover_color", Color(1.0, 0.92, 0.62))
+	var s := StyleBoxFlat.new()
+	s.bg_color = Color(0.16, 0.12, 0.08, 0.85)
+	s.set_corner_radius_all(5)
+	s.set_border_width_all(1)
+	s.border_color = Color(0.48, 0.38, 0.20, 0.8)
+	btn.add_theme_stylebox_override("normal", s)
+	var h := s.duplicate()
+	h.bg_color = Color(0.34, 0.25, 0.12, 1.0)
+	h.border_color = Color(0.90, 0.72, 0.36, 1.0)
+	btn.add_theme_stylebox_override("hover", h)
+	btn.add_theme_stylebox_override("focus", h)
+	btn.pressed.connect(callback)
+	return btn
+
+func _step_difficulty(dir: int) -> void:
+	DifficultySystem.current = (DifficultySystem.current + dir + 4) % 4
+	if _diff_val != null:
+		_diff_val.text = DifficultySystem.level_name(DifficultySystem.current)
 
 # ── Transitions ───────────────────────────────────────────────────────────────
 
@@ -243,6 +357,68 @@ func _load_slot(slot: String) -> void:
 		return
 	GameState.deserialize(data)
 	get_tree().change_scene_to_file("res://view/cityview/CityViewScene.tscn")
+
+# ── Heraldic crest ────────────────────────────────────────────────────────────
+# A small shield with a crown motif, drawn around the local origin. Cheap enough
+# to redraw each frame; uses only the gold/brown menu palette.
+
+class _Crest extends Node2D:
+	var _t: float = 0.0
+
+	func _process(delta: float) -> void:
+		_t += delta
+		queue_redraw()
+
+	func _draw() -> void:
+		var gold := Color(0.86, 0.68, 0.30)
+		var gold_lit := Color(0.98, 0.84, 0.46)
+		var dark := Color(0.18, 0.13, 0.08)
+		var sw: float = 30.0   # shield half-width
+		var top: float = -16.0
+		var bot: float = 40.0
+		# Shield body (pointed base), built as a polygon.
+		var pts := PackedVector2Array([
+			Vector2(-sw, top),
+			Vector2(sw, top),
+			Vector2(sw, top + 22.0),
+			Vector2(0, bot),
+			Vector2(-sw, top + 22.0),
+		])
+		draw_colored_polygon(pts, dark)
+		# Gold rim.
+		var rim := PackedVector2Array(pts)
+		rim.append(pts[0])
+		draw_polyline(rim, gold, 2.6)
+		# A simple chevron device on the shield face.
+		draw_polyline(PackedVector2Array([
+			Vector2(-sw * 0.62, top + 24.0),
+			Vector2(0, top + 8.0),
+			Vector2(sw * 0.62, top + 24.0),
+		]), gold.darkened(0.1), 3.0)
+		# A small upright sword down the centre.
+		draw_line(Vector2(0, top + 6.0), Vector2(0, bot - 8.0), gold_lit, 2.2)
+		draw_line(Vector2(-6.0, top + 14.0), Vector2(6.0, top + 14.0), gold_lit, 2.2)
+		# Crown sitting atop the shield, with a gentle gleam.
+		var cy: float = top - 4.0
+		var crown := PackedVector2Array([
+			Vector2(-sw * 0.72, cy),
+			Vector2(-sw * 0.72, cy - 14.0),
+			Vector2(-sw * 0.36, cy - 4.0),
+			Vector2(0, cy - 16.0),
+			Vector2(sw * 0.36, cy - 4.0),
+			Vector2(sw * 0.72, cy - 14.0),
+			Vector2(sw * 0.72, cy),
+		])
+		draw_colored_polygon(crown, gold)
+		var rimc := PackedVector2Array(crown)
+		rimc.append(crown[0])
+		draw_polyline(rimc, gold_lit, 1.6)
+		# Jewel dots on the crown points.
+		var gleam: float = 0.5 + 0.5 * sin(_t * 2.0)
+		draw_circle(Vector2(0, cy - 16.0), 2.4, Color(0.95, 0.40, 0.34).lerp(Color(1.0, 0.7, 0.6), gleam))
+		draw_circle(Vector2(-sw * 0.72, cy - 14.0), 1.8, Color(0.55, 0.75, 0.95))
+		draw_circle(Vector2(sw * 0.72, cy - 14.0), 1.8, Color(0.55, 0.75, 0.95))
+
 
 # ── Cinematic cross-fading background ─────────────────────────────────────────
 # A sequence of animated medieval vignettes that slowly cross-fade into one
@@ -550,17 +726,46 @@ class _VillageWakes extends _Scene:
 			draw_colored_polygon(PackedVector2Array([hub, tip, tip + perp]), Color(0.86, 0.82, 0.70, 0.85))
 
 	func _campfire(pos: Vector2) -> void:
-		# Logs.
-		draw_line(pos + Vector2(-10, 2), pos + Vector2(10, -2), Color(0.30, 0.18, 0.10), 4.0)
-		draw_line(pos + Vector2(-10, -2), pos + Vector2(10, 2), Color(0.26, 0.15, 0.09), 4.0)
-		# Flickering flames.
-		for i in range(3):
-			var fl: float = 12.0 + sin(t * 9.0 + i * 2.0) * 5.0
-			var sway: float = sin(t * 7.0 + i) * 3.0
+		# Warm ground glow.
+		draw_circle(pos + Vector2(0, -14), 30.0, Color(1.0, 0.6, 0.2, 0.10))
+		draw_circle(pos + Vector2(0, -10), 18.0, Color(1.0, 0.66, 0.26, 0.14))
+		# Stacked logs: two on the ground, one resting on top, with lit ends.
+		var log_col := Color(0.34, 0.21, 0.12)
+		var log_dk := Color(0.26, 0.16, 0.09)
+		draw_line(pos + Vector2(-11, 1), pos + Vector2(11, 1), log_col, 5.0)
+		draw_line(pos + Vector2(-9, 4), pos + Vector2(9, 4), log_dk, 5.0)
+		draw_line(pos + Vector2(-7, -3), pos + Vector2(8, -3), log_col.lightened(0.08), 5.0)
+		# Glowing embers at the log ends.
+		draw_circle(pos + Vector2(-10, 1), 1.6, Color(1.0, 0.5, 0.18, 0.8))
+		draw_circle(pos + Vector2(10, 1), 1.6, Color(1.0, 0.5, 0.18, 0.8))
+		# Layered flames (outer warm, inner bright), varied flicker.
+		for i in range(6):
+			var ph: float = float(i) * 1.7
+			var fl: float = 13.0 + sin(t * 9.0 + ph) * 6.0 + cos(t * 5.0 + ph * 1.3) * 2.0
+			var sway: float = sin(t * 7.0 + ph) * 3.5
+			var base_x: float = -8.0 + i * 3.2
 			draw_colored_polygon(PackedVector2Array([
-				pos + Vector2(-6 + i * 6, 0), pos + Vector2(-2 + i * 6 + sway, -fl), pos + Vector2(2 + i * 6, 0)
-			]), Color(1.0, 0.55 + i * 0.12, 0.12, 0.9))
-		draw_circle(pos + Vector2(0, -22), 26.0, Color(1.0, 0.6, 0.2, 0.10))
+				pos + Vector2(base_x - 3.0, -3.0),
+				pos + Vector2(base_x + sway, -fl),
+				pos + Vector2(base_x + 3.0, -3.0),
+			]), Color(1.0, 0.46 + i * 0.06, 0.10, 0.88))
+		# Bright inner core flames.
+		for i in range(3):
+			var ph2: float = float(i) * 2.1 + 0.7
+			var fl2: float = 8.0 + sin(t * 11.0 + ph2) * 4.0
+			var sway2: float = sin(t * 8.0 + ph2) * 2.0
+			draw_colored_polygon(PackedVector2Array([
+				pos + Vector2(-3.0 + i * 3.0, -3.0),
+				pos + Vector2(-2.0 + i * 3.0 + sway2, -fl2),
+				pos + Vector2(1.0 + i * 3.0, -3.0),
+			]), Color(1.0, 0.86, 0.42, 0.92))
+		# Rising embers.
+		for i in range(6):
+			var rise: float = fmod(t * (18.0 + (i % 3) * 8.0) + float(i) * 13.0, 40.0)
+			var ex: float = pos.x + sin(t * 2.0 + i * 1.3) * 7.0
+			var ey: float = pos.y - 6.0 - rise
+			var ea: float = clampf(0.7 - rise / 40.0, 0.0, 0.7)
+			draw_circle(Vector2(ex, ey), 1.4, Color(1.0, 0.6 + (i % 2) * 0.12, 0.2, ea))
 
 
 # ── Scene 3: Harvest Fields ────────────────────────────────────────────────────
@@ -867,27 +1072,83 @@ class _NightFestival extends _Scene:
 		draw_rect(Rect2(0, horizon + 30.0, v.x, v.y), Color(0.06, 0.05, 0.09))
 		# Bonfire in the square.
 		_bonfire(Vector2(v.x * 0.5, v.y * 0.9))
-		# Floating paper lanterns rising and swaying.
+		# Floating paper lanterns rising and swaying — each varies in colour, size
+		# and inner-glow phase (all deterministic by index, so they're stable).
+		var lan_cols := [
+			Color(0.95, 0.36, 0.26),   # warm red
+			Color(1.0, 0.62, 0.24),    # amber
+			Color(1.0, 0.82, 0.38),    # pale gold
+			Color(0.92, 0.46, 0.30),   # terracotta
+			Color(1.0, 0.90, 0.56),    # pale yellow
+		]
 		for i in range(14):
 			var rise: float = fmod(t * (10.0 + (i % 5) * 4.0) + float(i) * 60.0, v.y + 80.0)
 			var lx: float = v.x * (0.06 + 0.9 * fmod(float(i) * 0.137 + 0.05, 1.0)) + sin(t * 0.8 + i) * 18.0
 			var ly: float = v.y - rise
-			var lc := Color(1.0, 0.66, 0.30, clampf(0.85 - rise / (v.y + 80.0) * 0.5, 0.2, 0.85))
-			draw_circle(Vector2(lx, ly), 14.0, Color(1.0, 0.6, 0.25, 0.12))
-			draw_rect(Rect2(lx - 5.0, ly - 7.0, 10.0, 13.0), lc)
-			draw_circle(Vector2(lx, ly), 3.0, Color(1.0, 0.95, 0.7, 0.9))
+			var ph: float = float(i) * 1.31    # per-lantern flicker / sway phase
+			var sz: float = 1.0 + float(i % 3) * 0.18 - float(i % 2) * 0.1
+			var tilt: float = sin(t * 1.1 + ph) * 0.16
+			var base: Color = lan_cols[i % lan_cols.size()]
+			var alpha: float = clampf(0.9 - rise / (v.y + 80.0) * 0.55, 0.22, 0.9)
+			var flick: float = 0.78 + 0.22 * sin(t * 6.0 + ph)
+			var lc := Color(base.r, base.g, base.b, alpha)
+			var bw: float = 11.0 * sz   # body width
+			var bh: float = 15.0 * sz   # body height
+			# Outer warm halo.
+			draw_circle(Vector2(lx, ly), bw * 1.4, Color(base.r, base.g, base.b, 0.12 * flick))
+			# Hanging string up to the top of frame.
+			draw_line(Vector2(lx + sin(t + ph) * 4.0, ly - bh * 0.5),
+				Vector2(lx + tilt * 30.0, ly - bh * 0.5 - 60.0),
+				Color(0.30, 0.24, 0.16, alpha * 0.5), 1.0)
+			# Top + bottom caps (darker paper rims), tilted via offset.
+			var cx_off: float = tilt * bh * 0.5
+			draw_rect(Rect2(lx - bw * 0.4 + cx_off, ly - bh * 0.5 - 2.0, bw * 0.8, 3.0), base.darkened(0.35))
+			draw_rect(Rect2(lx - bw * 0.4 - cx_off, ly + bh * 0.5 - 1.0, bw * 0.8, 3.0), base.darkened(0.4))
+			# Segmented paper body (3 horizontal bands, alternating shade).
+			var segs: int = 3
+			for sgi in range(segs):
+				var f: float = float(sgi) / float(segs)
+				var seg_top: float = ly - bh * 0.5 + f * bh
+				var off: float = tilt * (seg_top - ly)
+				var shade: Color = lc if sgi % 2 == 0 else Color(lc.r * 0.86, lc.g * 0.86, lc.b * 0.86, alpha)
+				draw_rect(Rect2(lx - bw * 0.5 + off, seg_top, bw, bh / float(segs) + 0.5), shade)
+			# Flickering inner glow / candle.
+			draw_circle(Vector2(lx, ly), 3.2 * sz, Color(1.0, 0.95, 0.7, 0.9 * flick * alpha))
 
 	func _firework(center: Vector2, p: float, col: Color) -> void:
-		if p < 0.05:
+		if p < 0.02:
 			return
-		var n: int = 16
-		var rad: float = p * 110.0
-		var fade: float = clampf(1.0 - p, 0.0, 1.0)
+		# Deterministic per-instance seed (from position) so each burst is its own
+		# stable shape across its loop — NOT re-randomised every frame.
+		var seed_v: int = int(center.x) * 73856093 ^ int(center.y) * 19349663
+		var rng := RandomNumberGenerator.new()
+		rng.seed = seed_v
+		# Initial bright flash that fades quickly.
+		if p < 0.18:
+			var flash: float = 1.0 - p / 0.18
+			draw_circle(center, 6.0 + flash * 10.0, Color(1.0, 0.98, 0.9, 0.8 * flash))
+		var n: int = 26
+		var base_fade: float = clampf(1.0 - p, 0.0, 1.0)
 		for k in range(n):
-			var a: float = TAU * float(k) / float(n)
-			var tip: Vector2 = center + Vector2(cos(a), sin(a)) * rad
-			draw_circle(tip, 2.6 * fade + 0.6, Color(col.r, col.g, col.b, fade))
-			draw_line(center.lerp(tip, 0.6), tip, Color(col.r, col.g, col.b, fade * 0.5), 1.4)
+			# Even angular spread plus a deterministic jitter so it's organic, not a ring.
+			var a: float = TAU * float(k) / float(n) + rng.randf_range(-0.18, 0.18)
+			var len_f: float = 0.7 + rng.randf() * 0.6        # varied spark reach
+			var size_f: float = 0.6 + rng.randf() * 1.0       # varied spark size
+			var rate: float = 0.7 + rng.randf() * 0.9         # varied fade rate
+			var rad: float = p * 120.0 * len_f
+			var dir := Vector2(cos(a), sin(a))
+			# Gravity sag on the spark as it ages.
+			var tip: Vector2 = center + dir * rad + Vector2(0, p * p * 26.0 * len_f)
+			var fade: float = clampf(1.0 - p * rate, 0.0, 1.0)
+			if fade <= 0.0:
+				continue
+			# Tapering trail behind the spark.
+			var tail: Vector2 = center.lerp(tip, 0.45)
+			draw_line(tail, tip, Color(col.r, col.g, col.b, fade * 0.4), 1.6 * size_f)
+			draw_line(center.lerp(tip, 0.78), tip, Color(1.0, 0.95, 0.8, fade * 0.55), 1.0 * size_f)
+			# Bright spark head, hottest (whiter) early on.
+			var head := col.lerp(Color(1.0, 0.98, 0.85), clampf(1.0 - p * 1.6, 0.0, 0.7))
+			draw_circle(tip, (1.4 + size_f * 1.6) * fade + 0.4, Color(head.r, head.g, head.b, fade))
 
 	func _bonfire(pos: Vector2) -> void:
 		draw_circle(pos + Vector2(0, -30), 44.0, Color(1.0, 0.6, 0.2, 0.10))
@@ -916,16 +1177,24 @@ class _Overlay extends Node2D:
 		draw_rect(Rect2(0, v.y - band, v.x, band), Color(0, 0, 0, 0.5))
 		draw_rect(Rect2(0, 0, band, v.y), Color(0, 0, 0, 0.4))
 		draw_rect(Rect2(v.x - band, 0, band, v.y), Color(0, 0, 0, 0.4))
-		# Parchment frame.
-		var inset: float = 16.0
-		draw_polyline(PackedVector2Array([
-			Vector2(inset, inset), Vector2(v.x - inset, inset),
-			Vector2(v.x - inset, v.y - inset), Vector2(inset, v.y - inset),
-			Vector2(inset, inset),
-		]), Color(0.62, 0.50, 0.24, 0.45), 1.5)
-		for corn in [Vector2(inset, inset), Vector2(v.x - inset, inset),
-				Vector2(v.x - inset, v.y - inset), Vector2(inset, v.y - inset)]:
-			draw_circle(corn, 4.0, Color(0.62, 0.50, 0.24, 0.6))
+		# Subtle corner ornaments only — NOT a full frame, so it doesn't compete
+		# with the centre panel's gold border. Short gilt brackets at each corner.
+		var inset: float = 18.0
+		var leg: float = 46.0
+		var oc := Color(0.60, 0.48, 0.24, 0.35)
+		var corners := [
+			[Vector2(inset, inset), Vector2(1, 0), Vector2(0, 1)],
+			[Vector2(v.x - inset, inset), Vector2(-1, 0), Vector2(0, 1)],
+			[Vector2(v.x - inset, v.y - inset), Vector2(-1, 0), Vector2(0, -1)],
+			[Vector2(inset, v.y - inset), Vector2(1, 0), Vector2(0, -1)],
+		]
+		for c in corners:
+			var o: Vector2 = c[0]
+			var dx: Vector2 = c[1]
+			var dy: Vector2 = c[2]
+			draw_line(o, o + dx * leg, oc, 1.5)
+			draw_line(o, o + dy * leg, oc, 1.5)
+			draw_circle(o, 2.5, Color(0.60, 0.48, 0.24, 0.5))
 		# Storybook caption for whichever vignette is most visible, fading with it.
 		var bg = get_parent()
 		if bg != null and "_scenes" in bg:

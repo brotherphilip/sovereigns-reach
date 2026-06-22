@@ -11,6 +11,7 @@ extends RefCounted
 const WorldGrid     = preload("res://simulation/world/WorldGrid.gd")
 const BuildingRegistry = preload("res://simulation/buildings/BuildingRegistry.gd")
 const BuildingState = preload("res://simulation/buildings/BuildingState.gd")
+const BridgePlanner = preload("res://simulation/world/BridgePlanner.gd")
 
 const MAX_DEV: int = 10
 
@@ -37,12 +38,15 @@ const SEQUENCE: Array = [
 const GRASS: int = 0
 const VALLEY: int = 7
 const ROAD: int = 9
+const RIVER: int = 3
+const BRIDGE: int = 11
 
 # Empty-tile gap reserved around each town building (matches the player's placement
 # rule) so AI towns aren't a solid block — paths run through the gaps.
 const TOWN_GAP: int = 2
 
-# Defensive wall ring appears from development 5. Radius scales the town size.
+# Defensive wall ring appears from development 5. The radius and shape VARY per town
+# (seed-driven, see _town_profile) so settlements don't all read as the same square.
 const RING_RADIUS: int = 9
 const WALL_MIN_DEV: int = 5
 const TOWER_MIN_DEV: int = 6
@@ -58,18 +62,23 @@ static func generate(center_x: int, center_y: int, grid, seed_val: int) -> Array
 	var occupied: Dictionary = {}   # "x,y" -> true
 	var candidates: Array = []
 
-	# 1) Wall ring + gates + towers first, so interior buildings avoid them.
-	_place_walls(center_x, center_y, grid, candidates, occupied)
+	# Per-town form (radius, wall shape, gates, fill axis) — fixed for this seed, so the
+	# layout stays deterministic & accretive while every town reads differently.
+	var prof: Dictionary = _town_profile(rng)
 
-	# 2) Linear building sequence, spiralling out from the town centre, kept inside
-	#    the wall ring where possible.
-	for entry in SEQUENCE:
+	# 1) Wall ring + gates + towers first, so interior buildings avoid them.
+	_place_walls(center_x, center_y, grid, candidates, occupied, prof)
+
+	# 2) Building sequence, filling rings from the town's preferred angle so settlements
+	#    grow into varied silhouettes instead of identical radial sprawl. Buildings within
+	#    the same development tier are shuffled per-seed so no two towns share an arrangement.
+	for entry in _shuffled_sequence(rng):
 		var btype: String = entry[0]
 		var min_dev: int = entry[1]
 		var defn: Dictionary = BuildingRegistry.lookup(btype)
 		var w: int = defn.get("width", 1)
 		var h: int = defn.get("height", 1)
-		var spot: Vector2i = _find_spot(center_x, center_y, w, h, grid, occupied)
+		var spot: Vector2i = _find_spot(center_x, center_y, w, h, grid, occupied, prof["fill_angle"])
 		if spot.x == -2147483648:
 			continue  # no room — consistently dropped for this seed/grid
 		# Reserve the footprint PLUS a one-tile gap so town buildings keep their spacing.
@@ -79,6 +88,58 @@ static func generate(center_x: int, center_y: int, grid, seed_val: int) -> Array
 			"min_dev": min_dev, "w": w, "h": h,
 		})
 	return candidates
+
+# Seed-driven town form. Deterministic (consumes only the passed rng).
+#   radius      — wall ring half-size (8..12): hamlets vs sprawling burghs.
+#   chamfer     — corner cut (0 = square keep, 2-3 = octagonal town) for shape variety.
+#   gate_sides  — which walls have a gatehouse (always South, plus 0-2 more on big towns).
+#   fill_angle  — the angle rings are filled from, so buildings cluster town-specifically.
+static func _town_profile(rng: RandomNumberGenerator) -> Dictionary:
+	var radius: int = RING_RADIUS + rng.randi_range(-1, 3)
+	var chamfer: int = (rng.randi_range(2, 3) if rng.randf() < 0.6 else 0)
+	var sides: Array = ["S"]
+	var others: Array = ["N", "E", "W"]
+	# Add 1 extra gate on a mid town, 2 on a large one — picked deterministically.
+	var extra: int = (2 if radius >= 11 else (1 if radius >= 9 else 0))
+	for i in range(extra):
+		if others.is_empty():
+			break
+		var pick: int = rng.randi_range(0, others.size() - 1)
+		sides.append(others[pick])
+		others.remove_at(pick)
+	return {
+		"radius": radius,
+		"chamfer": chamfer,
+		"gate_sides": sides,
+		"fill_angle": rng.randf() * TAU,
+	}
+
+# The build sequence with entries SHUFFLED within each development tier (so placement
+# order — and thus the town's arrangement — varies by seed) while every tier keeps the
+# exact same building SET, preserving accretive growth and the defence-tier guarantees.
+static func _shuffled_sequence(rng: RandomNumberGenerator) -> Array:
+	var by_dev: Dictionary = {}
+	var order: Array = []   # dev levels in first-seen order
+	for entry in SEQUENCE:
+		var d: int = entry[1]
+		if not by_dev.has(d):
+			by_dev[d] = []
+			order.append(d)
+		by_dev[d].append(entry)
+	var result: Array = []
+	for d in order:
+		var tier: Array = by_dev[d]
+		# Fisher–Yates with the seeded rng (Array.shuffle would use the GLOBAL rng).
+		for i in range(tier.size() - 1, 0, -1):
+			var j: int = rng.randi_range(0, i)
+			var tmp = tier[i]; tier[i] = tier[j]; tier[j] = tmp
+		result.append_array(tier)
+	# Keep the village hall first overall, so it always takes the town's centre tile.
+	for i in range(result.size()):
+		if result[i][0] == "village_hall":
+			var vh = result[i]; result.remove_at(i); result.insert(0, vh)
+			break
+	return result
 
 # Candidates whose min_dev <= dev (the town as it looks at this development).
 static func visible_buildings(candidates: Array, dev: int) -> Array:
@@ -128,16 +189,25 @@ static func development_from_building_count(count: int) -> int:
 # ── Placement helpers ──────────────────────────────────────────────────────────
 
 # Spiral outward from the centre for the nearest block of w×h buildable, free tiles.
-static func _find_spot(cx: int, cy: int, w: int, h: int, grid, occupied: Dictionary) -> Vector2i:
+# Each ring is scanned starting from `fill_angle` (a per-town preference) so different
+# towns fill their rings from different sides — giving each a distinct, lopsided growth
+# pattern rather than the identical radial sprawl of a fixed raster scan.
+static func _find_spot(cx: int, cy: int, w: int, h: int, grid, occupied: Dictionary, fill_angle: float = 0.0) -> Vector2i:
 	for r in range(0, 40):
+		if r == 0:
+			if _block_free(cx, cy, w, h, grid, occupied):
+				return Vector2i(cx, cy)
+			continue
+		var ring: Array = []
 		for dy in range(-r, r + 1):
 			for dx in range(-r, r + 1):
-				if maxi(absi(dx), absi(dy)) != r:
-					continue  # current ring only
-				var x: int = cx + dx
-				var y: int = cy + dy
-				if _block_free(x, y, w, h, grid, occupied):
-					return Vector2i(x, y)
+				if maxi(absi(dx), absi(dy)) == r:
+					ring.append(Vector2i(dx, dy))
+		ring.sort_custom(func(a, b):
+			return fposmod(atan2(a.y, a.x) - fill_angle, TAU) < fposmod(atan2(b.y, b.x) - fill_angle, TAU))
+		for off in ring:
+			if _block_free(cx + off.x, cy + off.y, w, h, grid, occupied):
+				return Vector2i(cx + off.x, cy + off.y)
 	return Vector2i(-2147483648, 0)  # sentinel: no room
 
 static func _block_free(x: int, y: int, w: int, h: int, grid, occupied: Dictionary) -> bool:
@@ -213,13 +283,27 @@ static func _carve_to_network(from: Vector2i, target: Vector2i, grid, footprints
 	var horiz := _l_tiles(from, target, true)
 	var vert := _l_tiles(from, target, false)
 	var pts: Array = horiz if _footprint_hits(horiz, footprints) <= _footprint_hits(vert, footprints) else vert
+	var last_dry: Vector2i = from
 	for p in pts:
 		var key: String = "%d,%d" % [p.x, p.y]
 		if road_tiles.has(key) or (grid.in_bounds(p.x, p.y) and grid.get_terrain(p.x, p.y) == ROAD):
 			road_tiles[key] = true
 			return  # joined the existing network — T-junction / crossroad
+		# A river in the way is spanned with a real bridge (anchored on the last dry tile)
+		# so the road carries on across the water instead of dead-ending at the bank.
+		if grid.in_bounds(p.x, p.y) and grid.get_terrain(p.x, p.y) == RIVER:
+			var plan: Dictionary = BridgePlanner.plan_towards(grid, last_dry.x, last_dry.y, target.x, target.y)
+			if not plan.get("ok", false):
+				return  # uncrossable here — leave the road stub on the near bank
+			for wc in plan.get("cells", []):
+				grid.set_terrain(wc.x, wc.y, BRIDGE)
+				road_tiles["%d,%d" % [wc.x, wc.y]] = true
+			continue  # the bridged tiles are now passable; keep paving on the far bank
 		if _paint_road(p.x, p.y, grid, footprints):
 			road_tiles[key] = true
+			last_dry = p
+		elif grid.in_bounds(p.x, p.y) and grid.get_terrain(p.x, p.y) in [GRASS, VALLEY, ROAD, BRIDGE]:
+			last_dry = p
 
 # Tiles along an L-path from a→b (excludes a), one bend; horiz_first picks which leg.
 static func _l_tiles(a: Vector2i, b: Vector2i, horiz_first: bool) -> Array:
@@ -253,31 +337,61 @@ static func _paint_road(x: int, y: int, grid, footprints: Dictionary) -> bool:
 		return true
 	return false
 
-# Square palisade ring at RING_RADIUS, a gatehouse at the south edge, lookout
-# towers at the corners, and great towers just outside the corners at high dev.
-static func _place_walls(cx: int, cy: int, grid, candidates: Array, occupied: Dictionary) -> void:
-	var r: int = RING_RADIUS
-	var gate_x: int = cx
-	var gate_y: int = cy + r
-	# Gatehouse (1x2) at the south edge mid — placed first so the ring skips it.
-	if _block_free(gate_x, gate_y, 1, 2, grid, occupied):
-		_mark(occupied, gate_x, gate_y, 1, 2)
-		candidates.append({"type": "gatehouse", "gx": gate_x, "gy": gate_y, "min_dev": WALL_MIN_DEV, "w": 1, "h": 2})
-	# Palisade perimeter.
-	for x in range(cx - r, cx + r + 1):
-		_try_wall(x, cy - r, "wooden_palisade", WALL_MIN_DEV, grid, candidates, occupied)
-		_try_wall(x, cy + r, "wooden_palisade", WALL_MIN_DEV, grid, candidates, occupied)
-	for y in range(cy - r + 1, cy + r):
-		_try_wall(cx - r, y, "wooden_palisade", WALL_MIN_DEV, grid, candidates, occupied)
-		_try_wall(cx + r, y, "wooden_palisade", WALL_MIN_DEV, grid, candidates, occupied)
-	# Corner lookout towers.
-	for corner in [Vector2i(cx - r, cy - r), Vector2i(cx + r, cy - r), Vector2i(cx - r, cy + r), Vector2i(cx + r, cy + r)]:
+# Palisade ring (square or octagonal per the town profile), a gatehouse on each chosen
+# side (nudged to a passable spot), corner lookout towers, and great towers just outside
+# the corners at high dev. Radius/shape/gates all come from the seed-driven profile.
+static func _place_walls(cx: int, cy: int, grid, candidates: Array, occupied: Dictionary, prof: Dictionary) -> void:
+	var r: int = prof.get("radius", RING_RADIUS)
+	var c: int = prof.get("chamfer", 0)
+	# Gatehouses first (1x2), so the perimeter leaves their opening.
+	for side in prof.get("gate_sides", ["S"]):
+		_place_gate(cx, cy, r, String(side), grid, candidates, occupied)
+	# Palisade perimeter for this town's shape.
+	for t in _wall_perimeter(cx, cy, r, c):
+		_try_wall(t.x, t.y, "wooden_palisade", WALL_MIN_DEV, grid, candidates, occupied)
+	# Corner lookout towers (pulled in by the chamfer on an octagonal town).
+	var cr: int = r - c
+	for corner in [Vector2i(cx - cr, cy - cr), Vector2i(cx + cr, cy - cr), Vector2i(cx - cr, cy + cr), Vector2i(cx + cr, cy + cr)]:
 		_try_wall(corner.x, corner.y, "lookout_tower", TOWER_MIN_DEV, grid, candidates, occupied)
 	# Great towers just outside the corners (stone-age might).
 	for corner in [Vector2i(cx - r - 2, cy - r - 2), Vector2i(cx + r + 1, cy - r - 2), Vector2i(cx - r - 2, cy + r + 1), Vector2i(cx + r + 1, cy + r + 1)]:
 		if _block_free(corner.x, corner.y, 2, 2, grid, occupied):
 			_mark(occupied, corner.x, corner.y, 2, 2)
 			candidates.append({"type": "great_tower", "gx": corner.x, "gy": corner.y, "min_dev": GREAT_TOWER_MIN_DEV, "w": 2, "h": 2})
+
+# Perimeter tiles of a square (c=0) or octagonal (c>0) wall ring of half-size r.
+static func _wall_perimeter(cx: int, cy: int, r: int, c: int) -> Array:
+	var tiles: Array = []
+	for x in range(cx - r + c, cx + r - c + 1):
+		tiles.append(Vector2i(x, cy - r))
+		tiles.append(Vector2i(x, cy + r))
+	for y in range(cy - r + c, cy + r - c + 1):
+		tiles.append(Vector2i(cx - r, y))
+		tiles.append(Vector2i(cx + r, y))
+	for i in range(1, c):   # diagonal corner cuts (octagon)
+		tiles.append(Vector2i(cx - r + i, cy - r + c - i))   # NW
+		tiles.append(Vector2i(cx + r - i, cy - r + c - i))   # NE
+		tiles.append(Vector2i(cx - r + i, cy + r - c + i))   # SW
+		tiles.append(Vector2i(cx + r - i, cy + r - c + i))   # SE
+	return tiles
+
+# One gatehouse (1x2) at a wall side's midpoint, walked along the wall until it finds a
+# passable footprint, so a gate is never stranded in water or against the map edge.
+static func _place_gate(cx: int, cy: int, r: int, side: String, grid, candidates: Array, occupied: Dictionary) -> void:
+	var base: Vector2i
+	var along: Vector2i
+	match side:
+		"N": base = Vector2i(cx, cy - r); along = Vector2i(1, 0)
+		"E": base = Vector2i(cx + r, cy); along = Vector2i(0, 1)
+		"W": base = Vector2i(cx - r, cy); along = Vector2i(0, 1)
+		_:   base = Vector2i(cx, cy + r); along = Vector2i(1, 0)   # South (default)
+	for off in [0, 1, -1, 2, -2]:
+		var gx: int = base.x + along.x * off
+		var gy: int = base.y + along.y * off
+		if _block_free(gx, gy, 1, 2, grid, occupied):
+			_mark(occupied, gx, gy, 1, 2)
+			candidates.append({"type": "gatehouse", "gx": gx, "gy": gy, "min_dev": WALL_MIN_DEV, "w": 1, "h": 2})
+			return
 
 static func _try_wall(x: int, y: int, btype: String, min_dev: int, grid, candidates: Array, occupied: Dictionary) -> void:
 	if _block_free(x, y, 1, 1, grid, occupied):

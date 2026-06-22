@@ -2,6 +2,27 @@
 
 ---
 
+## 2026-06-23 — Consolidate verified prior-loop WIP into a clean checkpoint (iter324)
+
+- **[Housekeeping] Commit the 37-file in-progress working set that had accumulated on top of iter320
+  (player-approved checkpoint):** a large body of prior-loop work had been left uncommitted, which was
+  blocking further view work (any new render layer must touch the scene file). Before committing it I
+  verified it is **safe and no worse than the last commit**: the project builds and renders correctly
+  across day/night/water/world-map views, and a full 62-suite headless sweep shows the WIP introduces
+  **zero new test failures** — the only red suites (4 `--script`-mode `CommandQueue` compile quirks in
+  TestPhase7/11/12/Tutorial, TestNarration's 7 missing-VO assertions, and TestPhase10's 3 siege-damage
+  assertions) all fail **identically at HEAD/iter320**, confirmed by re-running TestPhase10 against the
+  HEAD version of `GameState`. The consolidated work includes: the **pawn LOD / crowd-glyph** renderer
+  (`CrowdGlyphs`, `UnitGlyphMesh` + `CitizenLayer`/`UnitLayer`/`UnitArt`) that batches crowds as
+  MultiMesh glyphs and scales to 2000+ pawns; the **building-model rework** (`BuildingModels`,
+  `BuildingLayer` — real structures, chimney hearth-smoke); the **water** depth/shoreline shader
+  (`water_flow.gdshader`, `WaterFlowLayer`); **multi-species wildlife art** (`AnimalLayer`,
+  `WildlifeSystem`); terrain/decor and world-map view tweaks; HUD/menu polish; the `PlayBot` headless
+  campaign harness and `_BakeAtlas`/`_Bench` dev tools; and a `DEBUG_SPAWN_ALL` dev cheat. No gameplay
+  balance change intended. This is a checkpoint to restore a clean tree, not newly-designed work.
+
+---
+
 ## 2026-06-22 — The forest stops looking like stamped clones (iter323)
 
 - **[Visual] Mixed woodland — a conifer archetype + wider tree colour spread (player-experience pass):**

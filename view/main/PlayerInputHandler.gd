@@ -16,6 +16,7 @@ const CT_SET_FOOD_RATION   = 1
 const CT_SET_ALE_RATION    = 2
 const CT_SET_GAME_SPEED    = 20
 const CT_SAVE_GAME         = 23
+const CT_DEBUG_SPAWN_ALL   = 33
 
 const BridgePlanner = preload("res://simulation/world/BridgePlanner.gd")
 
@@ -275,11 +276,13 @@ func _on_key(event: InputEventKey) -> void:
 			set_game_speed(SimulationClock.SPEED_FAST)
 		KEY_3:
 			set_game_speed(SimulationClock.SPEED_FASTEST)
-		# Debug cheat: Alt+9 → ×20 turbo (beyond the normal speed buttons).
+		# Debug cheat: Alt+9 → ×20 turbo (hidden developer shortcut, no player-facing notice).
 		KEY_9:
 			if event.alt_pressed:
 				set_game_speed(SimulationClock.SPEED_DEBUG)
-				EventBus.realm_notice.emit("DEBUG: simulation at ×20 speed.", "neutral")
+		# Debug cheat: L → muster 10 of every unit type and max out every stockpile.
+		KEY_L:
+			CommandQueue.enqueue(CT_DEBUG_SPAWN_ALL, {}, 0)
 
 func _try_demolish_selected() -> void:
 	if _selected_building_id < 0:

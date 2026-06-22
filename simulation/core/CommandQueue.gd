@@ -55,6 +55,7 @@ enum CommandType {
 	STRATEGIC_DIPLOMACY,
 	RESOLVE_EVENT_CHOICE,   # player picked an option on a World Event (= int 31)
 	SET_UNIT_STANCE,        # player set a unit's combat stance (guard/aggressive) (= int 32)
+	DEBUG_SPAWN_ALL,        # dev cheat ('L'): muster a full army + max every stockpile (= int 33)
 }
 
 var _queue: Array[Dictionary] = []

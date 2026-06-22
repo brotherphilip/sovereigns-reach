@@ -4,8 +4,11 @@ extends Node
 
 const WorldMapData = preload("res://simulation/world/WorldMapData.gd")
 const _CampaignMap = preload("res://simulation/strategic/CampaignMap.gd")
+const _FeudalRank  = preload("res://simulation/strategic/FeudalRank.gd")
 
 var _world_view: Control = null
+var _title_label: Label = null   # player feudal title + holdings (refreshed per day)
+var _goal_label: Label = null    # the win goal: climb to King (standing vs next threshold)
 
 var _loading_canvas: CanvasLayer = null
 var _event_feed: Panel = null            # strategic realm_notice feed (iter270)
@@ -193,6 +196,7 @@ func _process(_delta: float) -> void:
 		_refresh_march_btn()
 		_refresh_realm_label()
 		_refresh_march_status()
+		_refresh_title_labels()
 		if _day_label != null:
 			_day_label.text = "Campaign day %d" % day
 	# Sub-day march progress from the live clock, so the campaign visibly creeps across the map.
@@ -238,14 +242,8 @@ func _build_scene() -> void:
 	title_lbl.add_theme_color_override("font_color", Color(0.91, 0.76, 0.26))
 	top_bar.add_child(title_lbl)
 
-	var hint_lbl := Label.new()
-	hint_lbl.text     = "Click a city to enter it"
-	hint_lbl.position = Vector2(vp.x * 0.5 - 100, 8)
-	hint_lbl.size     = Vector2(200, 22)
-	hint_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	hint_lbl.add_theme_font_size_override("font_size", 12)
-	hint_lbl.add_theme_color_override("font_color", Color(0.72, 0.66, 0.48))
-	top_bar.add_child(hint_lbl)
+	# (The old centre-of-top-bar hint banner was removed: it repeated the same "click a village"
+	# instruction that the bottom-left info panel already shows — see the consolidated hint there.)
 
 	var menu_btn := Button.new()
 	menu_btn.text     = "Main Menu"
@@ -273,23 +271,30 @@ func _build_scene() -> void:
 	top_bar.add_child(_watch_speed_btn)
 
 	# Player feudal title + holdings — the "work your way up" progress readout.
-	var title_label := Label.new()
-	title_label.name = "TitleLabel"
-	title_label.text = "%s · %d %s" % [
-		GameState.player_title_name(), GameState.player_holdings_count(),
-		("village" if GameState.player_holdings_count() == 1 else "villages")]
-	title_label.position = Vector2(248, 9)
-	title_label.size     = Vector2(260, 22)
-	title_label.add_theme_font_size_override("font_size", 14)
-	title_label.add_theme_color_override("font_color", Color(0.97, 0.85, 0.42))
-	top_bar.add_child(title_label)
+	_title_label = Label.new()
+	_title_label.name = "TitleLabel"
+	_title_label.position = Vector2(248, 6)
+	_title_label.size     = Vector2(320, 22)
+	_title_label.add_theme_font_size_override("font_size", 16)
+	_title_label.add_theme_color_override("font_color", Color(0.97, 0.85, 0.42))
+	top_bar.add_child(_title_label)
+
+	# The WIN goal, stated plainly so a first-timer knows what they're climbing toward.
+	_goal_label = Label.new()
+	_goal_label.name = "GoalLabel"
+	_goal_label.position = Vector2(248, 26)
+	_goal_label.size     = Vector2(420, 18)
+	_goal_label.add_theme_font_size_override("font_size", 12)
+	_goal_label.add_theme_color_override("font_color", Color(0.80, 0.74, 0.54))
+	top_bar.add_child(_goal_label)
+	_refresh_title_labels()
 
 	_day_label = Label.new()
 	_day_label.text     = "Campaign day %d" % GameState.strategic_day()
 	_day_label.position = Vector2(vp.x - 470, 8)
 	_day_label.size     = Vector2(150, 22)
 	_day_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	_day_label.add_theme_font_size_override("font_size", 12)
+	_day_label.add_theme_font_size_override("font_size", 14)
 	_day_label.add_theme_color_override("font_color", Color(0.80, 0.74, 0.54))
 	top_bar.add_child(_day_label)
 
@@ -305,11 +310,13 @@ func _build_scene() -> void:
 			resume_btn.pressed.connect(func(): _fade_to_scene("res://view/cityview/CityViewScene.tscn"))
 			top_bar.add_child(resume_btn)
 
-	# Info panel (bottom-left) — shows selected city info
+	# Info panel (bottom-left) — shows selected city info / the consolidated hint. Sized a touch
+	# taller + wider so the single combined hint (now the only on-screen instruction) wraps cleanly
+	# without overflowing the panel.
 	var info_panel := Panel.new()
 	info_panel.name     = "InfoPanel"
-	info_panel.position = Vector2(8, vp.y - 90)
-	info_panel.size     = Vector2(280, 82)
+	info_panel.position = Vector2(8, vp.y - 92)
+	info_panel.size     = Vector2(320, 84)
 	var isty := StyleBoxFlat.new()
 	isty.bg_color = Color(0.08, 0.10, 0.07, 0.88)
 	isty.set_border_width_all(1)
@@ -317,34 +324,31 @@ func _build_scene() -> void:
 	info_panel.add_theme_stylebox_override("panel", isty)
 	canvas.add_child(info_panel)
 
+	# Single consolidated hint (replaces the three duplicate instruction banners). Doubles as the
+	# live hover/selection readout — it's overwritten on hover/select, and restored to this when the
+	# cursor leaves all cities (see _on_city_hovered). Folds in every core control + the win goal.
 	var info_lbl := Label.new()
 	info_lbl.name     = "InfoLabel"
-	info_lbl.text     = "Hover for details · Left-click to enter & rule · Right-click to select for orders"
+	info_lbl.text     = "Left-click a village to enter & rule it · Right-click your seat to March troops or Develop · Climb Reeve → King."
 	info_lbl.position = Vector2(8, 6)
-	info_lbl.size     = Vector2(264, 70)
+	info_lbl.size     = Vector2(304, 72)
 	info_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	info_lbl.add_theme_font_size_override("font_size", 11)
+	info_lbl.add_theme_font_size_override("font_size", 12)
 	info_lbl.add_theme_color_override("font_color", Color(0.80, 0.74, 0.54))
 	info_panel.add_child(info_lbl)
 
-	# Controls legend — the right-click→act model isn't obvious (left-click enters), so
-	# spell out the strategic orders for first-time players.
-	var legend := Label.new()
-	legend.name = "OrdersLegend"
-	legend.text = "⚜ Realm orders: right-click your seat, then ⚔ March your trained host onto an enemy village · ⚒ Develop · 🕊 Diplomacy"
-	legend.position = Vector2(8, vp.y - 176)
-	legend.size = Vector2(900, 20)
-	legend.add_theme_font_size_override("font_size", 12)
-	legend.add_theme_color_override("font_color", Color(0.72, 0.66, 0.48))
-	canvas.add_child(legend)
+	# (The long "How to grow" orders legend and the centre top-bar hint were removed: both repeated
+	# the same instruction the bottom-left info panel already shows — three copies of one tip. The
+	# core controls now live ONCE, in the info panel's default text above, which also doubles as the
+	# live hover/selection readout.)
 
 	# Realm stores readout — so the player can plan strategic investments (treasury +
 	# the wood/stone that develop costs draw on, and how many cities they hold).
 	_realm_label = Label.new()
 	_realm_label.name     = "RealmStores"
 	_realm_label.position = Vector2(8, vp.y - 152)
-	_realm_label.size     = Vector2(360, 22)
-	_realm_label.add_theme_font_size_override("font_size", 12)
+	_realm_label.size     = Vector2(420, 22)
+	_realm_label.add_theme_font_size_override("font_size", 14)
 	_realm_label.add_theme_color_override("font_color", Color(0.91, 0.82, 0.45))
 	canvas.add_child(_realm_label)
 	_refresh_realm_label()
@@ -353,9 +357,9 @@ func _build_scene() -> void:
 	# headed and roughly when they'll arrive — even after closing a panel.
 	_march_status_label = Label.new()
 	_march_status_label.name     = "MarchStatus"
-	_march_status_label.position = Vector2(8, vp.y - 174)
-	_march_status_label.size     = Vector2(560, 22)
-	_march_status_label.add_theme_font_size_override("font_size", 12)
+	_march_status_label.position = Vector2(8, vp.y - 200)
+	_march_status_label.size     = Vector2(620, 22)
+	_march_status_label.add_theme_font_size_override("font_size", 14)
 	_march_status_label.add_theme_color_override("font_color", Color(1.0, 0.78, 0.42))
 	canvas.add_child(_march_status_label)
 	_refresh_march_status()
@@ -364,9 +368,9 @@ func _build_scene() -> void:
 	# invest the realm's treasury to grow your least-developed holding.
 	_develop_btn = Button.new()
 	_develop_btn.name     = "DevelopBtn"
-	_develop_btn.position = Vector2(8, vp.y - 124)
-	_develop_btn.size     = Vector2(280, 28)
-	_develop_btn.add_theme_font_size_override("font_size", 12)
+	_develop_btn.position = Vector2(8, vp.y - 130)
+	_develop_btn.size     = Vector2(300, 34)
+	_develop_btn.add_theme_font_size_override("font_size", 14)
 	_develop_btn.pressed.connect(_on_develop_realm)
 	_style_action_button(_develop_btn)
 	canvas.add_child(_develop_btn)
@@ -375,9 +379,9 @@ func _build_scene() -> void:
 	# Raise Army at the right-click-selected city — musters a field army there.
 	_raise_btn = Button.new()
 	_raise_btn.name     = "RaiseArmyBtn"
-	_raise_btn.position = Vector2(296, vp.y - 124)
-	_raise_btn.size     = Vector2(250, 28)
-	_raise_btn.add_theme_font_size_override("font_size", 12)
+	_raise_btn.position = Vector2(316, vp.y - 130)
+	_raise_btn.size     = Vector2(420, 34)
+	_raise_btn.add_theme_font_size_override("font_size", 14)
 	_raise_btn.pressed.connect(_on_raise_army)
 	_style_action_button(_raise_btn)
 	canvas.add_child(_raise_btn)
@@ -386,9 +390,9 @@ func _build_scene() -> void:
 	# Launch Campaign: send the selected city's army to march on an enemy target.
 	_march_btn = Button.new()
 	_march_btn.name     = "MarchBtn"
-	_march_btn.position = Vector2(554, vp.y - 124)
-	_march_btn.size     = Vector2(250, 28)
-	_march_btn.add_theme_font_size_override("font_size", 12)
+	_march_btn.position = Vector2(744, vp.y - 130)
+	_march_btn.size     = Vector2(420, 34)
+	_march_btn.add_theme_font_size_override("font_size", 14)
 	_march_btn.pressed.connect(_on_march)
 	_style_action_button(_march_btn)
 	canvas.add_child(_march_btn)
@@ -397,9 +401,9 @@ func _build_scene() -> void:
 	# Diplomacy: offer a truce to (or declare war on) the kingdom holding a selected city.
 	_diplo_btn = Button.new()
 	_diplo_btn.name     = "DiplomacyBtn"
-	_diplo_btn.position = Vector2(812, vp.y - 124)
-	_diplo_btn.size     = Vector2(280, 28)
-	_diplo_btn.add_theme_font_size_override("font_size", 12)
+	_diplo_btn.position = Vector2(1172, vp.y - 130)
+	_diplo_btn.size     = Vector2(320, 34)
+	_diplo_btn.add_theme_font_size_override("font_size", 14)
 	_diplo_btn.pressed.connect(_on_diplomacy)
 	_style_action_button(_diplo_btn)
 	canvas.add_child(_diplo_btn)
@@ -465,13 +469,16 @@ func _style_action_button(btn: Button) -> void:
 		s.content_margin_bottom = 4.0
 		return s
 	var gold := Color(0.62, 0.49, 0.22)
-	var bright := Color(0.85, 0.69, 0.34)
+	var bright := Color(1.0, 0.82, 0.40)
+	# A clearly brighter fill + a thicker gold border on hover, so it's obvious what's hovered.
+	var hov: StyleBoxFlat = mk.call(Color(0.40, 0.30, 0.14, 1.0), bright)
+	hov.set_border_width_all(2)
 	btn.add_theme_stylebox_override("normal",   mk.call(Color(0.13, 0.10, 0.06, 0.94), gold))
-	btn.add_theme_stylebox_override("hover",    mk.call(Color(0.22, 0.17, 0.09, 0.97), bright))
+	btn.add_theme_stylebox_override("hover",    hov)
 	btn.add_theme_stylebox_override("pressed",  mk.call(Color(0.09, 0.07, 0.04, 0.97), bright))
 	btn.add_theme_stylebox_override("disabled", mk.call(Color(0.10, 0.09, 0.08, 0.82), Color(0.34, 0.30, 0.24)))
 	btn.add_theme_color_override("font_color",           Color(0.96, 0.90, 0.74))
-	btn.add_theme_color_override("font_hover_color",      Color(1.0, 0.95, 0.80))
+	btn.add_theme_color_override("font_hover_color",      Color(1.0, 0.98, 0.86))
 	btn.add_theme_color_override("font_pressed_color",    Color(0.90, 0.82, 0.62))
 	btn.add_theme_color_override("font_disabled_color",   Color(0.58, 0.53, 0.47))
 
@@ -557,6 +564,32 @@ func _on_develop_realm() -> void:
 
 # Update the Develop button to name its target city + cost, and disable it when the
 # realm can't currently afford the investment (or the city is maxed).
+# Title readout + the explicit win goal (climb to King). Shows current standing and the
+# next rung so a new player always knows the objective and how far off it is.
+func _refresh_title_labels() -> void:
+	if _title_label != null:
+		var holds: int = GameState.player_holdings_count()
+		_title_label.text = "%s · %d %s" % [
+			GameState.player_title_name(), holds, ("village" if holds == 1 else "villages")]
+	if _goal_label == null:
+		return
+	var prestige: float = 0.0
+	if GameState.players.size() > 0 and GameState.players[0] is Dictionary:
+		prestige = float(GameState.players[0].get("prestige", 0.0))
+	var pfid: int = _CampaignMap.player_faction_id(GameState.world)
+	var score: int = _FeudalRank.domain_score(GameState.world, pfid, prestige)
+	var idx: int = _FeudalRank.title_index_for(score)
+	var king: int = _FeudalRank.king_index()
+	if idx >= king:
+		_goal_label.text = "👑 You are KING — the realm is yours."
+		_goal_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3))
+	else:
+		var next_name: String = _FeudalRank.title_name(idx + 1)
+		var next_min: int = int(_FeudalRank.TITLES[idx + 1]["min_score"])
+		var king_min: int = int(_FeudalRank.TITLES[king]["min_score"])
+		_goal_label.text = "🎯 Goal: become King (standing %d / %d) · next: %s at %d — take & develop villages" % [
+			score, king_min, next_name, next_min]
+
 func _refresh_develop_btn() -> void:
 	if _develop_btn == null:
 		return
@@ -583,7 +616,11 @@ func _on_raise_army() -> void:
 func _refresh_raise_btn() -> void:
 	if _raise_btn == null:
 		return
-	_raise_btn.text = "⚔ Host: %d trained — train at the Barracks" % GameState.player_field_strength()
+	var host: int = GameState.player_field_strength()
+	if host > 0:
+		_raise_btn.text = "⚔ Host: %d trained — March them from your seat" % host
+	else:
+		_raise_btn.text = "⚔ No troops — enter your village, build a Barracks, train soldiers"
 	_raise_btn.disabled = false
 
 func _on_march() -> void:
@@ -620,7 +657,7 @@ func _refresh_march_btn() -> void:
 		_march_btn.text = "⚔ March host (%d) from %s" % [host, GameState.get_city(_action_city_id).get("name", "city")]
 		_march_btn.disabled = false
 	else:
-		_march_btn.text = "⚔ March — select your seat (needs trained troops)"
+		_march_btn.text = "⚔ March — train troops at a Barracks, then right-click your seat"
 		_march_btn.disabled = true
 
 func _on_diplomacy() -> void:
@@ -773,7 +810,8 @@ func _on_city_hovered(city_id: int) -> void:
 	var info: Label = canvas.get_node_or_null("InfoPanel/InfoLabel")
 	if info == null: return
 	if city_id < 0:
-		info.text = "Hover a city to see details · Click it to enter and rule it"
+		# Restore the single consolidated hint when the cursor leaves all cities.
+		info.text = "Left-click a village to enter & rule it · Right-click your seat to March troops or Develop · Climb Reeve → King."
 		info.add_theme_color_override("font_color", Color(0.80, 0.74, 0.54))
 		return
 	var city: Dictionary = GameState.get_city(city_id)

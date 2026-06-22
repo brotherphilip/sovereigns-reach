@@ -1,7 +1,7 @@
 extends RefCounted
 # Strategic world map data generator. Pure simulation — zero Node/Godot scene imports.
 # Generates a procedural biome continent (sea/coast/plains/forest/hills/mountains +
-# rivers), then 55 cities placed on habitable land, 5 faction territories that follow
+# rivers), then CITY_COUNT cities placed on habitable land, faction territories that follow
 # the terrain, an MST road network, and terrain-tied resource deposits.
 
 const MAP_WIDTH:   int = 1600
@@ -55,6 +55,14 @@ const CITY_NAMES: Array = [
 	"Valewatch", "Wolfden", "Yelford", "Zephyrcliff", "Aldgate",
 	"Bridgemere", "Copperhill", "Dunmore", "Eastmarch", "Frostgate",
 	"Goldvale", "Highbury", "Ironwall", "Jasperfield", "Kingsholm",
+	# ── Appended (indices 56+) to give every village a unique name for CITY_COUNT.
+	# Do NOT reorder or alter entries 0..55 — seeded world-gen depends on them.
+	"Oakhollow", "Brackenford", "Wyrmcrest", "Hartlowe", "Mossgate",
+	"Larkspur", "Nettleford", "Briarcombe", "Hawthorne", "Foxcote",
+	"Willowmere", "Rookhaven", "Marshend", "Stagholt", "Birchwell",
+	"Crowmarsh", "Heronford", "Wexbridge", "Tarnhollow", "Glenmere",
+	"Cragmoor", "Fellbeck", "Whitethorn", "Dunhallow", "Reedwater",
+	"Sparrowmoor",
 ]
 
 # ── Public API ────────────────────────────────────────────────────────────────
@@ -280,7 +288,8 @@ static func _place_cities(rng: RandomNumberGenerator, biome: Dictionary) -> Arra
 		})
 	return cities
 
-# Unique village name; appends an ordinal once the base list wraps (80 villages > 56 names).
+# Unique village name. CITY_NAMES holds >= CITY_COUNT distinct names, so the ordinal
+# suffix below is a dead-letter safety net only — it never fires for a normal map.
 static func _city_name(i: int) -> String:
 	var n: int = CITY_NAMES.size()
 	if i < n:

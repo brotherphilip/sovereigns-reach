@@ -103,6 +103,17 @@ static func phase_name(tick: int) -> String:
 		return "Dusk" if day_night_phase(tick) < 0.5 else "Dawn"  # darkening before midnight, brightening after
 	return "Night"
 
+# Cycle-fraction (0..1, 0 = noon) at which the night window OPENS and CLOSES — i.e. where
+# night_factor() rises through NIGHT_HOME_THRESHOLD. SINGLE SOURCE OF TRUTH: derived from
+# the same curve that drives both the darkening wash and the "Night" label, so the HUD clock
+# can never drift from the actual lighting. Night is centred on midnight (f = 0.5).
+# Solve pow(0.5 - 0.5*cos(f*TAU), NIGHT_SKEW) = NIGHT_HOME_THRESHOLD for f.
+static func night_window() -> Vector2:
+	var dark: float = pow(NIGHT_HOME_THRESHOLD, 1.0 / NIGHT_SKEW)   # required (0.5 - 0.5*cos) value
+	var c: float = clampf(1.0 - 2.0 * dark, -1.0, 1.0)             # = cos(f*TAU)
+	var half: float = acos(c) / TAU                                # f at the opening crossing
+	return Vector2(half, 1.0 - half)
+
 # 0..1 progress through the current season (0 = first day, ~1 = last day).
 static func season_progress(day: int) -> float:
 	return float(day % DAYS_PER_SEASON) / float(maxi(1, DAYS_PER_SEASON - 1))

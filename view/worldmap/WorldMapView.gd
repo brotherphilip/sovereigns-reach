@@ -50,13 +50,30 @@ func _clamp_pan() -> void:
 	_pan.x = clampf(_pan.x, minx, 0.0)
 	_pan.y = clampf(_pan.y, miny, 0.0)
 
-# Centre the starting view at the default zoom (once size is known).
+# Centre the starting view on the PLAYER'S OWN holding (so a new player isn't dropped into
+# a sea of rival nodes with no idea which is theirs), once size + the city list are known.
 func _ensure_view_inited() -> void:
 	if _view_inited or size.x <= 0.0:
 		return
+	var focus: Vector2 = _player_focus_point()
+	if focus == Vector2.INF and _city_list.is_empty():
+		return  # wait for the city list so we can frame the player's seat, not the map centre
 	_view_inited = true
-	_pan = size * 0.5 * (1.0 - _zoom)
+	if focus != Vector2.INF:
+		_pan = size * 0.5 - focus * _zoom
+	else:
+		_pan = size * 0.5 * (1.0 - _zoom)
 	_clamp_pan()
+
+# Map (world) position of the player's own city — their start, else any held city.
+func _player_focus_point() -> Vector2:
+	var fallback: Vector2 = Vector2.INF
+	for c in _city_list:
+		if c.get("is_player_start", false):
+			return c.get("pos", Vector2.INF)
+		if c.get("is_player_owned", false) and fallback == Vector2.INF:
+			fallback = c.get("pos", Vector2.INF)
+	return fallback
 
 # Screen point -> map (world) coordinates, inverting the zoom/pan transform.
 func _to_world(p: Vector2) -> Vector2:
@@ -113,8 +130,10 @@ func _draw() -> void:
 		draw_rect(Rect2(Vector2.ZERO, size), Color(0.13, 0.19, 0.10))
 		return
 	_ensure_view_inited()
-	# Ocean base fills the whole panel in SCREEN space so zoom/pan never reveals a void.
-	draw_rect(Rect2(Vector2.ZERO, size), _SEA_DEEP)
+	# Styled off-map background fills the WHOLE panel in SCREEN space so no zoom/pan ever
+	# reveals a raw-black void: a soft vertical sea/fog gradient (deep below, hazier above),
+	# the calm "open water / unknown sea" framing a cartographic map sits in.
+	_draw_offmap_backdrop()
 	# Map layers render under the zoom/pan transform.
 	draw_set_transform(_pan, 0.0, Vector2(_zoom, _zoom))
 	_draw_background()
@@ -126,11 +145,60 @@ func _draw() -> void:
 	_draw_armies()
 	# Reset to screen space for the fixed UI overlay (Kingdoms legend + zoom indicator).
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+	# Fade the map edge into the surrounding sea/fog so the relief raster has no hard aliased
+	# seam where it ends — drawn over the map but under the UI chrome.
+	_draw_map_edge_fade()
 	# Atmospheric edge framing — drawn over the map but UNDER the UI panels so the realm
 	# reads as a crafted cartographic artifact with depth, not a flat data grid (iter314).
 	_draw_vignette()
 	_draw_legend()
 	_draw_zoom_indicator()
+
+# Styled off-map backdrop (screen space): a calm vertical sea/fog gradient covering the whole
+# panel, so panning/zooming the relief raster can NEVER expose a raw-black void. Top reads as a
+# hazy horizon fog, the body as open deep water — the empty sea a cartographic map floats in.
+const _OFFMAP_TOP: Color = Color(0.16, 0.22, 0.30)   # hazy sea-horizon fog
+const _OFFMAP_BOT: Color = Color(0.09, 0.16, 0.26)   # deep open water
+func _draw_offmap_backdrop() -> void:
+	var w: float = size.x
+	var h: float = size.y
+	if w <= 0.0 or h <= 0.0:
+		return
+	draw_polygon(
+		PackedVector2Array([Vector2(0, 0), Vector2(w, 0), Vector2(w, h), Vector2(0, h)]),
+		PackedColorArray([_OFFMAP_TOP, _OFFMAP_TOP, _OFFMAP_BOT, _OFFMAP_BOT]))
+
+# Fade the relief raster's rectangular edge into the surrounding sea/fog, so the map has no hard
+# aliased seam where the texture stops. Four screen-space gradient bands, hugging the on-screen
+# position of the map's outer edge (mapped through the zoom/pan transform), opaque-fog at the rim
+# of the map fading to clear just inside it.
+func _draw_map_edge_fade() -> void:
+	var w: float = size.x
+	var h: float = size.y
+	if w <= 0.0 or h <= 0.0:
+		return
+	# Map rectangle corners in screen space.
+	var tl: Vector2 = Vector2.ZERO * _zoom + _pan
+	var br: Vector2 = _map_size * _zoom + _pan
+	var fog := Color(_OFFMAP_BOT.r, _OFFMAP_BOT.g, _OFFMAP_BOT.b, 0.85)
+	var clear := Color(_OFFMAP_BOT.r, _OFFMAP_BOT.g, _OFFMAP_BOT.b, 0.0)
+	var band: float = 26.0   # how far the fog reaches inward from the map edge (screen px)
+	# Top edge of the map.
+	draw_polygon(PackedVector2Array([
+		Vector2(tl.x, tl.y), Vector2(br.x, tl.y), Vector2(br.x, tl.y + band), Vector2(tl.x, tl.y + band)]),
+		PackedColorArray([fog, fog, clear, clear]))
+	# Bottom edge.
+	draw_polygon(PackedVector2Array([
+		Vector2(tl.x, br.y - band), Vector2(br.x, br.y - band), Vector2(br.x, br.y), Vector2(tl.x, br.y)]),
+		PackedColorArray([clear, clear, fog, fog]))
+	# Left edge.
+	draw_polygon(PackedVector2Array([
+		Vector2(tl.x, tl.y), Vector2(tl.x + band, tl.y), Vector2(tl.x + band, br.y), Vector2(tl.x, br.y)]),
+		PackedColorArray([fog, clear, clear, fog]))
+	# Right edge.
+	draw_polygon(PackedVector2Array([
+		Vector2(br.x - band, tl.y), Vector2(br.x, tl.y), Vector2(br.x, br.y), Vector2(br.x - band, br.y)]),
+		PackedColorArray([clear, fog, fog, clear]))
 
 # Soft edge-darkening that frames the map and gives the flat hex grid a sense of depth.
 # Four gradient bands (opaque at the rim, transparent inward); corners double up = darkest,
@@ -161,8 +229,8 @@ func _draw_vignette() -> void:
 func _draw_zoom_indicator() -> void:
 	var txt: String = "⊕ %.1f×   ·   wheel: zoom   ·   middle-drag: pan" % _zoom
 	var pos: Vector2 = Vector2(12.0, 40.0)   # top-left, below the scene title bar (clear of UI)
-	draw_string(ThemeDB.fallback_font, pos + Vector2(1, 1), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(0, 0, 0, 0.8))
-	draw_string(ThemeDB.fallback_font, pos, txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(0.93, 0.88, 0.70))
+	draw_string(ThemeDB.fallback_font, pos + Vector2(1, 1), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color(0, 0, 0, 0.8))
+	draw_string(ThemeDB.fallback_font, pos, txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color(0.93, 0.88, 0.70))
 
 func _input(event: InputEvent) -> void:
 	# Hit-testing happens in MAP (world) space — invert the zoom/pan transform. The pick radius
@@ -261,7 +329,9 @@ const _SHORE_WET: Color = Color(0.60, 0.55, 0.43)   # wet sand at the waterline
 # Compress every land colour toward this cohesive base so the terrain becomes a calm, designed
 # backdrop (the network reads as the structure) instead of a high-contrast biome patchwork.
 const _LAND_BASE: Color = Color(0.45, 0.46, 0.35)
-const _LAND_UNIFY: float = 0.38   # how far each biome tone is pulled toward _LAND_BASE
+# How far each biome tone is pulled toward _LAND_BASE. Lowered from 0.38 to 0.22 so forests/plains/
+# hills keep a distinct, legible identity while the terrain still reads as a calm designed backdrop.
+const _LAND_UNIFY: float = 0.22
 
 var _relief_tex: ImageTexture = null
 var _map_size: Vector2 = Vector2(1600, 900)
@@ -448,10 +518,12 @@ func _draw_faction_territories() -> void:
 			f.get("name", ""), HORIZONTAL_ALIGNMENT_LEFT, -1, 11,
 			Color.from_string(f["color_hex"], Color.GRAY).lightened(0.35))
 
-# One frontier boundary segment: a dark casing under a coloured line, anti-aliased.
+# One frontier boundary segment: a faint dark casing under a muted coloured line, anti-aliased.
+# Kept deliberately subtle (thin, low-alpha) so borders read as quiet political lines tracing the
+# realms — not the screaming graphics they were (3px casing / 1.8px line @ 0.9 alpha).
 func _frontier_seg(a: Vector2, b: Vector2, col: Color) -> void:
-	draw_line(a, b, Color(0.05, 0.05, 0.05, 0.45), 3.0, true)
-	draw_line(a, b, Color(col.r, col.g, col.b, 0.9), 1.8, true)
+	draw_line(a, b, Color(0.05, 0.05, 0.05, 0.25), 2.0, true)
+	draw_line(a, b, Color(col.r, col.g, col.b, 0.65), 1.2, true)
 
 func _faction_color(faction_id: int) -> Color:
 	if faction_id >= 0 and faction_id < WorldMapData.FACTION_COLORS.size():
@@ -475,8 +547,9 @@ func _draw_roads() -> void:
 		var fp: Vector2 = r["from_pos"]
 		var tp: Vector2 = r["to_pos"]
 		# Gentle arc via a quadratic Bézier (perpendicular control offset), sampled smooth so the
-		# track curves instead of kinking at the midpoint.
-		var ctrl: Vector2 = (fp + tp) * 0.5 + (tp - fp).orthogonal().normalized() * 11.0
+		# track curves instead of kinking at the midpoint. Control comes from the shared helper so
+		# marching armies (WorldMapController.road_point) ride this exact curve.
+		var ctrl: Vector2 = WorldMapController.road_ctrl(fp, tp)
 		var pts := PackedVector2Array()
 		const STEPS: int = 16
 		for i in range(STEPS + 1):
@@ -572,6 +645,13 @@ func _draw_cities() -> void:
 		# Player-owned holdings get a gold ring so the realm reads at a glance.
 		if is_player_owned:
 			draw_arc(p, ring_r, 0, TAU, 24, Color(0.95, 0.78, 0.10, 0.70), 2.5, true)
+		# The player's SEAT gets an unmistakable pulsing beacon + a tag, so a first-timer can
+		# instantly spot "this one is mine" among dozens of rival nodes.
+		if is_start:
+			var pulse: float = 0.5 + 0.5 * sin(Time.get_ticks_msec() * 0.004)
+			draw_arc(p, ring_r + 5.0 + pulse * 4.0, 0, TAU, 28, Color(1.0, 0.85, 0.25, 0.30 + 0.45 * pulse), 3.0, true)
+			draw_arc(p, ring_r + 2.0, 0, TAU, 28, Color(1.0, 0.88, 0.35, 0.95), 2.5, true)
+			_draw_map_label(p + Vector2(-50, -ring_r - 16.0), "⚜ YOUR SEAT", 100.0, 13, Color(1.0, 0.90, 0.45))
 		# Hover highlight.
 		if is_hovered:
 			draw_arc(p, ring_r - 1.0, 0, TAU, 24, Color(1.0, 1.0, 1.0, 0.8), 2.0, true)
@@ -584,7 +664,7 @@ func _draw_cities() -> void:
 
 		# Name — prominence scales with rank so minor places stay quiet; capitals & the player's
 		# own holdings read boldest. Centred under the icon, haloed for legibility on any terrain.
-		var fsize: int = [8, 9, 10, 11][rank]
+		var fsize: int = [11, 12, 13, 14][rank]
 		var name_col: Color
 		if is_player_owned:
 			name_col = Color(1.0, 0.90, 0.50)
@@ -603,12 +683,23 @@ func _draw_cities() -> void:
 		# totals still live in the Kingdoms legend.)
 		if is_hovered or is_selected or is_player_owned:
 			var ginfo: String = "⚔ %d" % int(c.get("garrison", 0))
-			_draw_map_label(p + Vector2(-40, yoff + 11.0), ginfo, 80.0, 9, Color(0.95, 0.88, 0.72))
+			_draw_map_label(p + Vector2(-40, yoff + 14.0), ginfo, 80.0, 11, Color(0.95, 0.88, 0.72))
 
-# Centred map label with a dark 4-direction halo so text stays legible over any terrain/biome.
+# Centred map label with a small semi-transparent backing plate + a dark 4-direction halo, so
+# names stay legible over busy terrain instead of smearing into the relief. The plate is sized to
+# the actual text and centred under the `width` box the text is laid out in (pos is its top-left).
 func _draw_map_label(pos: Vector2, text: String, width: float, fsize: int, col: Color) -> void:
 	var f: Font = ThemeDB.fallback_font
 	const _HALO: Color = Color(0.0, 0.0, 0.0, 0.85)
+	const _PLATE: Color = Color(0.05, 0.06, 0.04, 0.50)
+	var tw: float = f.get_string_size(text, HORIZONTAL_ALIGNMENT_CENTER, -1, fsize).x
+	# Text is centre-aligned within [pos.x, pos.x + width]; centre the plate on that midline.
+	var cx: float = pos.x + width * 0.5
+	var pad_x: float = 4.0
+	var plate_w: float = tw + pad_x * 2.0
+	var asc: float = f.get_ascent(fsize)
+	var plate := Rect2(cx - plate_w * 0.5, pos.y - asc - 1.0, plate_w, float(fsize) + 4.0)
+	draw_rect(plate, _PLATE)
 	for o in [Vector2(1, 1), Vector2(-1, 1), Vector2(1, -1), Vector2(-1, -1)]:
 		draw_string(f, pos + o, text, HORIZONTAL_ALIGNMENT_CENTER, width, fsize, _HALO)
 	draw_string(f, pos, text, HORIZONTAL_ALIGNMENT_CENTER, width, fsize, col)

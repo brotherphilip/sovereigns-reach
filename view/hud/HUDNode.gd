@@ -88,6 +88,8 @@ var _sel_title: Label = null
 var _sel_info: Label = null
 var _sel_workers_label: Label = null
 var _sel_actions: HBoxContainer = null
+var _sel_full_size: Vector2 = Vector2.ZERO     # full panel size (restored on selection)
+var _sel_has_selection: bool = false           # collapsed-to-slim-bar when false
 
 # Content containers stored directly (no node-path lookup)
 var _tech_content: VBoxContainer = null
@@ -374,26 +376,34 @@ func _top_divider(x: float) -> void:
 	_top_bar.add_child(d)
 
 func _top_value(text: String, x: float, w: float, size_pt: int = 14, color: Color = Color.WHITE) -> Label:
-	var lbl := _add_label(_top_bar, text, Vector2(x, 12), size_pt, color)
-	lbl.size = Vector2(w, 20)
+	# Resource values sit slightly higher (y=5) to leave room for a tiny caption beneath.
+	var lbl := _add_label(_top_bar, text, Vector2(x, 5), size_pt, color)
+	lbl.size = Vector2(w, 18)
 	return lbl
+
+# A tiny upper-case caption beneath a resource icon/value so a new player can read what
+# the bare number means at a glance (the full description still lives in the value tooltip).
+func _res_caption(text: String, x: float, w: float) -> void:
+	var cap := _add_label(_top_bar, text, Vector2(x, 28), 8, Color(0.70, 0.64, 0.50))
+	cap.size = Vector2(w, 12)
+	cap.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 func _build_top_bar(vp: Vector2) -> void:
 	var x: float = 10.0
-	# ── Resources: colour-coded icon + value (name in tooltip) ──
-	_make_res_icon(_top_bar, Vector2(x, 12), "gold");  x += 20
+	# ── Resources: colour-coded icon + value + caption (full name in the value tooltip) ──
+	_make_res_icon(_top_bar, Vector2(x, 6), "gold");  _res_caption("Gold", x, 64);  x += 20
 	_gold_label    = _top_value("0", x, 46); x += 50
-	_make_res_icon(_top_bar, Vector2(x, 12), "wood");  x += 20
+	_make_res_icon(_top_bar, Vector2(x, 6), "wood");  _res_caption("Wood", x, 60);  x += 20
 	_wood_label    = _top_value("0", x, 42); x += 46
-	_make_res_icon(_top_bar, Vector2(x, 12), "stone"); x += 20
+	_make_res_icon(_top_bar, Vector2(x, 6), "stone"); _res_caption("Stone", x, 60); x += 20
 	_stone_label   = _top_value("0", x, 42); x += 46
-	_make_res_icon(_top_bar, Vector2(x, 12), "iron");  x += 20
+	_make_res_icon(_top_bar, Vector2(x, 6), "iron");  _res_caption("Iron", x, 60);  x += 20
 	_iron_label    = _top_value("0", x, 42); x += 46
-	_make_res_icon(_top_bar, Vector2(x, 12), "stock"); x += 20
+	_make_res_icon(_top_bar, Vector2(x, 6), "stock"); _res_caption("Storage", x, 84); x += 20
 	_storage_label = _top_value("0/0", x, 66, 13, Color(0.82, 0.76, 0.6)); x += 70
-	_make_res_icon(_top_bar, Vector2(x, 12), "food");  x += 20
+	_make_res_icon(_top_bar, Vector2(x, 6), "food");  _res_caption("Food", x, 84);  x += 20
 	_food_label    = _top_value("0/0", x, 66); x += 70
-	_make_res_icon(_top_bar, Vector2(x, 12), "ale");   x += 20
+	_make_res_icon(_top_bar, Vector2(x, 6), "ale");   _res_caption("Ale", x, 60);   x += 20
 	_ale_label     = _top_value("0", x, 42); x += 46
 	_top_divider(x); x += 14
 	# ── World: day-cycle clock + season/weather ──
@@ -408,10 +418,14 @@ func _build_top_bar(vp: Vector2) -> void:
 	_prestige_label = _top_value("Prestige: 0", x, 116, 13, Color(0.95, 0.8, 0.3)); x += 120
 	_faith_label    = _top_value("Faith: 0", x, 116, 13, Color(0.75, 0.85, 1.0)); x += 118
 	_health_label   = _top_value("Health: 100", x, 116, 13, Color(0.6, 0.9, 0.6))
-	# gold-coin name tooltips for the icon-only resources
+	# Descriptive name tooltips for every resource value. Gold/storage/food get a richer,
+	# live tooltip rebuilt each refresh; these are sensible defaults before the first tick.
+	_gold_label.tooltip_text  = "Gold — your treasury. Spent on buildings, units and trade."
 	_wood_label.tooltip_text  = "Wood — timber for building and tools."
 	_stone_label.tooltip_text = "Stone — masonry for walls and grand buildings."
 	_iron_label.tooltip_text  = "Iron — weapons, armour and tools."
+	_storage_label.tooltip_text = "Storage — raw goods stored vs. stockpile capacity. Build stockpiles to store more."
+	_food_label.tooltip_text  = "Food — total food vs. granary capacity. Feeds your people each day."
 	_ale_label.tooltip_text   = "Ale — brewed from hops; served at inns to keep the people merry."
 
 func _refresh_top_bar() -> void:
@@ -718,8 +732,11 @@ func _show_build_category(cat: int, pulse: bool = false) -> void:
 		vb.add_child(name_lbl)
 
 		var cost_lbl := Label.new()
-		cost_lbl.text = cost_str if tech_ok else "needs %s" % ", ".join(req_tech).left(16)
+		# Readable lock reason ("Requires Advanced Masonry"), wrapped so words aren't clipped.
+		cost_lbl.text = cost_str if tech_ok else "Requires %s" % _humanize_tech_list(req_tech)
 		cost_lbl.add_theme_font_size_override("font_size", 10)
+		cost_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		cost_lbl.custom_minimum_size = Vector2(108, 0)
 		cost_lbl.add_theme_color_override("font_color",
 			(Color(0.62, 0.86, 0.42) if can_afford else Color(0.9, 0.45, 0.35)) if tech_ok else Color(0.7, 0.66, 0.5))
 		vb.add_child(cost_lbl)
@@ -732,7 +749,7 @@ func _show_build_category(cat: int, pulse: bool = false) -> void:
 		var build_btn := _make_card_button("Build", enabled)
 		var reason: String = ""
 		if not tech_ok:
-			reason = "\nRequires: %s" % ", ".join(req_tech)
+			reason = "\nRequires: %s" % _humanize_tech_list(req_tech)
 		elif not can_afford:
 			reason = "\n(Cannot afford)"
 		build_btn.tooltip_text = "Place %s\n%s%s" % [name_str, cost_str, reason]
@@ -802,8 +819,42 @@ func _format_cost(cost: Dictionary) -> String:
 		return "Free"
 	var parts: Array = []
 	for k in cost:
-		parts.append("%d%s" % [int(cost[k]), _COST_ABBR.get(k, str(k).left(2))])
+		# A space between value and unit so costs read as "20 wd  10 g", not "20wd10g".
+		parts.append("%d %s" % [int(cost[k]), _COST_ABBR.get(k, str(k).left(2))])
 	return "  ".join(parts)
+
+# Convert a tech id to its readable display name. Prefers the canonical name from the
+# tech registry (e.g. "advanced_masonry" → "Advanced Masonry"); falls back to a generic
+# snake_case → Title Case conversion for anything not in the registry.
+func _humanize_tech(tech_id: String) -> String:
+	var defn: Dictionary = TechTree.lookup(tech_id)
+	var nm: String = String(defn.get("name", ""))
+	if nm != "":
+		return nm
+	return _titleize(tech_id)
+
+# Generic snake_case → Title Case (e.g. "transport_logistics" → "Transport Logistics").
+func _titleize(raw: String) -> String:
+	var words: PackedStringArray = raw.replace("_", " ").split(" ", false)
+	var out: Array = []
+	for w in words:
+		out.append(w.capitalize())
+	return " ".join(out)
+
+# Join a list of tech ids into a readable "Advanced Masonry, Crop Tiers" string.
+func _humanize_tech_list(req_tech: Array) -> String:
+	var names: Array = []
+	for t in req_tech:
+		names.append(_humanize_tech(String(t)))
+	return ", ".join(names)
+
+# Humanize a {ok,reason} lock string that may embed a raw tech id, e.g.
+# "Requires tech: advanced_masonry" → "Requires Advanced Masonry".
+func _humanize_reason(reason: String) -> String:
+	var prefix: String = "Requires tech: "
+	if reason.begins_with(prefix):
+		return "Requires " + _humanize_tech(reason.substr(prefix.length()).strip_edges())
+	return reason
 
 func _can_afford(cost: Dictionary, player: Dictionary) -> bool:
 	var res: Dictionary = player.get("resources", {})
@@ -853,6 +904,7 @@ func _build_bottom_bar(vp: Vector2) -> void:
 # ── Selection panel ────────────────────────────────────────────────────────────
 
 func _build_selection_panel() -> void:
+	_sel_full_size = _selection_panel.size   # remember full height so we can restore it
 	_add_label(_selection_panel, "SELECTED", Vector2(6, 4), 11, Color.LIGHT_YELLOW)
 	_sel_title = _add_label(_selection_panel, "Nothing selected", Vector2(6, 20), 14, Color(0.97, 0.92, 0.78))
 	_sel_info  = _add_label(_selection_panel, "", Vector2(6, 42), 10, Color.LIGHT_GRAY)
@@ -866,9 +918,24 @@ func _build_selection_panel() -> void:
 	_sel_actions.add_theme_constant_override("separation", 3)
 	_selection_panel.add_child(_sel_actions)
 
+	clear_selection()   # start collapsed to a slim hint bar — nothing is selected yet
+
+# Restore the full selection panel when something is picked.
+func _expand_selection_panel() -> void:
+	if _sel_full_size != Vector2.ZERO:
+		_selection_panel.size = _sel_full_size
+	# Restore the title's selected styling (clear_selection shrinks it for the hint bar).
+	_sel_title.add_theme_font_size_override("font_size", 14)
+	_sel_title.add_theme_color_override("font_color", Color(0.97, 0.92, 0.78))
+	_sel_info.visible = true
+	_sel_workers_label.visible = true
+	_sel_actions.visible = true
+	_sel_has_selection = true
+
 func show_selected_building(building: Dictionary) -> void:
 	if not _sel_title:
 		return
+	_expand_selection_panel()
 	const BR = preload("res://simulation/buildings/BuildingRegistry.gd")
 	const UR = preload("res://simulation/units/UnitRegistry.gd")
 	var btype: String = building.get("type", "")
@@ -940,6 +1007,7 @@ func show_selected_building(building: Dictionary) -> void:
 func show_selected_unit(unit: Dictionary) -> void:
 	if not _sel_title:
 		return
+	_expand_selection_panel()
 	const UR = preload("res://simulation/units/UnitRegistry.gd")
 	var utype: String = unit.get("type", "")
 	var defn: Dictionary = UR.lookup(utype)
@@ -986,6 +1054,7 @@ func show_selected_unit(unit: Dictionary) -> void:
 func show_selected_citizen(c: Dictionary) -> void:
 	if not _sel_title:
 		return
+	_expand_selection_panel()
 	const Needs = preload("res://simulation/world/NeedsSystem.gd")
 	_sel_title.text = Needs.full_name(c)
 	var hp: int     = int(round(float(c.get("hp", 100.0))))
@@ -1007,11 +1076,22 @@ func show_selected_citizen(c: Dictionary) -> void:
 
 func clear_selection() -> void:
 	if not _sel_title: return
-	_sel_title.text = "Nothing selected"
+	# Nothing selected → collapse to a slim header bar carrying a helpful hint, rather than
+	# leaving a tall empty "Nothing selected" panel docked bottom-right.
+	_sel_title.text = "Click a building, unit, or citizen to inspect it"
+	_sel_title.add_theme_font_size_override("font_size", 11)
+	_sel_title.add_theme_color_override("font_color", Color(0.78, 0.74, 0.62))
+	_sel_title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_sel_title.size = Vector2(_sel_full_size.x - 12, 30)
 	_sel_info.text = ""
+	_sel_info.visible = false
 	_sel_workers_label.text = ""
+	_sel_workers_label.visible = false
 	_sel_workers_label.remove_theme_color_override("font_color")
 	for c in _sel_actions.get_children(): c.queue_free()
+	_sel_actions.visible = false
+	_selection_panel.size = Vector2(_sel_full_size.x, 44)   # slim header-only bar
+	_sel_has_selection = false
 
 func _set_workers_on_building(bid: int, count: int) -> void:
 	CommandQueue.enqueue(9, {"building_id": bid, "workers": count}, 0)
@@ -1189,8 +1269,11 @@ func _add_edict_section(parent: VBoxContainer, title: String, items: Array, kind
 			row.add_child(rem_lbl)
 		elif kind == "locked":
 			var why := Label.new()
-			why.text = "(locked) " + String(item.get("reason", "Locked")).left(32)
+			# Readable reason ("Requires Advanced Masonry"), wrapped instead of clipped mid-word.
+			why.text = "(locked) " + _humanize_reason(String(item.get("reason", "Locked")))
 			why.add_theme_font_size_override("font_size", 9)
+			why.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			why.custom_minimum_size = Vector2(150, 0)
 			why.add_theme_color_override("font_color", Color(0.85, 0.6, 0.4))
 			row.add_child(why)
 		else:

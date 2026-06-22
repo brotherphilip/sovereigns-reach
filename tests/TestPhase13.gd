@@ -106,3 +106,26 @@ func _run() -> void:
 		nid = WildlifeSystem.tick(bw, [], null, _rng(t), t, nid)
 	ok("herd grows via breeding", bw.size() > before)
 	ok("herd respects population cap", bw.size() <= WildlifeSystem.HERD_CAP)
+
+	print("\n--- Species (deer / boar / fox / rabbit) ---")
+	for type in ["deer", "boar", "fox", "rabbit"]:
+		var sl: Array = []
+		WildlifeSystem.spawn_herd(sl, 0, 40.0, 40.0, 4, _rng(11), 1, type)
+		ok("%s group all tagged '%s'" % [type, type], sl.all(func(x): return x["type"] == type))
+		var c: Dictionary = WildlifeSystem.cfg(type)
+		ok("%s adult hp = cfg.adult_hp" % type, sl[0]["max_hp"] == c["adult_hp"])
+	# Default type stays deer (back-compat with the 7-arg call used above).
+	var dl: Array = []
+	WildlifeSystem.spawn_herd(dl, 0, 40.0, 40.0, 2, _rng(12), 1)
+	ok("spawn_herd default type is deer", dl[0]["type"] == "deer")
+	# Newborns inherit the herd's species, and each species honours its own cap.
+	var fl: Array = []
+	WildlifeSystem.spawn_herd(fl, 0, 30.0, 30.0, 3, _rng(3), 1, "fox")
+	for x in fl:
+		x["age"] = WildlifeSystem.ADULT_AGE + 100
+	var fnid := 5
+	for t in range(3000, 3000 + WildlifeSystem.BREED_INTERVAL * 6):
+		fnid = WildlifeSystem.tick(fl, [], null, _rng(t), t, fnid)
+	ok("fox skulk grows via breeding", fl.size() > 3)
+	ok("fox newborns are foxes", fl.all(func(x): return x["type"] == "fox"))
+	ok("fox honours its own (smaller) cap", fl.size() <= int(WildlifeSystem.cfg("fox")["cap"]))

@@ -59,12 +59,32 @@ static func _faction_color_hex(data: Dictionary, faction_id: int) -> String:
 			return String(k.get("color_hex", "#888888"))
 	return "#6b6b6b"  # independent villages — neutral grey
 
+# The perpendicular bow of the road arc — MUST match WorldMapView road drawing so marching
+# armies track the curve of the road rather than cutting a straight chord across it.
+const ROAD_ARC_OFFSET: float = 11.0
+
+# Control point of the quadratic-Bézier road arc between two cities. Canonicalised by endpoint
+# order so the arc is identical whichever way an army travels it (and matches the drawn road).
+static func road_ctrl(a: Vector2, b: Vector2) -> Vector2:
+	var p0 := a
+	var p1 := b
+	if p1.x < p0.x or (p1.x == p0.x and p1.y < p0.y):
+		var tmp := p0; p0 = p1; p1 = tmp
+	return (p0 + p1) * 0.5 + (p1 - p0).orthogonal().normalized() * ROAD_ARC_OFFSET
+
+# Point at parameter t (0..1) along the road arc from a to b — armies ride this curve.
+static func road_point(a: Vector2, b: Vector2, t: float) -> Vector2:
+	var ctrl := road_ctrl(a, b)
+	var omt: float = 1.0 - t
+	return omt * omt * a + 2.0 * omt * t * ctrl + t * t * b
+
 # Field armies currently on the march, positioned partway along the road from
 # their current city toward the next hop so movement is visible.
-# `march_frac` (0..1) = how far along the CURRENT road hop a marching army is, so the
-# caller (the live map) can animate armies sliding smoothly between cities each frame
-# rather than jumping city-to-city. Idle armies ignore it (drawn at their city).
-static func get_army_render_list(data: Dictionary, march_frac: float = 0.4) -> Array:
+# `intraday_frac` (0..1) = how far into the CURRENT game-day the live clock is, supplied by the
+# scene every frame. Combined with the army's completed hop-days it yields a CONTINUOUS march
+# progress, so the marker glides smoothly along the road every frame instead of only hopping at
+# day boundaries (the sim bumps the army's day-count just once per day). Idle armies sit still.
+static func get_army_render_list(data: Dictionary, intraday_frac: float = 0.4) -> Array:
 	var result: Array = []
 	for k in data.get("kingdoms", []):
 		if not k is Dictionary:
@@ -86,10 +106,19 @@ static func get_army_render_list(data: Dictionary, march_frac: float = 0.4) -> A
 				var nxt: Dictionary = _city(data, path[0])
 				if not nxt.is_empty():
 					to_pos = Vector2(nxt.get("pos_x", 0.0), nxt.get("pos_y", 0.0))
-					# Prefer the army's TRUE travel progress (distance-scaled by the
-					# sim); fall back to the caller's sweep only for legacy armies.
-					var frac: float = a.get("march_frac", march_frac)
-					pos = from_pos.lerp(to_pos, clampf(frac, 0.0, 1.0))  # animated march
+					# Continuous progress along the current leg = completed days + the live
+					# fraction into the running day, over the leg's total days. The sim only
+					# advances hop_elapsed once per day, so the intraday term is what makes the
+					# marker creep every frame instead of jumping city-to-city. Legacy armies
+					# (no hop fields) fall back to the caller's sweep value.
+					var frac: float
+					if a.has("hop_total_days"):
+						var total_days: float = float(maxi(1, int(a.get("hop_total_days", 1))))
+						var elapsed: float = float(int(a.get("hop_elapsed", 0)))
+						frac = (elapsed + clampf(intraday_frac, 0.0, 1.0)) / total_days
+					else:
+						frac = a.get("march_frac", intraday_frac)
+					pos = road_point(from_pos, to_pos, clampf(frac, 0.0, 1.0))  # ride the road arc
 				var dest_id: int = a.get("dest_city_id", path[path.size() - 1])
 				var dc: Dictionary = _city(data, dest_id)
 				dest_name = String(dc.get("name", "")) if not dc.is_empty() else ""

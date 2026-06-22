@@ -14,8 +14,18 @@ const PLAYER_COLORS: Array = [
 	Color(0.90, 0.45, 0.45),  # player 3 — red
 ]
 
-const UnitRenderer = preload("res://view/micro/UnitRenderer.gd")
-const UnitArt      = preload("res://view/micro/UnitArt.gd")
+const UnitRenderer  = preload("res://view/micro/UnitRenderer.gd")
+const UnitArt       = preload("res://view/micro/UnitArt.gd")
+const UnitRegistry  = preload("res://simulation/units/UnitRegistry.gd")
+const CrowdGlyphs   = preload("res://view/micro/CrowdGlyphs.gd")
+const UnitGlyphMesh = preload("res://view/micro/UnitGlyphMesh.gd")
+
+# Crowd renderer: when too many units are on screen for the full articulated art, every unit
+# is drawn as ONE MultiMesh instance — a per-TYPE vertex-coloured little soldier (real-looking,
+# not a flat shape) sitting on a team-tinted ground disc. ~21 draw calls for ANY number of
+# units, so armies of thousands stay smooth. Disc key drawn first so it sits UNDER the bodies.
+const DISC_KEY: String = "__disc"
+var _crowd: CrowdGlyphs = null
 
 var _player_units: Array = []
 var _ai_units: Array = []
@@ -43,8 +53,43 @@ const _POPUP_LIFE_MS: int = 1400
 const _FLASH_LIFE_MS: int = 220
 const _DEATH_ANIM_MS: int = 700
 
+# Performance: same viewport-cull + zoom-LOD scheme as CitizenLayer. UnitArt.draw_unit
+# is a heavy per-frame articulated body; with a mustered army (or the spawn cheat) there
+# can be hundreds of them, most off-screen. Camera injected by CityViewScene.
+const LOD_ZOOM: float = 0.5
+# Crowd LOD: above this many on-screen units, the full animated bodies dominate the frame
+# (measured: 320 figures ≈ 43 ms just to submit) — switch to batched class glyphs (below).
+# Below it (normal play / a small skirmish) keep the detailed articulated art.
+const CROWD_LIMIT: int = 60
+var _camera: Camera2D = null
+
+func set_camera(cam: Camera2D) -> void:
+	_camera = cam
+
+# This node's LOCAL-space rectangle on screen, grown by `margin` px (covers the figure
+# height + floating HP bar above the feet). Correct under any camera pan/zoom.
+func _visible_rect(margin: float) -> Rect2:
+	var inv := get_global_transform_with_canvas().affine_inverse()
+	var vp: Vector2 = get_viewport_rect().size
+	var p0 := inv * Vector2(0, 0)
+	var p1 := inv * Vector2(vp.x, 0)
+	var p2 := inv * Vector2(0, vp.y)
+	var p3 := inv * Vector2(vp.x, vp.y)
+	var minx: float = minf(minf(p0.x, p1.x), minf(p2.x, p3.x)) - margin
+	var maxx: float = maxf(maxf(p0.x, p1.x), maxf(p2.x, p3.x)) + margin
+	var miny: float = minf(minf(p0.y, p1.y), minf(p2.y, p3.y)) - margin
+	var maxy: float = maxf(maxf(p0.y, p1.y), maxf(p2.y, p3.y)) + margin
+	return Rect2(minx, miny, maxx - minx, maxy - miny)
+
 func _ready() -> void:
 	EventBus.simulation_tick.connect(_on_tick)
+	# Build the batched meshes: a ground disc (tinted per-instance by team) then one
+	# vertex-coloured figure mesh per unit type (keeps its own colours, pushed white).
+	var meshes: Dictionary = {DISC_KEY: CrowdGlyphs.poly_mesh(CrowdGlyphs.ellipse_poly(4.6, 2.4, Vector2(0, -0.5)))}
+	for utype in UnitRegistry.get_all_types():
+		meshes[utype] = UnitGlyphMesh.build(utype)
+	_crowd = CrowdGlyphs.new()
+	_crowd.setup(self, meshes)
 
 func _process(delta: float) -> void:
 	# Animation clock scaled by game speed, so troops' gait/attacks speed up at 2×/5×
@@ -153,14 +198,64 @@ func set_selected(uid: int) -> void:
 	_selected_unit_id = uid
 	queue_redraw()
 
-func _draw() -> void:
-	for unit in _ai_units:
-		if not unit is Dictionary: continue
-		_draw_unit(unit, true)
-	for unit in _player_units:
-		if not unit is Dictionary: continue
-		_draw_unit(unit, false)
+var _vis_rect: Rect2 = Rect2()
+var _lod: bool = false
 
+func _draw() -> void:
+	_vis_rect = _visible_rect(48.0)
+	# Count on-screen units first so a big visible crowd switches to batched glyphs even when
+	# zoomed in (full articulated art for a handful, glyphs for a host).
+	var on_screen: int = 0
+	for arr in [_ai_units, _player_units]:
+		for unit in arr:
+			if unit is Dictionary and _vis_rect.has_point(_unit_screen(unit)):
+				on_screen += 1
+	_lod = (_camera != null and _camera.zoom.x < LOD_ZOOM) or on_screen > CROWD_LIMIT
+
+	if _lod:
+		# Batched figure meshes — ~21 draw calls for the whole host.
+		_crowd.begin()
+		_push_glyphs(_ai_units, true)
+		_push_glyphs(_player_units, false)
+		_crowd.flush()
+	else:
+		# Few on screen: the full animated bodies, and make sure no stale glyphs linger.
+		if _crowd != null:
+			_crowd.clear()
+		for unit in _ai_units:
+			if not unit is Dictionary: continue
+			_draw_unit(unit, true)
+		for unit in _player_units:
+			if not unit is Dictionary: continue
+			_draw_unit(unit, false)
+
+	_draw_overlays()
+
+# Feed every visible, living unit into the crowd renderer: a team-tinted ground disc, plus
+# the unit's own type figure mesh (pushed WHITE so it keeps its baked-in skin/cloth/steel).
+func _push_glyphs(arr: Array, is_enemy: bool) -> void:
+	for unit in arr:
+		if not (unit is Dictionary and unit.get("is_alive", false)):
+			continue
+		var sp: Vector2 = _unit_screen(unit)
+		if not _vis_rect.has_point(sp):
+			continue
+		var team: Color = _team_color(unit, is_enemy)
+		_crowd.push(DISC_KEY, sp, 1.0, Color(team.r, team.g, team.b, 0.6))
+		_crowd.push(String(unit.get("type", "")), sp, 1.0, Color.WHITE)
+
+func _team_color(unit: Dictionary, is_enemy: bool) -> Color:
+	if is_enemy:
+		return Color(0.82, 0.24, 0.22)
+	return PLAYER_COLORS[mini(unit.get("owner_id", 0), PLAYER_COLORS.size() - 1)]
+
+# Screen-space feet position for a unit (smoothed). Used by the cull/count pre-pass.
+func _unit_screen(unit: Dictionary) -> Vector2:
+	var g: Vector2 = _grid_pos(unit)
+	return Vector2((g.x - g.y) * HALF_W, (g.x + g.y) * HALF_H)
+
+# Floating damage numbers + death bursts — cheap and few, drawn over either detail level.
+func _draw_overlays() -> void:
 	var now_ms: int = Time.get_ticks_msec()
 	for popup in _damage_popups:
 		var age: float = clampf(float(now_ms - popup["born_ms"]) / float(_POPUP_LIFE_MS), 0.0, 1.0)
@@ -184,6 +279,10 @@ func _draw_unit(unit: Dictionary, is_enemy: bool) -> void:
 	var gpos: Vector2 = _grid_pos(unit)
 	var cx: float = (gpos.x - gpos.y) * HALF_W
 	var cy: float = (gpos.x + gpos.y) * HALF_H
+
+	# Off-screen units cost nothing.
+	if not _vis_rect.has_point(Vector2(cx, cy)):
+		return
 
 	var si: Dictionary = UnitRenderer.get_sprite_info(unit)
 	var alive: bool = si.get("is_alive", false)

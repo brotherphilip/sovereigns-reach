@@ -81,21 +81,49 @@ static func ignite(building: Dictionary) -> bool:
 		return false
 	if defn.get("fire_risk", 0.0) > 0.0:
 		building["is_on_fire"] = true
+		building["fire_ticks"] = 0     # burn-clock (self-extinguishes — see tick_fire)
+		building["douse"] = 0          # bucket-brigade water delivered so far
 		return true
 	return false
 
-# HP lost per tick while burning. Tuned DOWN from 8 (iter307): at 8/tick a 60-HP hovel burned down
-# in ~8 ticks (≈0.4s at normal speed) — too fast to see the flames/smoke or react, so a fire read as
-# an instant "invisible" deletion. At 3/tick the smallest building burns over ~1s and larger ones over
-# 2–4s: the fire is visibly ON FIRE, the alert is actionable, and rain has a chance to douse it.
-const FIRE_DAMAGE_PER_TICK: int = 3
-const FIRE_DAMAGE_EXPLOSIVE: int = 40   # pitch/armory still go up fast (they "explode")
+# HP lost per tick while burning. A fire now smoulders SLOWLY (1/tick) so a blaze is on screen
+# for several seconds — long enough to see the flames and for the bucket brigade to reach it —
+# instead of deleting a building near-instantly. Explosive stores still go up fast but not in a
+# single frame. A fire also BURNS OUT on its own after MAX_FIRE_TICKS: a real fire spends its fuel
+# and dies down, leaving the building scorched (damaged) but standing — so one blaze can't level
+# the whole town. MAX_FIRE_TICKS (48) is below the smallest building's HP (a 60-HP hovel survives
+# at ~12 HP), so an unfought fire scorches rather than razes; the brigade or rain ends it sooner.
+const FIRE_DAMAGE_PER_TICK: int = 1     # applied every OTHER tick → a slow ~0.5 HP/tick smoulder
+const FIRE_DAMAGE_EXPLOSIVE: int = 10   # pitch/armory still burn fast (they "explode"), but visibly
+const MAX_FIRE_TICKS: int = 70
 
-# Fire spread tick — returns true if building was destroyed by fire this tick
+# Fire tick — advances the burn clock, self-extinguishes when the fire burns out, and applies
+# (slow) damage otherwise. Returns true only if the building was DESTROYED by fire this tick.
 static func tick_fire(building: Dictionary) -> bool:
 	if not building.get("is_on_fire", false):
 		return false
-	var fire_damage: int = FIRE_DAMAGE_PER_TICK
+	building["fire_ticks"] = int(building.get("fire_ticks", 0)) + 1
+	if int(building["fire_ticks"]) >= MAX_FIRE_TICKS:
+		building["is_on_fire"] = false   # burned out — the fire has spent itself
+		return false
+	# Explosive stores go up every tick; ordinary buildings smoulder (damage every other tick)
+	# so over the whole 70-tick burn an unfought fire scorches (~34 HP) without razing — a 60-HP
+	# hovel survives, and the bucket brigade has a real window to save it sooner.
 	if building.get("type", "") == "pitch_rig" or building.get("type", "") == "armory":
-		fire_damage = FIRE_DAMAGE_EXPLOSIVE  # Pitch and armory burn fast and explode
-	return take_damage(building, fire_damage)
+		return take_damage(building, FIRE_DAMAGE_EXPLOSIVE)
+	if int(building["fire_ticks"]) % 2 == 0:
+		return take_damage(building, FIRE_DAMAGE_PER_TICK)
+	return false
+
+# A load of water thrown on the blaze by a firefighter who ran it from the well. A delivered
+# load puts the fire out (the trip itself — fill at the well, carry, throw — is the time cost,
+# so a brigade with a near well beats the burn-out and saves the building with less damage).
+# Returns true if this douse extinguished the fire.
+static func douse(building: Dictionary) -> bool:
+	if not building.get("is_on_fire", false):
+		return false
+	building["is_on_fire"] = false
+	building["douse"] = 0
+	building["fire_ticks"] = 0
+	repair(building, 8)   # the brigade saved it — a little structure recovered
+	return true

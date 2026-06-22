@@ -60,13 +60,14 @@ func _draw_decor(gx: int, gy: int) -> void:
 		T_GRASS:    _draw_ground_decor(cx, cy, gx, gy)
 		T_VALLEY:   _draw_ground_decor(cx, cy, gx, gy)
 
-# Sparse, subtle ground cover on open grass/valley tiles so the world doesn't read as
-# a bare green sheet (Content-Density). Deterministic per-tile: only ~1 in 5 tiles bears
-# anything, and each piece is tiny + low-contrast so it's texture, not clutter. Seasonal:
-# flowers in spring/summer, dry tufts in autumn, snow specks in winter.
+# Ground cover on open grass/valley tiles so the world doesn't read as a bare green
+# sheet (Content-Density). Deterministic per-tile: ~38% of tiles bear something, each
+# piece small + low-contrast so it's texture, not clutter. A wide prop palette — tufts,
+# pebbles, flowers, the odd boulder and a scuffed dirt patch — keeps the field varied.
+# Seasonal: flowers in spring/summer, dry tufts in autumn, snow specks in winter.
 func _draw_ground_decor(cx: float, cy: float, gx: int, gy: int) -> void:
-	if _h(gx, gy, 60) < 0.80:
-		return   # ~80% of tiles stay clear
+	if _h(gx, gy, 60) < 0.62:
+		return   # ~38% of tiles carry a prop; the rest stay clear
 	var ox: float = (_h(gx, gy, 61) - 0.5) * 30.0
 	var oy: float = (_h(gx, gy, 62) - 0.5) * 14.0
 	var p := Vector2(cx + ox, cy + oy)
@@ -75,9 +76,15 @@ func _draw_ground_decor(cx: float, cy: float, gx: int, gy: int) -> void:
 		# A small snow clump — everything else sleeps under the frost.
 		draw_circle(p, 1.8, Color(0.92, 0.95, 1.0, 0.7))
 		return
-	if kind < 0.18:
+	if kind < 0.08:
+		_draw_boulder(p, gx, gy)                       # occasional larger rock
+	elif kind < 0.16:
+		_draw_dirt_patch(p, gx, gy)                    # scuffed bare-earth patch
+	elif kind < 0.30:
 		_draw_pebble(p, _h(gx, gy, 64))
-	elif kind < 0.55 and _season != SeasonSystem.Season.AUTUMN:
+	elif kind < 0.40:
+		_draw_pebble_cluster(p, gx, gy)               # a little scatter of stones
+	elif kind < 0.62 and _season != SeasonSystem.Season.AUTUMN:
 		_draw_flower(p, gx, gy)
 	else:
 		_draw_tuft(p, gx, gy)
@@ -111,6 +118,29 @@ func _draw_pebble(p: Vector2, s: float) -> void:
 	draw_circle(p + Vector2(0, 0.6), r, Color(0, 0, 0, 0.12))         # faint shadow
 	draw_circle(p, r, Color(0.55, 0.54, 0.52))
 	draw_circle(p + Vector2(-0.4, -0.4), r * 0.5, Color(0.66, 0.65, 0.62))
+
+# A handful of small stones scattered together — reads as a stony patch, not one bead.
+func _draw_pebble_cluster(p: Vector2, gx: int, gy: int) -> void:
+	for i in range(3):
+		var o := Vector2((_h(gx, gy, 90 + i) - 0.5) * 7.0, (_h(gx, gy, 95 + i) - 0.5) * 4.0)
+		_draw_pebble(p + o, _h(gx, gy, 100 + i) * 0.6)
+
+# An occasional small boulder — a low rounded grey lump with a lit cap, big enough to
+# break up the carpet but still ground furniture, not a landmark.
+func _draw_boulder(p: Vector2, gx: int, gy: int) -> void:
+	var r: float = 3.2 + _h(gx, gy, 67) * 2.4
+	draw_circle(p + Vector2(0, 1.0), r, Color(0, 0, 0, 0.15))                 # ground shadow
+	draw_circle(p + Vector2(0, -r * 0.25), r, Color(0.50, 0.49, 0.46))       # body
+	draw_circle(p + Vector2(-r * 0.3, -r * 0.55), r * 0.5, Color(0.62, 0.60, 0.56))  # lit cap
+	if _h(gx, gy, 68) > 0.55:
+		draw_arc(p + Vector2(0, -r * 0.85), r * 0.6, PI, TAU, 8, Color(0.32, 0.44, 0.20, 0.5), 1.4)  # moss
+
+# A scuffed patch of bare earth — a few soft brown dabs showing through the turf.
+func _draw_dirt_patch(p: Vector2, gx: int, gy: int) -> void:
+	var earth := Color(0.42, 0.33, 0.23, 0.55)
+	for i in range(3):
+		var o := Vector2((_h(gx, gy, 110 + i) - 0.5) * 9.0, (_h(gx, gy, 115 + i) - 0.5) * 5.0)
+		draw_circle(p + o, 2.0 + _h(gx, gy, 120 + i) * 1.6, earth)
 
 func _draw_forest(cx: float, cy: float, gx: int, gy: int) -> void:
 	var count: int = 1 + int(_h(gx, gy, 1) * 3.0)

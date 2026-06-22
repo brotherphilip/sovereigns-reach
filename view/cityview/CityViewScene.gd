@@ -51,6 +51,8 @@ func _ready() -> void:
 		# SR_TELEMETRY/SR_SHOT). Mirrors the headless TestSurvival economy on the real scene.
 		if OS.get_environment("SR_AUTOPLAY") != "":
 			_dev_autoplay()
+		elif OS.get_environment("SR_ANIMALDEMO") != "":
+			pass   # animal art preview — no tutorial modal, no grace banner
 		else:
 			# Quote the grace in CALENDAR days (the HUD's "Day N"), not raw economic days —
 			# PLAYER_GRACE_DAYS is in economic days (15 per calendar day), so 750 → ~50 on-screen.
@@ -235,6 +237,7 @@ func _build_scene() -> void:
 	_unit_layer = preload("res://view/micro/UnitLayer.gd").new()
 	_unit_layer.name = "UnitLayer"
 	_world_root.add_child(_unit_layer)
+	_unit_layer.set_camera(_camera)   # viewport cull + zoomed-out LOD for the soldier bodies
 
 	# Arrows/bolts/stones fly over the units AND the buildings when ranged troops loose a volley.
 	var projectile_layer := preload("res://view/micro/ProjectileLayer.gd").new()
@@ -253,6 +256,7 @@ func _build_scene() -> void:
 	_citizen_layer = preload("res://view/micro/CitizenLayer.gd").new()
 	_citizen_layer.name = "CitizenLayer"
 	_world_root.add_child(_citizen_layer)
+	_citizen_layer.set_camera(_camera)   # viewport cull + zoomed-out LOD for the people
 
 	# Drifting daytime cloud shadows over the whole scene (above the world content, below the
 	# night wash). Coverage is driven by the weather system; fades out at night.
@@ -391,9 +395,99 @@ func _build_scene() -> void:
 	# any other value places a real bridge there. Camera recenters on the crossing.
 	if OS.get_environment("SR_BRIDGEDEMO") != "":
 		_dev_bridge_demo(OS.get_environment("SR_BRIDGEDEMO"))
+	# Dev hook: recentre the camera on the broadest body of water (for previewing the
+	# animated water surface). No placement, just a camera move.
+	if OS.get_environment("SR_WATERCAM") != "":
+		_dev_watercam()
+	# Dev hook: lay out every wildlife species in each animation state near the keep
+	# (for previewing the animal art). Run WITHOUT SR_AUTOPLAY so no garrison spooks them.
+	if OS.get_environment("SR_ANIMALDEMO") != "":
+		_dev_animal_demo()
 	# Dev hook: render for SR_SHOT_DELAY seconds then save a PNG to SR_SHOT and quit.
 	if OS.get_environment("SR_SHOT") != "":
 		_dev_screenshot(OS.get_environment("SR_SHOT"))
+
+func _dev_watercam() -> void:
+	var grid = GameState._grid
+	if grid == null:
+		return
+	# Find the water cell (RIVER=3 or COASTAL=8) with the most water neighbours — the
+	# centre of the widest channel/lake — and aim the camera there.
+	var best := Vector2i(-1, -1)
+	var best_n: int = -1
+	for gy in range(10, 190):
+		for gx in range(10, 190):
+			var t: int = grid.get_terrain(gx, gy)
+			if t != 3 and t != 8:
+				continue
+			var nb: int = 0
+			for dy in range(-2, 3):
+				for dx in range(-2, 3):
+					var tt: int = grid.get_terrain(gx + dx, gy + dy)
+					if tt == 3 or tt == 8:
+						nb += 1
+			if nb > best_n:
+				best_n = nb
+				best = Vector2i(gx, gy)
+	if best.x < 0:
+		print("[CityView] SR_WATERCAM: no water found")
+		return
+	_camera.position = _iso_origin(best.x, best.y)
+	print("[CityView] SR_WATERCAM at %s (%d water neighbours)" % [str(best), best_n])
+
+func _dev_animal_demo() -> void:
+	var WS = preload("res://simulation/world/WildlifeSystem.gd")
+	# Clear a wide patch around the keep (rough terrain, standing trees and the starting
+	# villagers) so the animals read against open ground.
+	GameState.prepare_starting_area(_keep_x, _keep_y, 18)
+	GameState.citizens = []
+	if GameState._grid != null and GameState.world.has("trees"):
+		var trees: Dictionary = GameState.world["trees"]
+		var gw: int = GameState._grid.width
+		for k in trees.keys():
+			var idx: int = int(k)
+			var tx: int = idx % gw
+			var ty: int = int(idx / gw)
+			if absi(tx - _keep_x) <= 18 and absi(ty - _keep_y) <= 18:
+				trees.erase(k)
+				if GameState._grid.get_terrain(tx, ty) == 1:   # FOREST → GRASS
+					GameState._grid.set_terrain(tx, ty, 0)
+	# Replace the scattered wildlife with a tidy grid: a column per species, a row per
+	# (static-capable) state. Placed on a SCREEN-aligned grid (columns along the iso
+	# right-axis, rows along the down-axis) so all of it frames at once. run animals get
+	# zero velocity so they animate IN PLACE; a huge state_ticks + a unique herd per animal
+	# keeps the sim from moving/restating them.
+	GameState.wildlife = []
+	var types: Array = ["deer", "boar", "fox", "rabbit"]
+	var states: Array = ["feed", "run", "brood"]
+	var focus: String = OS.get_environment("SR_ANIMALDEMO")
+	var focus_ci: int = types.find(focus)   # SR_ANIMALDEMO=<species> → close-up of one species
+	var id: int = 1
+	# Helper that places one animal centred on the iso axes by (right, down) offsets.
+	var place := func(type: String, state: String, right: float, down: float) -> void:
+		var ax: float = float(_keep_x) + (right + down) * 0.5
+		var ay: float = float(_keep_y) + (down - right) * 0.5
+		var a: Dictionary = WS.make_animal(id, 1000 + id, ax, ay, true, type)
+		a["state"] = state
+		a["state_ticks"] = 1000000
+		a["vx"] = 0.0
+		a["vy"] = 0.0
+		a["facing"] = 1.0
+		GameState.wildlife.append(a)
+		id += 1
+	if focus_ci >= 0:
+		# One species, its three states in a clean horizontal row across the screen.
+		for ri in range(states.size()):
+			place.call(focus, states[ri], (float(ri) - 1.0) * 3.0, 0.0)
+	else:
+		# Full grid: a column per species (iso right), a row per state (iso down).
+		for ci in range(types.size()):
+			for ri in range(states.size()):
+				place.call(types[ci], states[ri], (float(ci) - 1.5) * 3.6, (float(ri) - 1.0) * 4.6)
+	GameState._next_animal_id = 2000
+	# Centre on the keep; nudge right a touch so the rightmost column clears the HUD panel.
+	_camera.position = _iso_origin(_keep_x + (0 if focus_ci >= 0 else 2), _keep_y - (0 if focus_ci >= 0 else 2))
+	print("[CityView] SR_ANIMALDEMO: %d animals" % GameState.wildlife.size())
 
 func _dev_bridge_demo(mode: String) -> void:
 	var grid = GameState._grid
@@ -702,7 +796,8 @@ func _dev_spawn_units() -> void:
 
 func _dev_fire_demo() -> void:
 	# Place a few flammable hovels right beside the keep and set them alight so the flame VFX + the
-	# dropping HP bar render clearly for capture.
+	# dropping HP bar render clearly for capture. (Suppress the tutorial modal — this is a showcase.)
+	GameState.world["tutorial_prompted"] = true
 	var BS = preload("res://simulation/buildings/BuildingState.gd")
 	GameState.prepare_starting_area(_keep_x, _keep_y, 6)
 	var spots := [Vector2i(_keep_x + 2, _keep_y), Vector2i(_keep_x - 2, _keep_y), Vector2i(_keep_x, _keep_y + 2)]
@@ -759,9 +854,15 @@ func _add_spectator_banner() -> void:
 	var dev: int = int(city.get("development", city.get("tier", 0)))
 	var garrison: int = int(city.get("garrison", 0))
 
+	# Wide enough to hold the viewing summary AND an explicit "Return to World Map" button,
+	# so a spectating player always has an obvious way back (the side World Map button is easy
+	# to miss). Esc opens the menu (which also returns) — spelled out in the hint below.
+	const BANNER_W: float = 560.0
+	const BANNER_H: float = 44.0
+	const RETURN_W: float = 160.0
 	var panel := Panel.new()
-	panel.position = Vector2(vp.x * 0.5 - 230, 8)
-	panel.size     = Vector2(460, 40)
+	panel.position = Vector2(vp.x * 0.5 - BANNER_W * 0.5, 8)
+	panel.size     = Vector2(BANNER_W, BANNER_H)
 	var sty := StyleBoxFlat.new()
 	sty.bg_color = Color(0.08, 0.10, 0.07, 0.9)
 	sty.set_border_width_all(2)
@@ -770,16 +871,39 @@ func _add_spectator_banner() -> void:
 	panel.add_theme_stylebox_override("panel", sty)
 	overlay.add_child(panel)
 
+	# Summary text (left of the return button): who owns the city, its development, and a
+	# clearly-labelled garrison count using a shield (not a bare sword/✕-looking glyph).
 	var lbl := Label.new()
-	lbl.text = "👁 Viewing %s — %s  ·  Development %d  ·  ⚔ %d garrison" % [
+	lbl.text = "👁 Viewing %s  ·  %s  ·  Development %d  ·  🛡 Garrison: %d" % [
 		city.get("name", "City"), fac_name, dev, garrison]
-	lbl.position = Vector2(0, 0)
-	lbl.size     = Vector2(460, 40)
+	lbl.position = Vector2(12, 0)
+	lbl.size     = Vector2(BANNER_W - RETURN_W - 24, BANNER_H)
 	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	lbl.vertical_alignment   = VERTICAL_ALIGNMENT_CENTER
 	lbl.add_theme_font_size_override("font_size", 14)
 	lbl.add_theme_color_override("font_color", Color(0.93, 0.86, 0.64))
 	panel.add_child(lbl)
+
+	# Explicit, obvious "stop spectating" control.
+	var ret := Button.new()
+	ret.text = "← Return to World Map"
+	ret.position = Vector2(BANNER_W - RETURN_W - 6, 6)
+	ret.size     = Vector2(RETURN_W, BANNER_H - 12)
+	ret.focus_mode = Control.FOCUS_NONE
+	ret.add_theme_font_size_override("font_size", 12)
+	ret.pressed.connect(_on_return_to_world_map)
+	panel.add_child(ret)
+
+	# Spell out the way back for players who don't spot the button (Esc opens the menu,
+	# which also has a World Map option).
+	var hint := Label.new()
+	hint.text = "Spectating a rival realm — press [Esc] for the menu, or use the button above to go back"
+	hint.position = Vector2(vp.x * 0.5 - BANNER_W * 0.5, 8 + BANNER_H + 2)
+	hint.size     = Vector2(BANNER_W, 18)
+	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	hint.add_theme_font_size_override("font_size", 11)
+	hint.add_theme_color_override("font_color", Color(0.78, 0.74, 0.58, 0.85))
+	overlay.add_child(hint)
 
 	# Under-siege strip: if a hostile host is at this city's gates (besiegers spawned in
 	# GameState._spawn_spectator_military), call it out so the visible attackers make sense.
@@ -788,8 +912,8 @@ func _add_spectator_banner() -> void:
 		for f in GameState.ai_factions:
 			besiegers += f.get("units", []).size()
 		var siege_panel := Panel.new()
-		siege_panel.position = Vector2(vp.x * 0.5 - 230, 50)
-		siege_panel.size     = Vector2(460, 30)
+		siege_panel.position = Vector2(vp.x * 0.5 - BANNER_W * 0.5, 8 + BANNER_H + 22)
+		siege_panel.size     = Vector2(BANNER_W, 30)
 		var ssty := StyleBoxFlat.new()
 		ssty.bg_color = Color(0.16, 0.05, 0.04, 0.92)
 		ssty.set_border_width_all(2)
@@ -800,7 +924,7 @@ func _add_spectator_banner() -> void:
 		var slbl := Label.new()
 		slbl.text = "⚔ Under siege by %s — %d besiegers at the gates!" % [
 			String(GameState.world.get("spectator_besieger_name", "a rival host")), besiegers]
-		slbl.size = Vector2(460, 30)
+		slbl.size = Vector2(BANNER_W, 30)
 		slbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		slbl.vertical_alignment   = VERTICAL_ALIGNMENT_CENTER
 		slbl.add_theme_font_size_override("font_size", 13)
@@ -1148,6 +1272,11 @@ func _show_tutorial_choice() -> void:
 	if saved != -999 and saved != -1:
 		TutorialSystem.start()   # resume an in-progress/finished tutorial silently
 		return
+	# Belt-and-suspenders: only ever ASK once per game, even if the index is reset somehow,
+	# so re-entering your seat never re-pops the "Begin the Tutorial?" dialog.
+	if GameState.world.get("tutorial_prompted", false):
+		return
+	GameState.world["tutorial_prompted"] = true
 	SimulationClock.set_speed(SimulationClock.SPEED_PAUSED)
 	var overlay := CanvasLayer.new()
 	overlay.name = "TutorialChoice"
@@ -1155,7 +1284,7 @@ func _show_tutorial_choice() -> void:
 	add_child(overlay)
 	var panel := Panel.new()
 	panel.position = Vector2(440, 250)
-	panel.size = Vector2(400, 178)
+	panel.size = Vector2(400, 200)
 	var sty := StyleBoxFlat.new()
 	sty.bg_color = Color(0.08, 0.10, 0.07, 0.97)
 	sty.set_border_width_all(2)
@@ -1172,19 +1301,20 @@ func _show_tutorial_choice() -> void:
 	panel.add_child(title)
 	var sub := Label.new()
 	sub.text = "A guided walkthrough of building, growth, defense and expansion.\nEnemy forces stay paused while you learn."
-	sub.position = Vector2(16, 54); sub.size = Vector2(368, 48)
+	sub.position = Vector2(16, 52); sub.size = Vector2(368, 76)
 	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	sub.vertical_alignment = VERTICAL_ALIGNMENT_TOP
 	sub.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	sub.add_theme_font_size_override("font_size", 12)
 	sub.add_theme_color_override("font_color", Color.LIGHT_GRAY)
 	panel.add_child(sub)
 	var yes := Button.new()
 	yes.text = "Begin Tutorial"
-	yes.position = Vector2(40, 122); yes.size = Vector2(150, 40)
+	yes.position = Vector2(40, 146); yes.size = Vector2(150, 40)
 	panel.add_child(yes)
 	var no := Button.new()
 	no.text = "Skip Tutorial"
-	no.position = Vector2(210, 122); no.size = Vector2(150, 40)
+	no.position = Vector2(210, 146); no.size = Vector2(150, 40)
 	panel.add_child(no)
 	yes.pressed.connect(func():
 		overlay.queue_free()

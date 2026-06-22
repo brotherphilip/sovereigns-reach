@@ -7,6 +7,17 @@ const TYPES := [
 	"crossbowman","pikeman","swordsman","captain","halberdier",
 	"battering_ram","catapult","trebuchet","siege_tower","mantlet",
 ]
+func _ready() -> void:
+	if OS.get_environment("SR_SHOT") != "":
+		var d := 2.0
+		if OS.get_environment("SR_SHOT_DELAY") != "":
+			d = float(OS.get_environment("SR_SHOT_DELAY"))
+		await get_tree().create_timer(d).timeout
+		await RenderingServer.frame_post_draw
+		get_viewport().get_texture().get_image().save_png(OS.get_environment("SR_SHOT"))
+		print("[UnitPreview] saved")
+		get_tree().quit()
+
 func _process(_d): queue_redraw()
 func _draw():
 	draw_rect(Rect2(0,0,1280,720), Color(0.30,0.46,0.24))

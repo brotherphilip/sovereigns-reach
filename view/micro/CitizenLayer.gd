@@ -17,6 +17,7 @@ extends Node2D
 
 const WorkerJobs = preload("res://simulation/world/WorkerJobs.gd")
 const PeopleSystem = preload("res://simulation/world/PeopleSystem.gd")
+const SeasonSystem = preload("res://simulation/world/SeasonSystem.gd")
 
 const HALF_W: float = 32.0
 const HALF_H: float = 16.0
@@ -56,6 +57,10 @@ var _sfx_pool: Array = []           # reusable AudioStreamPlayer2D for positiona
 var _sfx_streams: Dictionary = {}   # name -> AudioStream (synthesised once)
 var _sfx_next: int = 0
 
+# Night readability: cached once per _draw() so every pawn agrees on the same darkness.
+# 0 by day → 1 at deep night; drives a faint cool rim/halo so silhouettes stay readable.
+var _night: float = 0.0
+
 # Animation clock — advances with REAL time but SCALED by the game speed, so when the
 # player runs at 2×/5× the people (and their tool strikes + chop/hammer sounds) speed up
 # to match the faster world, and freeze when paused. Accumulated so speed changes glide.
@@ -63,6 +68,46 @@ var _anim_time: float = 0.0
 
 func _speed_mult() -> float:
 	return float(SimulationClock.SPEED_MULTIPLIERS.get(SimulationClock.game_speed, 1.0))
+
+# ── Performance: viewport culling + level-of-detail ───────────────────────────
+# The articulated figure costs dozens of draw primitives per pawn EVERY frame, and a
+# living world has hundreds of people (every AI town included). Two savers:
+#   • Cull — only pawns whose feet fall inside the visible screen rect are drawn (or
+#     scanned for tool-strikes). Most of the roster is off-screen at play zoom.
+#   • LOD  — below LOD_ZOOM, OR when more than CROWD_LIMIT pawns are visible, the figures
+#     are sub-detail / an illegible mass, so each is drawn as ONE batched MultiMesh glyph
+#     (a tunic-tinted little figure) instead of ~80 draw calls. A few draw calls for the
+#     whole crowd → thousands of villagers stay smooth. Camera injected via set_camera().
+const LOD_ZOOM: float = 0.5
+const CROWD_LIMIT: int = 60
+var _camera: Camera2D = null
+var _lod_active: bool = false   # last frame's detail decision (zoom or crowd); gates strike FX
+
+const CrowdGlyphs = preload("res://view/micro/CrowdGlyphs.gd")
+# Batched villager: a two-layer little person — a tunic-coloured BODY (white mesh tinted per
+# instance by the pawn's tunic) and a skin HEAD (skin baked in, pushed white). Two draw calls
+# for the whole visible crowd, but it reads as a person, not a flat shape.
+const SKIN_GLYPH := Color(0.84, 0.68, 0.53)
+var _crowd: CrowdGlyphs = null
+
+func set_camera(cam: Camera2D) -> void:
+	_camera = cam
+
+# This node's LOCAL-space rectangle currently on screen, grown by `margin` px so a
+# figure straddling the edge isn't popped. Derived from the live canvas transform, so
+# it's correct under any camera pan/zoom and node nesting.
+func _visible_rect(margin: float) -> Rect2:
+	var inv := get_global_transform_with_canvas().affine_inverse()
+	var vp: Vector2 = get_viewport_rect().size
+	var p0 := inv * Vector2(0, 0)
+	var p1 := inv * Vector2(vp.x, 0)
+	var p2 := inv * Vector2(0, vp.y)
+	var p3 := inv * Vector2(vp.x, vp.y)
+	var minx: float = minf(minf(p0.x, p1.x), minf(p2.x, p3.x)) - margin
+	var maxx: float = maxf(maxf(p0.x, p1.x), maxf(p2.x, p3.x)) + margin
+	var miny: float = minf(minf(p0.y, p1.y), minf(p2.y, p3.y)) - margin
+	var maxy: float = maxf(maxf(p0.y, p1.y), maxf(p2.y, p3.y)) + margin
+	return Rect2(minx, miny, maxx - minx, maxy - miny)
 
 func _ready() -> void:
 	# A pool of POSITIONAL players: each strike plays from its world spot, so the yard
@@ -77,6 +122,13 @@ func _ready() -> void:
 		p.panning_strength = 1.5
 		add_child(p)
 		_sfx_pool.append(p)
+	_crowd = CrowdGlyphs.new()
+	_crowd.setup(self, {
+		"body": CrowdGlyphs.poly_mesh(PackedVector2Array([
+			Vector2(-2.1,-11), Vector2(2.1,-11), Vector2(2.0,-1),
+			Vector2(0,0.4), Vector2(-2.0,-1)])),                          # white → tinted by tunic
+		"head": CrowdGlyphs.poly_mesh(CrowdGlyphs.ellipse_poly(2.0, 2.2, Vector2(0,-13.4), 7), SKIN_GLYPH),
+	})
 
 # Play a synthesised effect AT a world position through the next free pooled 2D player.
 func _play_at(stream_name: String, world_pos: Vector2, gain_db: float) -> void:
@@ -113,10 +165,20 @@ func _to_screen(tx: float, ty: float) -> Vector2:
 # Watch every working pawn's swing and emit an impact burst once per cycle, at the
 # point its tool meets the work (the real node/building, projected to screen).
 func _tick_strikes() -> void:
+	# Tool swings aren't drawn at LOD (zoomed out OR a big crowd), so don't scan/emit them
+	# either — this drops the per-frame whole-roster strike scan entirely in those cases.
+	if _lod_active or (_camera != null and _camera.zoom.x < LOD_ZOOM):
+		if not _strike_cycle.is_empty():
+			_strike_cycle.clear()
+		return
 	var now: float = _anim_time
 	var live: Dictionary = {}
+	# A touch wider than the draw cull so a chop just off the edge still chips/sounds.
+	var vis := _visible_rect(60.0)
 	for c in GameState.citizens:
 		if not (c is Dictionary and c.get("is_alive", false)):
+			continue
+		if not vis.has_point(_to_screen(c["x"], c["y"])):
 			continue
 		var cid: int = int(c.get("id", 0))
 		var info := _strike_info(c)     # {"anim":..., "freq":...} or {}
@@ -253,7 +315,15 @@ func _draw_fx() -> void:
 
 # ── Per-person look ───────────────────────────────────────────────────────────
 
+# A stable pseudo-random value in [-1, 1] for a citizen id + salt. Deterministic every
+# frame (no RNG state), so each pawn's variation is fixed for its whole life.
+func _id_rand(cid: int, salt: int) -> float:
+	var h: int = (cid * 73856093) ^ (salt * 19349663)
+	h = (h ^ (h >> 13)) * 1274126177
+	return float(((h % 2000) + 2000) % 2000) / 1000.0 - 1.0   # -1.0 .. ~1.0
+
 func _appearance(c: Dictionary) -> Dictionary:
+	var cid: int = int(c.get("id", 0))
 	var stage: String = c.get("stage", "adult")
 	var s: float = 1.0
 	match stage:
@@ -263,15 +333,72 @@ func _appearance(c: Dictionary) -> Dictionary:
 		"old":        s = 0.92
 		_:            s = 1.0
 	s *= PAWN_SCALE
+	# Per-pawn height jitter (±~6%), seeded by id — folk aren't all the same height.
+	s *= 1.0 + _id_rand(cid, 11) * 0.06
 	var skin: Color = PeopleSystem.skin_color(float(c.get("skin", 0.6))) if c.has("skin") else SKIN
 	var hair: Color = c.get("hair_color", Color(0.22, 0.14, 0.08))
 	if stage == "old":
 		hair = hair.lerp(Color(0.84, 0.84, 0.88), 0.7)
-	return {"scale": s, "female": c.get("sex", "m") == "f", "skin": skin, "hair": hair, "stage": stage}
+	# Subtle per-citizen tint variation on skin & hair (±~8% value/hue) so a crowd reads
+	# as individuals, not clones. Deterministic by id; kept gentle to stay natural.
+	skin = _tint_vary(skin, _id_rand(cid, 23) * 0.08, _id_rand(cid, 31) * 0.05)
+	hair = _tint_vary(hair, _id_rand(cid, 41) * 0.08, _id_rand(cid, 53) * 0.06)
+	var female: bool = c.get("sex", "m") == "f"
+	var grown: bool = stage in ["adolescent", "adult", "midlife", "old"]
+	# Deterministic per-person "look" — headwear, beard, apron, shawl, hairstyle. Drives the clear
+	# male/female read AND individual variety. Stable for the citizen's whole life (id-seeded).
+	var head := ""
+	var beard := ""
+	var apron := false
+	var shawl := false
+	var hstyle := int(c.get("hair_style", 0))
+	if female and grown:
+		var hk: float = absf(_id_rand(cid, 103))
+		if stage == "old" and hk < 0.6: head = "wimple"        # matrons cover up
+		elif hk < 0.30: head = "kerchief"
+		elif hk < 0.46: head = "coif"
+		# else bareheaded — braid/bun/loose hair shows
+		apron = absf(_id_rand(cid, 131)) < 0.62
+		shawl = stage == "old" or absf(_id_rand(cid, 137)) < 0.28
+		hstyle = int((absf(_id_rand(cid, 149)) * 3.0)) % 3   # 0 loose, 1 braid, 2 bun
+	elif not female and grown:
+		var hk2: float = absf(_id_rand(cid, 107))
+		if hk2 < 0.26: head = "coif"
+		elif hk2 < 0.46: head = "cap"
+		elif hk2 < 0.58: head = "hood"
+		# else bareheaded
+		if stage in ["adult", "midlife", "old"]:
+			var bk: float = absf(_id_rand(cid, 113))
+			if bk < 0.26: beard = "full"
+			elif bk < 0.42: beard = "long"
+			elif bk < 0.60: beard = "stubble"
+	# Dev override hooks (used by _PawnShowcase to curate the gallery; harmless in-game).
+	if c.has("force_head"): head = String(c["force_head"])
+	if c.has("force_beard"): beard = String(c["force_beard"])
+	if c.has("force_hstyle"): hstyle = int(c["force_hstyle"])
+	if c.has("force_apron"): apron = bool(c["force_apron"])
+	if c.has("force_shawl"): shawl = bool(c["force_shawl"])
+	return {"scale": s, "female": female, "skin": skin, "hair": hair, "stage": stage, "grown": grown,
+		"cid": cid, "head": head, "beard": beard, "apron": apron, "shawl": shawl, "hstyle": hstyle}
+
+# Nudge a colour's value (brightness) and hue by small signed amounts, clamped to a
+# sane range so variation reads as natural human difference, not a colour glitch.
+func _tint_vary(col: Color, dv: float, dh: float) -> Color:
+	var h: float = fposmod(col.h + dh, 1.0)
+	var sat: float = clampf(col.s, 0.0, 1.0)
+	var v: float = clampf(col.v * (1.0 + dv), 0.0, 1.0)
+	return Color.from_hsv(h, sat, v, col.a)
 
 # ── Main loop ─────────────────────────────────────────────────────────────────
 
 func _draw() -> void:
+	# Refresh the shared night factor for the whole roster this frame.
+	_night = SeasonSystem.night_factor(SimulationClock.current_tick)
+	# Cull to the visible rect (margin covers the figure's height/width above the feet),
+	# collecting just the on-screen people. Then pick detail level: batched glyphs when zoomed
+	# out OR when the visible crowd is too large for full art to be legible/affordable.
+	var vis := _visible_rect(40.0)
+	var shown: Array = []
 	for c in GameState.citizens:
 		if not (c is Dictionary and c.get("is_alive", false)):
 			continue
@@ -279,11 +406,49 @@ func _draw() -> void:
 			continue
 		var sx: float = (c["x"] - c["y"]) * HALF_W
 		var sy: float = (c["x"] + c["y"]) * HALF_H
-		if c.get("role", "") == "worker":
-			_draw_worker(sx, sy, c)
-		else:
-			_draw_citizen(sx, sy, c)
+		if not vis.has_point(Vector2(sx, sy)):
+			continue
+		shown.append([sx, sy, c])
+	var lod: bool = (_camera != null and _camera.zoom.x < LOD_ZOOM) or shown.size() > CROWD_LIMIT
+	_lod_active = lod
+	if lod:
+		# Batched little people: a tunic-tinted body + a skin head per pawn — 2 draw calls.
+		if _crowd != null:
+			_crowd.begin()
+			for e in shown:
+				var gs: float = _glyph_scale(e[2])
+				var p := Vector2(e[0], e[1])
+				_crowd.push("body", p, gs, _glyph_color(e[2]))
+				_crowd.push("head", p, gs, Color.WHITE)
+			_crowd.flush()
+	else:
+		if _crowd != null:
+			_crowd.clear()
+		for e in shown:
+			var ex: float = e[0]
+			var ey: float = e[1]
+			var c: Dictionary = e[2]
+			if c.get("role", "") == "worker":
+				_draw_worker(ex, ey, c)
+			else:
+				_draw_citizen(ex, ey, c)
 	_draw_fx()
+
+# Tunic/role colour for a pawn's crowd glyph (worker job tunic, builder blue, else peasant).
+func _glyph_color(c: Dictionary) -> Color:
+	if c.get("role", "") == "worker":
+		return WorkerJobs.style(c.get("job_type", "")).get("tunic", Color(0.5, 0.4, 0.28))
+	if c.get("role", "") == "builder":
+		return Color(0.30, 0.42, 0.55)
+	return PEASANT_TUNICS[int(c.get("id", 0)) % PEASANT_TUNICS.size()]
+
+# Children/elders read a touch smaller, like the full figure does.
+func _glyph_scale(c: Dictionary) -> float:
+	match String(c.get("stage", "adult")):
+		"baby":       return 0.5
+		"child":      return 0.68
+		"adolescent": return 0.86
+		_:            return 1.0
 
 # ── Articulated figure ─────────────────────────────────────────────────────────
 # Draws legs + shaded torso + head and returns the joints a caller needs to hang a
@@ -299,7 +464,6 @@ func _draw_figure(sx: float, sy: float, c: Dictionary, ap: Dictionary,
 	var female: bool = ap.female
 	var dark: Color = tunic.darkened(0.28)
 	var lit: Color = tunic.lightened(0.20)
-	var leg_col: Color = tunic.darkened(0.30)
 
 	var speed01: float = clampf((absf(c.get("vx", 0.0)) + absf(c.get("vy", 0.0))) / 0.06, 0.0, 1.0) if moving else 0.0
 	var cadence: float = 6.0 + speed01 * 7.0
@@ -307,8 +471,14 @@ func _draw_figure(sx: float, sy: float, c: Dictionary, ap: Dictionary,
 	var gait: float = sin(gait_t) if moving else 0.0
 
 	# Idle behaviour: choose a per-person archetype, blended subtly.
-	var idle_kind: int = int(c.get("id", 0)) % 4
-	var breathe: float = sin(t * 1.5) * 0.6
+	var cid: int = int(c.get("id", 0))
+	var idle_kind: int = cid % 4
+	# Per-pawn phase offset + frequency/amplitude jitter so a standing crowd doesn't breathe
+	# and sway in lockstep. Deterministic by id (stable every frame).
+	var iph: float = float(cid % 11) * 0.571                  # 0..~5.7 rad phase spread
+	var ifreq: float = 1.0 + _id_rand(cid, 67) * 0.18         # ±18% cadence
+	var iamp: float = 1.0 + _id_rand(cid, 71) * 0.30          # ±30% amplitude
+	var breathe: float = sin((t + iph) * 1.5 * ifreq) * 0.6 * iamp
 	var sway: float = 0.0
 	var head_turn: float = 0.0
 	var idle_arm: float = 0.0
@@ -316,18 +486,18 @@ func _draw_figure(sx: float, sy: float, c: Dictionary, ap: Dictionary,
 		if c.get("state", "") == "chat":
 			# Conversational gesture: gesticulate and nod. Phase split by id-parity so a pair
 			# talks in turns — one's hands move while the other listens — not in lockstep.
-			var ph: float = t * 1.5 + float(int(c.get("id", 0)) % 2) * PI
+			var ph: float = t * 1.5 + float(cid % 2) * PI
 			idle_arm = maxf(0.0, sin(ph)) * 3.4                  # a hand lifts while "speaking"
 			head_turn = sin(ph * 0.9) * 1.0                      # nodding / emphasis
 			sway = sin(t * 0.7) * 0.7
 			breathe += sin(t * 1.5) * 0.3
 		else:
 			match idle_kind:
-				0: sway = sin(t * 0.8) * 1.3                         # weight-shift hips
-				1: head_turn = sin(t * 0.6) * 1.2                    # glancing about
-				2: breathe = sin(t * 1.1) * 1.0                      # deeper, slower breath
-				3: idle_arm = maxf(0.0, sin(t * 0.45)) * 3.0         # occasional stretch
-			breathe += sin(t * 1.5) * 0.3
+				0: sway = sin((t + iph) * 0.8 * ifreq) * 1.3 * iamp        # weight-shift hips
+				1: head_turn = sin((t + iph) * 0.6 * ifreq) * 1.2 * iamp   # glancing about
+				2: breathe = sin((t + iph) * 1.1 * ifreq) * 1.0 * iamp     # deeper, slower breath
+				3: idle_arm = maxf(0.0, sin((t + iph) * 0.45 * ifreq)) * 3.0 * iamp  # occasional stretch
+			breathe += sin((t + iph) * 1.5 * ifreq) * 0.3
 
 	# Vertical bob: two per stride when walking, gentle breath otherwise.
 	var bob: float = (absf(sin(gait_t)) * 2.0 * speed01) if moving else (breathe * 0.4)
@@ -341,79 +511,123 @@ func _draw_figure(sx: float, sy: float, c: Dictionary, ap: Dictionary,
 	var head := Vector2(sh.x + head_turn + lean * 0.2, sh.y - 4.6 * s)
 	var head_r: float = 2.9 * s
 
+	# Night rim/halo — a faint cool glow BEHIND the body so the silhouette separates from
+	# the dark ground after dusk. Invisible by day (gated on _night), gentle at deep night
+	# (low alpha, never a lamp). Drawn first so the figure sits on top of it.
+	if _night > 0.12:
+		var glow: float = clampf((_night - 0.12) / 0.88, 0.0, 1.0)
+		var body_mid := Vector2(sh.x, (sh.y + hip.y) * 0.5)
+		var halo := Color(0.62, 0.72, 0.92, 0.10 * glow)   # cool, low-alpha moonlight
+		draw_circle(body_mid, 7.0 * s, halo)
+		draw_circle(head, head_r + 2.4 * s, Color(0.62, 0.72, 0.92, 0.12 * glow))
+
 	# Ground shadow — squashes a touch when the body bobs up.
 	var sh_w: float = (5.0 - bob * 0.4) * s
 	draw_circle(Vector2(sx, feet_y + 1.0), sh_w, Color(0, 0, 0, 0.20))
 
-	# ── Legs ─────────────────────────────────────────────────────────────────
+	# Garment geometry differs by sex so men and women read apart at a glance: women get narrow
+	# shoulders + a full floor-length A-line gown; men broad shoulders + two hosed legs and a short
+	# belted tunic. `shoulders`/`hips_w` are reused by the arm-pose below.
+	var worker: bool = c.get("role", "") == "worker"
+	var shoulders: float = ((2.3 if female else 2.95) + (0.25 if worker else 0.0)) * s
+	var hips_w: float = (2.7 if female else 2.4) * s
+	var belt := Color(0.28, 0.19, 0.11)
+	var hose: Color = tunic.darkened(0.36).lerp(Color(0.33, 0.29, 0.24), 0.45)
+
+	# ── Lower body ─────────────────────────────────────────────────────────────
 	if female:
-		# A dress hem swings slightly with the gait.
-		var hemswing: float = gait * 1.2 * s
-		draw_colored_polygon(PackedVector2Array([
-			Vector2(sh.x - 2.4 * s, sh.y + 1.0), Vector2(sh.x + 2.4 * s, sh.y + 1.0),
-			Vector2(sx + 4.4 * s + hemswing, feet_y), Vector2(sx - 4.4 * s + hemswing, feet_y)]), tunic)
-		# Lit edge down the leading side.
-		draw_line(Vector2(sh.x + face * 2.2 * s, sh.y + 1.0), Vector2(sx + face * 4.2 * s, feet_y), lit, 1.0 * s)
-		# Feet peep out under the hem.
-		draw_circle(Vector2(sx - 1.4 * s + hemswing, feet_y), 1.2 * s, skin.darkened(0.2))
-		draw_circle(Vector2(sx + 1.6 * s + hemswing, feet_y), 1.2 * s, skin.darkened(0.2))
+		# A full A-line GOWN, waist to floor — the unmistakable female silhouette.
+		var hemswing: float = gait * 1.4 * s
+		var waist := Vector2(hip.x, hip.y - 1.0 * s)
+		var hemL := Vector2(sx - 5.8 * s + hemswing * 0.7, feet_y)
+		var hemR := Vector2(sx + 5.8 * s + hemswing, feet_y)
+		draw_colored_polygon(PackedVector2Array([waist + Vector2(-hips_w, 0), waist + Vector2(hips_w, 0), hemR, hemL]), tunic)
+		draw_colored_polygon(PackedVector2Array([waist, waist + Vector2(face * hips_w, 0),
+			Vector2(sx + face * 5.8 * s + hemswing, feet_y), Vector2(sx + hemswing * 0.5, feet_y)]), lit)   # lit panel
+		for fx in [-0.5, 0.0, 0.5]:
+			draw_line(waist + Vector2(hips_w * fx, 0), Vector2(sx + 5.8 * s * fx + hemswing * 0.7, feet_y), dark, 0.6 * s)
+		draw_line(hemL, hemR, tunic.lightened(0.28), 1.1 * s)   # hem band
+		if ap.apron:
+			var ap_col := Color(0.83, 0.79, 0.69)
+			draw_colored_polygon(PackedVector2Array([waist + Vector2(-hips_w * 0.55, 0.5), waist + Vector2(hips_w * 0.55, 0.5),
+				Vector2(sx + 3.4 * s + hemswing * 0.6, feet_y - 0.4), Vector2(sx - 3.0 * s + hemswing * 0.6, feet_y - 0.4)]), ap_col)
+			draw_line(waist + Vector2(-hips_w * 0.55, 0.5), waist + Vector2(hips_w * 0.55, 0.5), ap_col.darkened(0.16), 0.6 * s)
+		draw_circle(Vector2(sx - 1.6 * s + hemswing * 0.7, feet_y), 1.1 * s, Color(0.30, 0.22, 0.16))   # shoe tips
+		draw_circle(Vector2(sx + 1.8 * s + hemswing, feet_y), 1.1 * s, Color(0.30, 0.22, 0.16))
 	else:
+		# Two hosed legs (articulated walk), then a short flared belted tunic over the thighs.
 		var stride: float = 2.6 * s * (0.4 + speed01)
-		# Front/back foot positions; the forward-swinging foot lifts off the ground.
 		var lift_a: float = maxf(0.0, gait) * 2.2 * s * speed01
 		var lift_b: float = maxf(0.0, -gait) * 2.2 * s * speed01
 		var splay: float = 0.0 if moving else (1.4 * s + absf(sway) * 0.3)
 		var foot_a := Vector2(sx + face * gait * stride - splay, feet_y - lift_a)
 		var foot_b := Vector2(sx - face * gait * stride + splay, feet_y - lift_b)
-		# Knees bend forward (toward travel) — the lifted leg bends more.
-		_limb2(hip, foot_b, face * (1.0 + lift_b), leg_col, 2.3 * s)
-		_foot(foot_b, face, leg_col, s)
-		_limb2(hip, foot_a, face * (1.0 + lift_a), leg_col.lightened(0.06), 2.3 * s)
-		_foot(foot_a, face, leg_col, s)
+		_limb2(hip, foot_b, face * (1.0 + lift_b), hose, 2.3 * s)
+		_foot(foot_b, face, hose.darkened(0.2), s)
+		_limb2(hip, foot_a, face * (1.0 + lift_a), hose.lightened(0.06), 2.3 * s)
+		_foot(foot_a, face, hose.darkened(0.2), s)
+		var hemY: float = hip.y + 4.0 * s
+		var hemsw: float = gait * 0.8 * s
+		draw_colored_polygon(PackedVector2Array([Vector2(hip.x - hips_w, hip.y - 1.0 * s), Vector2(hip.x + hips_w, hip.y - 1.0 * s),
+			Vector2(hip.x + hips_w + 1.0 * s + hemsw, hemY), Vector2(hip.x - hips_w - 1.0 * s + hemsw, hemY)]), tunic)
+		draw_line(Vector2(hip.x - hips_w - 1.0 * s + hemsw, hemY), Vector2(hip.x + hips_w + 1.0 * s + hemsw, hemY), dark, 0.7 * s)
 
-	# ── Torso (shaded: lit leading half, shadowed trailing half) ───────────────
-	var tw: float = (5.2 if c.get("role", "") == "worker" else 4.6) * s
+	# ── Torso / garment top (lit leading half, shaded trailing) ─────────────────
+	var tw: float = shoulders
 	var torso := PackedVector2Array([
-		Vector2(hip.x - tw * 0.42, hip.y), Vector2(hip.x + tw * 0.42, hip.y),
-		Vector2(sh.x + tw * 0.5, sh.y), Vector2(sh.x - tw * 0.5, sh.y)])
+		Vector2(hip.x - hips_w * 0.9, hip.y), Vector2(hip.x + hips_w * 0.9, hip.y),
+		Vector2(sh.x + tw, sh.y), Vector2(sh.x - tw, sh.y)])
 	draw_colored_polygon(torso, tunic)
-	# Lit/shadow split along the facing.
-	draw_colored_polygon(PackedVector2Array([
-		Vector2((hip.x + (hip.x + face * tw * 0.42)) * 0.5, hip.y), Vector2(hip.x + face * tw * 0.42, hip.y),
-		Vector2(sh.x + face * tw * 0.5, sh.y), Vector2((sh.x + (sh.x + face * tw * 0.5)) * 0.5, sh.y)]), lit)
-	draw_line(Vector2(hip.x - face * tw * 0.42, hip.y), Vector2(sh.x - face * tw * 0.5, sh.y), dark, 1.0 * s)
+	draw_colored_polygon(PackedVector2Array([Vector2(hip.x, hip.y), Vector2(hip.x + face * hips_w * 0.9, hip.y),
+		Vector2(sh.x + face * tw, sh.y), Vector2(sh.x, sh.y)]), lit)
+	draw_line(Vector2(hip.x - face * hips_w * 0.9, hip.y), Vector2(sh.x - face * tw, sh.y), dark, 1.0 * s)
 	_outline_poly(torso)
+	if female:
+		for k in range(3):                                   # bodice lacing
+			var ly: float = sh.y + (hip.y - sh.y) * (0.28 + 0.2 * float(k))
+			draw_line(Vector2(sh.x - 0.9 * s, ly), Vector2(sh.x + 0.9 * s, ly + 0.7 * s), dark, 0.5 * s)
+		draw_arc(Vector2(sh.x, sh.y + 0.8 * s), 1.4 * s, PI * 0.12, PI * 0.88, 5, skin.darkened(0.05), 0.8 * s)   # neckline
+		if ap.shawl:
+			draw_colored_polygon(PackedVector2Array([Vector2(sh.x - tw - 0.6 * s, sh.y - 0.3 * s), Vector2(sh.x + tw + 0.6 * s, sh.y - 0.3 * s),
+				Vector2(sh.x + tw * 0.5, sh.y + 3.6 * s), Vector2(sh.x - tw * 0.5, sh.y + 3.6 * s)]), tunic.darkened(0.2))
+	else:
+		draw_line(Vector2(sh.x - 1.2 * s, sh.y + 0.5 * s), Vector2(sh.x + 1.2 * s, sh.y + 0.5 * s), dark, 0.7 * s)   # collar
+		draw_line(Vector2(hip.x - hips_w * 0.9, hip.y - 0.6 * s), Vector2(hip.x + hips_w * 0.9, hip.y - 0.6 * s), belt, 1.3 * s)
+		draw_rect(Rect2(hip.x - 0.7 * s, hip.y - 1.3 * s, 1.4 * s, 1.5 * s), Color(0.78, 0.66, 0.30))   # buckle
 	# Neck.
 	draw_line(Vector2(sh.x, sh.y), Vector2(head.x, head.y + head_r * 0.6), skin.darkened(0.12), 1.8 * s)
 
-	# ── Head + hair + face ─────────────────────────────────────────────────────
+	# ── Head + hair + face + headwear ───────────────────────────────────────────
 	draw_circle(head, head_r + 0.5, OUTLINE)
 	draw_circle(head, head_r, skin)
-	# A hint of cheek shadow on the trailing side.
-	draw_circle(head + Vector2(-face * head_r * 0.5, head_r * 0.15), head_r * 0.55, skin.darkened(0.12))
-	_draw_face(head, head_r, face, ap)
+	draw_circle(head + Vector2(-face * head_r * 0.5, head_r * 0.15), head_r * 0.55, skin.darkened(0.12))   # cheek shadow
 	_draw_hair(head, head_r, face, ap, c)
+	_draw_face(head, head_r, face, ap)
+	_draw_headwear(head, head_r, face, ap)
 
-	# Arm pose. Arms are drawn as near-STRAIGHT limbs hanging at the body's sides — the
-	# two hands stay well apart (beside the hips), so a standing pawn never collapses
-	# into a clasped/​praying silhouette. Walking arms swing fore/aft OPPOSITE the legs.
-	var arm_swing: float = -gait * 2.4 * s
-	var side: float = 2.6 * s
+	# Arm pose. Arms hang from the SHOULDER EDGES (not the body centre) so they drop near-vertically
+	# at the sides instead of splaying into a wide skin "A". Walking arms swing fore/aft opposite the
+	# legs. Sleeves (upper arm in garment colour) are drawn by the caller via _arm.
+	var shw: float = shoulders * 0.82
+	var sh_lead := Vector2(sh.x + face * shw, sh.y + 0.6 * s)
+	var sh_back := Vector2(sh.x - face * shw, sh.y + 0.6 * s)
+	var arm_swing: float = -gait * 2.2 * s
 	var hand: Vector2
 	var back_hand: Vector2
 	var arm_bend: float = 0.0
 	var back_bend: float = 0.0
 	if moving:
-		hand = Vector2(sh.x + face * side + arm_swing, hip.y + 1.4 * s)
-		back_hand = Vector2(sh.x - face * side - arm_swing, hip.y + 1.6 * s)
-		arm_bend = -face * 0.5; back_bend = face * 0.5      # gentle elbow, fore/aft
+		hand = Vector2(sh_lead.x + face * 0.6 * s + arm_swing, hip.y + 1.4 * s)
+		back_hand = Vector2(sh_back.x - face * 0.4 * s - arm_swing, hip.y + 1.6 * s)
+		arm_bend = -face * 0.7; back_bend = face * 0.7      # elbow fore/aft
 	else:
-		# Idle: hang straight down beside the hips.
-		hand = Vector2(sh.x + face * side, hip.y + 2.8 * s)
-		back_hand = Vector2(sh.x - face * side, hip.y + 2.8 * s)
+		hand = Vector2(sh_lead.x + face * 0.5 * s, hip.y + 3.0 * s)
+		back_hand = Vector2(sh_back.x - face * 0.2 * s, hip.y + 3.0 * s)
+		arm_bend = -face * 0.45; back_bend = face * 0.45    # slight natural elbow
 		if idle_kind == 3:    # an occasional one-arm stretch overhead
 			hand = Vector2(sh.x + face * (2.0 + idle_arm * 0.4) * s, sh.y - idle_arm * 1.8 * s)
-	return {"sh": sh, "hip": hip, "hand": hand, "back_hand": back_hand, "arm_bend": arm_bend,
+	return {"sh": sh, "sh_lead": sh_lead, "sh_back": sh_back, "sleeve": tunic, "hip": hip,
+		"hand": hand, "back_hand": back_hand, "arm_bend": arm_bend,
 		"back_bend": back_bend, "head": head, "head_r": head_r, "lean": lean, "skin": skin,
 		"s": s, "face": face, "gait": gait, "speed01": speed01, "working": working}
 
@@ -434,6 +648,23 @@ func _limb2(a: Vector2, b: Vector2, bend: float, col: Color, w: float) -> void:
 	draw_circle(knee, w * 0.5, col)
 	draw_circle(b, w * 0.52, col.lightened(0.08))   # hand/foot cap
 
+# A sleeved arm: a two-segment limb whose UPPER arm is the garment sleeve and FOREARM is bare skin,
+# with a cuff at the elbow and a hand cap — so the arms read as clothed limbs, not a bare-skin "A".
+func _arm(a: Vector2, b: Vector2, bend: float, sleeve: Color, skin: Color, w: float) -> void:
+	var dir := b - a
+	var L := dir.length()
+	if L < 0.01:
+		draw_circle(a, w * 0.5, skin)
+		return
+	var n := Vector2(-dir.y, dir.x) / L
+	var elbow := (a + b) * 0.5 + n * bend
+	draw_line(a, elbow, OUTLINE, w + 0.7)
+	draw_line(elbow, b, OUTLINE, w + 0.7)
+	draw_line(a, elbow, sleeve, w)                  # upper arm — sleeve
+	draw_line(elbow, b, skin, w * 0.85)             # forearm — bare skin
+	draw_circle(elbow, w * 0.5, sleeve.darkened(0.12))   # cuff
+	draw_circle(b, w * 0.5, skin.lightened(0.05))        # hand
+
 func _foot(p: Vector2, face: float, col: Color, s: float) -> void:
 	draw_colored_polygon(PackedVector2Array([
 		p + Vector2(-1.0 * s, 0), p + Vector2(face * 2.4 * s, 0),
@@ -441,28 +672,95 @@ func _foot(p: Vector2, face: float, col: Color, s: float) -> void:
 
 func _draw_face(head: Vector2, r: float, face: float, ap: Dictionary) -> void:
 	if ap.stage == "baby":
+		draw_circle(head + Vector2(face * r * 0.3, 0), maxf(0.5, r * 0.16), Color(0.18, 0.12, 0.10))
 		return
-	# A small eye + brow on the leading side; a nose nub on the profile edge.
-	draw_circle(head + Vector2(face * r * 0.35, -r * 0.08), maxf(0.5, r * 0.16), Color(0.16, 0.11, 0.09))
-	draw_line(head + Vector2(face * r * 0.95, r * 0.05), head + Vector2(face * r * 1.15, r * 0.25), ap.skin.darkened(0.18), maxf(0.8, r * 0.3))
+	var ink := Color(0.15, 0.10, 0.09)
+	# Brow on the leading side.
+	draw_line(head + Vector2(face * r * 0.10, -r * 0.36), head + Vector2(face * r * 0.66, -r * 0.24), ap.hair.darkened(0.05), maxf(0.7, r * 0.16))
+	# Two eyes (a bigger leading one + a smaller far one) → reads as a face, not a dot.
+	var eye := head + Vector2(face * r * 0.42, -r * 0.04)
+	draw_circle(eye, maxf(0.6, r * 0.18), ink)
+	draw_circle(eye + Vector2(face * 0.5, -0.5), maxf(0.2, r * 0.07), Color(0.96, 0.96, 0.96, 0.85))
+	draw_circle(head + Vector2(face * r * 0.02, -r * 0.02), maxf(0.45, r * 0.12), ink)
+	# Nose nub on the profile edge, then a small mouth.
+	draw_line(head + Vector2(face * r * 0.92, r * 0.06), head + Vector2(face * r * 1.12, r * 0.26), ap.skin.darkened(0.22), maxf(0.8, r * 0.3))
+	draw_line(head + Vector2(face * r * 0.22, r * 0.52), head + Vector2(face * r * 0.62, r * 0.48), Color(0.52, 0.28, 0.24), maxf(0.5, r * 0.14))
+	# Rosy cheek for women & children; a wrinkle hint for elders.
+	if ap.female or ap.stage == "child":
+		draw_circle(head + Vector2(face * r * 0.48, r * 0.26), r * 0.26, Color(0.93, 0.55, 0.50, 0.26))
+	if ap.stage == "old":
+		draw_line(head + Vector2(face * r * 0.2, -r * 0.52), head + Vector2(face * r * 0.7, -r * 0.44), ap.skin.darkened(0.22), 0.5)
 
 func _draw_hair(head: Vector2, r: float, face: float, ap: Dictionary, c: Dictionary) -> void:
 	var hair: Color = ap.hair
 	if ap.stage == "baby":
 		draw_arc(head + Vector2(0, -r * 0.4), r * 0.55, PI * 1.1, TAU * 0.95, 6, hair, maxf(1.0, r * 0.5))
 		return
-	var style: int = int(c.get("hair_style", 0))
-	# Crown cap.
-	draw_arc(head + Vector2(0, -r * 0.12), r * 1.06, PI * 0.86, TAU * 1.06, 10, hair, maxf(1.8, r * 1.05))
-	# A short fringe over the brow on the trailing side.
-	draw_line(head + Vector2(-face * r * 0.8, -r * 0.4), head + Vector2(-face * r * 0.3, -r * 0.7), hair, maxf(1.2, r * 0.5))
-	if ap.female or style == 2:
-		# Long hair falling past the shoulders.
-		draw_line(head + Vector2(-r * 0.95, -r * 0.2), head + Vector2(-r * 1.0, r * 2.6), hair, maxf(1.5, r * 0.8))
-		draw_line(head + Vector2(r * 0.95, -r * 0.2), head + Vector2(r * 1.0, r * 2.6), hair, maxf(1.5, r * 0.8))
-	# Beards on a fraction of grown men.
-	if not ap.female and ap.stage in ["adult", "midlife", "old"] and int(c.get("id", 0)) % 5 < 2:
-		draw_circle(head + Vector2(face * r * 0.15, r * 0.85), r * 0.7, hair.lerp(ap.skin, 0.25))
+	var covered: bool = String(ap.head) in ["coif", "wimple", "hood"]   # full-cover headwear hides the hair
+	var hst: int = int(ap.hstyle)
+	if not covered:
+		draw_arc(head + Vector2(0, -r * 0.12), r * 1.06, PI * 0.86, TAU * 1.06, 10, hair, maxf(1.8, r * 1.05))   # crown
+		draw_line(head + Vector2(-face * r * 0.8, -r * 0.4), head + Vector2(-face * r * 0.3, -r * 0.72), hair, maxf(1.2, r * 0.5))
+		draw_line(head + Vector2(face * r * 0.2, -r * 0.72), head + Vector2(face * r * 0.66, -r * 0.5), hair, maxf(1.0, r * 0.4))
+	if ap.female:
+		if covered:
+			pass
+		elif hst == 2:
+			draw_circle(head + Vector2(-face * r * 0.72, -r * 0.5), r * 0.56, hair)          # bun
+			draw_circle(head + Vector2(-face * r * 0.72, -r * 0.5), r * 0.56, hair.darkened(0.15), false, 0.6)
+		elif hst == 1:
+			var bx := head + Vector2(face * r * 0.55, r * 0.4)                                # braid over shoulder
+			for k in range(5):
+				draw_circle(bx + Vector2(face * float(k) * 0.32 * r, r * 0.6 + float(k) * r * 0.66), r * (0.44 - float(k) * 0.06), hair)
+		else:
+			draw_line(head + Vector2(-r * 0.95, -r * 0.1), head + Vector2(-r * 1.05, r * 3.0), hair, maxf(1.6, r * 0.85))   # loose
+			draw_line(head + Vector2(r * 0.95, -r * 0.1), head + Vector2(r * 1.05, r * 3.0), hair, maxf(1.6, r * 0.85))
+	else:
+		if not covered and hst == 2:
+			draw_line(head + Vector2(-r * 0.95, -r * 0.1), head + Vector2(-r * 0.95, r * 1.4), hair, maxf(1.3, r * 0.6))   # long-ish
+		match String(ap.beard):
+			"full":
+				draw_circle(head + Vector2(face * r * 0.18, r * 0.85), r * 0.74, hair.lerp(ap.skin, 0.16))
+				draw_circle(head + Vector2(-face * r * 0.3, r * 0.68), r * 0.5, hair.lerp(ap.skin, 0.16))
+			"long":
+				draw_colored_polygon(PackedVector2Array([head + Vector2(-face * r * 0.5, r * 0.5), head + Vector2(face * r * 0.72, r * 0.5),
+					head + Vector2(face * r * 0.5, r * 2.2), head + Vector2(-face * r * 0.3, r * 2.0)]), hair.lerp(ap.skin, 0.13))
+			"stubble":
+				draw_circle(head + Vector2(face * r * 0.22, r * 0.7), r * 0.62, Color(hair.r, hair.g, hair.b, 0.30))
+
+# Hats, hoods, coifs & headscarves — drawn over the hair, as a face-framing band so the eyes/nose
+# still read. A primary lever for the male/female distinction (men: cap/hood/coif; women: kerchief/
+# coif/wimple). Order: hair → face → headwear (the band frames the face, never hides the features).
+func _draw_headwear(head: Vector2, r: float, face: float, ap: Dictionary) -> void:
+	var hd: String = String(ap.head)
+	if hd == "":
+		return
+	var oc: float = 0.0 if face > 0.0 else PI            # the face-opening centre angle (leading side)
+	var gap: float = PI * 0.34
+	match hd:
+		"coif":
+			var col := Color(0.88, 0.86, 0.78)
+			draw_arc(head + Vector2(0, -r * 0.10), r * 0.92, oc + gap, oc + TAU - gap, 14, col, maxf(2.2, r * 0.92))
+			draw_arc(head + Vector2(0, r * 0.05), r * 1.0, oc + PI * 0.5, oc + TAU - PI * 0.5, 6, col.darkened(0.1), maxf(1.0, r * 0.35))
+		"kerchief":
+			var kc := Color(0.74, 0.42, 0.34)
+			draw_arc(head + Vector2(0, -r * 0.10), r * 0.92, oc + gap, oc + TAU - gap, 14, kc, maxf(2.2, r * 0.92))
+			draw_circle(head + Vector2(-face * r * 0.95, -r * 0.05), r * 0.4, kc.darkened(0.12))   # knot at back
+		"wimple":
+			var lin := Color(0.90, 0.89, 0.84)
+			draw_arc(head + Vector2(0, -r * 0.10), r * 0.95, oc + gap * 0.7, oc + TAU - gap * 0.7, 14, lin, maxf(2.4, r * 1.0))
+			draw_colored_polygon(PackedVector2Array([head + Vector2(-r * 1.0, r * 0.3), head + Vector2(r * 1.0, r * 0.3),
+				head + Vector2(r * 1.2, r * 2.4), head + Vector2(-r * 1.2, r * 2.4)]), lin)   # neck/shoulder drape
+		"cap":
+			var cap := Color(0.38, 0.30, 0.20)
+			draw_colored_polygon(PackedVector2Array([head + Vector2(-r * 1.05, -r * 0.18), head + Vector2(r * 1.05, -r * 0.18),
+				head + Vector2(face * r * 0.25, -r * 1.2)]), cap)
+			draw_line(head + Vector2(-r * 1.05, -r * 0.18), head + Vector2(r * 1.05, -r * 0.18), cap.darkened(0.22), maxf(0.8, r * 0.3))
+		"hood":
+			var hudc := Color(0.34, 0.31, 0.27)
+			draw_colored_polygon(PackedVector2Array([head + Vector2(-r * 1.15, r * 0.6), head + Vector2(r * 1.15, r * 0.6),
+				head + Vector2(r * 0.85, -r * 0.9), head + Vector2(-face * r * 0.2, -r * 1.35), head + Vector2(-r * 0.85, -r * 0.9)]), hudc)
+			draw_arc(head + Vector2(0, -r * 0.05), r * 0.86, oc + gap, oc + TAU - gap, 12, hudc.darkened(0.12), maxf(1.2, r * 0.5))   # rim shadow
 
 func _outline_poly(pts: PackedVector2Array) -> void:
 	for i in range(pts.size()):
@@ -509,9 +807,9 @@ func _draw_citizen(sx: float, sy: float, c: Dictionary) -> void:
 		draw_rect(Rect2(hhead.x - 2.0 * s, hhead.y - 1.6 * s, 4.0 * s, 3.2 * s), STEEL)
 		draw_rect(Rect2(hhead.x - 2.0 * s, hhead.y - 1.6 * s, 4.0 * s, 3.2 * s), STEEL_DK, false, 0.8)
 	else:
-		# Two natural arms; the leading one carries the swing.
-		_limb2(j.sh, j.hand, j.arm_bend, skin, 1.7 * s)
-		_limb2(j.sh, j.back_hand, j.back_bend, skin, 1.6 * s)
+		# Two sleeved arms hanging from the shoulders; back arm first so the lead overlaps it.
+		_arm(j.sh_back, j.back_hand, j.back_bend, j.sleeve, skin, 1.7 * s)
+		_arm(j.sh_lead, j.hand, j.arm_bend, j.sleeve, skin, 1.7 * s)
 		if builder:
 			# Shoulder the hammer while walking so the trade still reads.
 			var sp: Vector2 = Vector2(j.sh) + Vector2(-face * 4.5 * s, -5.0 * s)
@@ -558,8 +856,8 @@ func _draw_worker(sx: float, sy: float, c: Dictionary) -> void:
 			_limb2(j.sh, Vector2(j.sh.x + face * 3.0 * s, j.hip.y + 1.0 * s), face * 1.0, skin, 1.7 * s)
 			_draw_carry_load(j.sh.x, j.sh.y, s, c.get("carry", ""))
 	else:
-		_limb2(j.sh, j.hand, j.arm_bend, skin, 1.7 * s)
-		_limb2(j.sh, j.back_hand, j.back_bend, skin, 1.6 * s)
+		_arm(j.sh_back, j.back_hand, j.back_bend, j.sleeve, skin, 1.7 * s)
+		_arm(j.sh_lead, j.hand, j.arm_bend, j.sleeve, skin, 1.7 * s)
 		_draw_shouldered_tool(j.sh.x, j.sh.y, s, face, anim, style)
 
 	# Headgear over the figure's own hair.
@@ -659,8 +957,9 @@ func _draw_job(c: Dictionary, j: Dictionary, anim: String, style: Dictionary, t:
 				Vector2(sx + face * 3.0 * s, sh - 9.0 * s), Vector2(sx + face * 2.0 * s, sh - 7.0 * s),
 				Vector2(sx + face * 4.0 * s, sh - 7.0 * s)]), STEEL)
 		_:
+			# Unknown work anim: just drop a relaxed arm at the side. Never draw a held box —
+			# the old fallback rect read as a missing-texture square floating over the face.
 			_limb2(j.sh, Vector2(sx + face * 2.5 * s, hip + 1.0 * s), face * 1.0, skin, 1.6 * s)
-			draw_rect(Rect2(sx - face * 3.6 * s - 1.5, sh - 1.0 * s, 4.0 * s, 5.0 * s), Color(0.62, 0.50, 0.30))
 
 # Feet screen-Y for a citizen (the figure draws relative to it).
 func sx_feet(c: Dictionary) -> float:

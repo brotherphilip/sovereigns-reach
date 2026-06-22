@@ -1,145 +1,132 @@
-# Phase Plan — Sovereign's Reach Polish Cycle
-## Created: 2026-06-13 | Iteration 1
-## Focus: Polish and flesh out existing systems. No new systems.
+Tier 0 — "This looks broken" (cheap to fix, worst first-impression damage)
 
----
+  These read as bugs/unfinished code leaking to the player. Fix these before anything cosmetic.
 
-## Phase 1 — Visual Feedback & Interaction Polish
-**Goal:** Give every player action clear, immediate visual confirmation.
-**Player feels:** My actions feel responsive and satisfying — the world reacts to what I do.
-**Sub-tasks:**
-- ✓ Add animated building placement preview ghost in BuildingLayer.gd
-- ✓ Add tile highlight on hover during build mode (IsometricGrid.gd)
-- ✓ Add hover highlight for buildable vs non-buildable tiles with color coding (IsometricGrid.gd)
-- ✓ Animate the unit selection ring (pulse or glow) in UnitLayer.gd
-- ✓ Add cursor shape changes for different interaction modes (PlayerInputHandler.gd)
-- ✓ Add visual alert indicator when a resource is critically low (HUDController.gd → HUDNode.gd)
-**Status:** Complete
+  ┌─────┬─────────────┬──────────────────────────────────────────────────┬──────────────────────────────────┐
+  │  #  │    Where    │                What a player sees                │               Fix                │ 
+  ├─────┼─────────────┼──────────────────────────────────────────────────┼──────────────────────────────────┤
+  │ 1   │ w9 event    │ Literal DEBUG: simulation at x20 speed. printed  │ Gate behind a debug flag; never  │ 
+  │     │ log         │ in the player-facing feed                        │ log to the player feed           │ 
+  ├─────┼─────────────┼──────────────────────────────────────────────────┼──────────────────────────────────┤
+  │     │ w3,w4,w5    │ Lock reasons are raw snake_case: needs           │ Map IDs → human strings          │ 
+  │ 2   │ build bar   │ advanced_masonry, needs transport_logist…, needs │ ("Requires Advanced Masonry")    │ 
+  │     │             │  crop_tiers                                      │                                  │ 
+  ├─────┼─────────────┼──────────────────────────────────────────────────┼──────────────────────────────────┤
+  │ 3   │ w9 top bar  │ Header says "Night" but the scene is full bright │ Sync the day/night tint to the   │ 
+  │     │             │  daylight — label contradicts the render         │ clock (or the label)             │ 
+  ├─────┼─────────────┼──────────────────────────────────────────────────┼──────────────────────────────────┤
+  │ 4   │ w2 names    │ "Ironpeak 2", "Frostgate 2", "Fenwallow 2" — and │ De-duplicate the name generator; │ 
+  │     │             │  both a "Frostgate" seat and a "Frostgate 2"     │  never emit  2 suffixes          │ 
+  ├─────┼─────────────┼──────────────────────────────────────────────────┼──────────────────────────────────┤ 
+  │     │             │ Every villager holds a flat grey square in front │ Fix/remove the held-item sprite  │
+  │ 5   │ w8 citizens │  of their face — reads as a missing-texture      │ (it's hiding the head)           │ 
+  │     │             │ error                                            │                                  │ 
+  ├─────┼─────────────┼──────────────────────────────────────────────────┼──────────────────────────────────┤
+  │ 6   │ w5          │ Construction label reads 0% · 0/8 mist — "mist"  │ Fix the string (timber/mortar?)  │ 
+  │     │ footprint   │ is a truncated/typo'd resource word              │ and the truncation               │ 
+  ├─────┼─────────────┼──────────────────────────────────────────────────┼──────────────────────────────────┤ 
+  │     │             │ Strings clipped mid-sentence: tutorial body      │ Widen panels / wrap text; no     │
+  │ 7   │ w3 / w6     │ "…building, growth, defense and" and toast "Too  │ string should end on a dangling  │ 
+  │     │             │ close to another building —"                     │ word/dash                        │ 
+  ├─────┼─────────────┼──────────────────────────────────────────────────┼──────────────────────────────────┤
+  │     │             │ A giant pure-black triangle fills the            │ Fill off-map with a styled       │
+  │ 8   │ w10         │ bottom-right (off-map void) with a hard aliased  │ border/fog, not black            │
+  │     │             │ seam — reads as a render bug                     │                                  │
+  └─────┴─────────────┴──────────────────────────────────────────────────┴──────────────────────────────────┘
 
----
+  ---
+  Tier 1 — Biggest aesthetic problems (the game looks unfinished)
 
-## Phase 2 — HUD Clarity & Readability
-**Goal:** Make every HUD panel communicate at a glance without clutter.
-**Player feels:** I always know my situation — numbers tell a story, not just a value.
-**Sub-tasks:**
-- ✓ Add tooltips to all HUD buttons (HUDNode.gd)
-- ✓ Show min/max tick-marks and a delta indicator (+/-) on rations and tax sliders (HUDNode.gd)
-- ✓ Add color-coded status tinting to Popularity gauge (red → green by tier) (HUDNode.gd)
-- ✓ Add brief gold-change flash animation (+N / -N) when gold changes (HUDNode.gd)
-- ✓ Enhance NotificationFeed.gd with smooth fade-out animation on old entries
-- ✓ Show food variety bonus visibly in the rations area (HUDController.gd)
-- ✓ Add market price trend arrows (up/down) to the resource trade panel (HUDNode.gd)
-**Status:** Complete
+  1. Buildings are flat untextured shapes (w5, w6, w7, w8, w9, w10 — the single most-cited theme)
+  Every structure is a flat colored diamond/prism: the hall is a plain red roof-plane with no walls, hovels are
+  grey boxes, the Keep is a translucent ghost. No tiles, thatch, planks, doors, trim, or shadow grounding them —
+  they decal onto the grass with a hard seam. Your painted-building-sprite track isn't showing in any of these
+  shots. This is what makes it read as programmer-art. Prioritize getting real building art (and contact shadows)
+  into the common buildings.
 
----
+  2. Empty, lifeless fields (w3–w10)
+  ~70–80% of every gameplay screen is one flat speckled-green carpet — no paths, dirt, tufts, rocks, elevation,
+  or color zones. Nothing happens in it: no animals, no carts, no birds, barely any peasants. The wildlife system
+  you built (deer/boar/fox/rabbit) is invisible here — spawn it into view. Add worn paths between buildings,
+  ground variation, and ambient props/critters.
 
-## Phase 3 — Building & Unit State Readability
-**Goal:** Make the state of buildings and units immediately readable without selecting them.
-**Player feels:** I can see at a glance which buildings are working, idle, damaged, or burning.
-**Sub-tasks:**
-- ✓ Improve HP bar color gradient (green → yellow → red) for buildings (BuildingLayer.gd)
-- ✓ Improve HP bar color gradient for units (UnitLayer.gd)
-- ✓ Add visible idle indicator (dim tint) for unstaffed buildings (BuildingLayer.gd)
-- ✓ Add floating alert icon above buildings that run out of workers (BuildingLayer.gd)
-- ✓ Add unit morale indicator (shield icon or colour tint) when morale is low (UnitLayer.gd)
-- ✓ Enhance fire visual effect on burning buildings with animated flicker (BuildingLayer.gd)
-- ✓ Show unit type icon in the selection panel when a unit is selected (HUDNode.gd)
-**Status:** Complete
+  3. Cloned everything (w3, w4, w8, w9, w10)
+  Every tree is the identical lollipop sprite in grid-ish clumps; citizens are near-identical pawns standing in a
+  blob; w5's lanterns are stamped clones. Add size/species/rotation/tint variation to trees and pawn idle
+  variety.
 
----
+  4. Night is unreadably dark (w6, w7) — flagged "hate" by multiple critics
+  At night the whole field crushes to muddy near-black: you can't tell roof from ground, and citizens vanish 
+  entirely (no rim light). The "lights" are flat radial-gradient circles that look like Photoshop glow brushes —
+  no flicker, no warm core, no cast light. Lift the night floor (deeper blue ambient, not brown murk), add
+  rim-light to pawns/buildings, and shape the torch glow.
 
-## Phase 4 — Combat Feedback Polish
-**Goal:** Make combat feel weighty and readable — hits, deaths, and morale all visible.
-**Player feels:** Combat is tense and legible; I feel the impact of every exchange.
-**Sub-tasks:**
-- ✓ Add combat damage number popups that float and fade above struck units (UnitLayer.gd)
-- ✓ Add a brief hit-flash tint on units when they take damage (UnitLayer.gd)
-- ✓ Add a death animation / collapse effect on unit death (UnitLayer.gd)
-- ✓ Add combat audio cues for attack, hit, and death events (AudioManager.gd — add new SoundEvents)
-- ✓ Improve AI targeting behaviour: prefer damaged units over fresh ones (AIFaction.gd)
-- ✓ Add army route lines from AI faction capitals to siege targets on macro map (MacroMapView.gd)
-**Status:** Complete
+  5. Flat blocky water (w3–w10) — the lake is a solid-blue blob with a hard pixelated edge; the w9/w10 river is a
+  stair-stepped ribbon. No shoreline, depth, or motion. Soften edges, add a shoreline transition and gentle
+  animated ripple.
 
----
+  6. World map is a muddy blur (w2) — an out-of-focus olive smear with no legible coastlines/mountains/forests;
+  the only high-contrast things are harsh aliased faction borders that "scream." Town labels have no backing
+  plate and smear into the noise. Give it real readable terrain and soften/anti-alias the borders.
 
-## Phase 5 — Economy Transparency
-**Goal:** Make the economy legible — the player should understand why their gold and popularity change.
-**Player feels:** Economic cause-and-effect is clear; I can trace why I'm winning or losing.
-**Sub-tasks:**
-- ✓ Show per-tick gold income/expense breakdown on hover (HUDController.gd + HUDNode.gd)
-- ✓ Add starvation and disease alert banners with clear cause description (NotificationFeed.gd)
-- ✓ Show current weather effect as an icon + modifier tooltip in the HUD weather area (HUDNode.gd)
-- ✓ Clarify tax impact by showing tax-vs-popularity delta in the tax slider tooltip (HUDController.gd)
-- ✓ Improve market panel: show price trend over last 5 days (MarketSystem.gd + HUDNode.gd)
-- ✓ Add popularity breakdown tooltip showing each ΔF/ΔA/ΔR/T/E component (HUDNode.gd)
-**Status:** Complete
+  7. Placement ghosts look like editor gizmos (w5) — footprints are flat diamonds with red dashed outlines +
+  slanted in-world text + white ^ scribbles for orchard trees. Reads as a debug overlay. Use a proper translucent
+  building preview with a clean tint and upright label.
 
----
+  ---
+  Tier 2 — UX friction & screen clutter
 
-## Phase 6 — Diplomacy & Faction Personality
-**Goal:** Make AI factions feel distinct and diplomatic interactions feel meaningful.
-**Player feels:** Each faction has a personality — tribute demands feel like character moments, not pop-ups.
-**Sub-tasks:**
-- ✓ Add faction-specific dialogue variations for tribute demands by archetype (DiplomacyPanel.gd + GameState.gd)
-- ✓ Show diplomatic relationship history (last 3 interactions) in DiplomacyPanel.gd
-- ✓ Add faction threat level bar to the diplomacy panel (DiplomacyPanel.gd)
-- ✓ Highlight hostile factions on macro map with a red border or pulse (MacroMapView.gd)
-- ✓ Add tribute refusal consequence message that names the faction and what it will do (DiplomacyPanel.gd)
-- ✓ Show active tribute agreements in the diplomacy panel (DiplomacyPanel.gd)
-**Status:** Complete
+  - Unlabeled resource bar (w3–w8) — seven bare numbers (120 60 15 0 75/500 …) with tiny icons, no labels, no
+  visible tooltips, several reading 0 like placeholders. Add labels/tooltips.
+  - "Nothing selected" dead panel (w3–w10) — a large dark inspector is docked bottom-right in every screenshot
+  showing nothing. Collapse it when empty, or fill it with a default summary.
+  - Weather-log spam (w6, w7, w9, w10) — the feed is Weather: Clear / Weather: Clear / Weather: Clear. The one
+  information channel is pure noise. Only log weather changes, and dedupe repeats.
+  - Duplicated season readout (w3–w7) — "Day · Spring" chip sits right next to "Spring · Clear". The word Spring
+  appears twice, back to back. Merge them.
+  - World-map hint pile-up (w2) — four overlapping semi-transparent instruction banners, repeating "click your
+  village to enter & rule it" in three places. Consolidate into one dismissible hint.
+  - Cryptic build costs (w3, w5) — 20wd 10g, 6wd 4st with no spacing and unexplained units. Space them and use
+  clear icons/units.
+  - Main-menu "Difficulty: Normal" (w1) — a value-cycling toggle styled identically to New Game/Load/Quit,
+  sitting below Quit. Move difficulty into New Game flow or make it a visibly different selector.
+  - Mixed resolution (w2–w7 are soft/blurry vs crisp w1/w8) — capture/render the city + world views at full res;
+  the softness alone makes it look cheap.
+  - Spectator mode (w8–w10) — only context is one thin centered line; the ✕ 0 garrison glyph looks like a close
+  button, and there's no visible "stop spectating / claim city" control.
 
----
+  ---
+  Tier 3 — Boredom / lifelessness
 
-## Phase 7 — Macro Map Navigation & Polish
-**Goal:** Make the strategic world map informative and pleasant to navigate.
-**Player feels:** The macro map gives me a clear strategic picture at a glance.
-**Sub-tasks:**
-- ✓ Add faction legend to the macro map showing archetype name + colour (MacroMapView.gd)
-- ✓ Add smooth camera transition (fade) when switching from world map to city view (WorldMapScene.gd)
-- ✓ Show shire ownership change animations when territory is captured (MacroMapView.gd)
-- ✓ Add player shire count and army size summary to the macro map top bar (MacroMapView.gd)
-- ✓ Show city economic level as icon size variation on world map (WorldMapView.gd — tier-based scaling already in place via _draw_castle_icon)
-- ✓ Add "Return to last city" quick button visible from world map (WorldMapScene.gd)
-**Status:** Complete
+  - w9 ≈ w10 are near-identical frames — same hamlet, same buildings, same tree cluster; the only delta is the
+  weather-log text. Spectating an AI town shows a static diorama. Add visible activity (workers moving, smoke,
+  construction progress).
+  - Population looks deserted — a handful of tiny pawns clustered in one spot; a "kingdom-builder" with no
+  visible crowd.
+  - Towns have no identity — every settlement (player, Farrow, Azure Dominion) is the same few hut/hall shapes on
+  flat green with a road stub. No walls, town square, market stalls, or faction/cultural variation.
+  - Orchards/farms read as empty selection rectangles (w5, w7) — flat tan parallelograms with sparse white
+  sprout-marks; no rows, growth stages, or harvest life.
 
----
+  ---
+  Tier 4 — Title screen (w1)
 
-## Phase 8 — Save/Load & Startup Polish
-**Goal:** Make the save/load experience and game startup feel complete and trustworthy.
-**Player feels:** Starting and returning to the game feels professional and welcoming.
-**Sub-tasks:**
-- ✓ Add save slot metadata display: date, playtime, shire count, difficulty (MainMenuScene.gd + SaveManager.gd)
-- ✓ Add auto-save on exit with clear confirmation message (GameBootstrap.gd + SaveManager.gd)
-- ✓ Add loading progress indicator (WorldMapScene.gd — deferred show_loading panel before world gen)
-- ✓ Add version number display to the main menu title screen (MainMenuScene.gd — updated to v2.0)
-- ✓ Add a "Resume last save" quick button if a save exists (MainMenuScene.gd)
-- ✓ Show difficulty level on the save slot display (MainMenuScene.gd — included in metadata display)
-**Status:** Complete
+  Polished enough to ship, but several "cheap" tells: the title is plain gold text with no logo/crest; the
+  firework is a symmetric wireframe ring that looks like a debug spinner/loading gizmo; lanterns are ~12 crude 
+  cloned sprites (a brown circle with a tan square — barely reads as a lantern) despite the "festival of
+  lanterns" caption; the campfire is pixelated and style-mismatched; v2.0 is clipped into the corner over the
+  border; the full-screen gold border duplicates the panel's outline; buttons have no hierarchy or icons (New
+  Game looks identical to Quit). Give the title a crest/treatment, animate + vary the lanterns, replace the
+  firework, and make New Game the dominant button.
 
----
+  ---
+  The 8 highest-ROI quick wins
 
-## Phase 9 — Tutorial & Onboarding Improvement
-**Goal:** Make the tutorial smarter, less intrusive, and easier for new players.
-**Player feels:** The game teaches me what I need exactly when I need it.
-**Sub-tasks:**
-- ✓ Extend TutorialSystem.gd with new trigger conditions for market purchase, diplomacy (envoy), and edict activation
-- ✓ Add a dismiss [×] button to all notifications (NotificationFeed.gd)
-- ✓ Add a "skip tutorial" option at game start (GameBootstrap.gd — Yes/Skip overlay)
-- ✓ Add tech tree tooltip hints explaining research benefits in plain language (TechTreePanelController.gd + HUDNode.gd)
-- ✓ Add contextual edict hints when popularity is low or disease is active (TutorialSystem.gd)
-- ✓ Track tutorial completion state in save data via GameState.world["tutorial_step"] (TutorialSystem.gd — auto-persisted in world dict)
-**Status:** Complete
-
----
-
-## Phase 10 — UI Consistency & Micro Polish
-**Goal:** Ensure every interactive element looks and behaves consistently across the whole UI.
-**Player feels:** The interface feels finished — nothing looks out of place or placeholder.
-**Sub-tasks:**
-- ✓ Harmonise font sizes: notification feed normalized to 12pt (was 15pt), consistent with the rest of HUD (NotificationFeed.gd)
-- ✓ Add consistent hover highlight (blue-tinted StyleBox) to all buttons via _add_button (HUDNode.gd)
-- ✓ Build-menu buttons show WHY they're disabled (requires tech X / cannot afford) in tooltip (HUDNode.gd)
-- ✓ Tech tree and edict panels animate open (fade in 0.18s) and close (fade out 0.14s → hide) (HUDNode.gd)
-- ✓ Recruit buttons show stats tooltip (Cost/HP/Atk) + disable reason when cannot recruit (HUDNode.gd)
-- ✓ Main menu animated background: slowly rotating decorative sigil ring (MainMenuScene.gd — _MenuBG._process)
-**Status:** Complete
+  1. Kill the DEBUG: log line (#1) and the snake_case lock strings (#2).
+  2. Dedupe weather-log spam → log changes only.
+  3. Fix the "Night" label vs daylight contradiction (#3).
+  4. Strip the  2 name suffixes (#4).
+  5. Fix the grey-square-on-face citizen sprite (#5).
+  6. Collapse the empty "Nothing selected" panel.
+  7. Lift the night floor + add pawn rim-light so you can see at night.
+  8. Label the resource bar.
