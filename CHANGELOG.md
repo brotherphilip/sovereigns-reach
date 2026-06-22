@@ -2,6 +2,20 @@
 
 ---
 
+## 2026-06-23 — Re-baseline the stale first-impression critique to match reality (iter336)
+
+- **[Docs/Process] `phase plan.md` rewritten as an accurate status ledger:** the original tier-0..4
+  first-impression teardown (which kicked off this loop session) was ~90% resolved but still being treated as
+  a live to-do list — several iterations this session opened by "fixing" things that turned out long-since
+  done (the resource bar, tutorial text, inspector panel, water, buildings, the whole title screen). Audited
+  every item against fresh renders and rewrote the doc: a RESOLVED ledger (with the iteration/mechanism that
+  fixed each), the few GENUINELY-OPEN/unverified candidates (spectator-mode controls; city-view town identity;
+  orchard/farm growth life), and the STRATEGIC items that need the user (the narration VO batch; deeper
+  long-game design direction). Future "phase-plan" work should render the real scene and confirm the issue
+  still exists first. No game change — keeps the loop from chasing fixed problems.
+
+---
+
 ## 2026-06-23 — The title screen is render-testable (and confirmed first-class) (iter335)
 
 - **[Dev/Verification] Screenshot hooks for the main menu — the one scene that couldn't be render-tested:**

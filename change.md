@@ -157,6 +157,26 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 336 — 2026-06-23  (PROCESS — re-baseline the stale phase-plan critique to reality)
+
+**Why:** repeatedly this session, "phase-plan" targets turned out already-fixed (health-25, pop-vs-pawns,
+resource bar, tutorial text, inspector, water, buildings, title screen). The doc was steering the loop at
+ghosts. Audited every tier-0..4 item against fresh renders + code: ~90% RESOLVED.
+
+**Also verified this iter (both already fixed):** (1) "Health 25 from day 1" — `DiseaseSystem.compute_health`
+now only docks malnutrition at food-variety 0 (not <2), so a founding apple-village isn't pinned low (the
+code comment documents the exact fix). (2) "50 pop vs 8 pawns" — start pop=20, synced to
+`living_count(citizens)`, so the number matches the visible people.
+
+**Action:** rewrote `phase plan.md` as a status ledger — RESOLVED log (w/ iter+mechanism), GENUINELY-OPEN
+candidates (spectator controls; city-view town identity; orchard/farm growth life — confirm by render first),
+and STRATEGIC user-needed items (VO batch; deeper long-game design). No game change.
+
+**Loop status:** the original first-impression critique is essentially cleared; the game is comprehensively
+polished. Next autonomous targets are the 3 open candidates (render-verify first); the big levers need the user.
+
+---
+
 ## Iteration 335 — 2026-06-23  (VERIFICATION/INFRA — title screen render-testable; confirmed first-class)
 
 **Playtest target: the title screen (first impression, never render-tested this loop).** It had NO SR_SHOT
