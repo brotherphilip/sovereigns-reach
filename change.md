@@ -157,6 +157,22 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 334 — 2026-06-23  (CLARITY/SURVIVAL — always-visible days-of-food + famine warning)
+
+**Playtest (combat first):** rendered a live siege (SR_SIEGEDEMO) — combat feedback infra is solid
+(UnitLayer hit-flash + floating damage + death bursts), hard to fault from a still. Pivoted to the core
+SURVIVAL gap: starvation is the #1 way a young realm dies, but the HUD showed only raw food stock
+("169/300") — days-of-food was hover-only (get_food_tooltip), so famine could surprise a non-hovering player.
+
+**Fix (view-only):** new `HUDController.get_food_days(player)` (single source; tooltip now reads it too).
+HUD food caption is now dynamic "Food · Nd", colour-coded green / amber(≤5) / red(≤2) as an early famine
+warning. `_res_caption` returns its Label so the food one can be captured + updated each refresh.
+
+**Verified:** render shows "Food · 8d" (green) under the stock; TestFoodWarning 5/0, TestFoodDifficulty 4/0,
+TestEconomy 18/0.
+
+---
+
 ## Iteration 333 — 2026-06-23  (CLARITY — build cards explain what each building does; VO handoff)
 
 **VO investigation (teed up last iter):** the TTS studio (~/Documents/Projects/TTS) IS set up (CUDA, cloned

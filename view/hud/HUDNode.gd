@@ -52,6 +52,7 @@ var _stone_label: Label = null
 var _iron_label: Label = null
 var _storage_label: Label = null
 var _food_label: Label = null
+var _food_caption: Label = null   # dynamic "Food · Nd" with a famine warning colour
 var _ale_label: Label = null
 var _day_label: Label = null
 var _time_clock: Control = null   # SunMoonClock — day-cycle clock
@@ -424,10 +425,11 @@ func _top_value(text: String, x: float, w: float, size_pt: int = 14, color: Colo
 
 # A tiny upper-case caption beneath a resource icon/value so a new player can read what
 # the bare number means at a glance (the full description still lives in the value tooltip).
-func _res_caption(text: String, x: float, w: float) -> void:
+func _res_caption(text: String, x: float, w: float) -> Label:
 	var cap := _add_label(_top_bar, text, Vector2(x, 28), 8, Color(0.70, 0.64, 0.50))
 	cap.size = Vector2(w, 12)
 	cap.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return cap
 
 func _build_top_bar(vp: Vector2) -> void:
 	var x: float = 10.0
@@ -442,7 +444,7 @@ func _build_top_bar(vp: Vector2) -> void:
 	_iron_label    = _top_value("0", x, 42); x += 46
 	_make_res_icon(_top_bar, Vector2(x, 6), "stock"); _res_caption("Storage", x, 84); x += 20
 	_storage_label = _top_value("0/0", x, 66, 13, Color(0.82, 0.76, 0.6)); x += 70
-	_make_res_icon(_top_bar, Vector2(x, 6), "food");  _res_caption("Food", x, 84);  x += 20
+	_make_res_icon(_top_bar, Vector2(x, 6), "food");  _food_caption = _res_caption("Food", x, 84);  x += 20
 	_food_label    = _top_value("0/0", x, 66); x += 70
 	_make_res_icon(_top_bar, Vector2(x, 6), "ale");   _res_caption("Ale", x, 60);   x += 20
 	_ale_label     = _top_value("0", x, 42); x += 46
@@ -487,6 +489,17 @@ func _refresh_top_bar() -> void:
 		_storage_label.tooltip_text = "Raw goods stored vs. stockpile capacity. Build stockpiles to store more; production stops when full."
 	_food_label.text    = "%d/%d" % [total_food, FoodSystem.get_granary_capacity(p)]
 	_food_label.tooltip_text = HUDController.get_food_tooltip(p)
+	# Always-visible food-security read under the stock: days of food left, coloured as an early
+	# famine warning so starvation (the #1 way a young realm dies) never sneaks up unseen.
+	if _food_caption != null:
+		var fdays: int = HUDController.get_food_days(p)
+		if fdays >= 999:
+			_food_caption.text = "Food"
+			_food_caption.add_theme_color_override("font_color", Color(0.70, 0.64, 0.50))
+		else:
+			_food_caption.text = "Food · %dd" % fdays
+			_food_caption.add_theme_color_override("font_color",
+				Color(0.95, 0.42, 0.34) if fdays <= 2 else (Color(0.95, 0.78, 0.38) if fdays <= 5 else Color(0.66, 0.80, 0.52)))
 	_ale_label.text     = "%d" % total_ale
 	var _phase: Dictionary = HUDController.get_day_phase(SimulationClock.current_tick)
 	if _time_clock != null:

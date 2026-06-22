@@ -2,6 +2,19 @@
 
 ---
 
+## 2026-06-23 — Days-of-food is now always on screen, with a famine warning (iter334)
+
+- **[Clarity/Survival] "Food · Nd" under the food stock, colour-coded:** starvation is the single most
+  common way a young realm dies, but the HUD only showed raw food stock ("169/300") — *how many days that
+  buys* was buried in the hover tooltip, so famine could sneak up on a player who never hovered. The food
+  caption now reads **"Food · 8d"** (days of food left at the current population and ration), coloured as an
+  early warning: green when comfortable, **amber at ≤5 days, red at ≤2 days**. Both the caption and the
+  existing tooltip now read from one `HUDController.get_food_days()` source. Always-visible, so a looming
+  famine is impossible to miss. Verified by render; food/economy regression tests green (TestFoodWarning
+  5/0, TestEconomy 18/0).
+
+---
+
 ## 2026-06-23 — The build menu now tells you what each building does (iter333)
 
 - **[Clarity] Every build card shows the building's purpose:** the cards listed a name, a cost, and a Build

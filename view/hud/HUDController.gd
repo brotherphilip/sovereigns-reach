@@ -124,6 +124,17 @@ static func get_total_food(player: Dictionary) -> int:
 # Food consumed per peasant/day by ration level (mirrors FoodSystem.FOOD_DRAIN_PER_PEASANT).
 const _FOOD_DRAIN_PER_PEASANT: Dictionary = {0: 0.0, 1: 0.5, 2: 1.0, 3: 1.5, 4: 2.0}
 
+# Whole days of food left at the current population + ration (999 if nobody eats yet). Single
+# source for both the always-visible "Food · Nd" caption and the hover tooltip.
+static func get_food_days(player: Dictionary) -> int:
+	var total: int = get_total_food(player)
+	var ration: int = int(player.get("food_ration", 2))
+	var pop: int = int(player.get("population", 0))
+	var daily_need: int = int(round(float(pop) * float(_FOOD_DRAIN_PER_PEASANT.get(ration, 1.0))))
+	if daily_need <= 0:
+		return 999
+	return int(floor(float(total) / float(daily_need)))
+
 # Rich tooltip for the food readout: what edible food is in store, the daily need, and
 # how many days of food remain — so the player can read their food situation at a glance
 # (and isn't left guessing why a red number means starvation). Grain etc. are RAW goods in
