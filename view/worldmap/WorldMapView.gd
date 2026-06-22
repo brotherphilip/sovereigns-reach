@@ -255,8 +255,13 @@ const _SEA_LEVEL: float = 0.32
 # NW sun (light from the upper-left), pre-normalised; _FLAT_DOT is N·L over flat ground.
 const _L: Vector3 = Vector3(-0.530, -0.530, 0.662)
 const _FLAT_DOT: float = 0.662
-const _Z_EXAG: float = 11.0      # vertical exaggeration so gentle slopes still cast relief
+const _Z_EXAG: float = 6.0       # gentle vertical exaggeration — soft landform relief, not busy
 const _SHORE_WET: Color = Color(0.60, 0.55, 0.43)   # wet sand at the waterline
+# iter318: the realistic relief read as a "distracting image" the cities/roads were dumped onto.
+# Compress every land colour toward this cohesive base so the terrain becomes a calm, designed
+# backdrop (the network reads as the structure) instead of a high-contrast biome patchwork.
+const _LAND_BASE: Color = Color(0.45, 0.46, 0.35)
+const _LAND_UNIFY: float = 0.38   # how far each biome tone is pulled toward _LAND_BASE
 
 var _relief_tex: ImageTexture = null
 var _map_size: Vector2 = Vector2(1600, 900)
@@ -307,6 +312,7 @@ func _build_relief_texture() -> void:
 	for i in range(n):
 		var b: int = tiles[i]
 		var col: Color = sand if b == WorldMapData.B_SEA else _biome_color(b)
+		col = col.lerp(_LAND_BASE, _LAND_UNIFY)   # cohesive designed palette (calm, not patchwork)
 		cr[i] = col.r; cg[i] = col.g; cb[i] = col.b
 	# Soften the categorical biome boundaries into natural land-cover gradients (one mild pass)
 	# so forest/plains read as blended terrain instead of faceted cell blocks.
@@ -367,7 +373,7 @@ func _build_relief_texture() -> void:
 				# Sampled from the mountain dome so snow sits on the bulged peaks. Tightened to the
 				# dome CORE (higher threshold) and capped lower so caps read as snow-dusted rock,
 				# not blinding cloud-blobs spread across the range (iter317 aesthetic cleanup).
-				var snow: float = clampf((_bilin(dome, cols, rows, gxf, gyf) - 0.42) * 3.0, 0.0, 0.72)
+				var snow: float = clampf((_bilin(dome, cols, rows, gxf, gyf) - 0.52) * 3.0, 0.0, 0.22)
 				if snow > 0.0:
 					r = lerpf(r, _SNOW.r, snow); g = lerpf(g, _SNOW.g, snow); bl = lerpf(bl, _SNOW.b, snow)
 				# Hillshade from the (heavily-smoothed) height gradient under the NW sun.
@@ -377,8 +383,9 @@ func _build_relief_texture() -> void:
 				var ny: float = -zy * _Z_EXAG
 				var inv: float = 1.0 / sqrt(nx * nx + ny * ny + 1.0)
 				var dotl: float = (nx * _L.x + ny * _L.y + _L.z) * inv
-				# Flat ground keeps full colour (baseline 1.0); slopes brighten / darken around it.
-				var shade: float = clampf(1.0 + (dotl - _FLAT_DOT) * 2.0, 0.42, 1.40)
+				# Gentle hillshade: soft form, tight range, so the terrain stays a calm backdrop
+				# rather than a high-contrast light/shadow patchwork competing with the network.
+				var shade: float = clampf(1.0 + (dotl - _FLAT_DOT) * 1.1, 0.74, 1.18)
 				r *= shade; g *= shade; bl *= shade
 			data[idx]     = int(clampf(r, 0.0, 1.0) * 255.0)
 			data[idx + 1] = int(clampf(g, 0.0, 1.0) * 255.0)
@@ -554,6 +561,14 @@ func _draw_cities() -> void:
 		var rank: int = _settlement_rank(c)
 		var ring_r: float = 11.0 + float(rank) * 2.5
 
+		# Settled-ground clearing: a soft halo of cultivated land tying the town to the terrain,
+		# so the map reads as composed AROUND its settlements rather than icons dumped on a relief.
+		# Towns and up only (rank ≥ 1) — the 50+ hamlets would otherwise speckle the whole map.
+		if rank >= 1:
+			var halo_r: float = [0.0, 20.0, 26.0, 34.0][rank]
+			var halo_a: float = [0.0, 0.13, 0.17, 0.22][rank]
+			_ground_halo(p, halo_r, Color(0.84, 0.79, 0.62, halo_a))
+
 		# Player-owned holdings get a gold ring so the realm reads at a glance.
 		if is_player_owned:
 			draw_arc(p, ring_r, 0, TAU, 24, Color(0.95, 0.78, 0.10, 0.70), 2.5, true)
@@ -720,6 +735,19 @@ func _draw_legend() -> void:
 		draw_string(ThemeDB.fallback_font, Vector2(origin.x + panel_w - 56.0, y + 2.0), stats,
 			HORIZONTAL_ALIGNMENT_LEFT, -1, 9, txt_col)
 		y += row_h
+
+# A soft radial clearing (triangle-fan gradient: solid centre → transparent rim) marking the
+# cultivated land around a settlement, so it sits in a composed pocket of terrain (iter318).
+func _ground_halo(c: Vector2, r: float, col: Color) -> void:
+	var pts := PackedVector2Array([c])
+	var cols := PackedColorArray([col])
+	var clear := Color(col.r, col.g, col.b, 0.0)
+	var segs: int = 20
+	for i in range(segs + 1):
+		var a: float = float(i) / float(segs) * TAU
+		pts.append(c + Vector2(cos(a), sin(a)) * r)
+		cols.append(clear)
+	draw_polygon(pts, cols)
 
 # A small flattened ground-shadow ellipse, so an icon sits ON the terrain instead of
 # floating over it (depth pass, iter314). Centred at c with radii rx,ry.

@@ -2,6 +2,19 @@
 
 ---
 
+## 2026-06-22 — World-map terrain calmed into a designed backdrop for the realm (iter318)
+
+- **[Visual] Terrain recedes so the map reads as composed around its cities & roads (player steer: "the
+  background is just distracting… not just having them dumped on an image"):** the realistic relief was
+  competing with the settlements and roads. The land is now a calm, cohesive backdrop — every biome tone is
+  pulled toward a shared base colour (no more high-contrast patchwork), the hillshading is much gentler (soft
+  form, tight light range), and the mountain snow is reduced to a faint cool dusting instead of bright blobs.
+  On top of that, towns and larger settlements now sit in a soft "cleared land" halo that ties them to the
+  ground, so the network of cities and roads reads as the intentional structure of the map rather than icons
+  dropped onto a busy image.
+
+---
+
 ## 2026-06-22 — World-map icons unified into one coherent set, far less clutter (iter317)
 
 - **[Visual] Settlement & marker coherence pass (player steer: "looks like a hodgepodge of opshop finds

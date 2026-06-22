@@ -157,6 +157,31 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 318 — 2026-06-22  (MAIN-MAP FOCUS loop 5/7 — calm the terrain into a designed backdrop)
+
+**USER STEER:** *"the background is just distracting. make it more intentionally designed around the cities and
+roads.. not just having them dumped on an image."* The iter315 relief was realistic but high-contrast/busy, so
+it fought the network instead of supporting it. Goal: terrain recedes to a calm cohesive backdrop; cities + roads
+become the read.
+
+Fixes in `_build_relief_texture` (view-only):
+- **Cohesive palette** — every land colour is lerped toward a shared `_LAND_BASE` (olive-grey) by `_LAND_UNIFY`
+  0.38, compressing the biome patchwork into one designed land tone (forest/plains still distinguishable, just
+  not shouting).
+- **Gentle hillshade** — `_Z_EXAG` 11→6 and the shade remap softened from `×2.0 / [0.42,1.40]` to
+  `×1.1 / [0.74,1.18]`, so the land has soft form rather than a busy light/shadow patchwork.
+- **Snow quieted** — cap 0.72→0.22 and threshold raised to the dome core (0.45→0.52), turning the bright
+  cloud-blobs into a faint cool dusting on the very highest peaks.
+- **Settlement integration** — new `_ground_halo` (triangle-fan radial gradient) draws a soft "cleared/cultivated
+  land" clearing under towns and larger (rank ≥ 1; the 50+ hamlets are skipped to avoid speckle), so the
+  settlements sit in composed pockets of terrain and the map reads as built AROUND the network.
+
+Render-verified on Xvfb (seed 99 @ zoom 1.0 / 1.7): terrain now a calm unified backdrop, roads/frontiers/cities
+the clear structure, snow a faint wash, towns anchored in their clearings. Validated: clean parse; TestStrategicAI
+91/0 (logic untouched). NEXT main-map cycles (6/7…): army-marker fit in the new icon family, first-visit onboarding.
+
+---
+
 ## Iteration 317 — 2026-06-22  (MAIN-MAP FOCUS loop 4/7 — icon coherence + de-clutter: "hodgepodge / noisy mess")
 
 **USER STEER:** *"work on variety and aesthetic appearance. because it looks like a hodgepodge of opshop finds
