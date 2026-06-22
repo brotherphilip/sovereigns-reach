@@ -2,6 +2,19 @@
 
 ---
 
+## 2026-06-22 — The world map is now a realistic relief map, not a board game (iter315)
+
+- **[Visual] World-map realism overhaul (player steer: "make it much more realistic"):** the strategic map no
+  longer looks like a bright board-game hex grid with cartoon tree, rock and peak glyphs. The whole continent is
+  now rendered as a single continuous **relief map** — muted natural earth tones (grassland, forest, tan hills,
+  rock), **hillshading** lit from the north-west so ridges and valleys read as real landforms, smooth blending
+  between terrain types, a **depth-shaded ocean** (lit coastal shelf fading to abyssal blue) with a wet-sand
+  shoreline, and **snow-capped mountains** that catch sun and shadow. Kingdom territory, formerly pixelated colour
+  blocks, is now drawn as clean **political frontier lines** following the land — physical terrain underneath,
+  borders on top, the way a real map reads.
+
+---
+
 ## 2026-06-22 — The world map looks like a crafted map, not a data grid (iter314)
 
 - **[Visual] Strategic-map depth & atmosphere pass:** the world map now has a soft darkened frame (vignette) that

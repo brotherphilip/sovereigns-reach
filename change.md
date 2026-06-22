@@ -157,6 +157,37 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 315 — 2026-06-22  (MAIN-MAP FOCUS loop 2/7 — world-map REALISM overhaul: relief raster)
+
+**USER STEER (overrides the planned cycle):** *"I actually hate the visual look.. make it much more realistic."*
+The board-game hex grid — bright saturated biome tiles, faint lattice lines, cartoon tree/rock/peak glyphs — is
+exactly what read as unrealistic. Pivoted the whole cycle to a terrain realism overhaul of `WorldMapView` (view-only;
+the `WorldMapData` generator and all logic are untouched).
+
+Replaced `_draw_background`'s per-cell hex loop + scatter with a single baked **relief raster**:
+- `_build_relief_texture()` — bakes the continent ONCE per map load into an 800×450 `Image` (`create_from_data`,
+  RGBA8), drawn as one linear-filtered texture under the zoom/pan transform. Deleted the now-dead `_hex`,
+  `_draw_tree_cluster`, `_draw_rock`, `_draw_shrub`, `_draw_peak`.
+- **Muted earth-tone palette** (grassland olive / muted forest / tan hills / grey-brown rock) bilinearly blended
+  between cells (one mild blur pass) so biomes read as natural land cover, not faceted blocks.
+- **NW-light hillshading** from the generator's continuous `elev` field. The fbm's fine octaves jittered cell-to-cell
+  and the gradient amplified that into a checkerboard → fixed with `_blur_field` (smoothed height for the normal).
+- **Mountains** are only a handful of cells (9/1/73 across test seeds; elev barely clears the hill band), so their
+  relief is *synthesised*: a blurred `dome` field bulges peak cells in the shading height and drives **snow caps**,
+  which are blended in BEFORE the shade so snowy slopes stay 3-D instead of flat white cloud-blobs.
+- **Depth-shaded ocean** (lit coastal shelf → abyssal blue) with a wet-sand shoreline at the waterline.
+- **Territory** recut from pixelated per-cell colour fills to clean **frontier edge-lines** (`_frontier_seg`): the
+  boundary segment is drawn on each cell edge where ownership changes, inset toward the owner so a shared border
+  shows both kingdoms' colours — political lines over physical terrain, the way a real map reads.
+
+Render-verified on Xvfb across 3 seeds via a new dev harness `tools/RenderWorldMap.gd` (full-continent fit + zoomed):
+low-relief seeds correctly show no snow; mountainous seed 99 shows shaded snow massifs; ocean/frontiers/coast all
+read naturally. Validated: clean parse; TestStrategicAI 91/0 (logic untouched). The dev render writes to `user://`
+so it never pollutes the repo. NEXT main-map cycles (3/7…): road legibility over the relief, army/city icon fit on
+the new terrain, first-visit onboarding.
+
+---
+
 ## Iteration 314 — 2026-06-22  (MAIN-MAP FOCUS loop 1/7 — strategic-map depth & atmosphere pass)
 
 First of the 7 main-map-only cycles. Rendered the world map (`SR_CLIMB=40`) and read it as a player: a flat,

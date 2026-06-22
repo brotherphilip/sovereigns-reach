@@ -79,6 +79,9 @@ func apply_data(world_map_data: Dictionary) -> void:
 	_faction_list = WorldMapController.get_faction_territory_list(_data)
 	_deposit_list = WorldMapController.get_resource_deposit_list(_data)
 	mouse_filter  = Control.MOUSE_FILTER_STOP
+	# Linear filtering smooths the baked relief raster when it is scaled up by zoom.
+	texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+	_build_relief_texture()
 	refresh()
 
 # Re-read the dynamic strategic state (ownership, garrisons, armies, legend). Cheap
@@ -137,8 +140,8 @@ func _draw_vignette() -> void:
 	var h: float = size.y
 	if w <= 0.0 or h <= 0.0:
 		return
-	var band: float = minf(w, h) * 0.24      # how far inward the darkening reaches
-	var edge := Color(0.02, 0.03, 0.015, 0.55)
+	var band: float = minf(w, h) * 0.22      # how far inward the darkening reaches
+	var edge := Color(0.02, 0.03, 0.015, 0.40)
 	var clear := Color(0.02, 0.03, 0.015, 0.0)
 	# Top
 	draw_polygon(PackedVector2Array([Vector2(0, 0), Vector2(w, 0), Vector2(w, band), Vector2(0, band)]),
@@ -214,141 +217,182 @@ const _SEA_SHALLOW: Color = Color(0.20, 0.45, 0.60)   # lighter shelf hugging th
 
 const _SNOW: Color = Color(0.87, 0.89, 0.93)   # snow-dusted high peaks
 
-# Overhaul iter3: a more distinct, vibrant palette so biomes read apart (plains/forest were both
-# a samey green) — bright meadow plains, deep forest, golden dry hills, slate mountains.
+# Overhaul iter315 (user steer "make it much more realistic"): muted, natural earth tones in place
+# of the bright board-game palette — grassland olive, deep muted forest, tan hills, grey-brown rock.
+# The elevation read the old saturated colours faked is now supplied properly by hillshading below.
 func _biome_color(b: int) -> Color:
 	match b:
 		WorldMapData.B_SEA:      return _SEA_DEEP
-		WorldMapData.B_COAST:    return Color(0.81, 0.74, 0.49)   # sandy shore
-		WorldMapData.B_PLAINS:   return Color(0.56, 0.69, 0.33)   # bright meadow green
-		WorldMapData.B_FOREST:   return Color(0.19, 0.41, 0.22)   # deep forest green (clearly darker)
-		WorldMapData.B_HILLS:    return Color(0.65, 0.57, 0.32)   # golden dry hills (reads as elevation)
-		WorldMapData.B_MOUNTAIN: return Color(0.47, 0.44, 0.46)   # slate rock
-		WorldMapData.B_RIVER:    return Color(0.26, 0.50, 0.77)
+		WorldMapData.B_COAST:    return Color(0.74, 0.69, 0.52)   # muted sand
+		WorldMapData.B_PLAINS:   return Color(0.50, 0.55, 0.34)   # grassland olive
+		WorldMapData.B_FOREST:   return Color(0.26, 0.38, 0.24)   # muted forest (lifted off black)
+		WorldMapData.B_HILLS:    return Color(0.55, 0.50, 0.35)   # tan / khaki hills
+		WorldMapData.B_MOUNTAIN: return Color(0.53, 0.50, 0.47)   # grey-brown rock
+		WorldMapData.B_RIVER:    return Color(0.27, 0.43, 0.57)
 	return _SEA_DEEP
 
-func _hex(cx: float, cy: float, r: float) -> PackedVector2Array:
-	# Flat-topped hexagon (pointy left/right) centred at cx,cy.
-	var pts := PackedVector2Array()
-	for i in range(6):
-		var a: float = float(i) * PI / 3.0
-		pts.append(Vector2(cx + r * cos(a), cy + r * sin(a)))
-	return pts
+# Per-biome pseudo-elevation (0 sea … 1 peak). FALLBACK ONLY — used when an older save lacks
+# the generator's continuous `elev` field. Land biomes sit above _SEA_LEVEL so coasts stay dry.
+func _biome_elev(b: int) -> float:
+	match b:
+		WorldMapData.B_SEA:      return 0.0
+		WorldMapData.B_RIVER:    return 0.40
+		WorldMapData.B_COAST:    return 0.36
+		WorldMapData.B_PLAINS:   return 0.48
+		WorldMapData.B_FOREST:   return 0.54
+		WorldMapData.B_HILLS:    return 0.78
+		WorldMapData.B_MOUNTAIN: return 0.98
+	return 0.0
 
-func _draw_background() -> void:
-	# The continent is a grid of biome cells; each is drawn as an overlapping HEXAGON with
-	# a faint lattice edge (the KingdomHex tile look) plus layered terrain relief, so the
-	# land reads as a hand-drawn hex map instead of flat colour blocks.
-	var biome: Dictionary = _data.get("biome", {})
-	if biome.is_empty():
-		return
-	var cols: int = biome["cols"]
-	var rows: int = biome["rows"]
-	var cw: float = biome["cell_w"]
-	var ch: float = biome["cell_h"]
-	var tiles: PackedByteArray = biome["tiles"]
-	var r: float = maxf(cw, ch) * 0.70        # hex radius — overlaps neighbours so they tile
-	var edge: Color = Color(0.0, 0.0, 0.0, 0.06)
+# ── Relief raster (baked hillshaded terrain) ───────────────────────────────────
+# iter315 realism overhaul: instead of a board-game hex grid with cartoon tree/rock glyphs,
+# the continent is baked ONCE into a continuous relief image — muted earth tones, NW-light
+# hillshading from the real elevation field, smooth biome blending, depth-shaded ocean and
+# snow peaks. Drawn as a single texture, so it reads like an aerial/relief map, not a board.
+const RELIEF_W: int = 800
+const RELIEF_H: int = 450
+const _SEA_LEVEL: float = 0.32
+# NW sun (light from the upper-left), pre-normalised; _FLAT_DOT is N·L over flat ground.
+const _L: Vector3 = Vector3(-0.530, -0.530, 0.662)
+const _FLAT_DOT: float = 0.662
+const _Z_EXAG: float = 11.0      # vertical exaggeration so gentle slopes still cast relief
+const _SHORE_WET: Color = Color(0.60, 0.55, 0.43)   # wet sand at the waterline
+
+var _relief_tex: ImageTexture = null
+var _map_size: Vector2 = Vector2(1600, 900)
+
+# One weighted 3×3 blur pass over a grid field (centre weight `cw`, neighbours 1.0).
+func _blur_field(src: PackedFloat32Array, cols: int, rows: int, cw: float) -> PackedFloat32Array:
+	var dst := PackedFloat32Array(); dst.resize(cols * rows)
 	for gy in range(rows):
 		for gx in range(cols):
-			var b: int = tiles[gy * cols + gx]
-			var cx: float = gx * cw + cw * 0.5
-			var cy: float = gy * ch + ch * 0.5
-			if b == WorldMapData.B_SEA:
-				var coastal: bool = false
-				for d in [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]]:
-					var nx: int = gx + d[0]; var ny: int = gy + d[1]
-					if nx >= 0 and ny >= 0 and nx < cols and ny < rows and tiles[ny * cols + nx] != WorldMapData.B_SEA:
-						coastal = true; break
-				if coastal:
-					draw_colored_polygon(_hex(cx, cy, r), _SEA_SHALLOW)
-				continue   # deep ocean base already filled in screen space
-			var c: Color = _biome_color(b)
-			var h: int = ((gx * 73856093) ^ (gy * 19349663)) & 1023
-			var shade: float = 1.0 + (float(h) / 1023.0 - 0.5) * 0.11
-			var is_snow: bool = false
-			if b == WorldMapData.B_MOUNTAIN and shade > 1.06:
-				c = _SNOW; is_snow = true
-			else:
-				c = Color(clampf(c.r * shade, 0.0, 1.0), clampf(c.g * shade, 0.0, 1.0), clampf(c.b * shade, 0.0, 1.0))
-				var bl_r: float = 0.0; var bl_g: float = 0.0; var bl_b: float = 0.0; var bl_n: int = 0
-				for d in [[1, 0], [-1, 0], [0, 1], [0, -1]]:
-					var nx: int = gx + d[0]; var ny: int = gy + d[1]
+			var acc: float = 0.0; var cnt: float = 0.0
+			for dy in range(-1, 2):
+				for dx in range(-1, 2):
+					var nx: int = gx + dx; var ny: int = gy + dy
 					if nx < 0 or ny < 0 or nx >= cols or ny >= rows:
 						continue
-					var nb: int = tiles[ny * cols + nx]
-					if nb != WorldMapData.B_SEA and nb != b:
-						var ncol: Color = _biome_color(nb)
-						bl_r += ncol.r; bl_g += ncol.g; bl_b += ncol.b; bl_n += 1
-				if bl_n > 0:
-					var inv: float = 1.0 / float(bl_n)
-					c = c.lerp(Color(bl_r * inv, bl_g * inv, bl_b * inv), 0.30)
-			var hexpts := _hex(cx, cy, r)
-			draw_colored_polygon(hexpts, c)
-			# Faint lattice edge.
-			var loop := PackedVector2Array(hexpts); loop.append(hexpts[0])
-			draw_polyline(loop, edge, 1.0, true)
-			# Layered terrain relief.
-			var s: float = minf(cw, ch)
-			var jx: float = (float((h >> 3) & 3) - 1.5) * cw * 0.16
-			var jy: float = (float((h >> 5) & 3) - 1.5) * ch * 0.12
-			match b:
-				WorldMapData.B_FOREST:
-					_draw_tree_cluster(cx + jx, cy + jy, s, h)
-				WorldMapData.B_MOUNTAIN:
-					if not is_snow:
-						_draw_peak(cx + jx, cy + jy, s)
-				WorldMapData.B_HILLS:
-					if (h & 3) == 0:
-						_draw_rock(cx + jx, cy + jy, s)
-					elif (h & 3) == 1:
-						_draw_shrub(cx + jx, cy + jy, s)
-				WorldMapData.B_PLAINS:
-					# Sparser scatter on open plains so they read as meadow, not measles (iter314).
-					if (h & 15) == 0:
-						_draw_tree_cluster(cx + jx, cy + jy, s * 0.8, h)
-					elif (h & 15) == 1:
-						_draw_shrub(cx + jx, cy + jy, s * 0.8)
+					var w: float = cw if (dx == 0 and dy == 0) else 1.0
+					acc += src[ny * cols + nx] * w; cnt += w
+			dst[gy * cols + gx] = acc / cnt
+	return dst
 
-# A little broadleaf copse: a few overlapping rounded canopies on a trunk, with a soft shadow.
-func _draw_tree_cluster(cx: float, cy: float, s: float, h: int) -> void:
-	var n: int = 2 + (h & 1)
-	draw_circle(Vector2(cx, cy + s * 0.14), s * 0.22, Color(0, 0, 0, 0.12))
+# Bilinear sample of a grid field (cell-centred), clamped at the edges.
+func _bilin(arr: PackedFloat32Array, cols: int, rows: int, gxf: float, gyf: float) -> float:
+	var x0: int = floori(gxf); var y0: int = floori(gyf)
+	var fx: float = gxf - float(x0); var fy: float = gyf - float(y0)
+	var x1: int = clampi(x0 + 1, 0, cols - 1); var y1: int = clampi(y0 + 1, 0, rows - 1)
+	x0 = clampi(x0, 0, cols - 1); y0 = clampi(y0, 0, rows - 1)
+	var top: float = lerpf(arr[y0 * cols + x0], arr[y0 * cols + x1], fx)
+	var bot: float = lerpf(arr[y1 * cols + x0], arr[y1 * cols + x1], fx)
+	return lerpf(top, bot, fy)
+
+# Bake the continent into a single hillshaded relief texture. Called once per map load.
+func _build_relief_texture() -> void:
+	var biome: Dictionary = _data.get("biome", {})
+	if biome.is_empty():
+		_relief_tex = null
+		return
+	var cols: int = int(biome["cols"])
+	var rows: int = int(biome["rows"])
+	_map_size = Vector2(cols * float(biome["cell_w"]), rows * float(biome["cell_h"]))
+	var tiles: PackedByteArray = biome["tiles"]
+	var n: int = cols * rows
+	# Per-cell base land colour. Sea cells are stored as beach-sand so coasts blend to a
+	# shore (not a blue halo); the real ocean is painted from the elevation field below.
+	var sand: Color = _biome_color(WorldMapData.B_COAST)
+	var cr := PackedFloat32Array(); cr.resize(n)
+	var cg := PackedFloat32Array(); cg.resize(n)
+	var cb := PackedFloat32Array(); cb.resize(n)
 	for i in range(n):
-		var ox: float = (float((h >> (i * 3)) & 3) - 1.5) * s * 0.16
-		var oy: float = -float(i) * s * 0.06
-		var tx: float = cx + ox; var ty: float = cy + oy
-		draw_line(Vector2(tx, ty), Vector2(tx, ty + s * 0.16), Color(0.32, 0.22, 0.13), maxf(1.0, s * 0.05))
-		draw_circle(Vector2(tx, ty), s * 0.19, Color(0.13, 0.30, 0.15))
-		draw_circle(Vector2(tx - s * 0.06, ty - s * 0.06), s * 0.12, Color(0.26, 0.47, 0.24))
+		var b: int = tiles[i]
+		var col: Color = sand if b == WorldMapData.B_SEA else _biome_color(b)
+		cr[i] = col.r; cg[i] = col.g; cb[i] = col.b
+	# Soften the categorical biome boundaries into natural land-cover gradients (one mild pass)
+	# so forest/plains read as blended terrain instead of faceted cell blocks.
+	cr = _blur_field(cr, cols, rows, 2.0)
+	cg = _blur_field(cg, cols, rows, 2.0)
+	cb = _blur_field(cb, cols, rows, 2.0)
+	# Elevation field — prefer the generator's continuous noise; fall back to a per-biome
+	# height for older saves. Blurred once so the hillshade reads as smooth, natural relief.
+	var raw := PackedFloat32Array(); raw.resize(n)
+	if biome.has("elev") and PackedFloat32Array(biome["elev"]).size() == n:
+		var ev: PackedFloat32Array = PackedFloat32Array(biome["elev"])
+		for i in range(n):
+			raw[i] = ev[i]
+	else:
+		for i in range(n):
+			raw[i] = _biome_elev(tiles[i])
+	# Lightly-smoothed field for sea/coast thresholds (keeps the coastline fairly crisp).
+	var se: PackedFloat32Array = _blur_field(raw, cols, rows, 3.0)
+	# Mountain field: 1 at peak cells, blurred into a smooth dome. Mountains are only a handful
+	# of cells and the fbm barely lifts them above the hill band, so we SYNTHESISE their relief
+	# from this dome rather than trusting the noise — that's what makes them read as real massifs.
+	var dome := PackedFloat32Array(); dome.resize(n)
+	for i in range(n):
+		dome[i] = 1.0 if tiles[i] == WorldMapData.B_MOUNTAIN else 0.0
+	dome = _blur_field(_blur_field(dome, cols, rows, 1.0), cols, rows, 1.0)
+	# Height field for the hillshade normal: a smoothed continent (gentle landform relief, no
+	# fbm checkerboard) plus the mountain dome bulging the peaks up so they catch sun & shadow.
+	var sh := PackedFloat32Array(); sh.resize(n)
+	var base: PackedFloat32Array = _blur_field(se, cols, rows, 1.5)
+	for i in range(n):
+		sh[i] = base[i] + dome[i] * 0.32
+	# Rasterise pixel by pixel into an RGBA8 buffer (one-time bake; ~360k px).
+	var data := PackedByteArray(); data.resize(RELIEF_W * RELIEF_H * 4)
+	var idx: int = 0
+	for py in range(RELIEF_H):
+		var gyf: float = (float(py) + 0.5) / float(RELIEF_H) * rows - 0.5
+		for px in range(RELIEF_W):
+			var gxf: float = (float(px) + 0.5) / float(RELIEF_W) * cols - 0.5
+			var e: float = _bilin(se, cols, rows, gxf, gyf)
+			var r: float; var g: float; var bl: float
+			if e < _SEA_LEVEL:
+				# Depth-shaded ocean: lit shelf near the coast, abyssal blue further out.
+				var t: float = clampf((_SEA_LEVEL - e) / 0.16, 0.0, 1.0)
+				var oc: Color = _SEA_SHALLOW.lerp(_SEA_DEEP, t)
+				r = oc.r; g = oc.g; bl = oc.b
+			else:
+				r = _bilin(cr, cols, rows, gxf, gyf)
+				g = _bilin(cg, cols, rows, gxf, gyf)
+				bl = _bilin(cb, cols, rows, gxf, gyf)
+				# Wet sand where the land just meets the waterline.
+				var shore: float = 1.0 - smoothstep(_SEA_LEVEL, 0.355, e)
+				if shore > 0.0:
+					r = lerpf(r, _SHORE_WET.r, shore * 0.6)
+					g = lerpf(g, _SHORE_WET.g, shore * 0.6)
+					bl = lerpf(bl, _SHORE_WET.b, shore * 0.6)
+				# Snow caps the peaks. Blended into the base BEFORE hillshading so snowy slopes
+				# still catch sun/shadow (a flat white lerp after shading reads as a cloud blob).
+				# Sampled from the mountain dome so snow sits on the bulged peaks; cap at 0.9 so a
+				# little rock shows through and the cap never blows out to pure white.
+				var snow: float = clampf((_bilin(dome, cols, rows, gxf, gyf) - 0.30) * 2.4, 0.0, 0.9)
+				if snow > 0.0:
+					r = lerpf(r, _SNOW.r, snow); g = lerpf(g, _SNOW.g, snow); bl = lerpf(bl, _SNOW.b, snow)
+				# Hillshade from the (heavily-smoothed) height gradient under the NW sun.
+				var zx: float = (_bilin(sh, cols, rows, gxf + 1.0, gyf) - _bilin(sh, cols, rows, gxf - 1.0, gyf)) * 0.5
+				var zy: float = (_bilin(sh, cols, rows, gxf, gyf + 1.0) - _bilin(sh, cols, rows, gxf, gyf - 1.0)) * 0.5
+				var nx: float = -zx * _Z_EXAG
+				var ny: float = -zy * _Z_EXAG
+				var inv: float = 1.0 / sqrt(nx * nx + ny * ny + 1.0)
+				var dotl: float = (nx * _L.x + ny * _L.y + _L.z) * inv
+				# Flat ground keeps full colour (baseline 1.0); slopes brighten / darken around it.
+				var shade: float = clampf(1.0 + (dotl - _FLAT_DOT) * 2.0, 0.42, 1.40)
+				r *= shade; g *= shade; bl *= shade
+			data[idx]     = int(clampf(r, 0.0, 1.0) * 255.0)
+			data[idx + 1] = int(clampf(g, 0.0, 1.0) * 255.0)
+			data[idx + 2] = int(clampf(bl, 0.0, 1.0) * 255.0)
+			data[idx + 3] = 255
+			idx += 4
+	var img := Image.create_from_data(RELIEF_W, RELIEF_H, false, Image.FORMAT_RGBA8, data)
+	_relief_tex = ImageTexture.create_from_image(img)
 
-# A weathered boulder (dry hills / barren relief).
-func _draw_rock(cx: float, cy: float, s: float) -> void:
-	draw_circle(Vector2(cx, cy + s * 0.10), s * 0.18, Color(0, 0, 0, 0.12))
-	draw_circle(Vector2(cx, cy), s * 0.17, Color(0.52, 0.49, 0.45))
-	draw_circle(Vector2(cx + s * 0.10, cy + s * 0.04), s * 0.11, Color(0.44, 0.41, 0.38))
-	draw_circle(Vector2(cx - s * 0.05, cy - s * 0.05), s * 0.07, Color(0.62, 0.59, 0.55))
-
-# A dry shrub / scrub bush (golden hills, desert edges).
-func _draw_shrub(cx: float, cy: float, s: float) -> void:
-	draw_circle(Vector2(cx, cy + s * 0.08), s * 0.13, Color(0, 0, 0, 0.10))
-	draw_circle(Vector2(cx, cy), s * 0.12, Color(0.46, 0.45, 0.22))
-	draw_circle(Vector2(cx + s * 0.07, cy - s * 0.02), s * 0.08, Color(0.58, 0.55, 0.28))
-
-# Tiny mountain peak (range relief) — a slate triangle with a snow tip.
-func _draw_peak(cx: float, cy: float, s: float) -> void:
-	var hh: float = s * 0.46
-	var w: float = s * 0.38
-	var top: Vector2 = Vector2(cx, cy - hh)
-	draw_colored_polygon(PackedVector2Array([
-		top, Vector2(cx - w, cy + hh * 0.30), Vector2(cx + w, cy + hh * 0.30)]),
-		Color(0.34, 0.32, 0.35))
-	draw_colored_polygon(PackedVector2Array([
-		top, Vector2(cx - w * 0.32, cy - hh * 0.10), Vector2(cx + w * 0.16, cy + hh * 0.05)]),
-		Color(0.46, 0.44, 0.47))
-	draw_colored_polygon(PackedVector2Array([
-		top, top + Vector2(-w * 0.34, hh * 0.36), top + Vector2(w * 0.34, hh * 0.36)]),
-		Color(0.88, 0.90, 0.94))
+func _draw_background() -> void:
+	# The continent is a single baked relief raster (see _build_relief_texture), drawn under
+	# the zoom/pan transform. Linear filtering keeps it smooth as the view scales up.
+	if _relief_tex == null:
+		return
+	draw_texture_rect(_relief_tex, Rect2(Vector2.ZERO, _map_size), false)
 
 # ── Faction territories (tint the land each kingdom holds) ─────────────────────
 
@@ -360,33 +404,46 @@ func _draw_faction_territories() -> void:
 		var cw: float = biome["cell_w"]
 		var ch: float = biome["cell_h"]
 		var terr: PackedByteArray = biome["territory"]
-		# Overhaul iter1: render territory as crisp BORDERS — a strong colour band where a
-		# kingdom meets a different owner (or the wilds), with only a faint interior wash.
-		# The old uniform 0.22 fill over every owned cell muddied the whole map.
+		# iter315: render kingdom territory as a clean FRONTIER LINE following the cell edges
+		# where ownership changes — political boundaries drawn over the physical relief, the way
+		# a real map reads. (The old per-cell colour fills were pixelated blocks that fought the
+		# naturalistic terrain.) Each owner draws its own edge inset toward its land, so a shared
+		# border shows both kingdoms' colours as a twin frontier line.
+		var inset: float = 1.6
 		for gy in range(rows):
 			for gx in range(cols):
 				var owner: int = terr[gy * cols + gx]
 				if owner == 0:
 					continue   # neutral / sea / mountain
-				var is_border: bool = false
-				for d in [[1, 0], [-1, 0], [0, 1], [0, -1]]:
-					var nx: int = gx + d[0]
-					var ny: int = gy + d[1]
-					if nx < 0 or ny < 0 or nx >= cols or ny >= rows or terr[ny * cols + nx] != owner:
-						is_border = true
-						break
-				# Territory reads from a crisp coloured BORDER; the interior is left almost
-				# clear so the hand-drawn terrain shows through (the old wash muddied the map).
-				if not is_border:
-					continue
 				var col: Color = _faction_color(owner - 1)
-				col.a = 0.42
-				draw_rect(Rect2(gx * cw, gy * ch, cw + 1.0, ch + 1.0), col)
+				var x0: float = gx * cw
+				var y0: float = gy * ch
+				var x1: float = x0 + cw
+				var y1: float = y0 + ch
+				# For each of the 4 cell edges that faces a DIFFERENT owner, draw the boundary
+				# segment (inset toward this cell) over a dark casing for legibility.
+				# right
+				if gx + 1 >= cols or terr[gy * cols + gx + 1] != owner:
+					_frontier_seg(Vector2(x1 - inset, y0), Vector2(x1 - inset, y1), col)
+				# left
+				if gx - 1 < 0 or terr[gy * cols + gx - 1] != owner:
+					_frontier_seg(Vector2(x0 + inset, y0), Vector2(x0 + inset, y1), col)
+				# down
+				if gy + 1 >= rows or terr[(gy + 1) * cols + gx] != owner:
+					_frontier_seg(Vector2(x0, y1 - inset), Vector2(x1, y1 - inset), col)
+				# up
+				if gy - 1 < 0 or terr[(gy - 1) * cols + gx] != owner:
+					_frontier_seg(Vector2(x0, y0 + inset), Vector2(x1, y0 + inset), col)
 	# Faction name labels near each capital.
 	for f in _faction_list:
 		draw_string(ThemeDB.fallback_font, f["center_pos"] + Vector2(-40, -f["radius"] * 0.0 - 24),
 			f.get("name", ""), HORIZONTAL_ALIGNMENT_LEFT, -1, 11,
 			Color.from_string(f["color_hex"], Color.GRAY).lightened(0.35))
+
+# One frontier boundary segment: a dark casing under a coloured line, anti-aliased.
+func _frontier_seg(a: Vector2, b: Vector2, col: Color) -> void:
+	draw_line(a, b, Color(0.05, 0.05, 0.05, 0.45), 3.0, true)
+	draw_line(a, b, Color(col.r, col.g, col.b, 0.9), 1.8, true)
 
 func _faction_color(faction_id: int) -> Color:
 	if faction_id >= 0 and faction_id < WorldMapData.FACTION_COLORS.size():
