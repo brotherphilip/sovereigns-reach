@@ -2,6 +2,20 @@
 
 ---
 
+## 2026-06-23 — Completing an objective lands with a little fanfare (iter330)
+
+- **[Reward/Progression] An objective-complete flourish on the goal panel:** finishing a standing objective
+  (the early-to-mid game's "what next?" guidance — build a Hall, grow to 30, endure to Day N…) only pushed a
+  feed line and then silently swapped the panel to the next goal. Now the moment you complete one, the
+  objective panel flashes green and a bright **✓** pops in, rises, and fades, with an achievement chime — a
+  small but satisfying "done!" beat before it points you at the next goal. Wired via a new
+  `objective_completed` signal (emitted from `GameState`, an autoload, right before `objective_updated`
+  swaps the text). The green flash is a fading overlay rather than `modulate` (which can only *darken* a
+  dark panel). Verified by render (green panel + ✓ over the goal) and regression tests (TestObjectives
+  30/0, TestPhase1 69/0, TestSurvival 6/0).
+
+---
+
 ## 2026-06-23 — Finishing a building feels finished (iter329)
 
 - **[Feedback/Juice] A "construction complete" poof + chime when a building finishes:** placing a building

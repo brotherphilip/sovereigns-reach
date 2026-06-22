@@ -104,6 +104,7 @@ func _ready() -> void:
 	EventBus.gold_changed.connect(_on_gold_changed)
 	EventBus.milestone_earned.connect(_on_milestone_earned)
 	EventBus.objective_updated.connect(_on_objective_updated)
+	EventBus.objective_completed.connect(_on_objective_completed)
 	if TutorialSystem.has_signal("tutorial_step_changed"):
 		TutorialSystem.tutorial_step_changed.connect(_on_tutorial_step)
 	EventBus.blessing_bestowed.connect(func(_pid, _spent): show_notification(
@@ -171,6 +172,44 @@ func _on_objective_updated(index: int, total: int, text: String) -> void:
 		var cat: int = ObjectiveSystem.build_category_for(oid)
 		if cat >= 0:
 			_show_build_category(cat, true)  # pulse the tab — show the player it re-pointed
+
+func _on_objective_completed(_id: String, _text: String) -> void:
+	# A little "done!" beat on the objective panel (the feed already logs the text): a bright
+	# achievement chime, a green pulse over the panel, and a check-mark that pops in, rises, fades.
+	if _objective_panel == null:
+		return
+	AudioManager.play(AudioManager.SoundEvent.PRESTIGE_GAINED)
+	# A green wash that fades — modulate can't brighten a dark panel (it multiplies), so overlay it.
+	var flash := ColorRect.new()
+	flash.color = Color(0.42, 1.0, 0.48, 0.32)
+	flash.size = _objective_panel.size
+	flash.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_objective_panel.add_child(flash)
+	var ft := create_tween()
+	ft.tween_property(flash, "color:a", 0.0, 0.75)
+	ft.tween_callback(func() -> void:
+		if is_instance_valid(flash):
+			flash.queue_free())
+	var tick := Label.new()
+	tick.text = "✓"
+	tick.add_theme_font_size_override("font_size", 44)
+	tick.add_theme_color_override("font_color", Color(0.55, 1.0, 0.58))
+	tick.size = Vector2(60, 60)
+	tick.position = Vector2(78, 16)
+	tick.pivot_offset = Vector2(30, 30)
+	tick.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	tick.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	tick.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_objective_panel.add_child(tick)
+	tick.scale = Vector2(0.3, 0.3)
+	var tw := create_tween()
+	tw.tween_property(tick, "scale", Vector2(1.15, 1.15), 0.3).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.parallel().tween_property(tick, "position:y", 2.0, 0.95)
+	tw.tween_interval(0.25)
+	tw.tween_property(tick, "modulate:a", 0.0, 0.45)
+	tw.tween_callback(func() -> void:
+		if is_instance_valid(tick):
+			tick.queue_free())
 
 func _on_gold_changed(_player_id: int, old_amount: int, new_amount: int) -> void:
 	_refresh_top_bar()

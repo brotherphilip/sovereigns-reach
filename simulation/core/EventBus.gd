@@ -68,6 +68,9 @@ signal realm_notice(text: String, tone: String)
 signal plague_outbreak(player_id: int)
 # Standing objective changed (player's current goal). index/total for "(3/6)" display.
 signal objective_updated(index: int, total: int, text: String)
+# A specific objective was just COMPLETED (fires before objective_updated swaps to the next one) —
+# the cue for a little "✓" flourish + chime on the objective panel.
+signal objective_completed(id: String, text: String)
 # The player has ruled to Day 100 — twenty unbroken minutes, the loop's goal. Fired once.
 signal sovereign_reign_reached(day: int)
 # The player's derived feudal title rose (Reeve → … → King). Reaching King is the win.

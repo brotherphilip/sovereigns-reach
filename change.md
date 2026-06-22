@@ -157,6 +157,21 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 330 — 2026-06-23  (REWARD/PROGRESSION — objective-complete flourish on the goal panel)
+
+**Finding:** completing a standing objective (the "what next?" guidance arc) pushed a feed line then
+SILENTLY swapped the panel to the next goal — flat for a real progression beat.
+
+**Fix:** new `objective_completed(id, text)` signal emitted from GameState (an autoload → EventBus-safe,
+unlike the iter329 sim-RefCounted lesson) right before `objective_updated`. HUD `_on_objective_completed`:
+green flash overlay on the panel (a fading ColorRect — `modulate` can't brighten a dark panel, it
+multiplies) + a "✓" that pops/rises/fades + an achievement chime (PRESTIGE_GAINED). Dev hook SR_OBJDEMO.
+
+**Verified:** render shows the green panel + ✓ over the goal; TestObjectives 30/0, TestPhase1 69/0,
+TestSurvival 6/0 (the GameState emit runs in the 100-day path — no regression).
+
+---
+
 ## Iteration 329 — 2026-06-23  (FEEDBACK/JUICE — "construction complete" poof + chime)
 
 **Finding:** placing a building plays a sound, but FINISHING one (the payoff) was silent — `CitizenSystem`

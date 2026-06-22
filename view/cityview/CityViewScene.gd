@@ -372,6 +372,9 @@ func _build_scene() -> void:
 	# Dev hook: fire a "construction complete" poof over the keep (for capturing the build FX).
 	if OS.get_environment("SR_BUILDDEMO") != "":
 		_dev_build_demo()
+	# Dev hook: fire an objective-complete flourish on the HUD panel (for capturing it).
+	if OS.get_environment("SR_OBJDEMO") != "":
+		_dev_obj_demo()
 	# Dev hook: preview the shared end-game overlay (iter284). SR_GAMEOVER=victory → gold VICTORY
 	# panel, anything else → dark-red DEFEAT panel. Lets the city-view game-over be render-tested
 	# (mirrors the world map's SR_WINTEST).
@@ -1333,6 +1336,10 @@ func _dev_build_demo() -> void:
 	var fx = _world_root.get_node_or_null("BuildCompleteLayer")
 	if fx != null:
 		fx.dev_burst(_keep_x, _keep_y)
+
+func _dev_obj_demo() -> void:
+	await get_tree().create_timer(2.0).timeout
+	EventBus.objective_completed.emit("village_hall", "Found your seat — build a Village Hall")
 
 # A feudal promotion is the CORE long-term reward (Reeve → … → King). It used to pass as a 7-second
 # toast — the same weight as a weather note. Now each rung is a held, animated ENNOBLEMENT (shared with

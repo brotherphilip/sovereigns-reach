@@ -1506,6 +1506,7 @@ func simulate_tick(tick: int) -> void:
 			var obj: Dictionary = ObjectiveSystem.evaluate(players[0], world, cal_day)
 			for done_o in obj.get("newly_completed", []):
 				EventBus.realm_notice.emit("✓ Objective complete: " + String(done_o.get("text", "")), "good")
+				EventBus.objective_completed.emit(String(done_o.get("id", "")), String(done_o.get("text", "")))
 			if not obj.get("newly_completed", []).is_empty() or day == 1:
 				EventBus.objective_updated.emit(int(obj["index"]), int(obj["total"]), String(obj["text"]))
 
