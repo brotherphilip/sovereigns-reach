@@ -2,6 +2,16 @@
 
 ---
 
+## 2026-06-22 — The world map looks like a crafted map, not a data grid (iter314)
+
+- **[Visual] Strategic-map depth & atmosphere pass:** the world map now has a soft darkened frame (vignette) that
+  draws your eye to the heart of the realm, and the castles that mark each town stand up off the land — pointed
+  tower roofs, sunlit and shadowed faces, and a shadow grounding each keep — instead of sitting flat like coloured
+  stamps. Open plains were thinned of their speckled scatter so meadows read as meadows. First of seven cycles
+  devoted entirely to the main map.
+
+---
+
 ## 2026-06-22 — New random events keep each game fresh (iter313)
 
 - **[Content] Seven new world events:** a buried hoard of old coins, a craftsman defecting from a rival, a stray

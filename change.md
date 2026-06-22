@@ -157,6 +157,26 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 314 — 2026-06-22  (MAIN-MAP FOCUS loop 1/7 — strategic-map depth & atmosphere pass)
+
+First of the 7 main-map-only cycles. Rendered the world map (`SR_CLIMB=40`) and read it as a player: a flat,
+evenly-lit hex patchwork — castle glyphs floating on the terrain, plains peppered with measles-like scatter, no
+framing to focus the eye. Highest-impact single lever = a **depth & atmosphere pass** on `WorldMapView._draw`
+(view-only, no logic risk):
+- `_draw_vignette()` — screen-space edge darkening (4 gradient quads, corners darkest), drawn over the map but UNDER
+  the HUD/legend panels so they stay crisp. Frames the realm and gives the grid real depth.
+- `_draw_castle_icon` rebuilt for volume: a `_ground_shadow()` ellipse anchors each keep to the land; flanking towers
+  gained **pointed conical roofs** + shaded right faces + lit left edges; the central keep keeps crenellations + a
+  banner and gained windows. Hero icons now read as 3D keeps, not flat coloured boxes.
+- Plains terrain scatter thinned (`h&7` → `h&15`) so open ground reads as meadow rather than noise.
+
+Render-verified before/after (center crop): castles visibly grounded with pitched-roof towers, map framed and
+centre-weighted. Validated: WorldMapScene render boots clean; TestStrategicAI 91/0, TestKingClimb 2/0, TestFeudalRank
+19/0. NEXT main-map cycles (2/7…): sea/coast atmosphere, road/territory legibility, strategic feedback & first-visit
+onboarding.
+
+---
+
 ## Iteration 313 — 2026-06-22  (VARIETY — 7 new world events to break the optimal-play loop)
 
 Emergent-gameplay half of the directive. The `WorldEventSystem` is data-driven ("content compounds"), so added 7
