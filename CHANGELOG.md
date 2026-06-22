@@ -2,6 +2,17 @@
 
 ---
 
+## 2026-06-22 — Roads on the world map read like worn trade routes (iter316)
+
+- **[Visual] Roads restyled as faint earthen trade routes (player steer):** asked whether roads were even needed,
+  the answer is yes — the road lines are the visual form of the campaign network (which cities connect, where your
+  armies can march, and which enemy cities you can strike). So they stay, but they no longer look like bright
+  painted curves fighting the new realistic terrain. They're now subtle dashed, dusty earthen tracks worn into the
+  land — a gentle arc between cities over a soft groove-shadow — which sits naturally on the relief while still
+  tracing the march/attack network at a glance.
+
+---
+
 ## 2026-06-22 — The world map is now a realistic relief map, not a board game (iter315)
 
 - **[Visual] World-map realism overhaul (player steer: "make it much more realistic"):** the strategic map no

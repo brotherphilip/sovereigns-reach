@@ -157,6 +157,29 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 316 — 2026-06-22  (MAIN-MAP FOCUS loop 3/7 — roads restyled as realistic trade routes)
+
+**USER QUESTION (mid-loop):** *"there is no real need for roads right? in the map"* — verified against the code
+before answering. Roads are NOT decorative: `WorldMapData._build_road_network` builds the road MST **and** each
+city's `connected_to` list from the same edges, and that graph drives two live mechanics — army marching
+(`CampaignMap.bfs_path` does a BFS strictly over `connected_to`; unconnected = unreachable) and legal attack
+targets (`frontier_targets` → `neighbor_ids` → `connected_to`). So the road lines are the player's only at-a-glance
+read of the campaign movement/attack network. (March *time* is straight-line distance ÷ `MARCH_SPEED_PX`, so roads
+don't reroute travel — but adjacency/reachability is entirely the road graph.) Presented the finding + options;
+**user chose: keep the function, restyle to realistic routes.**
+
+`_draw_roads` reworked (view-only): bright tan casing+fill curves → faint **earthen trade tracks** — a gentle
+quadratic-Bézier arc between cities (sampled smooth, no midpoint kink) drawn as a short-dashed dusty line
+(`_ROAD_DUST`, 1.4px) over a soft groove-shadow (`_ROAD_SHADOW`), via a new arc-length `_draw_dashed_route` walker
+whose dash phase carries across segments so the dashing stays even around the curve. Removed the dead `ROAD_COLOR`
+const. The tracks now sit naturally on the relief and stay visually distinct from the bold political frontier lines.
+
+Render-verified on Xvfb (seed 99 at zoom 1.0/1.7/2.0): routes read as a connecting network at every zoom, subtle
+but legible, clearly not the same as the kingdom borders. Validated: clean parse; TestStrategicAI 91/0 (logic
+untouched). NEXT main-map cycles (4/7…): army/city-icon fit on the relief, first-visit onboarding.
+
+---
+
 ## Iteration 315 — 2026-06-22  (MAIN-MAP FOCUS loop 2/7 — world-map REALISM overhaul: relief raster)
 
 **USER STEER (overrides the planned cycle):** *"I actually hate the visual look.. make it much more realistic."*

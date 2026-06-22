@@ -452,23 +452,54 @@ func _faction_color(faction_id: int) -> Color:
 
 # ── Roads ─────────────────────────────────────────────────────────────────────
 
-const ROAD_COLOR: Color = Color(0.55, 0.40, 0.25, 0.70)
-# Overhaul iter6: roads as a legible path — a dark casing under a lighter packed-earth line, so
-# the trade/march network reads clearly across the realm (was a near-invisible 1.5px faint line).
-const _ROAD_CASING: Color = Color(0.16, 0.11, 0.06, 0.55)
-const _ROAD_FILL: Color   = Color(0.74, 0.60, 0.37, 0.92)
+# iter316 (user steer "restyle roads as realistic routes"): the roads ARE the strategic
+# adjacency graph (connected_to → bfs_path marching + frontier_targets), so they stay — but
+# they now read like faint earthen trade tracks worn into the land, not bright painted curves.
+# A short-dashed dusty line over a soft shadow: the cartographic convention for a track/route,
+# and subtle enough to sit naturally on the new relief while still tracing the march network.
+const _ROAD_DUST: Color   = Color(0.46, 0.37, 0.25, 0.62)   # worn earthen track
+const _ROAD_SHADOW: Color = Color(0.10, 0.07, 0.04, 0.30)   # soft groove beneath it
+const _ROAD_DASH: float   = 6.0
+const _ROAD_GAP: float    = 4.5
 
 func _draw_roads() -> void:
 	for r in _road_list:
 		var fp: Vector2 = r["from_pos"]
 		var tp: Vector2 = r["to_pos"]
-		# Slight curve via perpendicular midpoint offset
-		var mid: Vector2 = (fp + tp) * 0.5
-		var perp: Vector2 = (tp - fp).orthogonal().normalized() * 14.0
-		mid += perp
-		var pts: PackedVector2Array = PackedVector2Array([fp, mid, tp])
-		draw_polyline(pts, _ROAD_CASING, 3.4)   # dark casing
-		draw_polyline(pts, _ROAD_FILL, 1.7)     # packed-earth road on top
+		# Gentle arc via a quadratic Bézier (perpendicular control offset), sampled smooth so the
+		# track curves instead of kinking at the midpoint.
+		var ctrl: Vector2 = (fp + tp) * 0.5 + (tp - fp).orthogonal().normalized() * 11.0
+		var pts := PackedVector2Array()
+		const STEPS: int = 16
+		for i in range(STEPS + 1):
+			var t: float = float(i) / float(STEPS)
+			var omt: float = 1.0 - t
+			pts.append(omt * omt * fp + 2.0 * omt * t * ctrl + t * t * tp)
+		_draw_dashed_route(pts)
+
+# Walk a polyline by arc length, painting dashes (with gaps) as an earthen track over a soft
+# shadow. The on/off phase carries across segments so the dashing stays even around the curve.
+func _draw_dashed_route(pts: PackedVector2Array) -> void:
+	var phase: float = 0.0      # distance into the current dash (drawing) or gap
+	var drawing: bool = true
+	for i in range(pts.size() - 1):
+		var a: Vector2 = pts[i]
+		var b: Vector2 = pts[i + 1]
+		var seg: float = a.distance_to(b)
+		var pos: float = 0.0
+		while pos < seg:
+			var span: float = (_ROAD_DASH if drawing else _ROAD_GAP) - phase
+			var step: float = minf(span, seg - pos)
+			if drawing:
+				var p0: Vector2 = a.lerp(b, pos / seg)
+				var p1: Vector2 = a.lerp(b, (pos + step) / seg)
+				draw_line(p0 + Vector2(0.5, 0.7), p1 + Vector2(0.5, 0.7), _ROAD_SHADOW, 2.2, true)
+				draw_line(p0, p1, _ROAD_DUST, 1.4, true)
+			pos += step
+			phase += step
+			if phase >= (_ROAD_DASH if drawing else _ROAD_GAP) - 0.001:
+				phase = 0.0
+				drawing = not drawing
 
 # ── Resource deposits ─────────────────────────────────────────────────────────
 
