@@ -123,8 +123,35 @@ func _draw() -> void:
 	_draw_armies()
 	# Reset to screen space for the fixed UI overlay (Kingdoms legend + zoom indicator).
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+	# Atmospheric edge framing — drawn over the map but UNDER the UI panels so the realm
+	# reads as a crafted cartographic artifact with depth, not a flat data grid (iter314).
+	_draw_vignette()
 	_draw_legend()
 	_draw_zoom_indicator()
+
+# Soft edge-darkening that frames the map and gives the flat hex grid a sense of depth.
+# Four gradient bands (opaque at the rim, transparent inward); corners double up = darkest,
+# which is exactly the falloff a vignette wants. Cheap: 4 colored quads, screen space.
+func _draw_vignette() -> void:
+	var w: float = size.x
+	var h: float = size.y
+	if w <= 0.0 or h <= 0.0:
+		return
+	var band: float = minf(w, h) * 0.24      # how far inward the darkening reaches
+	var edge := Color(0.02, 0.03, 0.015, 0.55)
+	var clear := Color(0.02, 0.03, 0.015, 0.0)
+	# Top
+	draw_polygon(PackedVector2Array([Vector2(0, 0), Vector2(w, 0), Vector2(w, band), Vector2(0, band)]),
+		PackedColorArray([edge, edge, clear, clear]))
+	# Bottom
+	draw_polygon(PackedVector2Array([Vector2(0, h - band), Vector2(w, h - band), Vector2(w, h), Vector2(0, h)]),
+		PackedColorArray([clear, clear, edge, edge]))
+	# Left
+	draw_polygon(PackedVector2Array([Vector2(0, 0), Vector2(band, 0), Vector2(band, h), Vector2(0, h)]),
+		PackedColorArray([edge, clear, clear, edge]))
+	# Right
+	draw_polygon(PackedVector2Array([Vector2(w - band, 0), Vector2(w, 0), Vector2(w, h), Vector2(w - band, h)]),
+		PackedColorArray([clear, edge, edge, clear]))
 
 # Small screen-space readout of the current zoom + the controls (so the iter7 zoom/pan is
 # discoverable). Bottom-left of the map, outlined for legibility (overhaul iter10).
@@ -277,9 +304,10 @@ func _draw_background() -> void:
 					elif (h & 3) == 1:
 						_draw_shrub(cx + jx, cy + jy, s)
 				WorldMapData.B_PLAINS:
-					if (h & 7) == 0:
+					# Sparser scatter on open plains so they read as meadow, not measles (iter314).
+					if (h & 15) == 0:
 						_draw_tree_cluster(cx + jx, cy + jy, s * 0.8, h)
-					elif (h & 7) == 1:
+					elif (h & 15) == 1:
 						_draw_shrub(cx + jx, cy + jy, s * 0.8)
 
 # A little broadleaf copse: a few overlapping rounded canopies on a trunk, with a soft shadow.
@@ -610,41 +638,66 @@ func _draw_legend() -> void:
 			HORIZONTAL_ALIGNMENT_LEFT, -1, 9, txt_col)
 		y += row_h
 
+# A small flattened ground-shadow ellipse, so an icon sits ON the terrain instead of
+# floating over it (depth pass, iter314). Centred at c with radii rx,ry.
+func _ground_shadow(c: Vector2, rx: float, ry: float) -> void:
+	var pts := PackedVector2Array()
+	for i in range(16):
+		var a: float = float(i) / 16.0 * TAU
+		pts.append(c + Vector2(cos(a) * rx, sin(a) * ry))
+	draw_colored_polygon(pts, Color(0.0, 0.0, 0.0, 0.22))
+
 func _draw_castle_icon(p: Vector2, faction_col: Color, tier: int, is_player: bool) -> void:
 	var scale: float = 11.0 + tier * 5.0  # bigger castles (overhaul iter7): tier 0=11..3=26
 	var body_col: Color = faction_col if not is_player else Color(0.91, 0.76, 0.26)
 	var dark_col: Color = body_col.darkened(0.35)
+	var roof_col: Color = body_col.darkened(0.5)
+	var lit_col: Color  = body_col.lightened(0.18)
 
-	# Keep body (rectangle)
 	var bw: float = scale * 1.4
 	var bh: float = scale * 1.2
-	draw_rect(Rect2(p.x - bw * 0.5, p.y - bh, bw, bh), body_col)
-	draw_rect(Rect2(p.x - bw * 0.5, p.y - bh, bw, bh), dark_col, false, 1.0)
-
-	# Two flanking towers
 	var tw: float = scale * 0.7
 	var th: float = scale * 1.5
+
+	# Ground shadow anchors the keep to the land (light from the upper-left → shadow lower-right).
+	_ground_shadow(p + Vector2(scale * 0.12, scale * 0.05), bw * 0.85, scale * 0.32)
+
+	# Flanking towers with pointed (conical) roofs — a far prettier silhouette than flat merlon
+	# boxes, and the right-side shade gives each cylinder a sunlit-from-upper-left read.
 	for side in [-1, 1]:
 		var tx: float = p.x + side * (bw * 0.5 + tw * 0.3) - tw * 0.5
 		draw_rect(Rect2(tx, p.y - th, tw, th), body_col)
+		draw_rect(Rect2(tx + tw * 0.58, p.y - th, tw * 0.42, th), Color(0, 0, 0, 0.20))   # shaded face
+		draw_rect(Rect2(tx, p.y - th, tw * 0.16, th), lit_col)                            # lit edge
 		draw_rect(Rect2(tx, p.y - th, tw, th), dark_col, false, 0.8)
-		# Battlements (3 merlons)
-		var mw: float = tw / 3.5
-		for m in range(3):
-			var mx: float = tx + float(m) * (tw / 3.0) + mw * 0.15
-			draw_rect(Rect2(mx, p.y - th - scale * 0.35, mw, scale * 0.35),
-				body_col.lightened(0.15))
+		var rt := Vector2(tx + tw * 0.5, p.y - th - scale * 0.6)                          # roof peak
+		draw_colored_polygon(PackedVector2Array([
+			rt, Vector2(tx - tw * 0.14, p.y - th), Vector2(tx + tw * 1.14, p.y - th)]), roof_col)
+		draw_line(rt, Vector2(tx - tw * 0.14, p.y - th), roof_col.lightened(0.28), 1.0)   # lit roof edge
 
-	# Gate arch (darker circle bottom of keep body)
-	draw_arc(p + Vector2(0, -scale * 0.4), scale * 0.35,
-		PI, TAU, 8, dark_col.darkened(0.3), 2.0)
+	# Central keep over the towers, with a lit left edge + shaded right for volume.
+	var bx: float = p.x - bw * 0.5
+	draw_rect(Rect2(bx, p.y - bh, bw, bh), body_col)
+	draw_rect(Rect2(bx + bw * 0.62, p.y - bh, bw * 0.38, bh), Color(0, 0, 0, 0.20))       # shaded face
+	draw_rect(Rect2(bx, p.y - bh, bw * 0.10, bh), lit_col)                                # lit edge
+	draw_rect(Rect2(bx, p.y - bh, bw, bh), dark_col, false, 1.0)
 
-	# Flag on tallest tower
-	var flag_x: float = p.x + bw * 0.5 + tw * 0.35
-	var flag_top: Vector2 = Vector2(flag_x, p.y - th - scale * 0.8)
-	draw_line(Vector2(flag_x, p.y - th), flag_top, dark_col, 1.5)
+	# Keep crenellations (merlons) along the top.
+	var km: float = bw / 7.0
+	for m in range(4):
+		var mx: float = bx + float(m) * (bw / 3.6) + km * 0.2
+		draw_rect(Rect2(mx, p.y - bh - scale * 0.3, km, scale * 0.3), lit_col)
+		draw_rect(Rect2(mx, p.y - bh - scale * 0.3, km, scale * 0.3), dark_col, false, 0.6)
+
+	# Gate arch + two narrow windows give the keep face some read of scale.
+	draw_arc(p + Vector2(0, -scale * 0.34), scale * 0.30, PI, TAU, 8, dark_col.darkened(0.3), 2.0)
+	draw_rect(Rect2(p.x - bw * 0.24, p.y - bh * 0.72, scale * 0.12, scale * 0.30), dark_col.darkened(0.25))
+	draw_rect(Rect2(p.x + bw * 0.12, p.y - bh * 0.72, scale * 0.12, scale * 0.30), dark_col.darkened(0.25))
+
+	# Banner flying from the keep's centre.
+	var flag_x: float = p.x + bw * 0.05
+	var flag_top: Vector2 = Vector2(flag_x, p.y - bh - scale * 0.85)
+	draw_line(Vector2(flag_x, p.y - bh - scale * 0.28), flag_top, dark_col, 1.5)
 	draw_colored_polygon(PackedVector2Array([
-		flag_top,
-		flag_top + Vector2(scale * 0.7, scale * 0.25),
-		flag_top + Vector2(0, scale * 0.5),
-	]), body_col.lightened(0.2))
+		flag_top, flag_top + Vector2(scale * 0.7, scale * 0.22), flag_top + Vector2(0, scale * 0.45),
+	]), lit_col)
