@@ -289,6 +289,10 @@ func _build_scene() -> void:
 	motes_layer.z_index = 1
 	_world_root.add_child(motes_layer)
 	motes_layer.set_camera(_camera)
+	# "Construction complete!" poof over a freshly-finished building (self-driven from EventBus).
+	var build_fx := preload("res://view/micro/BuildCompleteLayer.gd").new()
+	build_fx.name = "BuildCompleteLayer"
+	_world_root.add_child(build_fx)
 
 	# Screen-space rain (falls across the view during RAIN/STORM weather). Its own CanvasLayer
 	# (layer 9) so it sits over the world but under the HUD (layer 10).
@@ -365,6 +369,9 @@ func _build_scene() -> void:
 	# Dev hook: preview the feudal rank-up celebration (SR_PROMODEMO=<Title>, default Baron).
 	if OS.get_environment("SR_PROMODEMO") != "":
 		_dev_promo_preview(OS.get_environment("SR_PROMODEMO"))
+	# Dev hook: fire a "construction complete" poof over the keep (for capturing the build FX).
+	if OS.get_environment("SR_BUILDDEMO") != "":
+		_dev_build_demo()
 	# Dev hook: preview the shared end-game overlay (iter284). SR_GAMEOVER=victory → gold VICTORY
 	# panel, anything else → dark-red DEFEAT panel. Lets the city-view game-over be render-tested
 	# (mirrors the world map's SR_WINTEST).
@@ -1320,6 +1327,12 @@ func _dev_promo_preview(which: String) -> void:
 		if String(FR.TITLES[i]["name"]) == which:
 			idx = i
 	_show_promotion_celebration(idx, FR.title_name(idx))
+
+func _dev_build_demo() -> void:
+	await get_tree().create_timer(2.0).timeout
+	var fx = _world_root.get_node_or_null("BuildCompleteLayer")
+	if fx != null:
+		fx.dev_burst(_keep_x, _keep_y)
 
 # A feudal promotion is the CORE long-term reward (Reeve → … → King). It used to pass as a 7-second
 # toast — the same weight as a weather note. Now each rung is a held, animated ENNOBLEMENT (shared with

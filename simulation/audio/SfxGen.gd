@@ -10,6 +10,7 @@ const MIX: int = 22050   # plenty for short SFX; keeps buffers tiny
 static func for_event(name: String) -> AudioStreamWAV:
 	match name:
 		"BUILDING_PLACED":     return _wood_thock()
+		"BUILDING_COMPLETED":  return _chime()
 		"BUILDING_DEMOLISHED": return _crumble()
 		"UNIT_HIT":            return _tink()
 		"UNIT_DEATH":          return _thud()

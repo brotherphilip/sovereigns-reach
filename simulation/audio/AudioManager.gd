@@ -14,7 +14,8 @@ enum SoundEvent {
 	UI_CLICK,         # keep existing values stable
 	WOOD_CHOP,        # axe biting a tree
 	HAMMER_HIT,       # builder's hammer on timber
-	TREE_FALL         # appended last — a felled tree slamming the ground (played positionally)
+	TREE_FALL,        # a felled tree slamming the ground (played positionally)
+	BUILDING_COMPLETED # appended last — construction finished (a soft completion chime)
 }
 
 const SfxGen = preload("res://simulation/audio/SfxGen.gd")
@@ -26,9 +27,9 @@ const _GAIN_DB: Dictionary = {
 	"BUILDING_PLACED": -5.0, "BUILDING_DEMOLISHED": -6.0, "WEATHER_CHANGED": -9.0,
 	"SIEGE_INCOMING": -3.0, "POPULARITY_CRITICAL": -4.0, "PRESTIGE_GAINED": -6.0,
 	"EDICT_ACTIVATED": -5.0, "UI_CLICK": -16.0, "WOOD_CHOP": -9.0, "HAMMER_HIT": -10.0,
-	"TREE_FALL": -6.0,
+	"TREE_FALL": -6.0, "BUILDING_COMPLETED": -6.0,
 }
-const _MIN_GAP: Dictionary = {"UNIT_HIT": 0.12, "UNIT_DEATH": 0.10, "UNIT_KILLED": 0.10, "UI_CLICK": 0.04, "WOOD_CHOP": 0.14}
+const _MIN_GAP: Dictionary = {"UNIT_HIT": 0.12, "UNIT_DEATH": 0.10, "UNIT_KILLED": 0.10, "UI_CLICK": 0.04, "WOOD_CHOP": 0.14, "BUILDING_COMPLETED": 0.18}
 var _last_play: Dictionary = {}
 
 func play(event: SoundEvent) -> void:

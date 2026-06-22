@@ -157,6 +157,28 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 329 — 2026-06-23  (FEEDBACK/JUICE — "construction complete" poof + chime)
+
+**Finding:** placing a building plays a sound, but FINISHING one (the payoff) was silent — `CitizenSystem`
+just sets `b["built"]=true` with no event/feedback. The most frequent missing-juice moment in a builder.
+
+**Fix:** new `view/micro/BuildCompleteLayer.gd` — a brief golden ground-ring pulse + dust + rising sparks
+over a freshly-finished building, plus a completion chime (`AudioManager` BUILDING_COMPLETED → `_chime`;
+gain -6, min_gap 0.18 so flurries don't machine-gun). Burst ~1s; layer idle when none active.
+
+**LESSON (important — cost me a regression):** I first emitted `EventBus.building_completed` from
+CitizenSystem. That broke TestWorkers/TestEconomy with `Identifier not found: EventBus` — the SAME
+`--script`-mode autoload-resolution quirk as the CommandQueue issue: a plain RefCounted sim script the
+tests preload can't resolve an autoload global at compile time. **Don't reference EventBus/autoloads from
+sim RefCounted scripts.** Reverted to VIEW-side detection: BuildCompleteLayer polls the player's buildings
+(~5×/sec) for a `built` transition (priming on first scan so pre-built ones don't poof). Saved to memory.
+
+**Verified:** isolated render shows the gold poof (autoplay also fires them as buildings complete; the
+cool-blue rings nearby are a pre-existing CitizenLayer halo, not mine). EventBus/CitizenSystem fully
+reverted (0 diff); TestWorkers 21/0, TestEconomy 18/0, TestAudio 45/0, TestPhase4 60/0.
+
+---
+
 ## Iteration 328 — 2026-06-23  (REWARD/PROGRESSION — rank-up is now a celebratory ennoblement beat)
 
 **Finding (carried from iter327):** the feudal climb (Reeve→…→King) is the game's CENTRAL long-term goal,

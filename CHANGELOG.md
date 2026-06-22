@@ -2,6 +2,22 @@
 
 ---
 
+## 2026-06-23 — Finishing a building feels finished (iter329)
+
+- **[Feedback/Juice] A "construction complete" poof + chime when a building finishes:** placing a building
+  had a sound, but *finishing* one — the actual payoff — passed in silence (the sim just flipped the
+  building to `built`). Now the moment a building completes, a brief golden ground-ring pulses outward with
+  a little dust puff and a few rising sparks (new `BuildCompleteLayer`), and a soft completion chime plays
+  (`AudioManager` BUILDING_COMPLETED → a bright rising tone). Frequent-but-subtle: the burst lives ~1s and
+  the chime is throttled so a flurry of completions doesn't machine-gun. Detection is **view-side on
+  purpose** — it watches the player's buildings for one flipping to `built` rather than having the
+  simulation emit a signal, because `CitizenSystem` (where construction finishes) is a plain RefCounted the
+  headless tests preload, and referencing an autoload like `EventBus` from it fails to compile in
+  `--script` mode. So the sim stays autoload-free and the view does the watching. Verified by render (gold
+  poof at a finished seat) and regression tests (TestWorkers 21/0, TestEconomy 18/0, TestAudio 45/0).
+
+---
+
 ## 2026-06-23 — Rising in rank is finally a moment worth savouring (iter328)
 
 - **[Reward/Progression] A feudal promotion is now a held, animated ennoblement — not a 7-second toast:**
