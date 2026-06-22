@@ -15,6 +15,21 @@ func _ready() -> void:
 	_build_ui()
 	# Reset any leftover simulation state from a previous game
 	SimulationClock.set_speed(SimulationClock.SPEED_PAUSED)
+	# Dev hook: render for SR_SHOT_DELAY seconds, save a PNG to SR_SHOT, then quit (so the title
+	# screen — the player's first impression — can be render-tested like the other scenes).
+	if OS.get_environment("SR_SHOT") != "":
+		_dev_screenshot(OS.get_environment("SR_SHOT"))
+
+func _dev_screenshot(path: String) -> void:
+	var delay: float = 3.0
+	if OS.get_environment("SR_SHOT_DELAY") != "":
+		delay = float(OS.get_environment("SR_SHOT_DELAY"))
+	await get_tree().create_timer(delay).timeout
+	await RenderingServer.frame_post_draw
+	var img: Image = get_viewport().get_texture().get_image()
+	img.save_png(path)
+	print("[MainMenu] screenshot saved: %s" % path)
+	get_tree().quit()
 
 func _process(delta: float) -> void:
 	# Gentle gold "breathing" shimmer on the title for a touch of life.
@@ -445,7 +460,15 @@ class _MenuBG extends Node2D:
 			_NightFestival.new(),
 			_SiegeAtDusk.new(),
 		]
-		_scenes.shuffle()
+		# Dev hook: SR_MENUSCENE=<index> pins ONE backdrop (no shuffle/cycle) so each title scene
+		# can be render-tested in isolation (0 DawnKeep, 1 VillageWakes, 2 MarketDay, 3 HarvestFields,
+		# 4 NightFestival, 5 SiegeAtDusk).
+		var _force: String = OS.get_environment("SR_MENUSCENE")
+		if _force != "":
+			var fi: int = clampi(int(_force), 0, _scenes.size() - 1)
+			_scenes = [_scenes[fi]]
+		else:
+			_scenes.shuffle()
 		for i in _scenes.size():
 			var s = _scenes[i]
 			# Give each scene a unique slow Ken Burns push (always zoomed in a

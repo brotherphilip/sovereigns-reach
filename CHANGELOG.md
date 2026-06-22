@@ -2,6 +2,22 @@
 
 ---
 
+## 2026-06-23 — The title screen is render-testable (and confirmed first-class) (iter335)
+
+- **[Dev/Verification] Screenshot hooks for the main menu — the one scene that couldn't be render-tested:**
+  every gameplay scene had an `SR_SHOT` capture hook, but the title screen (the player's *first impression*)
+  did not, so it had never been verified in this loop. Added `SR_SHOT`/`SR_SHOT_DELAY` (render → save PNG →
+  quit) plus `SR_MENUSCENE=<index>` to pin any one of the six cinematic backdrops for isolated capture.
+- **[Finding] The old Tier-4 title-screen critique is obsolete.** Rendered the menu and each backdrop: it's
+  a polished, cross-fading cinematic slideshow — DawnKeep, VillageWakes, MarketDay, HarvestFields,
+  NightFestival (haloed moon, drifting paper lanterns, organic fireworks with trails/gravity), SiegeAtDusk
+  (fiery sunset, crenellated wall with braziers, a banner army + catapult and arcing embers) — over a gold
+  crest, a clear button hierarchy (New Game dominant, Quit recessed), and a proper difficulty cycler. No
+  redesign needed; the "crude lanterns / debug-spinner firework / no hierarchy" notes describe a much older
+  build. No player-facing change this pass — verification + the testing hook for future regressions.
+
+---
+
 ## 2026-06-23 — Days-of-food is now always on screen, with a famine warning (iter334)
 
 - **[Clarity/Survival] "Food · Nd" under the food stock, colour-coded:** starvation is the single most

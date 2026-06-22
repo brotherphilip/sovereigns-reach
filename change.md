@@ -157,6 +157,24 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 335 — 2026-06-23  (VERIFICATION/INFRA — title screen render-testable; confirmed first-class)
+
+**Playtest target: the title screen (first impression, never render-tested this loop).** It had NO SR_SHOT
+hook (the menu just sat waiting for input → timed out). Added `SR_SHOT`/`SR_SHOT_DELAY` + `SR_MENUSCENE=<idx>`
+(pin one of 6 backdrops) to MainMenuScene so it can finally be captured.
+
+**Finding:** the title screen is EXCELLENT and the phase-plan Tier-4 critique is obsolete. It's a cross-fading
+cinematic slideshow (Ken Burns) of 6 scenes — DawnKeep, VillageWakes, MarketDay, HarvestFields, NightFestival
+(haloed moon + drifting lanterns + organic fireworks w/ trails+gravity), SiegeAtDusk (sunset, crenellated wall
++ braziers, banner army + catapult + arcing embers) — with a gold crest, clear button hierarchy (New Game
+dominant / Quit recessed), and a proper ◄ Normal ► difficulty cycler. Even the firework the critique called a
+"debug spinner" is well-made (26 jittered sparks, varied reach/size/fade, gravity sag). No redesign needed.
+
+**Honest note:** no player-facing change this pass — the value is the render-testability hook + confirming a
+key screen is solid. Several other phase-plan Tier-0..4 items are also long-since fixed; phase plan.md is stale.
+
+---
+
 ## Iteration 334 — 2026-06-23  (CLARITY/SURVIVAL — always-visible days-of-food + famine warning)
 
 **Playtest (combat first):** rendered a live siege (SR_SIEGEDEMO) — combat feedback infra is solid
