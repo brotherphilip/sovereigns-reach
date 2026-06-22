@@ -157,6 +157,35 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 317 — 2026-06-22  (MAIN-MAP FOCUS loop 4/7 — icon coherence + de-clutter: "hodgepodge / noisy mess")
+
+**USER STEER:** *"work on variety and aesthetic appearance. because it looks like a hodgepodge of opshop finds
+and just noisy mess."* Diagnosis: the noise was all in the map overlay, not the (new) terrain — every one of the
+80 cities drew the SAME elaborate 3D castle + a development-pip row + an always-on `⚔ N` garrison label, and
+resource deposits were four unrelated little glyphs (crossed axe / stone pile / crossed pickaxes / wheat sheaf).
+Many visual languages stacked at full density = the hodgepodge.
+
+Fixes (all view-only in `WorldMapView`):
+- **Coherent settlement family with a size hierarchy** — new `_settlement_rank` (hamlet/town/city/capital from
+  `is_capital` + tier/development) drives `_draw_settlement`: a small thatched `_draw_hut` for hamlets, and a
+  scalable `_draw_keep` for town (no towers) / city (two towers) / capital (towers + banner). The elaborate
+  banner keep now appears only on the ~4 capitals, not all 80 cities. All icons share ONE flat NW-lit language
+  (matching the relief's sun), replacing the old `_draw_castle_icon`.
+- **De-cluttered the text** — removed the always-on development pips (`_draw_development_pips` deleted; size
+  encodes development now), gated the `⚔ garrison` label to hover / selected / player-owned cities only, and
+  scaled place-name font + brightness by rank so hamlets recede and capitals/your holdings read boldest.
+- **Unified resource deposits** — the four glyphs collapsed into one quiet uniform token (`_deposit_color` +
+  a small muted disc with a darker rim), deliberately subtler than the settlements (background info, not the
+  headline).
+- **Snow cleanup** — tightened the relief snow to the mountain-dome CORE and lowered the cap (0.9→0.72) so peaks
+  read as snow-dusted rock instead of the blinding cloud-blobs that had become the loudest thing on the map.
+
+Render-verified on Xvfb (seed 99 @ zoom 1.0 / 1.7 / 3.0): clear hierarchy, far less clutter, one coherent icon
+language, capitals legible, deposits quiet. Validated: clean parse; TestStrategicAI 91/0 (logic untouched).
+NEXT main-map cycles (5/7…): army-marker fit in the new icon family, first-visit onboarding.
+
+---
+
 ## Iteration 316 — 2026-06-22  (MAIN-MAP FOCUS loop 3/7 — roads restyled as realistic trade routes)
 
 **USER QUESTION (mid-loop):** *"there is no real need for roads right? in the map"* — verified against the code

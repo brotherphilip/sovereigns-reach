@@ -2,6 +2,22 @@
 
 ---
 
+## 2026-06-22 — World-map icons unified into one coherent set, far less clutter (iter317)
+
+- **[Visual] Settlement & marker coherence pass (player steer: "looks like a hodgepodge of opshop finds
+  and a noisy mess"):** the map used to stamp the *same* elaborate castle on all 80 cities, each with a
+  development-pip row and an always-on "⚔ garrison" label, plus four unrelated little resource glyphs
+  (crossed axe / stone pile / pickaxes / wheat sheaf) — many styles, maximum clutter. Now there's a single
+  coherent settlement-symbol family with a real **size hierarchy**: hamlets are a small thatched hut, towns a
+  modest keep, cities a towered keep, and the elaborate banner-flying keep is **reserved for the few capitals**
+  instead of every village. Everything is lit from the upper-left to match the terrain's sun. Per-city text
+  noise is gone — development pips removed (settlement size shows it now), garrison shown only on hover, on the
+  selected city, or your own holdings, and place-names scale in prominence by rank so minor places recede. The
+  resource deposits are now one quiet, uniform token keyed by colour. Mountain snow was also tightened to the
+  peak cores so it reads as snow-dusted rock rather than a blinding cloud-blob.
+
+---
+
 ## 2026-06-22 — Roads on the world map read like worn trade routes (iter316)
 
 - **[Visual] Roads restyled as faint earthen trade routes (player steer):** asked whether roads were even needed,

@@ -364,9 +364,10 @@ func _build_relief_texture() -> void:
 					bl = lerpf(bl, _SHORE_WET.b, shore * 0.6)
 				# Snow caps the peaks. Blended into the base BEFORE hillshading so snowy slopes
 				# still catch sun/shadow (a flat white lerp after shading reads as a cloud blob).
-				# Sampled from the mountain dome so snow sits on the bulged peaks; cap at 0.9 so a
-				# little rock shows through and the cap never blows out to pure white.
-				var snow: float = clampf((_bilin(dome, cols, rows, gxf, gyf) - 0.30) * 2.4, 0.0, 0.9)
+				# Sampled from the mountain dome so snow sits on the bulged peaks. Tightened to the
+				# dome CORE (higher threshold) and capped lower so caps read as snow-dusted rock,
+				# not blinding cloud-blobs spread across the range (iter317 aesthetic cleanup).
+				var snow: float = clampf((_bilin(dome, cols, rows, gxf, gyf) - 0.42) * 3.0, 0.0, 0.72)
 				if snow > 0.0:
 					r = lerpf(r, _SNOW.r, snow); g = lerpf(g, _SNOW.g, snow); bl = lerpf(bl, _SNOW.b, snow)
 				# Hillshade from the (heavily-smoothed) height gradient under the NW sun.
@@ -503,86 +504,91 @@ func _draw_dashed_route(pts: PackedVector2Array) -> void:
 
 # ── Resource deposits ─────────────────────────────────────────────────────────
 
+# iter317: the four deposit glyphs (crossed axe / stone pile / pickaxes / wheat sheaf) were
+# four unrelated little drawings = visual hodgepodge. Replaced with ONE coherent token — a small
+# parchment disc with a coloured rim + centre keyed to the resource — so they read as a quiet,
+# uniform set instead of a noisy jumble. Colour alone distinguishes type; the marker is identical.
+func _deposit_color(t: String) -> Color:
+	match t:
+		"wood":  return Color(0.42, 0.30, 0.16)   # timber brown
+		"stone": return Color(0.52, 0.52, 0.54)   # quarry grey
+		"iron":  return Color(0.44, 0.49, 0.60)   # ore steel-blue
+		"food":  return Color(0.74, 0.60, 0.22)   # grain gold
+	return Color(0.6, 0.6, 0.6)
+
 func _draw_resource_deposits() -> void:
+	# Quiet, uniform markers: a small muted disc keyed to the resource colour. Deliberately
+	# subtler than the settlements — deposits are background strategic info, not the headline.
 	for d in _deposit_list:
-		var p: Vector2  = d["pos"]
-		var t: String   = d["type"]
-		match t:
-			"wood":  _draw_wood_icon(p)
-			"stone": _draw_stone_icon(p)
-			"iron":  _draw_iron_icon(p)
-			"food":  _draw_food_icon(p)
-
-func _draw_wood_icon(p: Vector2) -> void:
-	# Crossed axe — two diagonal lines
-	var col := Color(0.40, 0.26, 0.12)
-	draw_line(p + Vector2(-5, -5), p + Vector2(5, 5),  col, 2.0)
-	draw_line(p + Vector2(5,  -5), p + Vector2(-5, 5), col, 2.0)
-	# Small circle handle
-	draw_circle(p, 2.5, col)
-
-func _draw_stone_icon(p: Vector2) -> void:
-	# Stack of 3 small quads (stone pile)
-	var col := Color(0.55, 0.55, 0.55)
-	draw_rect(Rect2(p.x - 5, p.y + 1,  10, 4), col)
-	draw_rect(Rect2(p.x - 4, p.y - 3,   8, 4), col.lightened(0.1))
-	draw_rect(Rect2(p.x - 3, p.y - 7,   6, 4), col.lightened(0.2))
-
-func _draw_iron_icon(p: Vector2) -> void:
-	# Crossed pickaxes
-	var col := Color(0.50, 0.50, 0.58)
-	draw_line(p + Vector2(-6, -3), p + Vector2(6,  3), col, 2.5)
-	draw_line(p + Vector2(-6,  3), p + Vector2(6, -3), col, 2.5)
-	draw_circle(p, 2.0, col)
-
-func _draw_food_icon(p: Vector2) -> void:
-	# Wheat sheaf: vertical stem + 5 radiating arcs
-	var col := Color(0.72, 0.58, 0.18)
-	draw_line(p + Vector2(0, 6), p + Vector2(0, -6), col, 1.5)
-	for i in range(5):
-		var a: float = (-PI * 0.3) + float(i) * (PI * 0.6 / 4.0)
-		draw_line(p, p + Vector2(sin(a) * 6, -cos(a) * 6 - 2), col, 1.5)
+		var p: Vector2 = d["pos"]
+		var c: Color = _deposit_color(d["type"])
+		draw_circle(p + Vector2(0.4, 0.6), 3.6, Color(0.0, 0.0, 0.0, 0.18))   # soft shadow
+		draw_circle(p, 3.3, Color(c.r, c.g, c.b, 0.82))                       # muted resource disc
+		draw_arc(p, 3.3, 0, TAU, 16, c.darkened(0.45), 1.0, true)            # darker rim
+		draw_circle(p, 1.1, c.lightened(0.45))                               # faint highlight
 
 # ── Cities ────────────────────────────────────────────────────────────────────
+
+# Settlement rank (0 hamlet · 1 town · 2 city · 3 capital) from the strategic data — drives a
+# coherent size hierarchy so a backwater village and a great-house capital read apart at a glance,
+# and the elaborate keep is reserved for the few capitals rather than stamped on all 80 cities.
+func _settlement_rank(c: Dictionary) -> int:
+	if c.get("is_capital", false):
+		return 3
+	var dev: int = int(c.get("development", c.get("tier", 0)))
+	var tier: int = int(c.get("tier", 0))
+	if dev >= 6 or tier >= 3:
+		return 2
+	if dev >= 3 or tier >= 1:
+		return 1
+	return 0
 
 func _draw_cities() -> void:
 	for c in _city_list:
 		var p:    Vector2 = c["pos"]
 		var col:  Color   = Color.from_string(c["faction_color"], Color.GRAY)
-		var tier: int     = c.get("tier", 0)
 		var is_player_owned: bool = c.get("is_player_owned", false)
 		var is_start: bool = c.get("is_player_start", false)
 		var is_hovered: bool = c.get("id", -1) == _hovered_city_id
+		var is_selected: bool = c.get("id", -1) == _selected_city_id
+		var rank: int = _settlement_rank(c)
+		var ring_r: float = 11.0 + float(rank) * 2.5
 
-		# Player-owned cities get a gold ring so the realm reads at a glance.
+		# Player-owned holdings get a gold ring so the realm reads at a glance.
 		if is_player_owned:
-			draw_arc(p, 20.0, 0, TAU, 24, Color(0.95, 0.78, 0.10, 0.85), 3.0)
-
-		# Hover highlight
+			draw_arc(p, ring_r, 0, TAU, 24, Color(0.95, 0.78, 0.10, 0.70), 2.5, true)
+		# Hover highlight.
 		if is_hovered:
-			draw_arc(p, 18.0, 0, TAU, 24, Color.WHITE.darkened(0.1), 2.0)
-
+			draw_arc(p, ring_r - 1.0, 0, TAU, 24, Color(1.0, 1.0, 1.0, 0.8), 2.0, true)
 		# Selection ring — the city the player has right-clicked for orders.
-		if c.get("id", -1) == _selected_city_id:
-			draw_arc(p, 24.0, 0, TAU, 28, Color(0.30, 0.90, 1.0, 0.95), 3.0)
-			draw_arc(p, 27.0, 0, TAU, 28, Color(0.30, 0.90, 1.0, 0.35), 1.5)
+		if is_selected:
+			draw_arc(p, ring_r + 4.0, 0, TAU, 28, Color(0.30, 0.90, 1.0, 0.95), 3.0, true)
+			draw_arc(p, ring_r + 7.0, 0, TAU, 28, Color(0.30, 0.90, 1.0, 0.35), 1.5, true)
 
-		_draw_castle_icon(p, col, tier, is_player_owned)
+		_draw_settlement(p, col, rank, is_player_owned)
 
-		# Development pips (filled = developed) beneath the castle.
-		_draw_development_pips(p, c.get("development", 0), col)
-
-		# City name — outlined (dark halo + light text) and centred under the icon so it stays
-		# legible on ANY terrain (overhaul iter4); was tiny dark text that vanished into the land.
-		var name_col: Color = Color(1.0, 0.90, 0.45) if is_player_owned else Color(0.97, 0.95, 0.90)
+		# Name — prominence scales with rank so minor places stay quiet; capitals & the player's
+		# own holdings read boldest. Centred under the icon, haloed for legibility on any terrain.
+		var fsize: int = [8, 9, 10, 11][rank]
+		var name_col: Color
+		if is_player_owned:
+			name_col = Color(1.0, 0.90, 0.50)
+		elif rank == 0:
+			name_col = Color(0.88, 0.86, 0.80, 0.82)   # hamlets recede
+		else:
+			name_col = Color(0.97, 0.95, 0.90)
 		var label: String = c.get("name", "")
 		if is_start:
 			label += " ★"
-		_draw_map_label(p + Vector2(-40, 24), label, 80.0, 10, name_col)
+		var yoff: float = 11.0 + float(rank) * 2.5
+		_draw_map_label(p + Vector2(-40, yoff), label, 80.0, fsize, name_col)
 
-		# Garrison strength on every city (the defenders that campaigns fight).
-		var ginfo: String = "⚔ %d" % c.get("garrison", 0)
-		_draw_map_label(p + Vector2(-40, 35), ginfo, 80.0, 9, Color(0.95, 0.88, 0.72))
+		# Garrison is gnarly clutter on all 80 cities — show it only where it matters right now:
+		# the city you're inspecting (hover/select) or one of your own holdings. (Per-kingdom army
+		# totals still live in the Kingdoms legend.)
+		if is_hovered or is_selected or is_player_owned:
+			var ginfo: String = "⚔ %d" % int(c.get("garrison", 0))
+			_draw_map_label(p + Vector2(-40, yoff + 11.0), ginfo, 80.0, 9, Color(0.95, 0.88, 0.72))
 
 # Centred map label with a dark 4-direction halo so text stays legible over any terrain/biome.
 func _draw_map_label(pos: Vector2, text: String, width: float, fsize: int, col: Color) -> void:
@@ -591,17 +597,6 @@ func _draw_map_label(pos: Vector2, text: String, width: float, fsize: int, col: 
 	for o in [Vector2(1, 1), Vector2(-1, 1), Vector2(1, -1), Vector2(-1, -1)]:
 		draw_string(f, pos + o, text, HORIZONTAL_ALIGNMENT_CENTER, width, fsize, _HALO)
 	draw_string(f, pos, text, HORIZONTAL_ALIGNMENT_CENTER, width, fsize, col)
-
-func _draw_development_pips(p: Vector2, development: int, col: Color) -> void:
-	var n: int = clampi(development, 0, 10)
-	var shown: int = mini(n, 5)  # cap the row; 1 pip per 2 dev beyond 5
-	var step: float = 4.0
-	var total_w: float = float(shown) * step
-	var x0: float = p.x - total_w * 0.5
-	for i in range(shown):
-		var lit: bool = true
-		var pc: Color = col.lightened(0.2) if lit else Color(0.4, 0.4, 0.4, 0.5)
-		draw_rect(Rect2(x0 + i * step, p.y + 7.0, 2.5, 2.5), pc)
 
 # ── Recently-contested cities (fading battle markers) ───────────────────────────
 # A clash of crossed swords inside an expanding ring marks where the war was just
@@ -735,57 +730,83 @@ func _ground_shadow(c: Vector2, rx: float, ry: float) -> void:
 		pts.append(c + Vector2(cos(a) * rx, sin(a) * ry))
 	draw_colored_polygon(pts, Color(0.0, 0.0, 0.0, 0.22))
 
-func _draw_castle_icon(p: Vector2, faction_col: Color, tier: int, is_player: bool) -> void:
-	var scale: float = 11.0 + tier * 5.0  # bigger castles (overhaul iter7): tier 0=11..3=26
-	var body_col: Color = faction_col if not is_player else Color(0.91, 0.76, 0.26)
-	var dark_col: Color = body_col.darkened(0.35)
-	var roof_col: Color = body_col.darkened(0.5)
-	var lit_col: Color  = body_col.lightened(0.18)
+# iter317: one coherent settlement symbol set, sized by rank, all lit from the upper-left to
+# match the relief's NW sun. Hamlets are a single hut; the elaborate banner-flying keep is now
+# reserved for capitals — so the map has a real size hierarchy instead of 80 identical castles.
+const _ICON_OUTLINE: Color = Color(0.09, 0.07, 0.05, 0.9)
 
+func _draw_settlement(p: Vector2, faction_col: Color, rank: int, is_player: bool) -> void:
+	var body: Color = Color(0.91, 0.76, 0.26) if is_player else faction_col
+	match rank:
+		0: _draw_hut(p, body, 6.0)
+		1: _draw_keep(p, body, 8.0, false, false)
+		2: _draw_keep(p, body, 10.0, true, false)
+		_: _draw_keep(p, body, 13.0, true, true)
+
+# A single thatched hut — the smallest settlements (hamlets / independent villages).
+func _draw_hut(p: Vector2, body: Color, s: float) -> void:
+	var lit: Color  = body.lightened(0.22)
+	var roof: Color = body.darkened(0.5)
+	_ground_shadow(p + Vector2(s * 0.16, s * 0.08), s * 1.1, s * 0.40)
+	var w: float = s * 1.4
+	var h: float = s * 0.95
+	var x: float = p.x - w * 0.5
+	var y: float = p.y - h
+	draw_rect(Rect2(x, y, w, h), body)
+	draw_rect(Rect2(x + w * 0.62, y, w * 0.38, h), Color(0, 0, 0, 0.20))   # shaded SE face
+	draw_rect(Rect2(x, y, w * 0.13, h), lit)                               # NW-lit edge
+	draw_rect(Rect2(x, y, w, h), _ICON_OUTLINE, false, 0.8)
+	var peak := Vector2(p.x, y - s * 0.8)
+	var l := Vector2(x - s * 0.14, y)
+	var r := Vector2(x + w + s * 0.14, y)
+	draw_colored_polygon(PackedVector2Array([peak, l, r]), roof)
+	draw_line(peak, l, roof.lightened(0.3), 1.0)                           # lit roof slope
+	draw_line(l, r, _ICON_OUTLINE, 0.8)
+
+# A walled keep — towns (no flanking towers), cities (two towers), capitals (towers + banner).
+# Shares the hut's flat NW-lit language so the whole settlement set reads as one family.
+func _draw_keep(p: Vector2, body: Color, scale: float, towers: bool, banner: bool) -> void:
+	var dark: Color = body.darkened(0.35)
+	var roof: Color = body.darkened(0.5)
+	var lit: Color  = body.lightened(0.18)
 	var bw: float = scale * 1.4
 	var bh: float = scale * 1.2
-	var tw: float = scale * 0.7
+	var tw: float = scale * 0.6
 	var th: float = scale * 1.5
-
-	# Ground shadow anchors the keep to the land (light from the upper-left → shadow lower-right).
 	_ground_shadow(p + Vector2(scale * 0.12, scale * 0.05), bw * 0.85, scale * 0.32)
 
-	# Flanking towers with pointed (conical) roofs — a far prettier silhouette than flat merlon
-	# boxes, and the right-side shade gives each cylinder a sunlit-from-upper-left read.
-	for side in [-1, 1]:
-		var tx: float = p.x + side * (bw * 0.5 + tw * 0.3) - tw * 0.5
-		draw_rect(Rect2(tx, p.y - th, tw, th), body_col)
-		draw_rect(Rect2(tx + tw * 0.58, p.y - th, tw * 0.42, th), Color(0, 0, 0, 0.20))   # shaded face
-		draw_rect(Rect2(tx, p.y - th, tw * 0.16, th), lit_col)                            # lit edge
-		draw_rect(Rect2(tx, p.y - th, tw, th), dark_col, false, 0.8)
-		var rt := Vector2(tx + tw * 0.5, p.y - th - scale * 0.6)                          # roof peak
-		draw_colored_polygon(PackedVector2Array([
-			rt, Vector2(tx - tw * 0.14, p.y - th), Vector2(tx + tw * 1.14, p.y - th)]), roof_col)
-		draw_line(rt, Vector2(tx - tw * 0.14, p.y - th), roof_col.lightened(0.28), 1.0)   # lit roof edge
+	if towers:
+		for side in [-1, 1]:
+			var tx: float = p.x + side * (bw * 0.5 + tw * 0.3) - tw * 0.5
+			draw_rect(Rect2(tx, p.y - th, tw, th), body)
+			draw_rect(Rect2(tx + tw * 0.58, p.y - th, tw * 0.42, th), Color(0, 0, 0, 0.20))
+			draw_rect(Rect2(tx, p.y - th, tw * 0.16, th), lit)
+			draw_rect(Rect2(tx, p.y - th, tw, th), _ICON_OUTLINE, false, 0.8)
+			var rt := Vector2(tx + tw * 0.5, p.y - th - scale * 0.55)
+			draw_colored_polygon(PackedVector2Array([
+				rt, Vector2(tx - tw * 0.14, p.y - th), Vector2(tx + tw * 1.14, p.y - th)]), roof)
+			draw_line(rt, Vector2(tx - tw * 0.14, p.y - th), roof.lightened(0.28), 1.0)
 
-	# Central keep over the towers, with a lit left edge + shaded right for volume.
 	var bx: float = p.x - bw * 0.5
-	draw_rect(Rect2(bx, p.y - bh, bw, bh), body_col)
-	draw_rect(Rect2(bx + bw * 0.62, p.y - bh, bw * 0.38, bh), Color(0, 0, 0, 0.20))       # shaded face
-	draw_rect(Rect2(bx, p.y - bh, bw * 0.10, bh), lit_col)                                # lit edge
-	draw_rect(Rect2(bx, p.y - bh, bw, bh), dark_col, false, 1.0)
+	draw_rect(Rect2(bx, p.y - bh, bw, bh), body)
+	draw_rect(Rect2(bx + bw * 0.62, p.y - bh, bw * 0.38, bh), Color(0, 0, 0, 0.20))
+	draw_rect(Rect2(bx, p.y - bh, bw * 0.10, bh), lit)
+	draw_rect(Rect2(bx, p.y - bh, bw, bh), _ICON_OUTLINE, false, 1.0)
 
-	# Keep crenellations (merlons) along the top.
+	# Battlements along the top.
 	var km: float = bw / 7.0
 	for m in range(4):
 		var mx: float = bx + float(m) * (bw / 3.6) + km * 0.2
-		draw_rect(Rect2(mx, p.y - bh - scale * 0.3, km, scale * 0.3), lit_col)
-		draw_rect(Rect2(mx, p.y - bh - scale * 0.3, km, scale * 0.3), dark_col, false, 0.6)
+		draw_rect(Rect2(mx, p.y - bh - scale * 0.28, km, scale * 0.28), body)
+		draw_rect(Rect2(mx, p.y - bh - scale * 0.28, km, scale * 0.28), _ICON_OUTLINE, false, 0.6)
 
-	# Gate arch + two narrow windows give the keep face some read of scale.
-	draw_arc(p + Vector2(0, -scale * 0.34), scale * 0.30, PI, TAU, 8, dark_col.darkened(0.3), 2.0)
-	draw_rect(Rect2(p.x - bw * 0.24, p.y - bh * 0.72, scale * 0.12, scale * 0.30), dark_col.darkened(0.25))
-	draw_rect(Rect2(p.x + bw * 0.12, p.y - bh * 0.72, scale * 0.12, scale * 0.30), dark_col.darkened(0.25))
+	# Gate arch (only big enough to read on towns and up).
+	draw_arc(p + Vector2(0, -scale * 0.30), scale * 0.28, PI, TAU, 8, dark.darkened(0.3), 1.6)
 
-	# Banner flying from the keep's centre.
-	var flag_x: float = p.x + bw * 0.05
-	var flag_top: Vector2 = Vector2(flag_x, p.y - bh - scale * 0.85)
-	draw_line(Vector2(flag_x, p.y - bh - scale * 0.28), flag_top, dark_col, 1.5)
-	draw_colored_polygon(PackedVector2Array([
-		flag_top, flag_top + Vector2(scale * 0.7, scale * 0.22), flag_top + Vector2(0, scale * 0.45),
-	]), lit_col)
+	if banner:
+		var flag_x: float = p.x + bw * 0.05
+		var flag_top: Vector2 = Vector2(flag_x, p.y - bh - scale * 0.85)
+		draw_line(Vector2(flag_x, p.y - bh - scale * 0.26), flag_top, dark, 1.5)
+		draw_colored_polygon(PackedVector2Array([
+			flag_top, flag_top + Vector2(scale * 0.65, scale * 0.2), flag_top + Vector2(0, scale * 0.42),
+		]), lit)
