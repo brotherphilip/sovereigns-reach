@@ -446,6 +446,61 @@ const EVENTS: Array = [
 			{"label": "Pay them off (−40 gold, −2 popularity)", "effect": {"gold": -40, "popularity": -2}},
 		],
 	},
+
+	# ── New surprises (iter313): rarer windfalls, emergent arrivals, and barter/feast/gamble
+	# choices that nudge the player off the optimal build order — content compounds, play stays fresh.
+	{
+		"id": "buried_hoard", "tone": "good", "weight": 4, "min_day": 8,
+		"title": "A Buried Hoard",
+		"text": "Digging a new cellar, your folk strike a clay jar of old coins green with age — some long-dead miser's secret, yours now.",
+		"effect": {"gold": 85, "prestige": 10},
+	},
+	{
+		"id": "rival_defector", "tone": "good", "weight": 6, "min_day": 6,
+		"title": "A Craftsman Defects",
+		"text": "A skilled hand flees a rival lord's harsh rule and begs to settle under your banner. Their loss is your gain.",
+		"effect": {"spawn_citizens": 1, "popularity": 3},
+	},
+	{
+		"id": "stray_warhound", "tone": "good", "weight": 6, "min_day": 4,
+		"title": "A Stray Hound",
+		"text": "A great hunting hound, lost from some lord's pack, takes up at your gate and will not be shooed. The children adore it.",
+		"effect": {"popularity": 4},
+	},
+	{
+		"id": "comets_passage", "tone": "neutral", "weight": 5, "min_day": 10,
+		"title": "A Comet's Passage",
+		"text": "A comet drags its pale tail across the night sky. The old folk argue bitterly whether it bodes glory or ruin.",
+		"effect": {"prestige": 8},
+	},
+	{
+		"id": "barter_caravan", "tone": "neutral", "weight": 7, "min_day": 5,
+		"title": "The Barter Caravan",
+		"text": "A foreign caravan will trade what it carries for what you can spare. Their wares are strange, their prices stranger.",
+		"choices": [
+			{"label": "Sell surplus grain (−30 food, +50 gold)", "effect": {"food": -30, "gold": 50}},
+			{"label": "Trade timber for iron (−30 wood, +14 iron)", "effect": {"wood": -30, "iron": 14}},
+			{"label": "Wave them on", "effect": {}},
+		],
+	},
+	{
+		"id": "feast_demanded", "tone": "neutral", "weight": 6, "min_day": 12,
+		"title": "The People Want a Feast",
+		"text": "After a hard stretch the folk grumble for a feast. A full table buys their love; an empty one, their muttering.",
+		"choices": [
+			{"label": "Throw the feast (−30 food, −20 gold, +9 popularity, +4 prestige)", "effect": {"food": -30, "gold": -20, "popularity": 9, "prestige": 4}},
+			{"label": "Make them wait (−4 popularity)", "effect": {"popularity": -4}},
+		],
+	},
+	{
+		"id": "dowsers_promise", "tone": "neutral", "weight": 5, "min_day": 18,
+		"title": "The Dowser's Promise",
+		"text": "A dowser swears a rich seam runs beneath your hills — for a fee paid up front, of course.",
+		"choices": [
+			{"label": "Fund the dig (−40 gold, +35 stone, +8 iron)", "effect": {"gold": -40, "stone": 35, "iron": 8}},
+			{"label": "Send the charlatan packing", "effect": {}},
+		],
+	},
 ]
 
 # Whether an event waits on a player decision (has choices) rather than auto-resolving.
