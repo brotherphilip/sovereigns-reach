@@ -282,6 +282,13 @@ func _build_scene() -> void:
 	lamp_layer.name = "NightLampLayer"
 	lamp_layer.z_index = 1   # lamp glows sit over the buildings they light
 	_world_root.add_child(lamp_layer)
+	# Ambient drifting motes — FIREFLIES over the land at dusk/night, faint pollen by day. Sits
+	# above the lamp glows so the fireflies read against the darkened scene; view-culled, ~no cost.
+	var motes_layer := preload("res://view/micro/AmbientMotesLayer.gd").new()
+	motes_layer.name = "AmbientMotesLayer"
+	motes_layer.z_index = 1
+	_world_root.add_child(motes_layer)
+	motes_layer.set_camera(_camera)
 
 	# Screen-space rain (falls across the view during RAIN/STORM weather). Its own CanvasLayer
 	# (layer 9) so it sits over the world but under the HUD (layer 10).

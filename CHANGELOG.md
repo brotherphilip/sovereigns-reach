@@ -2,6 +2,23 @@
 
 ---
 
+## 2026-06-23 — Fireflies turn the lamplit night into a magical one (iter325)
+
+- **[Visual] Ambient drifting motes — fireflies at night, pollen by day (player-experience pass):**
+  now that night is a readable lamplit village (iter321) and the meadow rolls with life (iter322), the
+  open land at night was still empty between the lamp pools. New `AmbientMotesLayer` scatters drifting
+  motes across the view: at dusk and through the night they become **fireflies** — warm yellow-green
+  sparks that wander low over the land and **blink on and off** (a sharp flash, a long dark gap, each at
+  its own rate), thinning right down in winter; by day a few very faint pollen/dust motes catch the
+  light. They're additive and drawn above the night wash so they genuinely glow against the dark, and
+  the motes recycle into the camera rect as it pans so density follows the view (≈90 motes, view-culled,
+  hidden below 0.55 zoom — no whole-map cost). Verified by render: a deep-night view now twinkles with
+  fireflies around the warm town, and a daytime view shows none (only the near-invisible pollen). Pairs
+  with the lamplit village and the seasonal woodland for a genuinely atmospheric night. View-only — no
+  sim, no save state.
+
+---
+
 ## 2026-06-23 — Consolidate verified prior-loop WIP into a clean checkpoint (iter324)
 
 - **[Housekeeping] Commit the 37-file in-progress working set that had accumulated on top of iter320

@@ -157,6 +157,23 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 325 — 2026-06-23  (PLAYER-EXPERIENCE — fireflies make the lamplit night magical)
+
+**Finding:** with night now readable (iter321 lamplit village) and the meadow alive (iter322), the open
+land at night was still dead between the lamp pools. Missing: ambient motion/life.
+
+**Fix (new clean file `AmbientMotesLayer.gd`, wired into the now-clean CityViewScene above the lamp
+layer so fireflies glow over the night wash):** ~90 drifting motes recycled into the camera rect (density
+follows the view, view-culled, hidden <0.55 zoom). At dusk/night they're FIREFLIES — warm yellow-green
+sparks that wander low and blink (sharp flash, long dark gap, per-mote rate), thinning to ~18% in winter;
+by day a few near-invisible pollen motes. Additive blend. View-only (no sim/save).
+
+**Verified:** deep-night render twinkles with fireflies around the warm town; daytime render shows none
+(only faint pollen). This is the iter325 follow-up unblocked by the iter324 checkpoint — wiring a NEW
+layer into CityViewScene was the exact thing the WIP had been blocking.
+
+---
+
 ## Iteration 324 — 2026-06-23  (HOUSEKEEPING — consolidate verified prior-loop WIP; unblock view work)
 
 **Why:** for 3 iterations a 37-file uncommitted working set (pawn-LOD glyphs, PlayBot, view polish across
