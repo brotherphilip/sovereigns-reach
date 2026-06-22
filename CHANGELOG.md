@@ -2,6 +2,20 @@
 
 ---
 
+## 2026-06-22 — Varied settlements & big, readable army markers on the world map (iter319)
+
+- **[Visual] Settlements are no longer all castles (player steer):** each settlement rank is now a visually
+  distinct, larger place built from shared building parts — a hamlet of huts, a village around a church steeple,
+  a walled market town, and a banner-flying castle keep for capitals — and a per-settlement hash jitters the
+  layout so no two look identical.
+- **[Visual] Army markers are much bigger and show what's marching:** a host now reads as a large faction shield
+  carrying the icon of its dominant troop type — **crossed swords** for infantry, a **drawn bow** for archers/
+  crossbows, a **trebuchet** for a siege train — over a strength pennant and troop count, with a clearer march
+  trail + arrow so you can watch an army cross the realm and tell an archer raid from a siege column at a glance.
+  (The world-map army already carries your real trained units by identity, so the icon reflects the actual host.)
+
+---
+
 ## 2026-06-22 — World-map terrain calmed into a designed backdrop for the realm (iter318)
 
 - **[Visual] Terrain recedes so the map reads as composed around its cities & roads (player steer: "the

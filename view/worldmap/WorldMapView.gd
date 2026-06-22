@@ -580,7 +580,7 @@ func _draw_cities() -> void:
 			draw_arc(p, ring_r + 4.0, 0, TAU, 28, Color(0.30, 0.90, 1.0, 0.95), 3.0, true)
 			draw_arc(p, ring_r + 7.0, 0, TAU, 28, Color(0.30, 0.90, 1.0, 0.35), 1.5, true)
 
-		_draw_settlement(p, col, rank, is_player_owned)
+		_draw_settlement(p, col, rank, is_player_owned, int(c.get("id", 0)))
 
 		# Name — prominence scales with rank so minor places stay quiet; capitals & the player's
 		# own holdings read boldest. Centred under the icon, haloed for legibility on any terrain.
@@ -638,19 +638,21 @@ func _draw_armies() -> void:
 	for a in _army_list:
 		var p: Vector2 = a["pos"]
 		var col: Color = Color.from_string(a["color_hex"], Color.GRAY)
-		# March line to the target.
+		# March route to the target — a clear dashed track + arrowhead so you can read a host
+		# crossing the realm in real time (iter319: thicker/clearer than the old thin line).
 		if a.get("moving", false):
 			var to: Vector2 = a["to"]
-			draw_line(p, to, Color(col.r, col.g, col.b, 0.55), 1.5)
+			draw_line(p, to, Color(col.r, col.g, col.b, 0.30), 4.0, true)   # soft column trail
 			var dir: Vector2 = (to - p)
 			if dir.length() > 1.0:
 				dir = dir.normalized()
-				var perp: Vector2 = dir.orthogonal() * 4.0
-				var tip: Vector2 = p.lerp(to, 0.55)
+				var perp: Vector2 = dir.orthogonal() * 5.0
+				var tip: Vector2 = p.lerp(to, 0.6)
 				draw_colored_polygon(PackedVector2Array([
-					tip + dir * 6.0, tip - dir * 2.0 + perp, tip - dir * 2.0 - perp,
-				]), Color(col.r, col.g, col.b, 0.8))
-		_draw_army_marker(p, col, int(a.get("size_band", 0)), int(a.get("size", 0)))
+					tip + dir * 8.0, tip - dir * 3.0 + perp, tip - dir * 3.0 - perp,
+				]), Color(col.r, col.g, col.b, 0.85))
+		_draw_army_marker(p, col, int(a.get("size_band", 0)), int(a.get("size", 0)),
+			a.get("composition", {}))
 		# Your own marching hosts get a glanceable destination + ETA tag, so you can
 		# read where your troops are bound without clicking (few of them, no clutter).
 		if a.get("is_player", false) and a.get("moving", false):
@@ -658,43 +660,83 @@ func _draw_armies() -> void:
 			if dest != "":
 				var eta: int = int(a.get("eta_days", 0))
 				var tag: String = "→ %s (%dd)" % [dest, eta]
-				var tp := p + Vector2(6, 10)
+				var tp := p + Vector2(10, 14)
 				draw_string(ThemeDB.fallback_font, tp + Vector2(1, 1), tag,
 					HORIZONTAL_ALIGNMENT_LEFT, -1, 9, Color(0.04, 0.06, 0.03, 0.9))
 				draw_string(ThemeDB.fallback_font, tp, tag,
 					HORIZONTAL_ALIGNMENT_LEFT, -1, 9, Color(0.70, 0.96, 0.62))
 
-# A heraldic banner whose size and number of pennants grow with the host's strength,
-# so a lone raiding party and a great army read differently at a glance.
-# Band 0:1-10, 1:11-30, 2:31-60, 3:61-100, 4:100+.
-func _draw_army_marker(p: Vector2, col: Color, band: int, size_count: int) -> void:
-	# Overhaul iter7: bigger so troop hosts read clearly on the map.
-	var pole_h: float = 17.0 + float(band) * 5.0
-	var flag_w: float = 12.0 + float(band) * 3.0
-	var flag_h: float = 7.0 + float(band) * 1.7
-	var pennants: int = band + 1                 # 1..5 flags by band
-	var top := p + Vector2(0, -pole_h)
-	# Shadow + pole.
-	draw_line(p + Vector2(1, 1), top + Vector2(1, 1), Color(0, 0, 0, 0.35), 1.6)
-	draw_line(p, top, Color(0.22, 0.16, 0.10), 1.6)
-	# Stacked pennants flying from the pole.
-	for i in range(pennants):
-		var fy: float = top.y + float(i) * (flag_h + 1.5)
-		var base := Vector2(top.x, fy)
-		draw_colored_polygon(PackedVector2Array([
-			base, base + Vector2(flag_w, flag_h * 0.5), base + Vector2(0, flag_h),
-		]), col)
-		draw_polyline(PackedVector2Array([
-			base, base + Vector2(flag_w, flag_h * 0.5), base + Vector2(0, flag_h),
-		]), col.darkened(0.45), 1.0)
-	# Foot disc + troop count.
-	draw_circle(p, 4.5 + float(band) * 0.9, Color(0.10, 0.08, 0.06, 0.9))
-	draw_circle(p, 3.0 + float(band) * 0.9, col)
-	var label := Vector2(top.x + flag_w + 2.0, top.y - 1.0)
-	draw_string(ThemeDB.fallback_font, label + Vector2(1, 1), str(size_count),
-		HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(0.05, 0.04, 0.03, 0.9))
-	draw_string(ThemeDB.fallback_font, label, str(size_count),
-		HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(0.98, 0.96, 0.90))
+# A field host: a big faction shield carrying the icon of its DOMINANT troop type (so an archer
+# host, a pike column and a siege train read apart at a glance while traversing), a strength
+# pennant whose size grows with the band, and the troop count. Band 0:1-10 … 4:100+.
+func _draw_army_marker(p: Vector2, col: Color, band: int, size_count: int, comp: Dictionary) -> void:
+	var r: float = 9.0 + float(band) * 2.4        # iter319: much bigger than the old ~4px disc
+	_ground_shadow(p + Vector2(r * 0.18, r * 0.14), r * 1.05, r * 0.42)
+	# Strength pennant on a short pole above the shield.
+	var fw: float = 9.0 + float(band) * 2.0
+	var fh: float = 6.0 + float(band) * 1.0
+	var top := p + Vector2(0, -(r + 8.0 + float(band) * 2.0))
+	draw_line(p + Vector2(0.8, 0.8), top + Vector2(0.8, 0.8), Color(0, 0, 0, 0.35), 1.8)
+	draw_line(p, top, Color(0.20, 0.15, 0.09), 1.8)
+	draw_colored_polygon(PackedVector2Array([top, top + Vector2(fw, fh * 0.5), top + Vector2(0, fh)]), col)
+	draw_polyline(PackedVector2Array([
+		top, top + Vector2(fw, fh * 0.5), top + Vector2(0, fh), top]), col.darkened(0.5), 1.0)
+	# Shield disc (dark rim, faction fill, NW-lit edge) carrying the troop-type glyph.
+	draw_circle(p, r + 1.6, Color(0.08, 0.07, 0.06, 0.92))
+	draw_circle(p, r, col)
+	draw_arc(p, r - 0.5, PI * 1.05, PI * 1.95, 12, col.lightened(0.35), 1.8, true)
+	_draw_unit_glyph(p, r * 0.62, _dominant_group(comp))
+	# Troop count, centred just under the shield.
+	_draw_map_label(p + Vector2(-40, r + 1.0), str(size_count), 80.0, 11, Color(0.98, 0.96, 0.90))
+
+# The icon group that best represents a host (the most numerous of infantry / ranged / siege).
+# Empty composition (gold-levied AI armies) falls back to a generic infantry host.
+func _dominant_group(comp: Dictionary) -> String:
+	var inf: int = int(comp.get("infantry", 0))
+	var rng: int = int(comp.get("ranged", 0))
+	var sg: int = int(comp.get("siege", 0))
+	if inf == 0 and rng == 0 and sg == 0:
+		return "infantry"
+	if sg >= inf and sg >= rng:
+		return "siege"
+	if rng >= inf and rng >= sg:
+		return "ranged"
+	return "infantry"
+
+# A short line drawn as a dark drop-shadow under a light ink stroke, so unit glyphs stay legible
+# on ANY faction-coloured shield.
+func _ink_line(a: Vector2, b: Vector2, w: float) -> void:
+	draw_line(a + Vector2(0.7, 0.8), b + Vector2(0.7, 0.8), Color(0.0, 0.0, 0.0, 0.55), w + 0.6, true)
+	draw_line(a, b, Color(0.98, 0.96, 0.88), w, true)
+
+# Troop-type pictograph centred on the shield: crossed swords (infantry), a drawn bow (ranged),
+# or a catapult/trebuchet (siege).
+func _draw_unit_glyph(c: Vector2, s: float, group: String) -> void:
+	match group:
+		"ranged":
+			# A bow (arc) with its string and a nocked arrow.
+			var bc := c + Vector2(-s * 0.15, 0.0)
+			draw_arc(bc + Vector2(0.7, 0.8), s, -PI * 0.55, PI * 0.55, 12, Color(0.0, 0.0, 0.0, 0.55), 2.4, true)
+			draw_arc(bc, s, -PI * 0.55, PI * 0.55, 12, Color(0.98, 0.96, 0.88), 1.8, true)
+			_ink_line(bc + Vector2(cos(-PI * 0.55), sin(-PI * 0.55)) * s,
+				bc + Vector2(cos(PI * 0.55), sin(PI * 0.55)) * s, 1.4)   # bowstring
+			_ink_line(c + Vector2(-s * 0.7, 0.0), c + Vector2(s * 0.9, 0.0), 1.4)   # arrow shaft
+			_ink_line(c + Vector2(s * 0.9, 0.0), c + Vector2(s * 0.5, -s * 0.25), 1.2)  # arrowhead
+			_ink_line(c + Vector2(s * 0.9, 0.0), c + Vector2(s * 0.5, s * 0.25), 1.2)
+		"siege":
+			# A trebuchet: A-frame with a slung throwing arm.
+			_ink_line(c + Vector2(-s * 0.7, s * 0.6), c + Vector2(0.0, -s * 0.5), 1.8)   # left leg
+			_ink_line(c + Vector2(s * 0.7, s * 0.6), c + Vector2(0.0, -s * 0.5), 1.8)    # right leg
+			_ink_line(c + Vector2(-s * 0.7, s * 0.6), c + Vector2(s * 0.7, s * 0.6), 1.6)  # base
+			_ink_line(c + Vector2(-s * 0.6, -s * 0.1), c + Vector2(s * 0.8, -s * 0.8), 1.8)  # throwing arm
+			draw_circle(c + Vector2(s * 0.8 + 0.7, -s * 0.8 + 0.8), s * 0.22, Color(0.0, 0.0, 0.0, 0.55))
+			draw_circle(c + Vector2(s * 0.8, -s * 0.8), s * 0.20, Color(0.98, 0.96, 0.88))   # payload
+		_:
+			# Crossed swords (generic / infantry).
+			_ink_line(c + Vector2(-s * 0.7, s * 0.7), c + Vector2(s * 0.7, -s * 0.7), 2.0)   # blade 1
+			_ink_line(c + Vector2(s * 0.7, s * 0.7), c + Vector2(-s * 0.7, -s * 0.7), 2.0)   # blade 2
+			_ink_line(c + Vector2(-s * 0.85, s * 0.45), c + Vector2(-s * 0.45, s * 0.85), 1.6)  # hilt guards
+			_ink_line(c + Vector2(s * 0.85, s * 0.45), c + Vector2(s * 0.45, s * 0.85), 1.6)
 
 # ── Kingdom legend ──────────────────────────────────────────────────────────────
 
@@ -763,78 +805,126 @@ func _ground_shadow(c: Vector2, rx: float, ry: float) -> void:
 # reserved for capitals — so the map has a real size hierarchy instead of 80 identical castles.
 const _ICON_OUTLINE: Color = Color(0.09, 0.07, 0.05, 0.9)
 
-func _draw_settlement(p: Vector2, faction_col: Color, rank: int, is_player: bool) -> void:
+# iter319: settlements are no longer "everything is a castle". Each rank is a visually distinct
+# place built from shared NW-lit primitives — a hamlet of huts, a village with a church, a walled
+# town, and a banner keep for capitals — and a per-settlement hash jitters the layout so no two
+# look stamped from the same mould. Markers are larger than before so towns read clearly.
+func _draw_settlement(p: Vector2, faction_col: Color, rank: int, is_player: bool, seed_id: int) -> void:
 	var body: Color = Color(0.91, 0.76, 0.26) if is_player else faction_col
+	var hsh: int = absi(seed_id * 1103515245 + 12345)
 	match rank:
-		0: _draw_hut(p, body, 6.0)
-		1: _draw_keep(p, body, 8.0, false, false)
-		2: _draw_keep(p, body, 10.0, true, false)
-		_: _draw_keep(p, body, 13.0, true, true)
+		0: _settle_hamlet(p, body, hsh)
+		1: _settle_village(p, body, hsh)
+		2: _settle_town(p, body, hsh)
+		_: _settle_capital(p, body, hsh)
 
-# A single thatched hut — the smallest settlements (hamlets / independent villages).
-func _draw_hut(p: Vector2, body: Color, s: float) -> void:
+# ── Building primitives (shared flat NW-lit language) ──────────────────────────
+# `base` is the ground point (bottom-centre); the building rises above it.
+func _b_house(base: Vector2, w: float, h: float, body: Color) -> void:
 	var lit: Color  = body.lightened(0.22)
 	var roof: Color = body.darkened(0.5)
-	_ground_shadow(p + Vector2(s * 0.16, s * 0.08), s * 1.1, s * 0.40)
-	var w: float = s * 1.4
-	var h: float = s * 0.95
-	var x: float = p.x - w * 0.5
-	var y: float = p.y - h
+	var x: float = base.x - w * 0.5
+	var y: float = base.y - h
 	draw_rect(Rect2(x, y, w, h), body)
 	draw_rect(Rect2(x + w * 0.62, y, w * 0.38, h), Color(0, 0, 0, 0.20))   # shaded SE face
-	draw_rect(Rect2(x, y, w * 0.13, h), lit)                               # NW-lit edge
+	draw_rect(Rect2(x, y, w * 0.14, h), lit)                               # NW-lit edge
 	draw_rect(Rect2(x, y, w, h), _ICON_OUTLINE, false, 0.8)
-	var peak := Vector2(p.x, y - s * 0.8)
-	var l := Vector2(x - s * 0.14, y)
-	var r := Vector2(x + w + s * 0.14, y)
+	var peak := Vector2(base.x, y - h * 0.72)
+	var l := Vector2(x - w * 0.12, y)
+	var r := Vector2(x + w + w * 0.12, y)
 	draw_colored_polygon(PackedVector2Array([peak, l, r]), roof)
-	draw_line(peak, l, roof.lightened(0.3), 1.0)                           # lit roof slope
+	draw_line(peak, l, roof.lightened(0.3), 1.0)
 	draw_line(l, r, _ICON_OUTLINE, 0.8)
 
-# A walled keep — towns (no flanking towers), cities (two towers), capitals (towers + banner).
-# Shares the hut's flat NW-lit language so the whole settlement set reads as one family.
-func _draw_keep(p: Vector2, body: Color, scale: float, towers: bool, banner: bool) -> void:
-	var dark: Color = body.darkened(0.35)
+# A tower/keep block. `cone` = pointed roof (church/tower); else battlemented top (fortified).
+func _b_tower(base: Vector2, w: float, h: float, body: Color, cone: bool) -> void:
+	var lit: Color  = body.lightened(0.2)
 	var roof: Color = body.darkened(0.5)
+	var x: float = base.x - w * 0.5
+	var y: float = base.y - h
+	draw_rect(Rect2(x, y, w, h), body)
+	draw_rect(Rect2(x + w * 0.6, y, w * 0.4, h), Color(0, 0, 0, 0.20))
+	draw_rect(Rect2(x, y, w * 0.18, h), lit)
+	draw_rect(Rect2(x, y, w, h), _ICON_OUTLINE, false, 0.8)
+	if cone:
+		var peak := Vector2(base.x, y - h * 0.6)
+		draw_colored_polygon(PackedVector2Array([peak, Vector2(x - w * 0.14, y), Vector2(x + w + w * 0.14, y)]), roof)
+		draw_line(peak, Vector2(x - w * 0.14, y), roof.lightened(0.28), 1.0)
+	else:
+		var km: float = w / 3.4
+		for m in range(3):
+			var mx: float = x + float(m) * (w / 2.55) + km * 0.12
+			draw_rect(Rect2(mx, y - h * 0.16, km, h * 0.16), body)
+			draw_rect(Rect2(mx, y - h * 0.16, km, h * 0.16), _ICON_OUTLINE, false, 0.5)
+
+# ── Settlement composers (back-to-front: higher/farther buildings drawn first) ──
+# Hamlet: one or two small huts.
+func _settle_hamlet(p: Vector2, body: Color, hsh: int) -> void:
+	_ground_shadow(p + Vector2(2.0, 1.2), 9.0, 3.4)
+	if (hsh & 1) == 1:
+		_b_house(p + Vector2(-6.0, -1.0), 7.0, 5.0, body)
+	_b_house(p, 9.0, 6.5, body)
+
+# Village: a couple of cottages flanking a small church (cone-roofed tower) — clearly not a castle.
+func _settle_village(p: Vector2, body: Color, hsh: int) -> void:
+	_ground_shadow(p + Vector2(2.5, 1.6), 15.0, 5.0)
+	_b_house(p + Vector2(-9.0, 1.0), 8.0, 5.5, body)
+	if (hsh & 2) == 2:
+		_b_house(p + Vector2(10.0, 2.0), 7.5, 5.0, body)
+	_b_tower(p + Vector2(1.0, 0.0), 7.0, 15.0, body, true)        # church steeple
+	_b_house(p + Vector2(-2.0, 2.0), 9.0, 6.5, body)             # hall in front
+
+# Town: a cluster of houses behind a fortified tower, reading as a market town.
+func _settle_town(p: Vector2, body: Color, hsh: int) -> void:
+	_ground_shadow(p + Vector2(3.0, 2.0), 20.0, 6.5)
+	_b_house(p + Vector2(-12.0, 0.0), 9.0, 6.0, body)
+	_b_house(p + Vector2(12.0, 1.0), 9.0, 6.0, body)
+	if (hsh & 4) == 4:
+		_b_house(p + Vector2(0.0, -3.0), 8.0, 5.5, body)
+	_b_tower(p + Vector2(5.0, 2.5), 9.0, 18.0, body, false)      # fortified tower
+	_b_house(p + Vector2(-5.0, 3.0), 11.0, 7.5, body)           # main hall up front
+
+# Capital: a banner-flying keep with two flanking towers, a couple of houses at its foot.
+func _settle_capital(p: Vector2, body: Color, _hsh: int) -> void:
+	var dark: Color = body.darkened(0.35)
 	var lit: Color  = body.lightened(0.18)
+	var roof: Color = body.darkened(0.5)
+	var scale: float = 16.0
 	var bw: float = scale * 1.4
 	var bh: float = scale * 1.2
-	var tw: float = scale * 0.6
-	var th: float = scale * 1.5
-	_ground_shadow(p + Vector2(scale * 0.12, scale * 0.05), bw * 0.85, scale * 0.32)
-
-	if towers:
-		for side in [-1, 1]:
-			var tx: float = p.x + side * (bw * 0.5 + tw * 0.3) - tw * 0.5
-			draw_rect(Rect2(tx, p.y - th, tw, th), body)
-			draw_rect(Rect2(tx + tw * 0.58, p.y - th, tw * 0.42, th), Color(0, 0, 0, 0.20))
-			draw_rect(Rect2(tx, p.y - th, tw * 0.16, th), lit)
-			draw_rect(Rect2(tx, p.y - th, tw, th), _ICON_OUTLINE, false, 0.8)
-			var rt := Vector2(tx + tw * 0.5, p.y - th - scale * 0.55)
-			draw_colored_polygon(PackedVector2Array([
-				rt, Vector2(tx - tw * 0.14, p.y - th), Vector2(tx + tw * 1.14, p.y - th)]), roof)
-			draw_line(rt, Vector2(tx - tw * 0.14, p.y - th), roof.lightened(0.28), 1.0)
-
+	var tw: float = scale * 0.55
+	var th: float = scale * 1.55
+	_ground_shadow(p + Vector2(scale * 0.14, scale * 0.06), bw * 0.95, scale * 0.36)
+	# Houses clustered at the foot of the castle (drawn first, behind).
+	_b_house(p + Vector2(-bw * 0.62, 2.0), 9.0, 6.0, body)
+	_b_house(p + Vector2(bw * 0.62, 3.0), 9.0, 6.0, body)
+	# Flanking towers with conical roofs.
+	for side in [-1, 1]:
+		var tx: float = p.x + side * (bw * 0.5 + tw * 0.3) - tw * 0.5
+		draw_rect(Rect2(tx, p.y - th, tw, th), body)
+		draw_rect(Rect2(tx + tw * 0.58, p.y - th, tw * 0.42, th), Color(0, 0, 0, 0.20))
+		draw_rect(Rect2(tx, p.y - th, tw * 0.16, th), lit)
+		draw_rect(Rect2(tx, p.y - th, tw, th), _ICON_OUTLINE, false, 0.8)
+		var rt := Vector2(tx + tw * 0.5, p.y - th - scale * 0.55)
+		draw_colored_polygon(PackedVector2Array([
+			rt, Vector2(tx - tw * 0.14, p.y - th), Vector2(tx + tw * 1.14, p.y - th)]), roof)
+		draw_line(rt, Vector2(tx - tw * 0.14, p.y - th), roof.lightened(0.28), 1.0)
+	# Central keep.
 	var bx: float = p.x - bw * 0.5
 	draw_rect(Rect2(bx, p.y - bh, bw, bh), body)
 	draw_rect(Rect2(bx + bw * 0.62, p.y - bh, bw * 0.38, bh), Color(0, 0, 0, 0.20))
 	draw_rect(Rect2(bx, p.y - bh, bw * 0.10, bh), lit)
 	draw_rect(Rect2(bx, p.y - bh, bw, bh), _ICON_OUTLINE, false, 1.0)
-
-	# Battlements along the top.
 	var km: float = bw / 7.0
 	for m in range(4):
 		var mx: float = bx + float(m) * (bw / 3.6) + km * 0.2
 		draw_rect(Rect2(mx, p.y - bh - scale * 0.28, km, scale * 0.28), body)
 		draw_rect(Rect2(mx, p.y - bh - scale * 0.28, km, scale * 0.28), _ICON_OUTLINE, false, 0.6)
-
-	# Gate arch (only big enough to read on towns and up).
 	draw_arc(p + Vector2(0, -scale * 0.30), scale * 0.28, PI, TAU, 8, dark.darkened(0.3), 1.6)
-
-	if banner:
-		var flag_x: float = p.x + bw * 0.05
-		var flag_top: Vector2 = Vector2(flag_x, p.y - bh - scale * 0.85)
-		draw_line(Vector2(flag_x, p.y - bh - scale * 0.26), flag_top, dark, 1.5)
-		draw_colored_polygon(PackedVector2Array([
-			flag_top, flag_top + Vector2(scale * 0.65, scale * 0.2), flag_top + Vector2(0, scale * 0.42),
-		]), lit)
+	# Banner from the keep.
+	var flag_x: float = p.x + bw * 0.05
+	var flag_top: Vector2 = Vector2(flag_x, p.y - bh - scale * 0.9)
+	draw_line(Vector2(flag_x, p.y - bh - scale * 0.26), flag_top, dark, 1.5)
+	draw_colored_polygon(PackedVector2Array([
+		flag_top, flag_top + Vector2(scale * 0.65, scale * 0.2), flag_top + Vector2(0, scale * 0.42),
+	]), lit)

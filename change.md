@@ -157,6 +157,40 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 319 — 2026-06-22  (MAIN-MAP FOCUS loop 6/7 — varied settlements + big typed army markers)
+
+**USER STEER:** *"redo the markers. add variances. make the town markers larger and not just be castles. give the
+army markers a much bigger size and noticeable unit icon for each type. so i can see the army traversing."* (Plus a
+systems question + a big real-time-troop-flow feature request — answered separately, scoped as a follow-on.)
+
+Marker work (view-only, `WorldMapView` + a composition field in `WorldMapController`):
+- **Settlements — varied, not all castles, larger.** New building primitives `_b_house` / `_b_tower` (shared
+  NW-lit flat language) compose four distinct places: `_settle_hamlet` (1–2 huts), `_settle_village` (cottages +
+  a church steeple), `_settle_town` (house cluster + fortified tower), `_settle_capital` (banner keep + flanking
+  towers + houses at its foot). A per-settlement hash (`seed_id`) jitters counts/offsets so towns don't look
+  stamped. Replaces the old "everything is a keep" `_draw_hut`/`_draw_keep`.
+- **Army markers — bigger + typed.** `WorldMapController._army_composition` buckets a host's carried real units
+  into infantry / ranged / siege (via `UnitRegistry` category + `ATTACK_PIERCE`). `_draw_army_marker` rebuilt: a
+  large faction shield (radius 9..18 by band, was ~4) with a dark rim + NW-lit edge, carrying the dominant type's
+  pictograph — crossed swords (infantry), a drawn bow (ranged), a trebuchet (siege) via `_draw_unit_glyph` /
+  `_ink_line` — plus a strength pennant and the troop count. March trail thickened + bigger arrowhead so a host
+  reads as traversing. Gold-levied AI armies (no roster) fall back to the infantry glyph.
+
+Dev harness `tools/RenderWorldMap.gd` gained `SR_ARMIES=1` (injects demo kingdoms/armies: idle infantry, marching
+archers, a siege train) so the markers can be render-verified — the bare generated map has no strategic armies.
+Render-verified seed 99 @ zoom 1.7 / 2.2 / 3.5. Validated: clean parse (view + controller); TestStrategicAI 91/0.
+
+**Systems question — "does a city send ACTUAL in-world troops?"** Answered: the PLAYER's hosts already do
+(`GameState.player_march_units` → `CampaignSystem.create_unit_army` carries the real trained units by identity;
+`_sync_carried_units` trims real casualties; survivors fold back into the garrison roster on return/occupy). AI
+kingdoms still use gold-levied abstract `raise_army`. The remaining gap is the **real-time VISUAL hand-off**
+between the city playarea and the world map (march off-screen → world icon → enter target playarea → fight →
+retreat → return) — a large cross-scene feature scoped for confirmation before building.
+
+NEXT main-map cycle (7/7): per the user, the real-time troop-transition feature (pending scope confirmation).
+
+---
+
 ## Iteration 318 — 2026-06-22  (MAIN-MAP FOCUS loop 5/7 — calm the terrain into a designed backdrop)
 
 **USER STEER:** *"the background is just distracting. make it more intentionally designed around the cities and

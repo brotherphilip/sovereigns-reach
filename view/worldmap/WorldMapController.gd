@@ -5,6 +5,24 @@ extends RefCounted
 
 const WorldMapData    = preload("res://simulation/world/WorldMapData.gd")
 const CampaignSystem  = preload("res://simulation/strategic/CampaignSystem.gd")
+const UnitRegistry    = preload("res://simulation/units/UnitRegistry.gd")
+
+# Bucket an army's carried real units into the three marker icon groups (infantry / ranged /
+# siege) so the world-map marker can show WHAT is marching, not just how many. Gold-levied
+# armies carry no unit roster → empty dict, and the marker falls back to a generic host icon.
+static func _army_composition(army: Dictionary) -> Dictionary:
+	var comp := {"infantry": 0, "ranged": 0, "siege": 0}
+	for u in army.get("units", []):
+		if not u is Dictionary:
+			continue
+		var def: Dictionary = UnitRegistry.lookup(String(u.get("type", "")))
+		if String(def.get("category", "")) == UnitRegistry.CAT_SIEGE:
+			comp["siege"] += 1
+		elif String(def.get("attack_type", "")) == UnitRegistry.ATTACK_PIERCE:
+			comp["ranged"] += 1
+		else:
+			comp["infantry"] += 1
+	return comp
 
 static func get_city_render_list(data: Dictionary) -> Array:
 	var cities: Array   = data.get("cities", [])
@@ -90,6 +108,7 @@ static func get_army_render_list(data: Dictionary, march_frac: float = 0.4) -> A
 				"army_id": a.get("id", -1),
 				"dest_name": dest_name,
 				"eta_days": eta_days,
+				"composition": _army_composition(a),
 			})
 	return result
 
