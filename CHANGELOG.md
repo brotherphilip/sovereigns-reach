@@ -2,6 +2,25 @@
 
 ---
 
+## 2026-06-22 — The flat green carpet becomes a living meadow (iter322)
+
+- **[Visual] Macro ground variation — the loop's most-cited "lifeless, flat field" finally addressed
+  (player-experience pass):** a wide field used to read as a uniform paint-bucket green. The cause: the
+  grass-detail layer multiplied **one** blade texture identically over every tile, the discrete props
+  (DecorChunk flowers/pebbles/tufts) are deliberately tiny and sparse, and the base terrain is a flat
+  per-biome colour — so nothing supplied *large-scale* variation. Fixed entirely in
+  `grass_detail.gdshader` (a multiply-blend shader sampled by world position, so it flows seamlessly
+  across tiles at a few ALU ops per fragment — no new geometry or draw calls): added the missing
+  **macro meadow variation** — two octaves of value noise (broad ~17-tile regions blended with ~8-tile
+  patches) drive a brightness mottle (±14%) and a gentle warm-dry ↔ cool-lush hue drift, plus faint
+  clover-clump flecks for micro texture. The result is rolling patches of lush and dry grass instead of
+  a flat sheet. A sin-free hash keeps the noise stable across the whole map (no GPU banding). Verified by
+  before/after meadow crops at 1.0× and 1.7× and a winter pass (the multiply adapts to the cold base —
+  no odd tinting). The layer still LODs out below 0.55 zoom, so the zoomed-out overview's frame cost is
+  untouched; day-only (buildings, HUD, and the simulation are unchanged).
+
+---
+
 ## 2026-06-22 — Night is a readable, lamplit village instead of a black screen (iter321)
 
 - **[Visual] Night-lighting redesign — the loop's most-flagged "hate" fixed (player-experience pass):**

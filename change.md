@@ -157,6 +157,32 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 322 — 2026-06-22  (PLAYER-EXPERIENCE — meadow ground variation: the flat carpet comes alive)
+
+**Playtest finding (render):** re-rendered the day city view. Two prior flags turned out to be NON-issues
+(checked before "fixing"): the top resource bar is already fully labelled (Gold/Wood/Stone/Iron/Storage/
+Food/Ale + Prestige/Faith/Health — the `271469` I "saw" was just `251 120 0 371/600` at low res), and the
+"Nothing selected" inspector is already a slim prompt, not the old bloated dead panel. The real remaining
+weakness is the **flat green carpet** — the most-repeatedly-flagged visual issue. Cause: `GrassDetailLayer`
+multiplies ONE blade texture identically over every tile; DecorChunk's flowers/pebbles are deliberately
+tiny/sparse; TerrainChunk is a flat per-biome colour — nothing supplies *macro* variation.
+
+**Fix (view-only, single clean file `grass_detail.gdshader`):** added the missing macro variation —
+2-octave value noise (broad ~17-tile regions blended with ~8-tile patches) → brightness mottle (±14%) +
+warm-dry/cool-lush hue drift + faint clover-clump flecks, all sampled by world position (a few ALU ops/
+fragment, no geometry/draw-call cost). Sin-free hash → no GPU banding. Relies on shader-uniform defaults
+so no `.gd` change (zero entanglement with the large pre-existing WIP working set).
+
+**Verified:** before/after meadow crops at 1.0× and 1.7× — rolling lush/dry zones + wildflower flecks vs
+the old flat sheet; winter pass clean (multiply adapts to the cold base). Layer still LODs out <0.55 zoom
+(overview frame cost untouched). Buildings/HUD/sim unchanged.
+
+**Note:** the zoomed-OUT overview (<0.55 zoom) still shows flat terrain (grass layer hidden for perf) —
+a follow-up macro-tone pass at the TerrainChunk level would carry the variation to the overview, but
+TerrainChunk is in the WIP set; deferred to avoid entangling commits.
+
+---
+
 ## Iteration 321 — 2026-06-22  (PLAYER-EXPERIENCE — night redesign: a readable, lamplit village)
 
 **Playtest finding (render):** rendered the real CityViewScene at forced deep night (`SR_NIGHT`) — the
