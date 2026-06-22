@@ -157,6 +157,24 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 331 — 2026-06-23  (CLARITY/MOTIVATION — idle inspector → realm-at-a-glance)
+
+**Fresh playtest finding:** the bottom-right selection panel sits idle most of the game (already collapsed
+to a slim "click to inspect" hint — not egregious, but dead). Bigger gap: the WIN CONDITION (climb feudal
+ranks to King) is invisible during city play — only "endure to Day N" survival objectives show, never how
+close you are to the next rank.
+
+**Fix (view-only, HUDNode):** when nothing is selected, the panel becomes "YOUR REALM" — current title
+("⚜ You rule as Reeve") + a block progress bar to the next rank (`Reeve ▰▱▱▱▱▱ Bailiff`, from
+FeudalRank.domain_score vs the next TITLES min_score) + a peace/siege status line (red when a faction's
+siege_assembly targets the player). `_process` refreshes it ~1/s; `_expand_selection_panel` flips the
+header back to SELECTED + drops the tint when a real selection takes over. Read-only — mutates nothing.
+
+**Verified:** render shows the YOUR REALM summary with the title + progress bar + "at peace"; boots clean.
+Keeps the core goal (and current threat) in view at all times — previously only visible on the world map.
+
+---
+
 ## Iteration 330 — 2026-06-23  (REWARD/PROGRESSION — objective-complete flourish on the goal panel)
 
 **Finding:** completing a standing objective (the "what next?" guidance arc) pushed a feed line then

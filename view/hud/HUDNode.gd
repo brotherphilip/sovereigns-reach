@@ -84,12 +84,14 @@ var _current_build_category: int = 0  # CIVIC by default — matches the first o
 var _speed_btns: Array = []
 
 # Selection panel
+var _sel_header: Label = null                  # the panel's top header ("SELECTED" / "YOUR REALM")
 var _sel_title: Label = null
 var _sel_info: Label = null
 var _sel_workers_label: Label = null
 var _sel_actions: HBoxContainer = null
 var _sel_full_size: Vector2 = Vector2.ZERO     # full panel size (restored on selection)
 var _sel_has_selection: bool = false           # collapsed-to-slim-bar when false
+var _realm_refresh_accum: float = 0.0          # throttles the idle realm-summary refresh
 
 # Content containers stored directly (no node-path lookup)
 var _tech_content: VBoxContainer = null
@@ -944,7 +946,7 @@ func _build_bottom_bar(vp: Vector2) -> void:
 
 func _build_selection_panel() -> void:
 	_sel_full_size = _selection_panel.size   # remember full height so we can restore it
-	_add_label(_selection_panel, "SELECTED", Vector2(6, 4), 11, Color.LIGHT_YELLOW)
+	_sel_header = _add_label(_selection_panel, "SELECTED", Vector2(6, 4), 11, Color.LIGHT_YELLOW)
 	_sel_title = _add_label(_selection_panel, "Nothing selected", Vector2(6, 20), 14, Color(0.97, 0.92, 0.78))
 	_sel_info  = _add_label(_selection_panel, "", Vector2(6, 42), 10, Color.LIGHT_GRAY)
 	_sel_info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -966,6 +968,9 @@ func _expand_selection_panel() -> void:
 	# Restore the title's selected styling (clear_selection shrinks it for the hint bar).
 	_sel_title.add_theme_font_size_override("font_size", 14)
 	_sel_title.add_theme_color_override("font_color", Color(0.97, 0.92, 0.78))
+	if _sel_header:
+		_sel_header.text = "SELECTED"
+	_sel_info.remove_theme_color_override("font_color")   # drop the realm-summary tint
 	_sel_info.visible = true
 	_sel_workers_label.visible = true
 	_sel_actions.visible = true
@@ -1115,22 +1120,77 @@ func show_selected_citizen(c: Dictionary) -> void:
 
 func clear_selection() -> void:
 	if not _sel_title: return
-	# Nothing selected → collapse to a slim header bar carrying a helpful hint, rather than
-	# leaving a tall empty "Nothing selected" panel docked bottom-right.
-	_sel_title.text = "Click a building, unit, or citizen to inspect it"
-	_sel_title.add_theme_font_size_override("font_size", 11)
-	_sel_title.add_theme_color_override("font_color", Color(0.78, 0.74, 0.62))
-	_sel_title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_sel_title.size = Vector2(_sel_full_size.x - 12, 30)
-	_sel_info.text = ""
-	_sel_info.visible = false
+	# Nothing selected → instead of a dead "click to inspect" bar, show a REALM-AT-A-GLANCE summary:
+	# your feudal title + progress toward the next rank (the win condition, otherwise invisible during
+	# city play), and whether a siege looms. Keeps the core goal in view between rank-ups. (iter331)
 	_sel_workers_label.text = ""
 	_sel_workers_label.visible = false
 	_sel_workers_label.remove_theme_color_override("font_color")
-	for c in _sel_actions.get_children(): c.queue_free()
-	_sel_actions.visible = false
-	_selection_panel.size = Vector2(_sel_full_size.x, 44)   # slim header-only bar
 	_sel_has_selection = false
+	_realm_refresh_accum = 0.0
+	_render_realm_summary()
+
+# The idle realm summary (shown when nothing is selected). Refreshed ~every 1.5s by _process so the
+# title/progress/threat stay current as the realm grows. Reads live state; mutates nothing.
+func _render_realm_summary() -> void:
+	if _sel_title == null:
+		return
+	var FR = preload("res://simulation/strategic/FeudalRank.gd")
+	var CM = preload("res://simulation/strategic/CampaignMap.gd")
+	var world: Dictionary = GameState.world
+	var players: Array = GameState.players
+	var idx: int = FR.current_index(world, players)
+	if _sel_header:
+		_sel_header.text = "YOUR REALM"
+	_sel_title.text = "⚜  You rule as %s" % FR.title_name(idx)
+	_sel_title.add_theme_font_size_override("font_size", 14)
+	_sel_title.add_theme_color_override("font_color", Color(1.0, 0.86, 0.42))
+	_sel_title.autowrap_mode = TextServer.AUTOWRAP_OFF
+	_sel_title.size = Vector2(_sel_full_size.x - 12, 22)
+	# Progress toward the next rank — a little block-bar between the two titles.
+	var prog_line: String
+	if idx >= FR.king_index():
+		prog_line = "✦ The crown is yours — long may you reign. ✦"
+	else:
+		var prestige: float = float(players[0].get("prestige", 0.0)) if players.size() > 0 else 0.0
+		var score: int = FR.domain_score(world, CM.player_faction_id(world), prestige)
+		var cur_min: int = int(FR.TITLES[idx]["min_score"])
+		var next_min: int = int(FR.TITLES[idx + 1]["min_score"])
+		var frac: float = clampf(float(score - cur_min) / float(maxi(1, next_min - cur_min)), 0.0, 1.0)
+		var filled: int = int(round(frac * 6.0))
+		var bar: String = ""
+		for i in range(6):
+			bar += "▰" if i < filled else "▱"
+		prog_line = "%s  %s  %s" % [FR.title_name(idx), bar, FR.title_name(idx + 1)]
+	# Threat — is anyone marshalling a siege on the seat?
+	var threat_line: String = "⚜  Your realm is at peace."
+	var under_threat: bool = false
+	for fac in GameState.ai_factions:
+		if fac is Dictionary and int(fac.get("siege_assembly", {}).get("target_player_id", -1)) == 0:
+			threat_line = "⚔  %s is marshalling a siege on your seat!" % GameState.get_faction_display_name(int(fac.get("id", -1)))
+			under_threat = true
+			break
+	_sel_info.text = "%s\n%s\n\nClick a building, unit or citizen to inspect it." % [prog_line, threat_line]
+	_sel_info.visible = true
+	_sel_info.add_theme_font_size_override("font_size", 11)
+	_sel_info.add_theme_color_override("font_color", Color(1.0, 0.62, 0.46) if under_threat else Color(0.83, 0.86, 0.78))
+	_sel_info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_sel_info.position = Vector2(6, 40)
+	_sel_info.size = Vector2(_sel_full_size.x - 12, 96)
+	for c in _sel_actions.get_children():
+		c.queue_free()
+	_sel_actions.visible = false
+	_selection_panel.size = Vector2(_sel_full_size.x, 120)
+
+func _process(delta: float) -> void:
+	# Keep the idle realm summary fresh (title/progress/threat shift as the realm grows). Only when
+	# nothing is selected — a real selection owns the panel.
+	if _sel_has_selection:
+		return
+	_realm_refresh_accum += delta
+	if _realm_refresh_accum >= 1.5:
+		_realm_refresh_accum = 0.0
+		_render_realm_summary()
 
 func _set_workers_on_building(bid: int, count: int) -> void:
 	CommandQueue.enqueue(9, {"building_id": bid, "workers": count}, 0)

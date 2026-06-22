@@ -2,6 +2,21 @@
 
 ---
 
+## 2026-06-23 — The idle inspector now shows your realm at a glance (iter331)
+
+- **[Clarity/Motivation] A realm summary fills the bottom-right panel when nothing is selected:** that panel
+  spent most of the game collapsed to a dead "Click a building, unit, or citizen to inspect it" hint — and,
+  more importantly, the campaign's *win condition* (climb the feudal ladder to King) was **invisible during
+  city play** — only the survival objectives ("endure to Day N") were shown, never how close you were to the
+  next rank. Now, whenever nothing is selected, the panel reads as **YOUR REALM**: your current title
+  ("⚜ You rule as Reeve"), a little progress bar toward the next rank (`Reeve ▰▱▱▱▱▱ Bailiff`), and a
+  status line — "⚜ Your realm is at peace" or a red "⚔ <House> is marshalling a siege on your seat!" when a
+  siege is brewing. It refreshes ~once a second so it tracks the realm as it grows; the moment you select
+  something the panel hands back to the inspector (header flips to SELECTED). Keeps the core goal and the
+  current threat in view at all times. View-only (read-only title/threat lookups); verified by render.
+
+---
+
 ## 2026-06-23 — Completing an objective lands with a little fanfare (iter330)
 
 - **[Reward/Progression] An objective-complete flourish on the goal panel:** finishing a standing objective
