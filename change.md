@@ -157,6 +157,22 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 337 — 2026-06-23  (VERIFICATION — last city-view visual candidate confirmed resolved)
+
+Worked the re-baseline's open candidates. **Orchard/farm growth life → RESOLVED:** rendered fields across
+seasons — wheat = furrowed tilled soil that grows green (spring/summer) → near-solid RIPE GOLD w/ ears+awns
+(autumn, verified by render); orchards draw apple-tree rows; the Village Hall/keep fly a red realm pennant.
+The "flat parallelogram" critique is obsolete. Tried a summer green-canopy boost but the "brown field" I'd
+seen was actually the trodden-earth ROAD, not the crop — a non-issue, so REVERTED (no change kept that
+doesn't clearly improve). Phase-plan ledger updated.
+
+**Loop state — honest:** the original first-impression critique is fully cleared; even my own improvement
+ideas (realm banner, lusher fields) turn out already-implemented. Autonomous polish has reached genuine
+diminishing returns. Remaining: spectator-mode controls (one small unverified candidate) and the
+user-driven levers (VO batch; deeper long-game design). Slowing the loop cadence to a maintenance heartbeat.
+
+---
+
 ## Iteration 336 — 2026-06-23  (PROCESS — re-baseline the stale phase-plan critique to reality)
 
 **Why:** repeatedly this session, "phase-plan" targets turned out already-fixed (health-25, pop-vs-pawns,

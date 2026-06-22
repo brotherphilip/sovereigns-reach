@@ -38,12 +38,18 @@ Burns scenes), gold crest, button hierarchy (New Game dominant / Quit recessed),
 fireworks. The "crude lanterns / debug-spinner firework / no hierarchy" notes describe a long-dead build.
 
 ## GENUINELY OPEN / UNVERIFIED (candidate loop targets — confirm by render first)
+- ✅ **Orchard/farm growth life** — RESOLVED (verified iter337). Wheat is tilled soil w/ furrow rows that
+  GROWS seasonally — green sprouts (spring) → green canopy (summer) → a near-solid RIPE GOLD stand w/ ears &
+  awns (autumn). Orchards draw apple-tree rows. The Village Hall/keep even fly a red realm pennant. The old
+  "flat tan parallelogram" note is obsolete. (Tried a summer-canopy boost; it was a non-issue — the brown I'd
+  misread as the field was the trodden-earth ROAD — so it was reverted. Don't re-open without a render that
+  shows a real problem.)
 - **Spectator mode controls** (Tier 2): when viewing a rival's city, is there a clear "stop spectating / claim"
-  affordance, and does the ✕-garrison glyph read as a close button? Not re-verified this session.
-- **Town identity in the CITY view** (Tier 3): world-map settlements are now varied, but a player's vs a rival's
-  *city-view* town still reads as the same hut/hall set — no walls/square/market-stall/cultural variation.
-- **Orchard/farm growth life** (Tier 3): FieldGroundLayer paints crops; do they show rows / growth stages /
-  harvest change clearly? Not re-verified.
+  affordance, and does the ✕-garrison glyph read as a close button? Not re-verified — likely the last real
+  city-view candidate; needs an SR_SPECTATE render to confirm before touching.
+- **Town identity in the CITY view** (Tier 3): world-map settlements are now varied; a player's vs a rival's
+  *city-view* town still reads as the same building set (the hall flies a banner, but no walls/square/cultural
+  variation). A LARGE undertaking for MARGINAL gain (you mostly see your own town) — not a quick win.
 
 ## STRATEGIC — needs the user (not autonomous loop work)
 - **Narration VO batch:** 7 un-voiced events (`event_buried_hoard/_rival_defector/_stray_warhound/_comets_passage/
