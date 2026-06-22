@@ -2,6 +2,23 @@
 
 ---
 
+## 2026-06-23 — Siege warnings stop looping and stop lying about your walls (iter327, player report)
+
+- **[Clarity/Feedback] Fix the repeating, inaccurate siege notification (direct player feedback):** a player
+  reported the seat-defense message *"…your walls and garrison steady the people / your seat holds"* **looping
+  endlessly** while they *"had no defences, so not sure how."* Two real bugs: **(1) it lied** — siege-readiness
+  counts a garrison of *units* too (threshold is 3 of walls+soldiers combined), so a wall-less seat holds on its
+  soldiers, yet the text claimed *walls* the player never built; **(2) it spammed** — sieges recur on a cooldown,
+  so the same faction re-marshals and the seat re-holds over and over, replaying the identical line forever (the
+  6-second notification de-dupe couldn't catch repeats minutes apart). Fixed in both the city HUD and the world
+  map: the message now names **what is actually holding the seat** — "your walls", "your garrison", or "your walls
+  and garrison" — based on what the player truly has; and each attacker's warning/outcome is **de-duplicated per
+  faction**, so it only speaks again when something *changes* (a new attacker, or your readiness flipping — e.g.
+  losing your garrison, or finally raising walls). A seat that just keeps holding no longer nags you about it.
+  View-only; both scenes boot clean.
+
+---
+
 ## 2026-06-23 — Restore the siege-balance regression guard (iter326)
 
 - **[Test] Fix the stale `TestPhase10` siege-survival case (3 pre-existing reds → green; confirms a core

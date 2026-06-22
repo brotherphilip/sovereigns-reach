@@ -1192,23 +1192,62 @@ func _on_return_to_world_map() -> void:
 
 # ── Combat / win-loss handlers ────────────────────────────────────────────────
 
+# Suppress identical repeat siege notifications. Sieges recur on a cooldown, so the same faction
+# re-marshals (and the seat re-holds) over and over — replaying the SAME line endlessly is noise.
+# These remember, PER attacking faction, the last readiness/outcome we spoke about, so we only
+# speak again when that faction's situation actually CHANGES (deduped independently per attacker).
+var _siege_assembling_seen: Dictionary = {}
+var _siege_struck_seen: Dictionary = {}
+
+# Honest description of what is actually holding the seat — NEVER claim walls the player hasn't
+# built. Siege-readiness counts a garrison of units too (threshold is 3 of walls+soldiers), so a
+# wall-less seat can still "hold" on its garrison; saying "your walls hold" then is a lie the
+# player notices ("I've got no defences"). Match the feedback to what they can see they have.
+func _siege_defense_phrase(player: Dictionary) -> String:
+	var BReg = preload("res://simulation/buildings/BuildingRegistry.gd")
+	var walls: int = 0
+	for b in player.get("buildings", []):
+		if b is Dictionary and b.get("built", false) \
+				and int(BReg.lookup(b.get("type", "")).get("category", -1)) == BReg.Category.DEFENSE:
+			walls += 1
+	var garrison: int = 0
+	for u in player.get("units", []):
+		if u is Dictionary and u.get("is_alive", false):
+			garrison += 1
+	if walls > 0 and garrison > 0: return "your walls and garrison"
+	if walls > 0: return "your walls"
+	if garrison > 0: return "your garrison"
+	return "your people"
+
 func _on_ai_siege_assembling(faction_id: int, _target_player_id: int, eta_ticks: int) -> void:
-	if _hud == null: return
+	if _hud == null or GameState.players.size() == 0: return
+	var ready: bool = GameState.is_siege_ready(GameState.players[0])
+	# Only surface the warning when it carries NEW information — a different attacker, or the
+	# player's readiness flipping (unprepared → prepared, or losing their garrison) — otherwise
+	# an identical warning loops every cooldown (player feedback, iter327).
+	if _siege_assembling_seen.get(faction_id, null) == ready:
+		return   # same attacker, same readiness as last warned → no new information
+	_siege_assembling_seen[faction_id] = ready
 	var who: String = GameState.get_faction_display_name(faction_id)
 	var days: int = maxi(1, int(round(float(eta_ticks) / 240.0)))
-	var ready: bool = GameState.players.size() > 0 and GameState.is_siege_ready(GameState.players[0])
 	if ready:
-		_hud.show_notification("⚠ %s is marshalling a siege against your seat — ready in ~%d days. Your walls and garrison steady the people's nerve." % [who, days], 9.0, Color(1.0, 0.8, 0.3))
+		var phrase: String = _siege_defense_phrase(GameState.players[0])
+		_hud.show_notification("⚠ %s is marshalling a siege against your seat — ready in ~%d days. Behind %s, the people hold steady." % [who, days, phrase], 9.0, Color(1.0, 0.8, 0.3))
 	else:
 		_hud.show_notification("⚠ %s is marshalling a siege against your seat — ready in ~%d days. Raise walls, towers and a garrison before it lands!" % [who, days], 9.0, Color(1.0, 0.55, 0.2))
 
-# The siege lands. A prepared seat shrugs off most of it; an undefended one is gutted —
-# loud, clear feedback so the player feels the payoff (or cost) of their defences.
+# The siege lands. A prepared seat shrugs off most of it; an undefended one is gutted — loud,
+# clear feedback so the player feels the payoff (or cost) of their defences. Deduped so a seat
+# that keeps holding doesn't replay the same "you held" line every cooldown (only on a change).
 func _on_ai_siege_struck(faction_id: int, _target_player_id: int, defended: bool, damage: int) -> void:
-	if _hud == null: return
+	if _hud == null or GameState.players.size() == 0: return
+	if _siege_struck_seen.get(faction_id, null) == defended:
+		return   # this attacker's outcome is unchanged → don't replay the same line
+	_siege_struck_seen[faction_id] = defended
 	var who: String = GameState.get_faction_display_name(faction_id)
 	if defended:
-		_hud.show_notification("🛡 %s's siege breaks on your walls — your seat holds (only %d damage)." % [who, damage], 7.0, Color(0.6, 0.9, 0.5))
+		var phrase: String = _siege_defense_phrase(GameState.players[0])
+		_hud.show_notification("🛡 %s's siege breaks against %s — your seat holds (only %d damage)." % [who, phrase, damage], 7.0, Color(0.6, 0.9, 0.5))
 	else:
 		_hud.show_notification("💥 %s storms your undefended seat — %d damage! Raise walls and a garrison before the next assault." % [who, damage], 9.0, Color(1.0, 0.4, 0.3))
 

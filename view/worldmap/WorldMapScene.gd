@@ -854,13 +854,38 @@ func _on_ai_faction_defeated(faction_id: int) -> void:
 
 # A siege is marshalling against the player's seat — warn them on the map (the seat is besieged while
 # they campaign abroad). Mirrors CityViewScene's warning but nudges the player to return.
+var _siege_assembling_seen: Dictionary = {}   # faction_id → last readiness we warned about
+
+# Honest description of what is actually holding the seat — never claim walls the player hasn't
+# built (siege-readiness counts a garrison of units too). Same player-feedback fix as the city HUD.
+func _siege_defense_phrase(player: Dictionary) -> String:
+	var BReg = preload("res://simulation/buildings/BuildingRegistry.gd")
+	var walls: int = 0
+	for b in player.get("buildings", []):
+		if b is Dictionary and b.get("built", false) \
+				and int(BReg.lookup(b.get("type", "")).get("category", -1)) == BReg.Category.DEFENSE:
+			walls += 1
+	var garrison: int = 0
+	for u in player.get("units", []):
+		if u is Dictionary and u.get("is_alive", false):
+			garrison += 1
+	if walls > 0 and garrison > 0: return "your walls and garrison"
+	if walls > 0: return "your walls"
+	if garrison > 0: return "your garrison"
+	return "your people"
+
 func _on_ai_siege_assembling(faction_id: int, _target_player_id: int, eta_ticks: int) -> void:
-	if not is_instance_valid(_event_feed):
+	if not is_instance_valid(_event_feed) or GameState.players.size() == 0:
 		return
+	var ready: bool = GameState.is_siege_ready(GameState.players[0])
+	# Only speak when the warning carries NEW info (new attacker / readiness flip) — otherwise the
+	# same siege warning loops every cooldown (player feedback, iter327).
+	if _siege_assembling_seen.get(faction_id, null) == ready:
+		return   # same attacker, same readiness as last warned → no new information
+	_siege_assembling_seen[faction_id] = ready
 	var who: String = GameState.get_faction_display_name(faction_id)
 	var days: int = maxi(1, int(round(float(eta_ticks) / 240.0)))
-	var ready: bool = GameState.players.size() > 0 and GameState.is_siege_ready(GameState.players[0])
-	var tail: String = " Your walls and garrison steady the people." if ready \
+	var tail: String = (" Behind %s, the people hold steady." % _siege_defense_phrase(GameState.players[0])) if ready \
 		else " Raise walls, towers and a garrison — return to your seat before it lands!"
 	_event_feed.push("⚠ %s is marshalling a siege against your seat — ready in ~%d days.%s" % [who, days, tail],
 		9.0, Color(1.0, 0.7, 0.25))

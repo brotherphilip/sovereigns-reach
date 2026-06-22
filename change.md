@@ -157,6 +157,31 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 327 — 2026-06-23  (PLAYER REPORT — siege notification loops + lies about walls)
+
+**Direct player feedback:** *"it gets to a point where it just keeps saying 'your garrison hold, walls stand'
+but I've got no defences so not sure how, and it's also so annoying because it's basically looping."*
+
+**Two real bugs (Phase-4 think-vs-actual mismatch + spam):**
+1. **Lie:** `_on_ai_siege_assembling` / `_on_ai_siege_struck` branched on `is_siege_ready`, which counts a
+   garrison of UNITS too (SIEGE_READY_THRESHOLD=3 over walls+soldiers). So a wall-less seat holds on its
+   soldiers, but the text said *"your walls… steady the people" / "breaks on your walls"* → player sees no
+   walls and is confused.
+2. **Loop:** `should_attack` guards mid-assembly, but sieges recur on a cooldown — the same bandit
+   re-marshals→lands→re-marshals forever, replaying the identical line. NotificationFeed's dedupe is only a
+   6 s window, so minutes-apart repeats slip through.
+
+**Fix (view-only, CityViewScene + WorldMapScene):** new `_siege_defense_phrase(player)` names what's ACTUALLY
+holding the seat ("your walls" / "your garrison" / "your walls and garrison"); and per-faction dedupe maps
+(`_siege_assembling_seen` / `_siege_struck_seen`) suppress a repeat unless that attacker's readiness/outcome
+CHANGES (new foe, or readiness flips). A seat that keeps holding no longer nags. Both scenes boot clean.
+
+**Logged for a future iteration (found before the report redirected me):** the core progression payoff is weak
+— a feudal **rank-up** (Reeve→…→King, the central long-term goal) fires only a 7 s HUD toast, same weight as
+"weather: clear", while the day-100 reign milestone gets a full modal. Rank-ups deserve a real celebratory beat.
+
+---
+
 ## Iteration 326 — 2026-06-23  (CORE-LOOP GUARD — siege-balance test restored; defending confirmed to pay off)
 
 **Investigated the iter324-flagged "possible siege bug" (TestPhase10 3 reds).** Phase-4 "what the player
