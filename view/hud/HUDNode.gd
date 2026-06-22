@@ -747,7 +747,7 @@ func _show_build_category(cat: int, pulse: bool = false) -> void:
 
 		# Each building is a proper card: bordered, padded panel, with a state colour.
 		var card := PanelContainer.new()
-		card.custom_minimum_size = Vector2(120, 122)
+		card.custom_minimum_size = Vector2(120, 140)
 		var card_sty := StyleBoxFlat.new()
 		card_sty.bg_color = (Color(0.22, 0.17, 0.09, 0.99) if is_tut_target
 			else (Color(0.17, 0.13, 0.08, 0.96) if enabled else Color(0.12, 0.10, 0.08, 0.92)))
@@ -782,9 +782,22 @@ func _show_build_category(cat: int, pulse: bool = false) -> void:
 			(Color(0.62, 0.86, 0.42) if can_afford else Color(0.9, 0.45, 0.35)) if tech_ok else Color(0.7, 0.66, 0.5))
 		vb.add_child(cost_lbl)
 
-		var spacer := Control.new()
-		spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
-		vb.add_child(spacer)
+		# What the building DOES — so a new player isn't left guessing what an "Apothecary" is.
+		# Strip any internal "GDD §x" design references that leak out of the description field.
+		var desc: String = String(defn.get("description", ""))
+		var gi: int = desc.find("GDD")
+		if gi > 0:
+			desc = desc.substr(0, gi).strip_edges()
+		var desc_lbl := Label.new()
+		desc_lbl.text = desc
+		desc_lbl.add_theme_font_size_override("font_size", 9)
+		desc_lbl.add_theme_color_override("font_color",
+			Color(0.76, 0.72, 0.62) if enabled else Color(0.5, 0.47, 0.42))
+		desc_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		desc_lbl.clip_text = true
+		desc_lbl.custom_minimum_size = Vector2(108, 40)
+		desc_lbl.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		vb.add_child(desc_lbl)
 
 		var bi: String = btype
 		var build_btn := _make_card_button("Build", enabled)

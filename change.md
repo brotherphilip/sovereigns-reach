@@ -157,6 +157,24 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 333 — 2026-06-23  (CLARITY — build cards explain what each building does; VO handoff)
+
+**VO investigation (teed up last iter):** the TTS studio (~/Documents/Projects/TTS) IS set up (CUDA, cloned
+voices, per-area batch scripts), and the project even does headless generation — BUT Chatterbox is
+stochastic ("re-run a key if a take garbles") and the [[narration-voiceover]] memory flags takes as
+"voice quality unverified pending user ear-check." So VO gen is NOT safely autonomous (can't hear garbles
+on a creative asset). Did NOT overwrite the (rich, current) narration memory. Conclusion: hand the 7 missing
+event VOs + `title_promoted` to the USER to render+audition. Logged; pivoted to an in-game win.
+
+**Shipped (CLARITY, view-only HUDNode):** build-menu cards now show a one-line DESCRIPTION of what each
+building does (was: name + cost + Build only — a new player couldn't tell what an Apothecary was). Pulls
+`BuildingRegistry` description, strips internal "GDD §x" dev refs, font 9, clipped, card height 122→140.
+
+**Verified:** render of the full build bar — Bridge/Hall/Hovel/Market/Well/Apothecary/Guildhall/Church/Keep
+all show their purpose; GDD refs gone; fits the bar; iter331 YOUR REALM panel still good.
+
+---
+
 ## Iteration 332 — 2026-06-23  (ENGAGEMENT — world-event decrees command the screen)
 
 **Probed engagement/content (top "Fun" priority).** Finding: the event system is actually solid — 26/59

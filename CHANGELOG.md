@@ -2,6 +2,23 @@
 
 ---
 
+## 2026-06-23 — The build menu now tells you what each building does (iter333)
+
+- **[Clarity] Every build card shows the building's purpose:** the cards listed a name, a cost, and a Build
+  button — but never what the building actually *does*. A new player staring at "Apothecary · 10wd 7g" had
+  no way to know it cures disease without building one and finding out. The descriptions already existed in
+  the registry; they just weren't shown. Now each card carries a one-line description ("Prevents disease.
+  Cures sick peasants in radius.", "Clean water raises sanitation, lowering disease risk.", "A family home —
+  build more to let the population grow."), with any internal `GDD §x` design references stripped out so
+  they never leak to the player. Verified by render of the full build bar. View-only.
+- **[Audio/handoff] Identified the 7 remaining un-voiced events** (`event_buried_hoard`, `_rival_defector`,
+  `_stray_warhound`, `_comets_passage`, `_barter_caravan`, `_feast_demanded`, `_dowsers_promise`) plus
+  `title_promoted`. The loop deliberately does **not** auto-generate these: the TTS studio's Chatterbox
+  engine is stochastic (takes can garble) and a creative voice asset needs a human ear-check — so these are
+  flagged for the user to render via Vocalis rather than shipped blind.
+
+---
+
 ## 2026-06-23 — A ruler's decree now commands the screen (iter332)
 
 - **[Engagement/Immersion] World-event decision modals dim the screen and frame the stakes:** the game
