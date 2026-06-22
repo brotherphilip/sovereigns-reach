@@ -2,6 +2,24 @@
 
 ---
 
+## 2026-06-22 — The forest stops looking like stamped clones (iter323)
+
+- **[Visual] Mixed woodland — a conifer archetype + wider tree colour spread (player-experience pass):**
+  trees are the most-repeated element on screen, and despite existing per-tree size/jitter/crown-shape
+  variation they still read as cloned lollipops because **every** tree was the same rounded broadleaf in
+  nearly the same mid-green. Fixed in `TreeLayer.gd` (view-only): ~40% of wooded tiles now draw a
+  **pine/conifer** — a short trunk under stacked triangular tiers tapering to a point, a genuinely
+  different *silhouette* from the broadleaf blob, chosen deterministically per tile. Conifers use a
+  deeper blue-green evergreen palette (real colour contrast in a stand), **stay green in autumn** while
+  the broadleaf turn gold, and **frost with snow caps in winter**. The broadleaf palette was also spread
+  much wider (deep green → bright yellow-green; rust → gold in autumn) and each crown gets a per-tree
+  value shift, so neighbouring trees read as sunlit vs shaded individuals. Verified by render across
+  summer / autumn / winter — forests now read as a varied natural woodland of mixed species rather than
+  stamped copies. Deterministic (hash of tile coords), so no shimmer; cull/LOD and per-frame cost
+  unchanged. Buildings, HUD, and the simulation are untouched.
+
+---
+
 ## 2026-06-22 — The flat green carpet becomes a living meadow (iter322)
 
 - **[Visual] Macro ground variation — the loop's most-cited "lifeless, flat field" finally addressed

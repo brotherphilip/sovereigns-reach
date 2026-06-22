@@ -155,29 +155,59 @@ func _h(gx: int, gy: int, salt: int) -> float:
 	var n: float = sin(float(gx) * 127.1 + float(gy) * 311.7 + float(salt) * 74.7) * 43758.5453
 	return n - floor(n)
 
-# Foliage palette for the season (adult/young crowns). hue 0..1 varies within a stand.
+# Foliage palette for the season (adult/young broadleaf crowns). hue 0..1 varies within a
+# stand. The endpoints are spread WIDE (deep green → bright yellow-green, gold → rust) so a
+# wood reads as many individual trees, not one repeated green.
 func _crown(hue: float) -> Array:
 	var dark: Color
 	match _season:
-		SeasonSystem.Season.SPRING: dark = Color(0.26, 0.55, 0.21).lerp(Color(0.40, 0.66, 0.22), hue)
-		SeasonSystem.Season.AUTUMN: dark = Color(0.58, 0.36, 0.12).lerp(Color(0.72, 0.52, 0.16), hue)
+		SeasonSystem.Season.SPRING: dark = Color(0.22, 0.50, 0.18).lerp(Color(0.46, 0.70, 0.26), hue)
+		SeasonSystem.Season.AUTUMN: dark = Color(0.50, 0.28, 0.10).lerp(Color(0.82, 0.60, 0.20), hue)
 		SeasonSystem.Season.WINTER: dark = Color(0.20, 0.34, 0.22).lerp(Color(0.26, 0.40, 0.24), hue)
-		_:                          dark = Color(0.10, 0.34, 0.14).lerp(Color(0.18, 0.45, 0.14), hue)
+		_:                          dark = Color(0.09, 0.30, 0.12).lerp(Color(0.28, 0.52, 0.16), hue)
 	return [dark, dark.lightened(0.18), dark.darkened(0.22)]
+
+# Evergreen palette for conifers — deeper & bluer than the broadleaf greens, so a mixed stand
+# has genuine colour contrast. Conifers stay green in autumn and only frost in winter.
+func _conifer_crown(hue: float) -> Array:
+	var dark: Color
+	match _season:
+		SeasonSystem.Season.SPRING: dark = Color(0.13, 0.38, 0.23).lerp(Color(0.20, 0.47, 0.27), hue)
+		SeasonSystem.Season.AUTUMN: dark = Color(0.11, 0.30, 0.19).lerp(Color(0.18, 0.38, 0.21), hue)
+		SeasonSystem.Season.WINTER: dark = Color(0.14, 0.30, 0.23).lerp(Color(0.19, 0.35, 0.25), hue)
+		_:                          dark = Color(0.08, 0.27, 0.18).lerp(Color(0.14, 0.36, 0.20), hue)
+	return [dark, dark.lightened(0.15), dark.darkened(0.20)]
 
 const TRUNK := Color(0.40, 0.27, 0.15)
 const TRUNK_D := Color(0.30, 0.20, 0.11)
 
 func _draw_tree(sx: float, sy: float, gx: int, gy: int, stage: int, g: float, shake: float) -> void:
+	# Per-tile deterministic variation so a stand reads as individual trees, not stamped
+	# clones: a size multiplier (~0.82–1.18) and a few px of position jitter, seeded by the
+	# tile. Stable across redraws (pure hash of gx,gy) so trees never shimmer.
+	var vs: float = 0.82 + _h(gx, gy, 90) * 0.36
+	var jx: float = (_h(gx, gy, 91) - 0.5) * 5.0
+	var jy: float = (_h(gx, gy, 92) - 0.5) * 4.0
+	var px: float = sx + jx
+	var py: float = sy + jy
+	# ~40% of tiles are conifers (a different SILHOUETTE, not just a different size) so a wood
+	# mixes pointed evergreens with rounded broadleaf instead of reading as stamped clones.
+	var conifer: bool = _h(gx, gy, 80) < 0.40
 	match stage:
 		ForestSystem.STUMP:
-			_draw_stump(sx, sy)
+			_draw_stump(px, py)
 		ForestSystem.SAPLING:
-			_draw_sapling(sx, sy, gx, gy, 0.55 + 0.45 * g)
+			_draw_sapling(px, py, gx, gy, (0.55 + 0.45 * g) * vs)
 		ForestSystem.YOUNG:
-			_draw_young(sx, sy, gx, gy, 0.7 + 0.3 * g, shake)
+			if conifer:
+				_draw_conifer(px, py, gx, gy, (0.66 + 0.3 * g) * vs, shake)
+			else:
+				_draw_young(px, py, gx, gy, (0.7 + 0.3 * g) * vs, shake)
 		_:
-			_draw_adult(sx, sy, gx, gy, 1.0, shake)
+			if conifer:
+				_draw_conifer(px, py, gx, gy, vs, shake)
+			else:
+				_draw_adult(px, py, gx, gy, vs, shake)
 
 func _draw_stump(sx: float, sy: float) -> void:
 	draw_circle(Vector2(sx, sy + 2.0), 5.0, Color(0, 0, 0, 0.14))
@@ -211,20 +241,35 @@ func _draw_adult(sx: float, sy: float, gx: int, gy: int, s: float, shake: float)
 	var hue: float = _h(gx, gy, 42)
 	var sway: float = sin(_t * 1.1 + float(gx) * 0.6 + float(gy) * 0.4) * 0.8   # gentle idle breeze
 	var lean: float = shake + sway
+	# Per-tile crown SHAPE: some trees are narrow & tall, others squat & bushy, so a stand
+	# isn't a row of identical lollipops. cw squashes/widens the canopy, ch its height.
+	var cw: float = 0.82 + _h(gx, gy, 93) * 0.40
+	var ch: float = 0.88 + _h(gx, gy, 94) * 0.30
+	# Trunk tint drifts a little per tree (some greyer/warmer bark).
+	var tnt: float = (_h(gx, gy, 95) - 0.5) * 0.10
+	var trunk_c := Color(clampf(TRUNK.r + tnt, 0.0, 1.0), clampf(TRUNK.g + tnt * 0.5, 0.0, 1.0), clampf(TRUNK.b, 0.0, 1.0))
 	# Long ground shadow + thick buttressed trunk.
 	draw_circle(Vector2(sx, sy + 4.0), 11.0 * s, Color(0, 0, 0, 0.16))
 	var tw: float = 3.0 * s
 	draw_colored_polygon(PackedVector2Array([
 		Vector2(sx - tw, sy + 3.0), Vector2(sx + tw, sy + 3.0),
 		Vector2(sx + tw * 0.6 + lean, sy - 16.0 * s), Vector2(sx - tw * 0.6 + lean, sy - 16.0 * s),
-	]), TRUNK)
+	]), trunk_c)
 	draw_line(Vector2(sx - tw * 0.2, sy + 2.0), Vector2(sx - tw * 0.2 + lean, sy - 15.0 * s), TRUNK_D, 1.0)
 	var top := Vector2(sx + lean, sy)
 	if _season == SeasonSystem.Season.WINTER:
 		_draw_bare(sx, sy, 1.3 * s, lean)
 		return
-	# Layered, billowing canopy — several overlapping clumps with light from upper-right.
+	# Layered, billowing canopy — several overlapping clumps with light from upper-right. The
+	# offsets scale by cw (width) / ch (height) so the crown's silhouette varies per tree.
 	var c: Array = _crown(hue)
+	# Per-tree value shift so some crowns are markedly lighter/darker than their neighbours
+	# (a sunlit tree next to a shaded one) — extra variety on top of the hue spread.
+	var vsh: float = (_h(gx, gy, 96) - 0.5) * 0.18
+	if vsh > 0.0:
+		c = [c[0].lightened(vsh), c[1].lightened(vsh), c[2].lightened(vsh * 0.7)]
+	else:
+		c = [c[0].darkened(-vsh), c[1].darkened(-vsh), c[2].darkened(-vsh * 0.7)]
 	var clumps := [
 		[Vector2(0, -18.0), 10.0, c[2]],
 		[Vector2(-7.0, -22.0), 8.0, c[0]],
@@ -235,10 +280,57 @@ func _draw_adult(sx: float, sy: float, gx: int, gy: int, s: float, shake: float)
 		[Vector2(1.0, -35.0), 5.0, c[1]],
 	]
 	for cl in clumps:
-		draw_circle(top + (cl[0] as Vector2) * s, (cl[1] as float) * s, cl[2])
+		var off := (cl[0] as Vector2) * Vector2(cw, ch)
+		draw_circle(top + off * s, (cl[1] as float) * cw * s, cl[2])
 	# A couple of bright dabs for sun glint.
-	draw_circle(top + Vector2(6.0, -33.0) * s, 2.6 * s, c[1].lightened(0.18))
-	draw_circle(top + Vector2(-5.0, -25.0) * s, 2.0 * s, c[1].lightened(0.12))
+	draw_circle(top + Vector2(6.0 * cw, -33.0 * ch) * s, 2.6 * s, c[1].lightened(0.18))
+	draw_circle(top + Vector2(-5.0 * cw, -25.0 * ch) * s, 2.0 * s, c[1].lightened(0.12))
+
+# A pine/conifer: a short trunk under stacked triangular tiers (wide at the base, tapering to a
+# point). A different SILHOUETTE from the broadleaf lollipop — the single biggest "not all the
+# same tree" win. Evergreen (keeps its needles in autumn); frosts with snow in winter.
+func _draw_conifer(sx: float, sy: float, gx: int, gy: int, s: float, shake: float) -> void:
+	var sway: float = sin(_t * 1.0 + float(gx) * 0.6 + float(gy) * 0.4) * 0.7
+	var lean: float = shake + sway
+	var cw: float = 0.84 + _h(gx, gy, 93) * 0.34          # per-tree width (some spindly, some full)
+	var top := Vector2(sx + lean, sy)
+	# Long ground shadow + a short, mostly-hidden trunk.
+	draw_circle(Vector2(sx, sy + 4.0), 9.0 * s, Color(0, 0, 0, 0.16))
+	var tw: float = 2.2 * s
+	draw_colored_polygon(PackedVector2Array([
+		Vector2(sx - tw, sy + 3.0), Vector2(sx + tw, sy + 3.0),
+		Vector2(sx + tw * 0.6, sy - 7.0 * s), Vector2(sx - tw * 0.6, sy - 7.0 * s),
+	]), TRUNK_D)
+	# Tiers bottom→top: [base_y, half_width, height, colour_index]. Drawn low→high so upper
+	# skirts overlap the ones beneath them into a layered cone.
+	var tiers := [
+		[-4.0, 11.0, 12.0, 2], [-11.0, 9.2, 12.0, 0], [-18.0, 7.2, 11.0, 0],
+		[-24.0, 5.4, 10.0, 1], [-29.0, 3.6, 9.0, 1],
+	]
+	if _season == SeasonSystem.Season.WINTER:
+		var cw_w: Array = _conifer_crown(_h(gx, gy, 42))
+		for tt in tiers:
+			var by: float = float(tt[0]) * s
+			var hw: float = float(tt[1]) * s * cw
+			var th: float = float(tt[2]) * s
+			draw_colored_polygon(PackedVector2Array([
+				top + Vector2(-hw, by), top + Vector2(hw, by), top + Vector2(0.0, by - th)]),
+				cw_w[2])
+			# A snow cap blanketing the upper half of each skirt.
+			draw_colored_polygon(PackedVector2Array([
+				top + Vector2(-hw * 0.66, by - th * 0.40), top + Vector2(hw * 0.66, by - th * 0.40),
+				top + Vector2(0.0, by - th)]), Color(0.92, 0.95, 1.0, 0.92))
+		return
+	var c: Array = _conifer_crown(_h(gx, gy, 42))
+	for tt in tiers:
+		var by: float = float(tt[0]) * s
+		var hw: float = float(tt[1]) * s * cw
+		var th: float = float(tt[2]) * s
+		draw_colored_polygon(PackedVector2Array([
+			top + Vector2(-hw, by), top + Vector2(hw, by), top + Vector2(0.0, by - th)]),
+			c[int(tt[3])])
+	# Sun glint catching the upper-right skirts.
+	draw_circle(top + Vector2(2.0 * s, -27.0 * s), 1.9 * s, c[1].lightened(0.16))
 
 func _draw_bare(sx: float, sy: float, s: float, lean: float) -> void:
 	var base := Vector2(sx, sy - 4.0 * s)

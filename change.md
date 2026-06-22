@@ -157,6 +157,31 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 323 — 2026-06-22  (PLAYER-EXPERIENCE — mixed woodland: conifers break the cloned forest)
+
+**Playtest finding (render):** rendered fresh day/close/water views of the CURRENT (WIP) build. Two prior
+Tier-1 critiques are already largely fixed by the uncommitted WIP — buildings (`BuildingModels` +635/-198)
+now read as real structures, and water (`water_flow.gdshader` +67/-15) has depth/texture/soft shorelines.
+The clear remaining eyesore is **trees**: the most-repeated element on screen, all the same rounded
+broadleaf lollipop in nearly the same mid-green → reads as stamped clones even though per-tree size/jitter/
+shape variation already exists. Root cause: ONE silhouette, narrow colour range.
+
+**Fix (view-only `TreeLayer.gd`, +26/-9 WIP was tree-coherent so the combined commit stays clean):**
+~40% of wooded tiles now draw a PINE/CONIFER (short trunk under stacked triangular tiers → a different
+silhouette, not just a size), chosen by hash per tile. Conifers use a deeper blue-green evergreen palette,
+stay green in autumn while broadleaf turn gold, and grow snow caps in winter. Broadleaf palette widened
+(deep green → bright yellow-green; rust → gold) + a per-tree value shift (sunlit vs shaded neighbours).
+
+**Verified:** render across summer (mixed green wood), autumn (gold broadleaf + green evergreens), winter
+(snow-capped pines + bare deciduous) — forests now read as varied natural woodland. Deterministic (no
+shimmer); cull/LOD + per-frame cost unchanged. Buildings/HUD/sim untouched.
+
+**Note (WIP set, ongoing):** the 48-file pre-existing working set keeps gating the next targets. Confirmed
+this iter that buildings & water within it look GOOD — strengthening the case to commit the WIP as its own
+iteration rather than leave it at risk. Flagged for a user decision.
+
+---
+
 ## Iteration 322 — 2026-06-22  (PLAYER-EXPERIENCE — meadow ground variation: the flat carpet comes alive)
 
 **Playtest finding (render):** re-rendered the day city view. Two prior flags turned out to be NON-issues
