@@ -157,6 +157,26 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 328 — 2026-06-23  (REWARD/PROGRESSION — rank-up is now a celebratory ennoblement beat)
+
+**Finding (carried from iter327):** the feudal climb (Reeve→…→King) is the game's CENTRAL long-term goal,
+but each promotion fired only a 7s HUD toast — same weight as "weather: clear". The day-100 reign milestone
+gets a full modal; rank-ups got nothing comparable. Weak reward for the biggest achievement in a run.
+
+**Fix:** new shared `view/hud/PromotionOverlay.gd` (`build(host, idx, name)`, mirrors GameOverOverlay) — a
+held, animated ennoblement: scene dims, gold impact flash, "⚜ ENNOBLED ⚜" banner + the new title scaling
+in (TRANS_BACK overshoot) over a celebrate+motivate line ("…you are now an Earl. 2 steps from the crown.").
+Brief sim pause so it lands, auto-dismiss ~3.4s, click-to-skip (promotions recur). King still → victory
+screen. Wired from BOTH CityViewScene and WorldMapScene (you can rank up while campaigning abroad).
+
+**Verified:** `SR_PROMODEMO=<Title>` dev hook → rendered Baron (3 steps) and Earl (2 steps, "an Earl"
+article correct); both scenes boot clean.
+
+**New TODO:** grim-herald VO `audio/narration/title_promoted.wav` — the `NarrationPlayer.say("title_promoted")`
+call is wired and null-safe, but the WAV needs generating (TTS studio). Adds to the existing 7 missing VOs.
+
+---
+
 ## Iteration 327 — 2026-06-23  (PLAYER REPORT — siege notification loops + lies about walls)
 
 **Direct player feedback:** *"it gets to a point where it just keeps saying 'your garrison hold, walls stand'

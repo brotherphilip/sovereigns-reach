@@ -834,11 +834,13 @@ func _on_city_hovered(city_id: int) -> void:
 # A feudal title rose (Reeve→…→King). The strategic tick fires this while the player is on this
 # map (capturing cities), so the celebration + the King WIN must present HERE, not only in the city
 # view. Mirrors CityViewScene._on_title_promoted.
-func _on_title_promoted(_title_index: int, title_name: String) -> void:
-	if is_instance_valid(_event_feed):
-		_event_feed.push("👑 You have risen to %s!" % title_name, 8.0, Color(1.0, 0.85, 0.3))
+func _on_title_promoted(title_index: int, title_name: String) -> void:
+	# Reaching King ends the campaign in triumph — the victory screen is that celebration.
 	if title_name == "King":
 		_show_endgame(true, "You have risen to KING — the realm is yours!")
+		return
+	# Every rung below it gets the same held ennoblement beat as the city view (shared overlay).
+	preload("res://view/hud/PromotionOverlay.gd").build(self, title_index, title_name)
 
 # A rival kingdom fell — vanquishing the LAST one is the conquest victory (mirrors CityViewScene).
 func _on_ai_faction_defeated(faction_id: int) -> void:

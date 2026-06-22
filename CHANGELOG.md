@@ -2,6 +2,23 @@
 
 ---
 
+## 2026-06-23 — Rising in rank is finally a moment worth savouring (iter328)
+
+- **[Reward/Progression] A feudal promotion is now a held, animated ennoblement — not a 7-second toast:**
+  climbing the feudal ladder (Reeve → Bailiff → Knight → Baron → Earl → Duke → King) is the game's central
+  long-term goal, yet each promotion was acknowledged with the same small corner notification as "weather:
+  clear" — a flat payoff for the biggest achievement in a playthrough. Now every rung below King triggers a
+  proper celebratory beat (new shared `PromotionOverlay`, built the same way from both the city view and the
+  world map, mirroring `GameOverOverlay`): the scene dims to a focus, a gold impact flash fires, and a
+  gold-bordered **"⚜ ENNOBLED ⚜"** banner flares in with the new title scaling up in large gold letters
+  ("Baron", "Earl", …) over a line that both celebrates and *motivates* — "The realm bends knee — you are
+  now an Earl. 2 steps from the crown." It holds for a few seconds (the sim pauses so the moment lands),
+  then fades and play resumes; a click skips it early, since promotions recur. Reaching King still goes to
+  the victory screen. A grim-herald VO hook is wired (`title_promoted`); the voice line itself is a
+  follow-up. Verified by render at multiple titles (`SR_PROMODEMO`). View-only; both scenes boot clean.
+
+---
+
 ## 2026-06-23 — Siege warnings stop looping and stop lying about your walls (iter327, player report)
 
 - **[Clarity/Feedback] Fix the repeating, inaccurate siege notification (direct player feedback):** a player

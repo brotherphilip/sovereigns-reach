@@ -362,6 +362,9 @@ func _build_scene() -> void:
 	# Dev hook: pop the "20 minutes reached" reign-milestone overlay shortly after boot.
 	if OS.get_environment("SR_REIGN") != "":
 		_dev_reign_preview()
+	# Dev hook: preview the feudal rank-up celebration (SR_PROMODEMO=<Title>, default Baron).
+	if OS.get_environment("SR_PROMODEMO") != "":
+		_dev_promo_preview(OS.get_environment("SR_PROMODEMO"))
 	# Dev hook: preview the shared end-game overlay (iter284). SR_GAMEOVER=victory → gold VICTORY
 	# panel, anything else → dark-red DEFEAT panel. Lets the city-view game-over be render-tested
 	# (mirrors the world map's SR_WINTEST).
@@ -1301,11 +1304,28 @@ func _on_popularity_changed(_pid: int, _old: float, new_val: float) -> void:
 
 # The player's derived feudal title rose. Each step is a milestone toast; reaching the
 # top title (King) is the victory condition for the "work your way up" campaign.
-func _on_title_promoted(_title_index: int, title_name: String) -> void:
-	if _hud != null:
-		_hud.show_notification("👑 You have risen to %s!" % title_name, 7.0, Color(1.0, 0.85, 0.3))
+func _on_title_promoted(title_index: int, title_name: String) -> void:
+	# Reaching King ends the campaign in triumph — the victory screen IS that celebration.
 	if title_name == "King":
 		_show_game_over(true, "You have risen to KING — the realm is yours!")
+		return
+	# Every rung below it gets a held, animated ennoblement beat (the core progression reward).
+	_show_promotion_celebration(title_index, title_name)
+
+func _dev_promo_preview(which: String) -> void:
+	await get_tree().create_timer(1.4).timeout
+	var FR = preload("res://simulation/strategic/FeudalRank.gd")
+	var idx: int = 3
+	for i in range(FR.TITLES.size()):
+		if String(FR.TITLES[i]["name"]) == which:
+			idx = i
+	_show_promotion_celebration(idx, FR.title_name(idx))
+
+# A feudal promotion is the CORE long-term reward (Reeve → … → King). It used to pass as a 7-second
+# toast — the same weight as a weather note. Now each rung is a held, animated ENNOBLEMENT (shared with
+# the world map via PromotionOverlay). King is handled by the victory screen, so this fires below it.
+func _show_promotion_celebration(title_index: int, title_name: String) -> void:
+	preload("res://view/hud/PromotionOverlay.gd").build(self, title_index, title_name)
 
 var _game_over_shown: bool = false
 
