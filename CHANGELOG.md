@@ -2,6 +2,19 @@
 
 ---
 
+## 2026-06-22 — Every army on the map is now a real, typed host (iter320)
+
+- **[Systems] AI armies march real units, not abstract numbers (player pick):** previously only the player's
+  hosts carried real trained troops by identity — the AI great houses levied an abstract "size" number. Now a
+  levy raises a real, typed roster (an infantry backbone, ~a fifth archers, and a little siege on bigger hosts),
+  so **every** army crossing the map is an actual roster of units. This means the new world-map markers show
+  an AI host's make-up by type (you can spot a siege column vs an archer raid), casualties trim the real roster,
+  and the survivors that occupy a captured city or march home are the actual troops that lived — for AI and
+  player alike. No balance change: army sizes and gold costs are untouched; the roster is attached to the
+  existing levy, deterministically (same levy → same make-up, so saves and the AI tests stay reproducible).
+
+---
+
 ## 2026-06-22 — Varied settlements & big, readable army markers on the world map (iter319)
 
 - **[Visual] Settlements are no longer all castles (player steer):** each settlement rank is now a visually

@@ -9,6 +9,7 @@ extends RefCounted
 
 const CampaignMap   = preload("res://simulation/strategic/CampaignMap.gd")
 const KingdomEconomy = preload("res://simulation/strategic/KingdomEconomy.gd")
+const UnitState     = preload("res://simulation/units/UnitState.gd")
 
 const GOLD_PER_SOLDIER: int = 5
 const MAX_ARMY_SIZE: int = 40
@@ -66,18 +67,54 @@ static func can_raise_army(world: Dictionary, kingdom: Dictionary, city_id: int,
 		return false
 	return kingdom.get("treasury", 0) >= size * GOLD_PER_SOLDIER
 
+# Build a real, typed unit roster for a levied host of `size` soldiers, so AI (and gold-levied
+# player) armies march ACTUAL units like the player's trained hosts do: the world-map markers can
+# show their make-up by type, and the survivors that occupy a captured city or return home are a
+# real roster (trimmed by casualties via _sync_carried_units). Composition: an infantry backbone,
+# ~a fifth archers, and a little siege only for sizeable hosts. Deterministic (no RNG) so the same
+# levy always yields the same roster — save/load and the AI tests stay reproducible.
+static func _synthesize_units(size: int, uid_start: int, owner_fid: int) -> Array:
+	var units: Array = []
+	if size <= 0:
+		return units
+	var n_siege: int = int(float(size) * 0.08) if size >= 25 else 0
+	var n_ranged: int = int(float(size) * 0.20)
+	var n_inf: int = maxi(0, size - n_siege - n_ranged)
+	var uid: int = uid_start
+	for k in range(n_inf):
+		var u: Dictionary = UnitState.create("swordsman" if (k % 3 == 0) else "militia", owner_fid, 0, 0, uid)
+		if not u.is_empty():
+			units.append(u)
+		uid += 1
+	for k in range(n_ranged):
+		var u2: Dictionary = UnitState.create("crossbowman" if (k % 4 == 0) else "archer", owner_fid, 0, 0, uid)
+		if not u2.is_empty():
+			units.append(u2)
+		uid += 1
+	for k in range(n_siege):
+		var u3: Dictionary = UnitState.create("catapult", owner_fid, 0, 0, uid)
+		if not u3.is_empty():
+			units.append(u3)
+		uid += 1
+	return units
+
 # Raise (levy) a new field army at an owned city. Costs gold. If a friendly army
 # is already stationed there it merges instead, to keep the army list compact.
+# The levy now carries a REAL typed unit roster (see _synthesize_units), not just a number.
 # Returns the army id on success, or -1.
 static func raise_army(world: Dictionary, kingdom: Dictionary, city_id: int, size: int) -> int:
 	size = clampi(size, 1, MAX_ARMY_SIZE)
 	if not can_raise_army(world, kingdom, city_id, size):
 		return -1
 	kingdom["treasury"] = kingdom.get("treasury", 0) - size * GOLD_PER_SOLDIER
+	var fid: int = kingdom.get("id", -1)
 
 	# Merge into an existing idle army at the same city.
 	for a in kingdom.get("armies", []):
 		if a is Dictionary and a.get("location_city_id", -1) == city_id and a.get("path", []).is_empty():
+			var carried: Array = a.get("units", [])
+			carried.append_array(_synthesize_units(size, a.get("id", 0) * 100000 + carried.size(), fid))
+			a["units"] = carried
 			a["size"] = a.get("size", 0) + size
 			return a.get("id", -1)
 
@@ -85,8 +122,9 @@ static func raise_army(world: Dictionary, kingdom: Dictionary, city_id: int, siz
 	kingdom["next_army_id"] = aid + 1
 	var army: Dictionary = {
 		"id": aid,
-		"owner_faction_id": kingdom.get("id", -1),
+		"owner_faction_id": fid,
 		"size": size,
+		"units": _synthesize_units(size, aid * 100000, fid),
 		"location_city_id": city_id,
 		"dest_city_id": -1,
 		"path": [],

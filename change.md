@@ -157,6 +157,33 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 320 — 2026-06-22  (MAIN-MAP FOCUS loop 7/7 — AI armies march REAL typed units)
+
+**USER PICK** (from the iter319 troop-flow question, options): *"AI armies use real units first"* — close the data
+gap so every host on the map is a real roster, before any cross-scene real-time visual work.
+
+Before: only the player's hosts carried real trained units by identity (`create_unit_army`); the AI great houses
+levied an abstract `size` number via `raise_army` (no roster). Fix (simulation-layer, `CampaignSystem`):
+- New `_synthesize_units(size, uid_start, owner_fid)` builds a real, typed roster via `UnitState.create` —
+  infantry backbone (militia/swordsman), ~20% archers (archer/crossbowman), ~8% catapults on hosts ≥25.
+  Deterministic (no RNG) so the same levy always yields the same make-up (save/load + AI tests reproducible).
+- `raise_army` now attaches that roster on both the new-army and merge-into-idle paths (uid namespaced by
+  `army_id * 100000 + carried_count` to stay unique across merges). Army `size`/gold cost unchanged → zero
+  balance impact; the roster rides along the existing levy.
+- Everything downstream already handled rosters: `_sync_carried_units` trims real casualties (already called
+  after every size change in `_resolve_assault`), captured cities take the survivors as `garrison_units`, and
+  idle armies recycling home fold their units into the city garrison. So AI survivors are now real troops too.
+
+Payoff: the iter319 markers now show AI hosts by type (siege column vs archer raid), and "if any troops survive
+they return home" holds for the AI, not just the player. Verified: probe — a 40-levy → 40 units
+`{swordsman:10, militia:19, crossbowman:2, archer:6, catapult:3}`; casualties 40→12 trim the roster to 12; a
+merged +10 levy → one army, size 22 / 22 units. TestStrategicAI 91/0; clean parse.
+
+NOTE: the larger real-time VISUAL hand-off (troops marching off/into the city playarea, live battle, retreat,
+return) remains the open feature — the user chose to land this data-spine completion first. Revisit next.
+
+---
+
 ## Iteration 319 — 2026-06-22  (MAIN-MAP FOCUS loop 6/7 — varied settlements + big typed army markers)
 
 **USER STEER:** *"redo the markers. add variances. make the town markers larger and not just be castles. give the
