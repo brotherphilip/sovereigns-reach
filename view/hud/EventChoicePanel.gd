@@ -113,12 +113,24 @@ func _present(ev: Dictionary) -> void:
 		var idx: int = i
 		var btn := Button.new()
 		btn.text = String(choice.get("label", "Choose"))
-		btn.add_theme_font_size_override("font_size", 12)
+		btn.add_theme_font_size_override("font_size", 13)
+		# The options used to render as bare centred text — they did NOT read as clickable, which is a
+		# real problem now that dilemmas land far more often. Give them a clear, full-width button look
+		# with a visible border and a hover/pressed brighten so they obviously invite a click. (iter355)
+		btn.custom_minimum_size = Vector2(0, 34)
+		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		_style_choice_button(btn)
 		btn.pressed.connect(func(): _choose(idx))
 		_btn_box.add_child(btn)
 
 	# Size the panel to its content and reveal it with a soft fade so the decree settles in.
-	_panel.size.y = 96.0 + choices.size() * 30.0
+	_panel.size.y = 100.0 + choices.size() * 40.0
+	# Centre the panel on screen now its height is known — a stop-and-decide moment belongs dead-centre,
+	# not stranded in the upper third. The dim recomputes from our (changed) position. (iter355)
+	var vp := get_viewport_rect().size
+	position = Vector2(vp.x * 0.5 - _panel.size.x * 0.5, vp.y * 0.5 - _panel.size.y * 0.5)
+	_dim.position = -position
+	_dim.size = vp
 	visible = true
 	modulate.a = 0.0
 	create_tween().tween_property(self, "modulate:a", 1.0, 0.25)
@@ -126,6 +138,26 @@ func _present(ev: Dictionary) -> void:
 	# restore the prior speed afterwards) so a decision is never missed at fast-forward.
 	_prev_speed = SimulationClock.game_speed
 	SimulationClock.set_speed(SimulationClock.SPEED_PAUSED)
+
+# Give a choice option a clear, clickable button look: a bordered plate that brightens on hover. (iter355)
+func _style_choice_button(btn: Button) -> void:
+	var normal := StyleBoxFlat.new()
+	normal.bg_color = Color(0.20, 0.17, 0.25, 0.98)
+	normal.set_border_width_all(1)
+	normal.border_color = Color(0.62, 0.54, 0.40)
+	normal.set_corner_radius_all(5)
+	normal.set_content_margin_all(7)
+	var hover := normal.duplicate()
+	hover.bg_color = Color(0.30, 0.25, 0.37, 1.0)
+	hover.border_color = Color(0.95, 0.82, 0.42)
+	var pressed := normal.duplicate()
+	pressed.bg_color = Color(0.15, 0.12, 0.19, 1.0)
+	btn.add_theme_stylebox_override("normal", normal)
+	btn.add_theme_stylebox_override("hover", hover)
+	btn.add_theme_stylebox_override("pressed", pressed)
+	btn.add_theme_stylebox_override("focus", hover)
+	btn.add_theme_color_override("font_color", Color(0.95, 0.93, 0.86))
+	btn.add_theme_color_override("font_hover_color", Color(1.0, 0.97, 0.80))
 
 func _choose(index: int) -> void:
 	CommandQueue.enqueue(CT_RESOLVE_EVENT_CHOICE, {
