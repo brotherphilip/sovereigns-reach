@@ -1424,9 +1424,19 @@ func _show_tutorial_choice() -> void:
 	overlay.name = "TutorialChoice"
 	overlay.layer = 40
 	add_child(overlay)
+	# Backdrop dim so the FIRST thing a new player sees reads as a proper modal (the other four
+	# modal overlays all have one) and stray clicks don't fall through to the scene behind. (iter346)
+	var dim := ColorRect.new()
+	dim.color = Color(0.0, 0.0, 0.0, 0.5)
+	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	overlay.add_child(dim)
 	var panel := Panel.new()
-	panel.position = Vector2(440, 250)
 	panel.size = Vector2(400, 200)
+	# Centre on the live viewport — the old (440,250) only centred on 1280×720, so on the real
+	# 1920×1080 canvas the opening "Begin the Tutorial?" prompt sat stranded upper-left. (iter346)
+	var _tvp := get_viewport()
+	var _tvps := _tvp.get_visible_rect().size if _tvp != null else Vector2(1920, 1080)
+	panel.position = ((_tvps - panel.size) * 0.5).floor()
 	var sty := StyleBoxFlat.new()
 	sty.bg_color = Color(0.08, 0.10, 0.07, 0.97)
 	sty.set_border_width_all(2)
@@ -1458,6 +1468,13 @@ func _show_tutorial_choice() -> void:
 	no.text = "Skip Tutorial"
 	no.position = Vector2(210, 146); no.size = Vector2(150, 40)
 	panel.add_child(no)
+	# Gentle fade-in so the opening prompt arrives rather than pops (matches the other modals). (iter346)
+	dim.modulate.a = 0.0
+	panel.modulate.a = 0.0
+	var tw := overlay.create_tween()
+	tw.set_parallel(true)
+	tw.tween_property(dim, "modulate:a", 1.0, 0.3)
+	tw.tween_property(panel, "modulate:a", 1.0, 0.35)
 	yes.pressed.connect(func():
 		overlay.queue_free()
 		TutorialSystem.start()
