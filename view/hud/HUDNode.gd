@@ -662,7 +662,10 @@ func _refresh_right_panel() -> void:
 	_pop_bar.value = pop
 	var tier: String = HUDController.get_popularity_tier(pop)
 	var col: Color = Color.from_string(HUDController.get_popularity_color(tier), Color.WHITE)
-	_pop_label.text = "%d%% (%s)" % [int(pop), tier]
+	# Trend arrow so a sliding popularity is visible at a glance (↑ rising, ↓ falling, → steady). (iter354)
+	var net: float = HUDController.get_popularity_net_per_day(p)
+	var trend: String = "↑" if net > 0.5 else ("↓" if net < -0.5 else "→")
+	_pop_label.text = "%d%% (%s) %s" % [int(pop), tier, trend]
 	_pop_label.add_theme_color_override("font_color", col)
 	_pop_label.tooltip_text = HUDController.get_popularity_breakdown_tooltip(p)
 	_pop_bar_fill.bg_color = col

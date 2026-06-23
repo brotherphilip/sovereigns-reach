@@ -14,6 +14,7 @@ func _init() -> void:
 	_test_effects_are_bounded()
 	_test_min_day_gating()
 	_test_choice_events()
+	_test_choice_cadence()
 	_test_seasonal_gating()
 	_test_material_events()
 	print("\n=== World Events Results: %d passed, %d failed ===" % [_pass, _fail])
@@ -73,18 +74,27 @@ func _test_definitions_valid() -> void:
 func _test_cooldown() -> void:
 	print("\n[Cooldown]")
 	var rng := RandomNumberGenerator.new(); rng.seed = 1
-	var world := {"last_event_day": 10}
-	# Strictly within the cooldown window (day - last < COOLDOWN_DAYS), nothing fires.
+	# Both tracks on cooldown → nothing fires within the shorter (choice) window.
 	var fired := false
-	for d in range(11, 10 + WorldEventSystem.COOLDOWN_DAYS):  # days 11..(last+cooldown-1)
+	for d in range(11, 10 + WorldEventSystem.CHOICE_COOLDOWN_DAYS):
+		var world := {"last_event_day": 10, "last_choice_day": 10}
 		for _i in range(50):
 			if not WorldEventSystem.tick(_player(), world, rng, d).is_empty():
 				fired = true
-	ok("no event fires during the cooldown window", not fired)
-	# Exactly at the cooldown boundary an event becomes possible again.
+	ok("nothing fires while both tracks are on cooldown", not fired)
+	# Ambient track in isolation (choice held perpetually off): no AMBIENT event fires in its window.
+	var amb_fired := false
+	for d in range(11, 10 + WorldEventSystem.COOLDOWN_DAYS):
+		var w := {"last_event_day": 10, "last_choice_day": 999999}
+		for _i in range(30):
+			var ev := WorldEventSystem.tick(_player(), w, rng, d)
+			if not ev.is_empty() and not WorldEventSystem.has_choices(ev):
+				amb_fired = true
+	ok("no ambient event fires during the ambient cooldown", not amb_fired)
+	# At the ambient cooldown boundary an event becomes possible again.
 	var possible := false
 	for _i in range(200):
-		var w2 := {"last_event_day": 10}
+		var w2 := {"last_event_day": 10, "last_choice_day": 10}
 		if not WorldEventSystem.tick(_player(), w2, rng, 10 + WorldEventSystem.COOLDOWN_DAYS).is_empty():
 			possible = true
 	ok("an event can fire once the cooldown elapses", possible)
@@ -106,8 +116,9 @@ func _test_event_fires_and_applies() -> void:
 			if String(ev.get("summary", "")) != "": saw_summary = true
 	ok("events fire over time", fired_count > 0)
 	ok("a fired event carries a human-readable summary", saw_summary)
-	# Events are paced ~once per cooldown (3 sun cycles); never denser than that.
-	ok("events respect roughly the cooldown spacing", fired_count <= horizon / WorldEventSystem.COOLDOWN_DAYS)
+	# Paced by the two tracks: at most one ambient per ambient cooldown + one dilemma per choice cooldown.
+	var spacing_bound: int = horizon / WorldEventSystem.CHOICE_COOLDOWN_DAYS + horizon / WorldEventSystem.COOLDOWN_DAYS + 5
+	ok("events respect roughly the two-track cooldown spacing", fired_count <= spacing_bound)
 
 func _test_effects_are_bounded() -> void:
 	print("\n[Effects are bounded — never below 0 / never instant-revolt]")
@@ -177,6 +188,31 @@ func _test_choice_events() -> void:
 	# spawn_citizens is surfaced for the caller (refugees event welcomes 2).
 	var ref_out := WorldEventSystem.resolve(_player(), "refugees_at_gate", 0)
 	ok("welcoming refugees reports spawn_citizens", int(ref_out.get("spawn_citizens", 0)) == 2)
+
+# iter354: the dilemmas (choice events) now run on a fast, cycling track so the player meets several
+# per life instead of ~0-1 — directly multiplying the agency-rich decisions that make the game fun.
+func _test_choice_cadence() -> void:
+	print("\n[Choice-event cadence — dilemmas fire often + cycle the catalogue]")
+	var rng := RandomNumberGenerator.new(); rng.seed = 99
+	var world := {}
+	var choice_fires := 0
+	var distinct := {}
+	for d in range(1, 101):   # a single ~100-day life
+		var ev := WorldEventSystem.tick(_player(), world, rng, d)
+		if not ev.is_empty() and WorldEventSystem.has_choices(ev):
+			choice_fires += 1
+			distinct[ev.get("id", "")] = true
+	ok("several dilemmas fire in one ~100-day life (was ~0-1)", choice_fires >= 2)
+	ok("the dilemmas are varied — drawn without replacement", distinct.size() >= 2)
+	# The choice track does NOT make ambient flavour denser — ambient still respects its calm cooldown.
+	var rng2 := RandomNumberGenerator.new(); rng2.seed = 5
+	var w2 := {}
+	var ambient_fires := 0
+	for d in range(1, 101):
+		var ev := WorldEventSystem.tick(_player(), w2, rng2, d)
+		if not ev.is_empty() and not WorldEventSystem.has_choices(ev):
+			ambient_fires += 1
+	ok("ambient flavour stays calm (<= 2 in a 100-day life)", ambient_fires <= 2)
 
 # Collects the set of event ids that fire across [day_lo, day_hi) over many trials.
 func _collect_ids_in_range(day_lo: int, day_hi: int) -> Dictionary:

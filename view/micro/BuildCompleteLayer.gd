@@ -51,6 +51,9 @@ func _scan() -> void:
 		_seen[id] = true
 		if _primed:   # don't poof everything that was already standing when we started watching
 			_spawn(String(b.get("type", "")), int(b.get("grid_x", 0)), int(b.get("grid_y", 0)))
+			# A persistent feed line confirms the build finished — the poof is transient and easily
+			# missed (especially for a building completed off-screen). View-side, so EventBus is fine. (iter354)
+			EventBus.realm_notice.emit("🏛 Your %s is complete." % BuildingRegistry.lookup(b.get("type", "")).get("name", "building"), "good")
 	_primed = true
 
 # Dev hook (SR_BUILDDEMO): fire a burst at a tile without waiting for a real completion.

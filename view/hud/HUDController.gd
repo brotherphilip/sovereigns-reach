@@ -247,6 +247,24 @@ static func get_market_history_tooltip(resource: String, world: Dictionary) -> S
 	return "Price history (oldest→newest):\n  %s" % bars.strip_edges()
 
 # Returns a multi-line tooltip breaking down each popularity component.
+# Net daily popularity pull (same components as the breakdown tooltip) — drives the HUD ↑/↓/→ trend
+# arrow so a sliding popularity is visible at a glance and invites the hover breakdown. (iter354)
+static func get_popularity_net_per_day(player: Dictionary) -> float:
+	const FOOD_POP: Dictionary = {0: -15, 1: -5, 2: 0, 3: 5, 4: 10}
+	const ALE_POP:  Dictionary = {0: -8,  1: 0,  2: 5, 3: 10, 4: 16}
+	const TAX_POP:  Dictionary = {-3: 10, -2: 6, -1: 3, 0: 0, 1: -3, 2: -6, 3: -12}
+	const VARIETY:  Dictionary = {"apples": 2, "cheese": 3, "meat": 5, "bread": 8}
+	var food_delta: int = FOOD_POP.get(player.get("food_ration", 2), 0)
+	var ale_delta: float = float(ALE_POP.get(player.get("ale_ration", 1), 0)) * player.get("inn_coverage", 0.0)
+	var tax_delta: int = TAX_POP.get(player.get("tax_rate", 0), 0)
+	var religion: float = player.get("religion_coverage", 0.0) * 10.0
+	var variety_bonus: int = 0
+	var food: Dictionary = player.get("food", {})
+	for ft in VARIETY:
+		if int(food.get(ft, 0)) > 0:
+			variety_bonus += VARIETY[ft]
+	return float(food_delta + variety_bonus + tax_delta) + ale_delta + religion
+
 static func get_popularity_breakdown_tooltip(player: Dictionary) -> String:
 	const FOOD_POP: Dictionary = {0: -15, 1: -5, 2: 0, 3: 5, 4: 10}
 	const ALE_POP:  Dictionary = {0: -8,  1: 0,  2: 5, 3: 10, 4: 16}

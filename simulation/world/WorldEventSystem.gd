@@ -37,6 +37,15 @@ const DAILY_CHANCE: float = 0.013 # per-day chance once off cooldown (~1 extra s
 # instead of maybe-never. Calm-realm directive preserved.
 const FIRST_EVENT_CHANCE: float = 0.10
 
+# Choice events (the agency-rich DILEMMAS — a Baron's loan, refugees at the gate, a feast) used to
+# share the calm 225-day cooldown above with ambient flavour events, so in a ~100-day life a player
+# saw at most ONE, and ~30 hand-written dilemmas sat unseen. They now run on their OWN, much faster
+# track so a real decision lands every few minutes, drawn WITHOUT replacement so the catalogue cycles
+# (~4 per life vs ~0-1). Ambient flavour stays calm. (iter354)
+const CHOICE_COOLDOWN_DAYS: int = 16
+const CHOICE_DAILY_CHANCE: float = 0.12
+const FIRST_CHOICE_CHANCE: float = 0.22
+
 # tone: "good" | "bad" | "neutral" — drives the notification colour.
 # effect keys: food, gold, wood, stone, iron, popularity, prestige (signed deltas);
 #              spawn_citizens (int, handled by GameState — a new arrival joins the settlement).
@@ -551,43 +560,74 @@ static func tick(player: Dictionary, world: Dictionary, rng: RandomNumberGenerat
 		return {}
 	# Before the realm's very first event, use the higher first-event chance so the player reliably
 	# MEETS the event system early (instead of ~27% of lives seeing none); afterwards, calm cadence.
+	# Seasons key off the day/night calendar; convert this game-day to a tick for the lookup.
+	var season: int = SeasonSystem.season_at_tick(day * SeasonSystem.TICKS_PER_DAY)
+
+	# ── CHOICE-EVENT track (fast) ── the dilemmas fire on their own short cooldown so the player
+	# faces a real decision every few minutes. They defer their effect until resolve().
+	var first_choice: bool = not world.has("last_choice_day")
+	var last_ch: int = int(world.get("last_choice_day", -999))
+	if day - last_ch >= CHOICE_COOLDOWN_DAYS \
+			and rng.randf() < (FIRST_CHOICE_CHANCE if first_choice else CHOICE_DAILY_CHANCE):
+		var cev: Dictionary = _pick_event(world, rng, day, season, in_peace, true)
+		if not cev.is_empty():
+			world["last_choice_day"] = day
+			return cev.duplicate(true)
+
+	# ── AMBIENT track (calm) ── the original cadence, now over NON-choice flavour events only.
 	var first_event: bool = not world.has("last_event_day")
 	var last: int = int(world.get("last_event_day", -999))
 	if day - last < COOLDOWN_DAYS:
 		return {}
 	if rng.randf() >= (FIRST_EVENT_CHANCE if first_event else DAILY_CHANCE):
 		return {}
+	var aev: Dictionary = _pick_event(world, rng, day, season, in_peace, false)
+	if aev.is_empty():
+		return {}
+	world["last_event_day"] = day
+	var result: Dictionary = aev.duplicate(true)
+	result["summary"] = _apply_effect(player, aev.get("effect", {}))
+	return result
 
-	# Weighted pick among events eligible at this day AND this season. Seasons key off the
-	# day/night calendar now, so convert this game-day to a tick for the lookup.
-	var season: int = SeasonSystem.season_at_tick(day * SeasonSystem.TICKS_PER_DAY)
+# Weighted pick of one eligible event (filtered by min_day, season, peace, and choice-vs-ambient).
+# For choice events, prefer ids not yet seen this life so the catalogue CYCLES (without replacement),
+# resetting once it has been exhausted.
+static func _pick_event(world: Dictionary, rng: RandomNumberGenerator, day: int, season: int, in_peace: bool, want_choices: bool) -> Dictionary:
+	var seen: Dictionary = world.get("seen_choice_ids", {}) if want_choices else {}
 	var pool: Array = []
+	var fresh: Array = []
 	var total: int = 0
+	var fresh_total: int = 0
 	for e in EVENTS:
-		# During the King's Peace, hostile/extortion events (raiders, tolls) don't occur.
+		if has_choices(e) != want_choices:
+			continue
 		if in_peace and bool(e.get("hostile", false)):
 			continue
-		if day >= int(e.get("min_day", 0)) and _event_in_season(e, season):
-			pool.append(e)
-			total += int(e.get("weight", 1))
-	if pool.is_empty() or total <= 0:
+		if day < int(e.get("min_day", 0)) or not _event_in_season(e, season):
+			continue
+		var w: int = int(e.get("weight", 1))
+		pool.append(e); total += w
+		if want_choices and not seen.has(e.get("id", "")):
+			fresh.append(e); fresh_total += w
+	var use_pool: Array = fresh if (want_choices and not fresh.is_empty()) else pool
+	var use_total: int = fresh_total if (want_choices and not fresh.is_empty()) else total
+	if use_pool.is_empty() or use_total <= 0:
 		return {}
-	var roll: int = rng.randi_range(0, total - 1)
-	var chosen: Dictionary = pool[0]
+	var roll: int = rng.randi_range(0, use_total - 1)
+	var chosen: Dictionary = use_pool[0]
 	var cumulative: int = 0
-	for e in pool:
+	for e in use_pool:
 		cumulative += int(e.get("weight", 1))
 		if roll < cumulative:
 			chosen = e
 			break
-
-	world["last_event_day"] = day
-	var result: Dictionary = chosen.duplicate(true)
-	# Choice events defer their effect until the player decides (via resolve()); plain
-	# events apply immediately and carry a "+50 food" summary for the notification.
-	if not has_choices(chosen):
-		result["summary"] = _apply_effect(player, chosen.get("effect", {}))
-	return result
+	if want_choices:
+		seen[chosen.get("id", "")] = true
+		# Whole catalogue cycled (this was the last fresh one) → reset so dilemmas can recur.
+		if fresh.size() <= 1:
+			seen = {}
+		world["seen_choice_ids"] = seen
+	return chosen
 
 # Applies the bounded stat deltas to the player and returns a short "+50 food" summary.
 # spawn_citizens is left for GameState (it owns the citizen array / id counter).
