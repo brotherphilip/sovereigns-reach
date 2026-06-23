@@ -296,13 +296,21 @@ func _draw_building(b: Dictionary, is_enemy: bool, fac_key: int = 0) -> void:
 		draw_string(pfont, ptp, ptxt, HORIZONTAL_ALIGNMENT_LEFT, -1, psz, Color(0.96, 0.98, 0.86))
 
 	# ── Label ─────────────────────────────────────────────────────────────────
-	var name_str: String = defn.get("name", btype).left(12)
-	# Slight outline for legibility over varied terrain, then the label.
-	var label_pos: Vector2 = center + Vector2(-22, -wall_height - ridge_h + 6)
-	draw_string(ThemeDB.fallback_font, label_pos + Vector2(1, 1),
-		name_str, HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color(0, 0, 0, 0.5))
-	draw_string(ThemeDB.fallback_font, label_pos,
-		name_str, HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color.WHITE)
+	# The persistent name label is the MOST-seen text in the city view, yet it used to be the
+	# LEAST legible — bare white + a 1px shadow that washed out over light grass/roofs — while the
+	# transient build-progress and placement-ghost labels in this same file both sit on a dark plate.
+	# Bring it up to that standard: a dark plate, width-centred (the old fixed -22px x-offset left
+	# short names off-centre), and stop clipping real names (.left(12) cut "Apple Orchard" →
+	# "Apple Orchar", "Woodcutter's Camp" → "Woodcutter's"). (iter348)
+	var name_str: String = defn.get("name", btype).left(18)
+	var nfont := ThemeDB.fallback_font
+	var nfs: int = 10
+	var ntw: float = nfont.get_string_size(name_str, HORIZONTAL_ALIGNMENT_LEFT, -1, nfs).x
+	var name_c: Vector2 = center + Vector2(0, -wall_height - ridge_h + 6)
+	var nlp: Vector2 = name_c + Vector2(-ntw * 0.5, 0.0)
+	draw_rect(Rect2(nlp.x - 3.0, nlp.y - nfs - 1.0, ntw + 6.0, nfs + 5.0), Color(0.05, 0.04, 0.03, 0.66))
+	draw_string(nfont, nlp + Vector2(1, 1), name_str, HORIZONTAL_ALIGNMENT_LEFT, -1, nfs, Color(0, 0, 0, 0.6))
+	draw_string(nfont, nlp, name_str, HORIZONTAL_ALIGNMENT_LEFT, -1, nfs, Color(0.97, 0.98, 0.92))
 
 	# ── No-worker alert icon ───────────────────────────────────────────────────
 	if max_w > 0 and int(b.get("workers", 0)) == 0 and b.get("is_active", true):
