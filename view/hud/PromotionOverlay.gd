@@ -39,7 +39,14 @@ static func build(host: Node, title_index: int, title_name: String) -> void:
 	var bh: float = 232.0
 	var banner := Panel.new()
 	banner.size = Vector2(bw, bh)
-	banner.position = Vector2((1280.0 - bw) * 0.5, (720.0 - bh) * 0.5)
+	# Centre on the live viewport — the old (1280×720)-based maths left this ennoblement banner (shown
+	# on EVERY promotion, the campaign's core recurring reward) stranded upper-left on the real 1920×1080
+	# canvas. Same resolution-centring fix as GameOverOverlay. (iter344)
+	var vp_size := Vector2(1920, 1080)
+	var vp := host.get_viewport()
+	if vp != null:
+		vp_size = vp.get_visible_rect().size
+	banner.position = ((vp_size - banner.size) * 0.5).floor()
 	banner.pivot_offset = Vector2(bw * 0.5, bh * 0.5)
 	var st := StyleBoxFlat.new()
 	st.bg_color = Color(0.12, 0.09, 0.05, 0.97)

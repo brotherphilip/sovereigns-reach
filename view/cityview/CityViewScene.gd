@@ -1486,8 +1486,12 @@ func _show_reign_milestone(_day: int) -> void:
 	overlay.add_child(bg)
 
 	var panel := Panel.new()
-	panel.position = Vector2(320, 205)
 	panel.size     = Vector2(640, 290)
+	# Centre on the live viewport — the old (320,205) only centred on 1280×720, leaving this Day-12
+	# reign-milestone celebration stranded upper-left on the real 1920×1080 canvas. (iter344)
+	var _mvp := get_viewport()
+	var _mvps := _mvp.get_visible_rect().size if _mvp != null else Vector2(1920, 1080)
+	panel.position = ((_mvps - panel.size) * 0.5).floor()
 	var style := StyleBoxFlat.new()
 	style.bg_color     = Color(0.13, 0.10, 0.06, 0.98)
 	style.set_border_width_all(3)
