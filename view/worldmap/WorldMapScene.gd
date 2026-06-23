@@ -886,10 +886,12 @@ func _on_ai_siege_assembling(faction_id: int, _target_player_id: int, eta_ticks:
 		return   # same attacker, same readiness as last warned → no new information
 	_siege_assembling_seen[faction_id] = ready
 	var who: String = GameState.get_faction_display_name(faction_id)
-	var days: int = maxi(1, int(round(float(eta_ticks) / 240.0)))
+	# Calendar days (matching "Day N"), not economic-day ticks/240 — see CityViewScene (iter353).
+	var cal_days: float = float(eta_ticks) / float(SimulationClock.TICKS_PER_CALENDAR_DAY)
+	var when_s: String = "within the day" if cal_days < 1.0 else "in about %d days" % int(round(cal_days))
 	var tail: String = (" Behind %s, the people hold steady." % _siege_defense_phrase(GameState.players[0])) if ready \
 		else " Raise walls, towers and a garrison — return to your seat before it lands!"
-	_event_feed.push("⚠ %s is marshalling a siege against your seat — ready in ~%d days.%s" % [who, days, tail],
+	_event_feed.push("⚠ %s is marshalling a siege against your seat — it lands %s.%s" % [who, when_s, tail],
 		9.0, Color(1.0, 0.7, 0.25))
 
 # A tribute envoy arrived while the player is on the map. The Accept/Refuse panel is in the city

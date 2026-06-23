@@ -1266,12 +1266,16 @@ func _on_ai_siege_assembling(faction_id: int, _target_player_id: int, eta_ticks:
 		return   # same attacker, same readiness as last warned → no new information
 	_siege_assembling_seen[faction_id] = ready
 	var who: String = GameState.get_faction_display_name(faction_id)
-	var days: int = maxi(1, int(round(float(eta_ticks) / 240.0)))
+	# Express the ETA in the SAME calendar days the HUD shows ("Day N"). The old code divided by 240
+	# (economic-day ticks) and called the result "days", overstating the warning ~15× — the player
+	# braced for "6 days" and was hit the same afternoon. When it rounds below a day, say so. (iter353)
+	var cal_days: float = float(eta_ticks) / float(SimulationClock.TICKS_PER_CALENDAR_DAY)
+	var when_s: String = "within the day" if cal_days < 1.0 else "in about %d days" % int(round(cal_days))
 	if ready:
 		var phrase: String = _siege_defense_phrase(GameState.players[0])
-		_hud.show_notification("⚠ %s is marshalling a siege against your seat — ready in ~%d days. Behind %s, the people hold steady." % [who, days, phrase], 9.0, Color(1.0, 0.8, 0.3))
+		_hud.show_notification("⚠ %s is marshalling a siege against your seat — it lands %s. Behind %s, the people hold steady." % [who, when_s, phrase], 9.0, Color(1.0, 0.8, 0.3))
 	else:
-		_hud.show_notification("⚠ %s is marshalling a siege against your seat — ready in ~%d days. Raise walls, towers and a garrison before it lands!" % [who, days], 9.0, Color(1.0, 0.55, 0.2))
+		_hud.show_notification("⚠ %s is marshalling a siege against your seat — it lands %s. Raise walls, towers and a garrison before it strikes!" % [who, when_s], 9.0, Color(1.0, 0.55, 0.2))
 
 # The siege lands. A prepared seat shrugs off most of it; an undefended one is gutted — loud,
 # clear feedback so the player feels the payoff (or cost) of their defences. Deduped so a seat
@@ -1288,12 +1292,37 @@ func _on_ai_siege_struck(faction_id: int, _target_player_id: int, defended: bool
 	else:
 		_hud.show_notification("💥 %s storms your undefended seat — %d damage! Raise walls and a garrison before the next assault." % [who, damage], 9.0, Color(1.0, 0.4, 0.3))
 
-func _on_unit_killed(unit_id: int, _killer_id: int, cause: String) -> void:
+# Same-tick battle losses are rolled up into ONE line with real unit names, instead of stuttering
+# "Unit lost: militia (combat)" once per dead man using the raw internal id. (iter353)
+var _unit_loss_buffer: Dictionary = {}      # display name -> count
+var _unit_loss_flush_queued: bool = false
+
+func _on_unit_killed(unit_id: int, _killer_id: int, _cause: String) -> void:
 	if GameState.players.size() == 0: return
 	for unit in GameState.players[0].get("units", []):
 		if unit is Dictionary and unit.get("id", -1) == unit_id:
-			_hud.show_notification("Unit lost: %s (%s)" % [unit.get("type", "?"), cause], 3.0)
+			var nm: String = UnitRegistry.lookup(unit.get("type", "")).get("name", "Soldier")
+			_unit_loss_buffer[nm] = int(_unit_loss_buffer.get(nm, 0)) + 1
+			if not _unit_loss_flush_queued:
+				_unit_loss_flush_queued = true
+				_flush_unit_losses.call_deferred()   # coalesce everything that died this frame
 			return
+
+func _flush_unit_losses() -> void:
+	_unit_loss_flush_queued = false
+	if _unit_loss_buffer.is_empty() or _hud == null:
+		_unit_loss_buffer.clear()
+		return
+	var total: int = 0
+	var parts: Array = []
+	for nm in _unit_loss_buffer:
+		total += int(_unit_loss_buffer[nm])
+		parts.append("%d %s" % [int(_unit_loss_buffer[nm]), nm])
+	var first_name: String = String(_unit_loss_buffer.keys()[0])
+	_unit_loss_buffer.clear()
+	var msg: String = ("⚔ You lost a %s in battle." % first_name) if total == 1 \
+		else ("⚔ You lost %d men in battle — %s." % [total, ", ".join(parts)])
+	_hud.show_notification(msg, 4.0, Color(1.0, 0.62, 0.42))
 
 func _on_building_destroyed(player_id: int, building_id: int, cause: String) -> void:
 	if player_id != 0 or GameState.players.size() == 0: return

@@ -1457,8 +1457,26 @@ func simulate_tick(tick: int) -> void:
 		# player's seat and any spectated rival alike — now that the spectated town runs its full
 		# economy (above), its larder is genuinely produced/consumed, so its people live or die by it.
 		var needs_season: int = int(world.get("season", SeasonSystem.Season.SUMMER))
-		for gone in NeedsSystem.tick_day(citizens, players[0], needs_season, _citizen_rng):
-			EventBus.realm_notice.emit("%s has died of %s." % [gone["name"], gone["cause"]], "bad")
+		var dead_today: Array = NeedsSystem.tick_day(citizens, players[0], needs_season, _citizen_rng)
+		if dead_today.size() <= 2:
+			for gone in dead_today:
+				EventBus.realm_notice.emit("%s has died of %s." % [gone["name"], gone["cause"]], "bad")
+		elif not dead_today.is_empty():
+			# A famine or cold-snap kills many at once — fold them into ONE summarised line so the cause
+			# + the fix survive, instead of burying the advice under 10+ identical death toasts. (iter353)
+			var by_cause: Dictionary = {}
+			for gone in dead_today:
+				var cz: String = String(gone.get("cause", "hardship"))
+				by_cause[cz] = int(by_cause.get(cz, 0)) + 1
+			var parts: Array = []
+			for cz in by_cause:
+				parts.append("%d to %s" % [by_cause[cz], cz])
+			var advice: String = ""
+			if by_cause.has("hunger"):
+				advice = " Lower your food Ration (top bar) and raise more orchards or farms."
+			elif by_cause.has("the cold"):
+				advice = " See every family has a home — build Hovels before winter bites."
+			EventBus.realm_notice.emit("☠ %d of your people died this day — %s.%s" % [dead_today.size(), ", ".join(parts), advice], "bad")
 		_next_citizen_id = PeopleSystem.tick_day(citizens, players[0], _citizen_rng, day, _next_citizen_id)
 		var living: int = PeopleSystem.living_count(citizens)
 		if players[0].get("population", 0) != living:
@@ -1558,6 +1576,21 @@ func simulate_tick(tick: int) -> void:
 					"bad")
 			elif float(total_food) >= daily_need * 6.0 and world.get("food_low_warned", false):
 				world["food_low_warned"] = false
+
+			# Winter cold telegraph — food gets a proactive low-stores warning, but cold used to
+			# ambush the player with freezing deaths and never name the fix. Fire once when winter is
+			# biting AND there isn't a roof for everyone (homeless freeze first); re-arm on recovery,
+			# mirroring the food warning so the first winter is a fair, readable challenge. (iter353)
+			var is_winter: bool = int(world.get("season", SeasonSystem.Season.SUMMER)) == SeasonSystem.Season.WINTER
+			var house_cap: int = _get_population_cap(players[0])
+			var homed_pop: int = int(players[0].get("population", 0))
+			if is_winter and homed_pop > house_cap and not world.get("cold_warned", false):
+				world["cold_warned"] = true
+				EventBus.realm_notice.emit(
+					"❄ Winter is biting and not everyone has a roof — the homeless will freeze. Build Hovels so every family has a warm hearth.",
+					"bad")
+			elif (not is_winter or homed_pop <= house_cap) and world.get("cold_warned", false):
+				world["cold_warned"] = false
 
 			# Stores-full warning: the raw pool (wood/stone/ore/intermediates) is shared, so
 			# once it fills, gatherers can't deposit and freeze CARRYING their load — the
