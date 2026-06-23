@@ -32,7 +32,8 @@ func _test_definitions() -> void:
 		ids[o.get("id","")] = true
 	ok("each objective has id + text", well)
 	ok("ids unique", ids.size() == ObjectiveSystem.OBJECTIVES.size())
-	ok("final objective is the 20-minute goal", ObjectiveSystem.OBJECTIVES[-1].get("id") == "rule_to_100")
+	ok("final objective is the win condition (King)", ObjectiveSystem.OBJECTIVES[-1].get("id") == "seize_crown")
+	ok("arc spans early survival through the crown", ObjectiveSystem.OBJECTIVES.size() >= 9)
 
 func _test_individual_completions() -> void:
 	print("\n[Individual completion checks]")
@@ -56,6 +57,20 @@ func _test_individual_completions() -> void:
 		not ObjectiveSystem.is_complete("ready_for_war", {"buildings": [_bld("apple_orchard")]}, {}, 1))
 	ok("rule_to_100 completes at day 12", ObjectiveSystem.is_complete("rule_to_100", empty, {}, 12)
 		and not ObjectiveSystem.is_complete("rule_to_100", empty, {}, 11))
+	# Late arc — the climb to the crown (strategic territory + cached feudal title).
+	var two_cities := {"world_map": {"player_faction_id": 99, "cities": [
+		{"id": 1, "owner_faction_id": 99}, {"id": 2, "owner_faction_id": 99}]}}
+	var one_city := {"world_map": {"player_faction_id": 99, "cities": [
+		{"id": 1, "owner_faction_id": 99}, {"id": 2, "owner_faction_id": 7}]}}
+	ok("claim_second needs a 2nd held city",
+		ObjectiveSystem.is_complete("claim_second", empty, two_cities, 1)
+		and not ObjectiveSystem.is_complete("claim_second", empty, one_city, 1))
+	ok("rise_to_baron needs title index >= 3 (Baron)",
+		ObjectiveSystem.is_complete("rise_to_baron", empty, {"player_title_index": 3}, 1)
+		and not ObjectiveSystem.is_complete("rise_to_baron", empty, {"player_title_index": 2}, 1))
+	ok("seize_crown needs title index >= 6 (King)",
+		ObjectiveSystem.is_complete("seize_crown", empty, {"player_title_index": 6}, 1)
+		and not ObjectiveSystem.is_complete("seize_crown", empty, {"player_title_index": 5}, 1))
 	# Unbuilt sites don't count.
 	ok("an unbuilt hall site does NOT satisfy found_hall",
 		not ObjectiveSystem.is_complete("found_hall", {"buildings": [{"type": "village_hall", "built": false}]}, {}, 1))
@@ -97,6 +112,10 @@ func _test_build_category_mapping() -> void:
 	ok("ready_for_war → DEFENSE", ObjectiveSystem.build_category_for("ready_for_war") == BR.Category.DEFENSE)
 	ok("survive_winter → -1 (no build, menu untouched)", ObjectiveSystem.build_category_for("survive_winter") == -1)
 	ok("rule_to_100 → -1 (no build)", ObjectiveSystem.build_category_for("rule_to_100") == -1)
+	ok("expansion objectives → -1 (strategic, no build tab)",
+		ObjectiveSystem.build_category_for("claim_second") == -1
+		and ObjectiveSystem.build_category_for("rise_to_baron") == -1
+		and ObjectiveSystem.build_category_for("seize_crown") == -1)
 	ok("unknown id → -1 (safe)", ObjectiveSystem.build_category_for("nonsense") == -1)
 	# Every objective that maps to a category must map to a REAL build tab (0..4).
 	var all_valid := true

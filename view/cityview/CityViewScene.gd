@@ -18,6 +18,7 @@ const CT_SELL_RESOURCE  = 6
 const AIFactionRef = preload("res://simulation/ai/AIFaction.gd")
 const UnitRegistry = preload("res://simulation/units/UnitRegistry.gd")
 const EdictSystemRef = preload("res://simulation/edicts/EdictSystem.gd")
+const ObjectiveSystem = preload("res://simulation/core/ObjectiveSystem.gd")
 
 var _keep_x: int = DEFAULT_KEEP_X
 var _keep_y: int = DEFAULT_KEEP_Y
@@ -1347,6 +1348,16 @@ func _dev_build_demo() -> void:
 		fx.dev_burst(_keep_x, _keep_y)
 
 func _dev_obj_demo() -> void:
+	# SR_OBJDEMO=<index> shows that objective in the panel (to verify late-arc text fits);
+	# default (empty/0) plays the completion flourish on the opening objective.
+	var which: int = int(OS.get_environment("SR_OBJDEMO"))
+	if which > 0 and which < ObjectiveSystem.OBJECTIVES.size():
+		# Fire LAST (after autoplay's own objective_updated emits settle) so the panel holds
+		# the late-arc text we want to verify, not whatever the fast-forward last reached.
+		await get_tree().create_timer(4.0).timeout
+		var o: Dictionary = ObjectiveSystem.OBJECTIVES[which]
+		EventBus.objective_updated.emit(which, ObjectiveSystem.OBJECTIVES.size(), String(o.get("text", "")))
+		return
 	await get_tree().create_timer(2.0).timeout
 	EventBus.objective_completed.emit("village_hall", "Found your seat — build a Village Hall")
 

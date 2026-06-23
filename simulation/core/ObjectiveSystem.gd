@@ -7,6 +7,7 @@ extends RefCounted
 # Data-driven: add an {id, text} entry + an `is_complete` case to grow the arc.
 
 const BuildingRegistry = preload("res://simulation/buildings/BuildingRegistry.gd")
+const CampaignMap = preload("res://simulation/strategic/CampaignMap.gd")
 
 const OBJECTIVES: Array = [
 	{"id": "found_hall",     "text": "Found your seat — build a Village Hall."},
@@ -15,6 +16,11 @@ const OBJECTIVES: Array = [
 	{"id": "survive_winter", "text": "Endure to Day 6 — stock winter food (orchards reap in autumn; bake bread to keep)."},
 	{"id": "ready_for_war",  "text": "Ready your defences — build a Barracks, Wall or Tower."},
 	{"id": "rule_to_100",    "text": "Endure — rule your realm to Day 12, a sovereign's reign."},
+	# Mid/late arc: from a secure village to the crown — the actual win condition (climb the feudal
+	# ladder to King by expanding), so the player always has direction toward the goal, not just survival.
+	{"id": "claim_second",   "text": "Expand your realm — march out and bring a second village under your rule."},
+	{"id": "rise_to_baron",  "text": "Rise in standing — hold and develop land enough to be styled a Baron."},
+	{"id": "seize_crown",    "text": "Claim the realm — grow your domain until you are crowned King."},
 ]
 
 # Which build-menu category the player needs for each objective — so the HUD can auto-open
@@ -54,7 +60,7 @@ static func _has_built_category(player: Dictionary, cats: Array) -> bool:
 			return true
 	return false
 
-static func is_complete(id: String, player: Dictionary, _world: Dictionary, day: int) -> bool:
+static func is_complete(id: String, player: Dictionary, world: Dictionary, day: int) -> bool:
 	var built: Array = _built_types(player)
 	match id:
 		"found_hall":
@@ -70,6 +76,18 @@ static func is_complete(id: String, player: Dictionary, _world: Dictionary, day:
 			return _has_built_category(player, [BuildingRegistry.Category.MILITARY, BuildingRegistry.Category.DEFENSE])
 		"rule_to_100":
 			return day >= 12
+		"claim_second":
+			# Hold more than your founding seat — a second strategic city under your banner.
+			# Same metric the feudal rank counts (faction_city_ids), so the arc escalates on
+			# one coherent measure: hold 2 → Baron → King.
+			var pfid: int = CampaignMap.player_faction_id(world)
+			return CampaignMap.faction_city_ids(world, pfid).size() >= 2
+		"rise_to_baron":
+			# player_title_index is the cached feudal rank (Reeve 0 … Baron 3 … King 6),
+			# maintained by GameState.check_promotion from domain score.
+			return int(world.get("player_title_index", 0)) >= 3
+		"seize_crown":
+			return int(world.get("player_title_index", 0)) >= 6
 	return false
 
 # Evaluate progress for the day. Mutates world["objectives_done"] (id->true). Returns
