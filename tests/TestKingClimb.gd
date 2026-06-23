@@ -21,11 +21,23 @@ const GOLD_PER: int = 5
 const DEADLINE_DAYS: int = 200   # all 5 verified seeds reach King inside this (≤113 days, iter154)
 const HOLD_DAYS: int = 100        # days to keep playing after King to prove the endgame is durable (iter156)
 
+# Captured EventBus.title_promoted emits — the signal BOTH views turn into the victory screen.
+# Reachability (peak_title >= King) is necessary but not sufficient: if a refactor of
+# _tick_strategic_layer ever drops the emit, the climb would still "reach King" by score yet the
+# WIN would never fire. Capturing the signal closes that end-to-end gap. (iter345)
+var _promotions: Array = []
+
+func _on_title_promoted(idx: int, tname: String) -> void:
+	_promotions.append({"index": idx, "name": tname})
+
 func _init() -> void:
 	await process_frame
 	var gs = root.get_node_or_null("GameState")
 	if gs == null:
 		print("FATAL: GameState autoload not found"); quit(1); return
+	var eb = root.get_node_or_null("EventBus")
+	if eb != null:
+		eb.title_promoted.connect(_on_title_promoted)
 	var env_seed: String = OS.get_environment("SR_SEED")
 	var seed: int = int(env_seed) if env_seed != "" else 12345
 
@@ -54,6 +66,17 @@ func _init() -> void:
 	var reached: bool = peak_title >= FR.king_index()
 	if reached: pass_count += 1; print("  PASS: seed %d reached King (day %d, holdings %d)" % [seed, king_day, CM.faction_city_ids(gs.world, pfid).size()])
 	else: fail_count += 1; print("  FAIL: seed %d stuck at %s (score %d) after %d days" % [seed, FR.title_name(peak_title), FR.domain_score(gs.world, pfid, 0.0), DEADLINE_DAYS])
+
+	# End-to-end WIN-TRIGGER guard: crossing King must EMIT title_promoted(King) — the signal both the
+	# city view and the world map convert into the victory screen. (Also assert the rungs below emit, so
+	# the ennoblement celebration fires on the way up.) This is what actually makes "you won" happen.
+	if reached:
+		var king_signalled: bool = false
+		for p in _promotions:
+			if int(p.get("index", -1)) == FR.king_index() or String(p.get("name", "")) == "King":
+				king_signalled = true
+		if king_signalled: pass_count += 1; print("  PASS: seed %d emitted title_promoted(King) — the victory screen fires (%d promotion cues total)" % [seed, _promotions.size()])
+		else: fail_count += 1; print("  FAIL: seed %d hit King score but NEVER emitted title_promoted(King) — the WIN would not fire!" % seed)
 
 	# Post-King DURABILITY (iter156): keep playing HOLD_DAYS after coronation and confirm the
 	# LIVE realm (not the never-demoting peak title) holds King-tier standing under continued AI
