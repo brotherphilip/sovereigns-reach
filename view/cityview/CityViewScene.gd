@@ -52,8 +52,9 @@ func _ready() -> void:
 		# SR_TELEMETRY/SR_SHOT). Mirrors the headless TestSurvival economy on the real scene.
 		if OS.get_environment("SR_AUTOPLAY") != "":
 			_dev_autoplay()
-		elif OS.get_environment("SR_ANIMALDEMO") != "":
-			pass   # animal art preview — no tutorial modal, no grace banner
+		elif OS.get_environment("SR_ANIMALDEMO") != "" \
+				or OS.get_environment("SR_SIEGEDEMO") != "" or OS.get_environment("SR_FIREDEMO") != "":
+			pass   # art/combat/fire preview hooks — no tutorial modal (it would pause + block the demo)
 		else:
 			# Quote the grace in CALENDAR days (the HUD's "Day N"), not raw economic days —
 			# PLAYER_GRACE_DAYS is in economic days (15 per calendar day), so 750 → ~50 on-screen.
