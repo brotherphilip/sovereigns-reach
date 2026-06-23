@@ -43,6 +43,9 @@ var _notification_feed: NotificationFeed = null
 var _objective_panel: Panel = null
 var _objective_label: Label = null
 var _objective_progress: Label = null
+var _objective_goal_label: Label = null   # always-visible "Climb to King — you rule as Reeve [pips]"
+var _macro_btn: Button = null             # world-map button (glowed when an expansion objective is up)
+var _macro_glow_tween: Tween = null
 var _was_starving: bool = false
 
 # Resource labels
@@ -163,8 +166,14 @@ func _on_objective_updated(index: int, total: int, text: String) -> void:
 	if _objective_label != null:
 		_objective_label.text = text
 	if _objective_progress != null:
-		# All done → show full; else show how many are behind us.
-		_objective_progress.text = "(%d/%d)" % [mini(index, total), total]
+		# 1-based CURRENT step — the old "(completed/total)" read as stuck on "(0/9)" while on task 1.
+		_objective_progress.text = "%d/%d" % [mini(index + 1, total), total]
+	_refresh_goal_footer()
+	# The expansion objectives are the only path past Bailiff, yet the world map is never otherwise
+	# pointed at. Glow the Macro button so the player knows WHERE to go to claim/conquer. (iter352)
+	if _macro_btn != null and index >= 0 and index < ObjectiveSystem.OBJECTIVES.size():
+		var goid: String = String(ObjectiveSystem.OBJECTIVES[index].get("id", ""))
+		_set_macro_glow(goid in ["claim_second", "rise_to_baron", "seize_crown"])
 	# Auto-point the build menu at the category the new objective needs, so the player
 	# always opens the bar onto the right tab (generalises the iter81 Civic default).
 	# Only fires when an objective advances (or day 1); objectives with no build leave it be.
@@ -177,6 +186,38 @@ func _on_objective_updated(index: int, total: int, text: String) -> void:
 		var cat: int = ObjectiveSystem.build_category_for(oid)
 		if cat >= 0:
 			_show_build_category(cat, true)  # pulse the tab — show the player it re-pointed
+
+# Always-visible gold footer on the OBJECTIVE panel: the ultimate goal (the crown) + how far the
+# player's feudal standing has climbed toward it. The core fantasy used to be invisible until the
+# final objective; this keeps "you're climbing to King" on screen the whole game. (iter352)
+func _refresh_goal_footer() -> void:
+	if _objective_goal_label == null:
+		return
+	var FR = preload("res://simulation/strategic/FeudalRank.gd")
+	var idx: int = FR.current_index(GameState.world, GameState.players)
+	var king: int = FR.king_index()
+	if idx >= king:
+		_objective_goal_label.text = "♛ You are KING — the realm is yours."
+		return
+	var bar: String = ""
+	for i in range(king):
+		bar += "▰" if i < idx else "▱"
+	_objective_goal_label.text = "♛ Climb to King — %s %s" % [FR.title_name(idx), bar]
+
+# Pulse the world-map button gold while an expansion objective is current — the only signpost
+# telling a town-builder that the path onward runs through the map.
+func _set_macro_glow(on: bool) -> void:
+	if _macro_btn == null:
+		return
+	if _macro_glow_tween != null and _macro_glow_tween.is_valid():
+		_macro_glow_tween.kill()
+		_macro_glow_tween = null
+	if on:
+		_macro_glow_tween = create_tween().set_loops()
+		_macro_glow_tween.tween_property(_macro_btn, "modulate", Color(1.5, 1.25, 0.65), 0.7).set_trans(Tween.TRANS_SINE)
+		_macro_glow_tween.tween_property(_macro_btn, "modulate", Color(1.0, 1.0, 1.0), 0.7).set_trans(Tween.TRANS_SINE)
+	else:
+		_macro_btn.modulate = Color.WHITE
 
 func _on_objective_completed(_id: String, _text: String) -> void:
 	# A little "done!" beat on the objective panel (the feed already logs the text): a bright
@@ -262,15 +303,21 @@ func _build_all_panels() -> void:
 	_right_panel = _make_panel(Rect2(vp.x - 222, 50, 220, 248))
 	_build_right_panel()
 
-	# Standing objective panel — the player's current goal, just below the realm panel.
-	_objective_panel = _make_panel(Rect2(vp.x - 222, 304, 220, 86))
+	# Standing objective panel — the player's current goal, just below the realm panel. Taller now,
+	# so a gold footer can always show the ultimate goal (the crown) + how close standing is — the core
+	# fantasy was previously invisible until the very last objective. (iter352)
+	_objective_panel = _make_panel(Rect2(vp.x - 222, 304, 220, 110))
 	_add_label(_objective_panel, "OBJECTIVE", Vector2(8, 6), 11, Color(1.0, 0.85, 0.35))
 	_objective_progress = _add_label(_objective_panel, "", Vector2(150, 6), 10, Color(0.7, 0.8, 0.95))
+	_objective_progress.size = Vector2(64, 16)
 	_objective_label = _add_label(_objective_panel, "Found your seat — build a Village Hall.",
 		Vector2(8, 26), 12, Color(0.93, 0.92, 0.85))
 	_objective_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_objective_label.custom_minimum_size = Vector2(202, 52)
 	_objective_label.size = Vector2(202, 52)
+	_objective_goal_label = _add_label(_objective_panel, "", Vector2(8, 86), 10, Color(1.0, 0.84, 0.42))
+	_objective_goal_label.size = Vector2(204, 18)
+	_refresh_goal_footer()
 
 	_bottom_bar = _make_panel(Rect2(0, vp.y - 36, vp.x, 34))
 	_build_bottom_bar(vp)
@@ -978,8 +1025,8 @@ func _build_bottom_bar(vp: Vector2) -> void:
 			func(): speed_changed.emit(sp), s[2])
 		x += 60
 
-	_add_button(_bottom_bar, "⊞ Macro [Tab]", Vector2(x + 10, 4), Vector2(110, 26),
-		func(): macro_view_toggled.emit(), "Toggle world map view (Tab)")
+	_macro_btn = _add_button(_bottom_bar, "⊞ Macro [Tab]", Vector2(x + 10, 4), Vector2(110, 26),
+		func(): macro_view_toggled.emit(), "Toggle world map view (Tab) — march armies, claim villages")
 	_add_button(_bottom_bar, "🔬 Tech", Vector2(x + 130, 4), Vector2(70, 26),
 		func(): _toggle_tech_panel(), "Open technology tree")
 	_add_button(_bottom_bar, "📜 Edicts", Vector2(x + 208, 4), Vector2(80, 26),
@@ -1233,14 +1280,14 @@ func _render_realm_summary() -> void:
 	_selection_panel.size = Vector2(_sel_full_size.x, 120)
 
 func _process(delta: float) -> void:
-	# Keep the idle realm summary fresh (title/progress/threat shift as the realm grows). Only when
-	# nothing is selected — a real selection owns the panel.
-	if _sel_has_selection:
-		return
 	_realm_refresh_accum += delta
 	if _realm_refresh_accum >= 1.5:
 		_realm_refresh_accum = 0.0
-		_render_realm_summary()
+		# The objective-panel crown footer is ALWAYS visible, so refresh it even while something is
+		# selected; the idle realm summary only when nothing owns the selection panel.
+		_refresh_goal_footer()
+		if not _sel_has_selection:
+			_render_realm_summary()
 
 func _set_workers_on_building(bid: int, count: int) -> void:
 	CommandQueue.enqueue(9, {"building_id": bid, "workers": count}, 0)

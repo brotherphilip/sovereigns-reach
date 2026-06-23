@@ -18,7 +18,7 @@ const OBJECTIVES: Array = [
 	{"id": "rule_to_100",    "text": "Endure — rule your realm to Day 12, a sovereign's reign."},
 	# Mid/late arc: from a secure village to the crown — the actual win condition (climb the feudal
 	# ladder to King by expanding), so the player always has direction toward the goal, not just survival.
-	{"id": "claim_second",   "text": "Expand your realm — march out and bring a second village under your rule."},
+	{"id": "claim_second",   "text": "Expand — open the World Map (Tab), raise a host and march it onto a neighbouring village."},
 	{"id": "rise_to_baron",  "text": "Rise in standing — hold and develop land enough to be styled a Baron."},
 	{"id": "seize_crown",    "text": "Claim the realm — grow your domain until you are crowned King."},
 ]
