@@ -78,6 +78,8 @@ var _pop_count_label: Label = null
 var _build_category_btns: Dictionary = {}
 var _build_item_container: HBoxContainer = null
 var _build_mode_label: Label = null
+var _build_mode_banner: Panel = null      # prominent centre-bottom "click the ground" prompt
+var _build_mode_banner_label: Label = null
 var _tab_pulse_tween: Tween = null  # active attention-flash on an auto-re-pointed tab
 var _current_build_category: int = 0  # CIVIC by default — matches the first objective (build a Village Hall)
 
@@ -690,12 +692,14 @@ func _build_build_menu(vp: Vector2) -> void:
 
 	# Category tabs
 	var cat_names: Array = ["Civic", "Harvest", "Food", "Military", "Defense"]
+	# Name only buildings that actually exist in each tab — the old tips advertised fisheries,
+	# stables and training grounds that aren't in the game, which reads as broken. (iter350)
 	var cat_tips: Array  = [
-		"Civic buildings: housing, wells, markets",
-		"Harvest buildings: farms, mines, woodcutters",
-		"Food production: mills, bakeries, fisheries",
-		"Military: barracks, stables, training grounds",
-		"Defenses: walls, towers, gates",
+		"Civic: Village Hall, Hovels (homes), Market, Well, Church",
+		"Harvest raw goods: Woodcutter, Stone Quarry, Iron Mine, Stockpile",
+		"Food: Orchards & farms, Mill, Bakery, Brewery, Granary",
+		"Military: Barracks, Blacksmith, Armory, Siege Workshop",
+		"Defences: Palisade, Stone Wall, Gatehouse, Towers",
 	]
 	var cat_x: float = 120.0
 	for i in range(cat_names.size()):
@@ -796,11 +800,7 @@ func _show_build_category(cat: int, pulse: bool = false) -> void:
 		vb.add_child(cost_lbl)
 
 		# What the building DOES — so a new player isn't left guessing what an "Apothecary" is.
-		# Strip any internal "GDD §x" design references that leak out of the description field.
-		var desc: String = String(defn.get("description", ""))
-		var gi: int = desc.find("GDD")
-		if gi > 0:
-			desc = desc.substr(0, gi).strip_edges()
+		var desc: String = _clean_desc(String(defn.get("description", "")))
 		var desc_lbl := Label.new()
 		desc_lbl.text = desc
 		desc_lbl.add_theme_font_size_override("font_size", 9)
@@ -1018,7 +1018,7 @@ func show_selected_building(building: Dictionary) -> void:
 	_sel_info.text = "HP: %d/%d  |  Fire: %s\n%s" % [
 		hp, max_hp,
 		"YES" if building.get("is_on_fire", false) else "No",
-		defn.get("description", "")
+		_clean_desc(String(defn.get("description", "")))
 	]
 	_sel_workers_label.text = "Workers: %d/%d" % [workers, max_w]
 	for c in _sel_actions.get_children(): c.queue_free()
@@ -1454,6 +1454,44 @@ func show_notification(text: String, duration: float = 3.0, color: Color = Color
 	if _notification_feed == null: return
 	_notification_feed.push(text, duration, color)
 
+# Strip internal "GDD §x" design citations that leak out of building description text, so the
+# player never sees raw dev notes. Used by both the build card and the selection panel.
+func _clean_desc(desc: String) -> String:
+	var gi: int = desc.find("GDD")
+	if gi > 0:
+		return desc.substr(0, gi).strip_edges()
+	return desc.strip_edges()
+
 func set_build_mode_display(building_type: String) -> void:
+	var in_build: bool = building_type != ""
+	var nice: String = BuildingRegistry.lookup(building_type).get("name", building_type) if in_build else ""
 	if _build_mode_label:
-		_build_mode_label.text = "Mode: %s" % (building_type if building_type != "" else "Select")
+		_build_mode_label.text = "Placing: %s" % nice if in_build else ""
+	# The single worst onboarding stall was a new player pressing Build, seeing a tiny "Mode: village_hall"
+	# corner label, and not knowing the next step is to CLICK THE GROUND. Show a prominent centre-bottom
+	# prompt that names the building and spells out the action. (iter350)
+	if _build_mode_banner == null:
+		var vp: Vector2 = get_viewport().get_visible_rect().size
+		_build_mode_banner = Panel.new()
+		_build_mode_banner.size = Vector2(560, 38)
+		# Sit just ABOVE the build menu (its top is vp.y - 200) so the prompt never overlaps the cards.
+		_build_mode_banner.position = Vector2((vp.x - 560.0) * 0.5, vp.y - 250.0)
+		var st := StyleBoxFlat.new()
+		st.bg_color = Color(0.10, 0.08, 0.05, 0.92)
+		st.set_corner_radius_all(8)
+		st.set_border_width_all(2)
+		st.border_color = Color(0.95, 0.80, 0.34, 0.95)
+		st.shadow_color = Color(0, 0, 0, 0.5); st.shadow_size = 8
+		_build_mode_banner.add_theme_stylebox_override("panel", st)
+		_build_mode_banner.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		add_child(_build_mode_banner)
+		_build_mode_banner_label = Label.new()
+		_build_mode_banner_label.size = Vector2(560, 38)
+		_build_mode_banner_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		_build_mode_banner_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		_build_mode_banner_label.add_theme_font_size_override("font_size", 15)
+		_build_mode_banner_label.add_theme_color_override("font_color", Color(1.0, 0.92, 0.66))
+		_build_mode_banner.add_child(_build_mode_banner_label)
+	_build_mode_banner.visible = in_build
+	if in_build:
+		_build_mode_banner_label.text = "Placing %s  —  left-click open ground to build  ·  right-click / Esc to cancel" % nice

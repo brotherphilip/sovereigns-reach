@@ -397,6 +397,9 @@ func _build_scene() -> void:
 	# Dev hook: open the pause/settings menu so its centring can be render-tested (Escape-only otherwise).
 	if OS.get_environment("SR_PAUSEMENU") != "":
 		_dev_pausemenu()
+	# Dev hook: show the build-placement prompt banner (entered via a card click otherwise).
+	if OS.get_environment("SR_BUILDMODE") != "":
+		_dev_buildmode(OS.get_environment("SR_BUILDMODE"))
 	var SeasonRef = preload("res://simulation/world/SeasonSystem.gd")
 	# Dev hook: jump the calendar to a chosen season (0=spring 1=summer 2=autumn 3=winter).
 	# Sets the live season DIRECTLY + repaints — the preview clock may not advance a whole
@@ -1358,6 +1361,11 @@ func _dev_build_demo() -> void:
 func _dev_pausemenu() -> void:
 	await get_tree().create_timer(2.0).timeout
 	_toggle_pause_menu()
+
+func _dev_buildmode(which: String) -> void:
+	await get_tree().create_timer(2.0).timeout
+	if _hud != null:
+		_hud.set_build_mode_display(which if which != "1" else "village_hall")
 
 func _dev_obj_demo() -> void:
 	# SR_OBJDEMO=<index> shows that objective in the panel (to verify late-arc text fits);
