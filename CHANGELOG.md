@@ -2,6 +2,21 @@
 
 ---
 
+## 2026-06-23 — A rival's tribute demand looks like a real decree (iter339)
+
+- **[Polish/Immersion] The tribute/diplomacy panel now has a framed background:** the demand panel — a key
+  "a rival lord is extorting you" decision (Accept / Refuse / Decide Later) — was rendering as **raw text
+  and buttons floating directly over the game field**, with no container behind it, which read as
+  unfinished and was hard to read against the scene. Its *content* was already excellent (a threat bar, the
+  faction's grievance standing, grace-aware refuse consequences, and an affordability gate). Now that content
+  sits in a proper parchment-dark **framed panel** whose border tones from amber to danger-red by the
+  demand's threat level — so an envoy's ultimatum reads as a defined decree with weight, matching the
+  event-decision modal. It deliberately still does NOT pause or dim (a tribute is a decide-at-leisure
+  ultimatum). View-only (`DiplomacyPanel`); verified by render; TestDiplomacyTribute 29/0, TestDiplomacyRepresent
+  11/0.
+
+---
+
 ## 2026-06-23 — The tech tree now shows what each technology gets you (iter338)
 
 - **[Clarity] Always-visible payoff line on every tech:** the technology panel listed techs as a name +

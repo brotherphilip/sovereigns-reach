@@ -157,6 +157,20 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 339 — 2026-06-23  (POLISH — framed the tribute/diplomacy decree; it was floating text)
+
+**Audited the diplomacy/tribute panel** (SR_DIPLO_DEMO render). Finding: the demand — a key Accept/Refuse/
+Decide-Later decision when a rival extorts you — was a bare VBox of labels+buttons with NO background panel,
+so it rendered as raw text floating over the field (unfinished, hard to read). Content was already great
+(threat bar, grievance standing, grace-aware refuse consequence, affordability gate).
+
+**Fix (view-only, DiplomacyPanel):** added a framed parchment-dark `_bg` Panel behind the content (StyleBoxFlat,
+border tones amber→red by threat, shadow), content inset 14px, sized to the laid-out VBox via `_fit_bg`
+(deferred + on `vb.resized`). Kept its deliberate no-pause/no-dim (decide-at-leisure ultimatum, unlike the
+event modal). Verified by render; TestDiplomacyTribute 29/0, TestDiplomacyRepresent 11/0.
+
+---
+
 ## Iteration 338 — 2026-06-23  (CLARITY — tech tree shows what each tech unlocks; resumed active cadence)
 
 **User re-ran /loop right after I slowed to maintenance → resumed active work.** Examined an UNEXAMINED

@@ -40,12 +40,29 @@ var _history_label: RichTextLabel
 var _current:       Dictionary = {}
 var _history:       Array      = []  # last 3 interactions for display
 var _pending:       Array      = []  # demands queued behind another open modal
+var _bg:            Panel      = null # framed background behind the demand content
+var _bg_style:      StyleBoxFlat = null
+var _vb:            VBoxContainer = null
 
 func _ready() -> void:
 	visible = false
 	add_to_group(ModalGate.GROUP)
 	custom_minimum_size = Vector2(340, 0)
+	# A framed parchment-dark panel BEHIND the demand so an envoy's ultimatum reads as a defined
+	# decree, not raw text floating over the field. Border tones by threat; sized to content (_fit_bg).
+	_bg = Panel.new()
+	_bg_style = StyleBoxFlat.new()
+	_bg_style.bg_color = Color(0.12, 0.10, 0.07, 0.97)
+	_bg_style.set_border_width_all(2)
+	_bg_style.border_color = Color(0.82, 0.62, 0.30, 1.0)
+	_bg_style.set_corner_radius_all(8)
+	_bg_style.shadow_color = Color(0, 0, 0, 0.55); _bg_style.shadow_size = 12
+	_bg.add_theme_stylebox_override("panel", _bg_style)
+	add_child(_bg)
 	var vb := VBoxContainer.new()
+	vb.position = Vector2(14, 12)
+	vb.resized.connect(_fit_bg)
+	_vb = vb
 	add_child(vb)
 
 	# Threat level display
@@ -159,6 +176,9 @@ func _present(faction_id: int, demand: Dictionary) -> void:
 	var threat_col: Color = Color.GREEN.lerp(Color.RED, threat / 100.0)
 	_threat_bar.modulate = threat_col
 	_threat_label.text = "Threat: %.0f/100" % threat
+	# Frame the decree in danger-amber → red by how threatening the demand is.
+	if _bg_style != null:
+		_bg_style.border_color = Color(0.82, 0.62, 0.30).lerp(Color(0.90, 0.36, 0.30), clampf(threat / 100.0, 0.0, 1.0))
 
 	# Flavor text by archetype
 	var arch: String = demand.get("archetype", "")
@@ -211,6 +231,12 @@ func _present(faction_id: int, demand: Dictionary) -> void:
 	# History + active agreements
 	_refresh_history()
 	visible = true
+	call_deferred("_fit_bg")   # wrap the framed background around the laid-out content
+
+func _fit_bg() -> void:
+	if _bg == null or _vb == null:
+		return
+	_bg.size = _vb.size + Vector2(28, 24)
 	# NOTE: unlike EventChoicePanel, a tribute demand deliberately does NOT pause the sim — it's
 	# a decide-at-leisure ultimatum with a multi-day deadline, and the iter275 affordability gate
 	# expects the realm to keep running so the player can GATHER what's owed and pay ("pay once you
