@@ -157,6 +157,17 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 341 — 2026-06-23  (VALIDATION — full regression sweep: zero new regressions across the session)
+
+Ran the full 62-suite headless sweep (first since iter324) to validate ~19 cycles of changes (iter321–340).
+**Result: 57 green, 5 red — ALL pre-existing/known, ZERO new regressions.** The only reds are TestNarration
+(82/7, the 7 missing-VO events) + the 4 `CommandQueue` `--script` compile-quirks (TestPhase7/11/12/Tutorial).
+TestPhase10 stayed green (the iter326 siege-test fix held). So the whole session's work — the visual
+redesigns, fireflies, build-complete poof, rank-up/objective/tribute UI, food-days, tech summaries, etc. —
+introduced no test breakage. Memory baseline updated. No code change this pass; pure validation.
+
+---
+
 ## Iteration 340 — 2026-06-23  (VERIFICATION — selected-entity inspector + save picker confirmed solid)
 
 Closed the unexamined-UI audit. Added `SR_SELECT=citizen|building` dev hook (drives the public
