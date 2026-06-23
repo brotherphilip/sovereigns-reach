@@ -157,6 +157,23 @@ shot:   DISPLAY=:99 import -window root /tmp/shot.png
 
 ---
 
+## Iteration 340 — 2026-06-23  (VERIFICATION — selected-entity inspector + save picker confirmed solid)
+
+Closed the unexamined-UI audit. Added `SR_SELECT=citizen|building` dev hook (drives the public
+`show_selected_citizen/building`) to render the inspector. Findings — both GOOD, no gap:
+- **Citizen inspector:** name w/ family-lineage surname ("Maud Turner"), HP/Warmth needs, role
+  ("Granary Keeper"), sex/stage.
+- **Building inspector:** name, HP, what-it-does description, worker controls.
+- **Load/save picker** (read, not re-rendered): a framed panel listing each save's date, Day N, shire
+  count, difficulty — solid.
+
+**Audit summary (iter338–340):** 4 unexamined systems → 2 real gaps fixed (tech-tree payoff lines iter338;
+framed tribute decree iter339) + 2 confirmed well-built (inspector, save picker). The "floating-text /
+missing-info / no-frame" vein is now essentially worked out. No game change this pass — verification + the
+SR_SELECT render hook. Remaining high-value: the user-driven VO batch + deeper long-game design.
+
+---
+
 ## Iteration 339 — 2026-06-23  (POLISH — framed the tribute/diplomacy decree; it was floating text)
 
 **Audited the diplomacy/tribute panel** (SR_DIPLO_DEMO render). Finding: the demand — a key Accept/Refuse/

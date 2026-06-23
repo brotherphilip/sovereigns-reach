@@ -2,6 +2,19 @@
 
 ---
 
+## 2026-06-23 — Inspector + save-picker render hooks; both confirmed solid (iter340)
+
+- **[Dev/Verification] `SR_SELECT=citizen|building` hook + audit of the last unexamined UI:** drove the
+  selected-entity inspector via a new dev hook and rendered it. The **citizen** inspector is good — name
+  (with family-lineage surname, e.g. "Maud Turner"), HP/Warmth needs, role ("Granary Keeper"), and
+  sex/stage. The **building** inspector is good — name, HP, a what-it-does description, and worker controls.
+  The **load/save picker** (read separately) is also solid — a framed panel listing each save's date, game
+  day, shire count, and difficulty. So the unexamined-UI audit closes with 2 real gaps found and fixed
+  (tech-tree summaries iter338, framed tribute decree iter339) and 2 systems confirmed well-built. No
+  player-facing change this pass — the inspector is now render-testable for future regressions.
+
+---
+
 ## 2026-06-23 — A rival's tribute demand looks like a real decree (iter339)
 
 - **[Polish/Immersion] The tribute/diplomacy panel now has a framed background:** the demand panel — a key

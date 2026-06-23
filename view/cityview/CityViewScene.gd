@@ -381,6 +381,9 @@ func _build_scene() -> void:
 	# Dev hook: open a side panel for capture (SR_PANEL=tech|edict).
 	if OS.get_environment("SR_PANEL") != "":
 		_dev_panel_demo(OS.get_environment("SR_PANEL"))
+	# Dev hook: select an entity to capture its inspector (SR_SELECT=citizen|building).
+	if OS.get_environment("SR_SELECT") != "":
+		_dev_select_demo(OS.get_environment("SR_SELECT"))
 	# Dev hook: preview the shared end-game overlay (iter284). SR_GAMEOVER=victory → gold VICTORY
 	# panel, anything else → dark-red DEFEAT panel. Lets the city-view game-over be render-tested
 	# (mirrors the world map's SR_WINTEST).
@@ -1355,6 +1358,21 @@ func _dev_panel_demo(which: String) -> void:
 		_hud._toggle_tech_panel()
 	elif which == "edict":
 		_hud._toggle_edict_panel()
+
+func _dev_select_demo(which: String) -> void:
+	await get_tree().create_timer(2.5).timeout
+	if _hud == null:
+		return
+	if which == "citizen" and GameState.citizens.size() > 0:
+		_hud.show_selected_citizen(GameState.citizens[0])
+	elif which == "building" and GameState.players.size() > 0:
+		var blds: Array = GameState.players[0].get("buildings", [])
+		for b in blds:
+			if b is Dictionary and b.get("built", false) and String(b.get("type", "")) in ["wheat_farm", "apple_orchard", "market", "woodcutter", "granary"]:
+				_hud.show_selected_building(b)
+				return
+		if not blds.is_empty():
+			_hud.show_selected_building(blds[0])
 
 func _dev_event_demo() -> void:
 	await get_tree().create_timer(2.0).timeout
