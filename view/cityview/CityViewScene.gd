@@ -393,6 +393,9 @@ func _build_scene() -> void:
 			_show_game_over(true, "All enemies vanquished! Sovereign's Reach is yours!")
 		else:
 			_show_game_over(false, "The people have revolted! Your reign is over.")
+	# Dev hook: open the pause/settings menu so its centring can be render-tested (Escape-only otherwise).
+	if OS.get_environment("SR_PAUSEMENU") != "":
+		_dev_pausemenu()
 	var SeasonRef = preload("res://simulation/world/SeasonSystem.gd")
 	# Dev hook: jump the calendar to a chosen season (0=spring 1=summer 2=autumn 3=winter).
 	# Sets the live season DIRECTLY + repaints — the preview clock may not advance a whole
@@ -1083,8 +1086,12 @@ func _toggle_pause_menu() -> void:
 	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_pause_menu.add_child(dim)
 	var panel := Panel.new()
-	panel.position = Vector2(490, 140)
 	panel.size = Vector2(300, 450)
+	# Centre on the live viewport — the old (490,140) only centred on 1280×720, so the pause menu
+	# (opened often, via Escape) sat stranded upper-left on the real 1920×1080 canvas. (iter347)
+	var _pvp := get_viewport()
+	var _pvps := _pvp.get_visible_rect().size if _pvp != null else Vector2(1920, 1080)
+	panel.position = ((_pvps - panel.size) * 0.5).floor()
 	var sty := StyleBoxFlat.new()
 	sty.bg_color = Color(0.08, 0.10, 0.07, 0.98)
 	sty.set_border_width_all(2)
@@ -1346,6 +1353,10 @@ func _dev_build_demo() -> void:
 	var fx = _world_root.get_node_or_null("BuildCompleteLayer")
 	if fx != null:
 		fx.dev_burst(_keep_x, _keep_y)
+
+func _dev_pausemenu() -> void:
+	await get_tree().create_timer(2.0).timeout
+	_toggle_pause_menu()
 
 func _dev_obj_demo() -> void:
 	# SR_OBJDEMO=<index> shows that objective in the panel (to verify late-arc text fits);
