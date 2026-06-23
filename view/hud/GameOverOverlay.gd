@@ -22,8 +22,15 @@ static func build(host: Node, victory: bool, message: String, buttons: Array, la
 	overlay.add_child(bg)
 
 	var panel := Panel.new()
-	panel.position = Vector2(340, 215)
-	panel.size     = Vector2(600, 270)
+	panel.size = Vector2(600, 270)
+	# Centre on the ACTUAL viewport — the old hard-coded (340,215) only centred on a 1280×720
+	# base, so on the real 1920×1080 canvas the end screen (the game's biggest moment) sat stranded
+	# in the upper-left corner. Derive the centre from the live design-space size instead. (iter343)
+	var vp_size := Vector2(1920, 1080)
+	var vp := host.get_viewport()
+	if vp != null:
+		vp_size = vp.get_visible_rect().size
+	panel.position = ((vp_size - panel.size) * 0.5).floor()
 	var style := StyleBoxFlat.new()
 	style.bg_color     = Color(0.10, 0.12, 0.16, 0.98)
 	style.set_border_width_all(2)
@@ -74,5 +81,17 @@ static func build(host: Node, victory: bool, message: String, buttons: Array, la
 		if action is Callable:
 			btn.pressed.connect(action)
 		panel.add_child(btn)
+
+	# Entrance beat — the dim washes in and the panel settles down to size, so the end of a long
+	# campaign lands as a moment rather than a hard pop. Scales from the panel's own centre. (iter343)
+	bg.modulate.a = 0.0
+	panel.pivot_offset = panel.size * 0.5
+	panel.scale = Vector2(0.92, 0.92)
+	panel.modulate.a = 0.0
+	var tw := overlay.create_tween()
+	tw.set_parallel(true)
+	tw.tween_property(bg, "modulate:a", 1.0, 0.35)
+	tw.tween_property(panel, "modulate:a", 1.0, 0.4).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	tw.tween_property(panel, "scale", Vector2.ONE, 0.45).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 	return overlay
