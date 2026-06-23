@@ -6,6 +6,7 @@ const SaveManager = preload("res://simulation/persistence/SaveManager.gd")
 const DifficultySystem = preload("res://simulation/core/DifficultySystem.gd")
 
 var _diff_val: Label = null
+var _diff_blurb: Label = null
 var _title: Label = null
 var _title_shadow: Label = null
 var _t: float = 0.0
@@ -71,8 +72,8 @@ func _build_ui() -> void:
 	const PW: float = 480.0
 	const ROW_H: float = 62.0
 	const BTN_TOP: float = 210.0
-	# Difficulty is a compact selector row (shorter than a full button row).
-	var ph: float = BTN_TOP + buttons.size() * ROW_H + 52.0 + 28.0
+	# Difficulty is a compact selector row (header + value + a one-line blurb beneath it).
+	var ph: float = BTN_TOP + buttons.size() * ROW_H + 52.0 + 56.0
 
 	# Center panel — warm parchment-dark with a heavy gold frame and shadow.
 	var panel := Panel.new()
@@ -263,6 +264,19 @@ func _build_difficulty_selector(parent: Control, pos: Vector2, width: float) -> 
 	parent.add_child(val)
 	_diff_val = val
 
+	# One-line description of what this difficulty actually changes — so the choice that shapes the
+	# whole run isn't made blind. (iter356)
+	var blurb := Label.new()
+	blurb.text = DifficultySystem.level_blurb(DifficultySystem.current)
+	blurb.position = Vector2(pos.x, row_y + 32.0)
+	blurb.size = Vector2(width, 28)
+	blurb.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	blurb.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	blurb.add_theme_font_size_override("font_size", 11)
+	blurb.add_theme_color_override("font_color", Color(0.70, 0.64, 0.50))
+	parent.add_child(blurb)
+	_diff_blurb = blurb
+
 func _make_stepper(text: String, pos: Vector2, sz: Vector2, callback: Callable) -> Button:
 	var btn := Button.new()
 	btn.text = text
@@ -289,6 +303,8 @@ func _step_difficulty(dir: int) -> void:
 	DifficultySystem.current = (DifficultySystem.current + dir + 4) % 4
 	if _diff_val != null:
 		_diff_val.text = DifficultySystem.level_name(DifficultySystem.current)
+	if _diff_blurb != null:
+		_diff_blurb.text = DifficultySystem.level_blurb(DifficultySystem.current)
 
 # ── Transitions ───────────────────────────────────────────────────────────────
 

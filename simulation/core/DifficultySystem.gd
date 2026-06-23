@@ -21,3 +21,15 @@ static func get_mod(key: String) -> float:
 
 static func level_name(lvl: int) -> String:
 	return Level.keys()[lvl].capitalize()
+
+# One-line, player-facing description of what each difficulty actually changes (derived from the
+# modifiers above) — so the menu choice that shapes the whole run isn't made blind. (iter356)
+const _BLURBS := {
+	Level.PEACEFUL:   "Gentle: rivals rarely march, coffers flow, your folk are hardy. To learn the realm.",
+	Level.NORMAL:     "Balanced: a fair test for a rising sovereign.",
+	Level.HARD:       "Harsh: bolder rivals, leaner taxes, hungrier and colder people.",
+	Level.SIEGE_LORD: "Brutal: relentless sieges; every winter and coin bites deep. For veterans.",
+}
+
+static func level_blurb(lvl: int) -> String:
+	return _BLURBS.get(lvl, "")
