@@ -220,7 +220,7 @@ const BUILDINGS: Dictionary = {
 		"terrain_req": TERRAIN_GRASS | TERRAIN_VALLEY, "fire_risk": 0.04, "hp": 40,
 		"requires_tech": ["crop_tiers"], "produces": {"wheat": 2}, "consumes": {},
 		"coverage_radius": 0,
-		"description": "Grows wheat for the bread chain. Highest food output.",
+		"description": "Grows wheat — not food yet. Feed it to a Mill (flour), then a Bakery (bread).",
 	},
 	"hops_farm": {
 		"name": "Hops Farm", "category": Category.FOOD,
@@ -230,7 +230,7 @@ const BUILDINGS: Dictionary = {
 		"terrain_req": TERRAIN_GRASS | TERRAIN_VALLEY, "fire_risk": 0.03, "hp": 40,
 		"requires_tech": ["crop_tiers"], "produces": {"hops": 2}, "consumes": {},
 		"coverage_radius": 0,
-		"description": "Grows hops for ale production.",
+		"description": "Grows hops — feed them to a Brewery to make ale (raises popularity).",
 	},
 	"mill": {
 		"name": "Mill", "category": Category.FOOD,

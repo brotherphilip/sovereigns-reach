@@ -400,6 +400,9 @@ func _build_scene() -> void:
 	# Dev hook: show the build-placement prompt banner (entered via a card click otherwise).
 	if OS.get_environment("SR_BUILDMODE") != "":
 		_dev_buildmode(OS.get_environment("SR_BUILDMODE"))
+	# Dev hook: open a build-menu category tab (0 Civic, 1 Harvest, 2 Food, 3 Military, 4 Defense).
+	if OS.get_environment("SR_BUILDTAB") != "":
+		_dev_buildtab(int(OS.get_environment("SR_BUILDTAB")))
 	var SeasonRef = preload("res://simulation/world/SeasonSystem.gd")
 	# Dev hook: jump the calendar to a chosen season (0=spring 1=summer 2=autumn 3=winter).
 	# Sets the live season DIRECTLY + repaints — the preview clock may not advance a whole
@@ -1367,6 +1370,11 @@ func _dev_buildmode(which: String) -> void:
 	if _hud != null:
 		_hud.set_build_mode_display(which if which != "1" else "village_hall")
 
+func _dev_buildtab(cat: int) -> void:
+	await get_tree().create_timer(3.0).timeout
+	if _hud != null:
+		_hud._show_build_category(cat)
+
 func _dev_obj_demo() -> void:
 	# SR_OBJDEMO=<index> shows that objective in the panel (to verify late-arc text fits);
 	# default (empty/0) plays the completion flourish on the opening objective.
@@ -1391,15 +1399,21 @@ func _dev_panel_demo(which: String) -> void:
 		_hud._toggle_edict_panel()
 
 func _dev_select_demo(which: String) -> void:
-	await get_tree().create_timer(2.5).timeout
+	await get_tree().create_timer(float(OS.get_environment("SR_SELECT_DELAY")) if OS.get_environment("SR_SELECT_DELAY") != "" else 2.5).timeout
 	if _hud == null:
 		return
 	if which == "citizen" and GameState.citizens.size() > 0:
 		_hud.show_selected_citizen(GameState.citizens[0])
 	elif which == "building" and GameState.players.size() > 0:
 		var blds: Array = GameState.players[0].get("buildings", [])
+		var BR2 = preload("res://simulation/buildings/BuildingRegistry.gd")
+		# Prefer a PRODUCER (so the Makes/Needs/status summary is exercised), else any built building.
 		for b in blds:
-			if b is Dictionary and b.get("built", false) and String(b.get("type", "")) in ["wheat_farm", "apple_orchard", "market", "woodcutter", "granary"]:
+			if b is Dictionary and b.get("built", false) and not BR2.lookup(b.get("type", "")).get("produces", {}).is_empty():
+				_hud.show_selected_building(b)
+				return
+		for b in blds:
+			if b is Dictionary and b.get("built", false):
 				_hud.show_selected_building(b)
 				return
 		if not blds.is_empty():

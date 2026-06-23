@@ -812,6 +812,25 @@ func _show_build_category(cat: int, pulse: bool = false) -> void:
 		desc_lbl.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		vb.add_child(desc_lbl)
 
+		# Production-chain input — building a Bakery with no Mill to feed it is the #1 "economy feels
+		# broken" trap. Name what it consumes, in red when the player produces none of that input. (iter351)
+		var consumes: Dictionary = defn.get("consumes", {})
+		if not consumes.is_empty():
+			var ins: Array = []
+			var missing: bool = false
+			for res in consumes:
+				ins.append(_humanize_res(res))
+				if not _player_produces(res, player):
+					missing = true
+			var needs_lbl := Label.new()
+			needs_lbl.text = "Needs: %s" % ", ".join(ins)
+			needs_lbl.add_theme_font_size_override("font_size", 9)
+			needs_lbl.add_theme_color_override("font_color",
+				Color(0.93, 0.47, 0.37) if missing else Color(0.86, 0.73, 0.42))
+			needs_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			needs_lbl.custom_minimum_size = Vector2(108, 0)
+			vb.add_child(needs_lbl)
+
 		var bi: String = btype
 		var build_btn := _make_card_button("Build", enabled)
 		var reason: String = ""
@@ -1015,10 +1034,15 @@ func show_selected_building(building: Dictionary) -> void:
 	var max_hp: int = defn.get("hp", 100)
 	var workers: int = building.get("workers", 0)
 	var max_w: int = defn.get("max_workers", 0)
+	# For producer buildings, the player most wants to know what it makes/needs and whether it's
+	# actually working — more useful than flavour text — so show that in place of the description. (iter351)
+	var _p0: Dictionary = GameState.players[0] if GameState.players.size() > 0 else {}
+	var prod_sum: String = _building_production_summary(building, defn, _p0)
+	var sel_body: String = prod_sum if prod_sum != "" else _clean_desc(String(defn.get("description", "")))
 	_sel_info.text = "HP: %d/%d  |  Fire: %s\n%s" % [
 		hp, max_hp,
 		"YES" if building.get("is_on_fire", false) else "No",
-		_clean_desc(String(defn.get("description", "")))
+		sel_body
 	]
 	_sel_workers_label.text = "Workers: %d/%d" % [workers, max_w]
 	for c in _sel_actions.get_children(): c.queue_free()
@@ -1461,6 +1485,53 @@ func _clean_desc(desc: String) -> String:
 	if gi > 0:
 		return desc.substr(0, gi).strip_edges()
 	return desc.strip_edges()
+
+# ── Production-chain readouts (iter351) — make the hidden gather→process→deliver chain legible,
+# so a Bakery built with no Mill to feed it reads as "needs flour", not as a broken economy. ──
+func _humanize_res(key: String) -> String:
+	return key.capitalize()   # "leather_armor" -> "Leather Armor"
+
+# Friendly name of the FIRST building that produces `res` (wheat -> "Wheat Farm", flour -> "Mill").
+func _resource_producer_name(res: String) -> String:
+	for t in BuildingRegistry.BUILDINGS:
+		if BuildingRegistry.BUILDINGS[t].get("produces", {}).has(res):
+			return BuildingRegistry.BUILDINGS[t].get("name", t)
+	return ""
+
+# Does the player have at least one BUILT building producing `res`?
+func _player_produces(res: String, player: Dictionary) -> bool:
+	for b in player.get("buildings", []):
+		if b is Dictionary and b.get("built", false) \
+				and BuildingRegistry.lookup(b.get("type", "")).get("produces", {}).has(res):
+			return true
+	return false
+
+# Two-line "Makes: X · Needs: Y \n <live status>" for a producer building, or "" for non-producers.
+func _building_production_summary(building: Dictionary, defn: Dictionary, player: Dictionary) -> String:
+	var outs: Array = []
+	for r in defn.get("produces", {}):
+		if r != "population_cap":
+			outs.append(_humanize_res(r))
+	var ins: Array = []
+	for r in defn.get("consumes", {}):
+		ins.append(_humanize_res(r))
+	if outs.is_empty() and ins.is_empty():
+		return ""
+	var head_parts: Array = []
+	if not outs.is_empty(): head_parts.append("Makes: %s" % ", ".join(outs))
+	if not ins.is_empty():  head_parts.append("Needs: %s" % ", ".join(ins))
+	var status: String = "⚒ Working"
+	var max_w: int = int(defn.get("max_workers", 0))
+	if max_w > 0 and int(building.get("workers", 0)) == 0:
+		status = "⏸ Idle — assign a worker"
+	else:
+		for r in defn.get("consumes", {}):
+			if not _player_produces(r, player):
+				var src: String = _resource_producer_name(r)
+				status = ("⏸ Idle — no %s yet (build a %s)" % [_humanize_res(r), src]) if src != "" \
+					else ("⏸ Idle — no %s" % _humanize_res(r))
+				break
+	return "%s\n%s" % ["  ·  ".join(head_parts), status]
 
 func set_build_mode_display(building_type: String) -> void:
 	var in_build: bool = building_type != ""
